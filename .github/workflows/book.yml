@@ -1,0 +1,123 @@
+name: Post-Quantum Zcash book
+
+# Always triggers, so the required `Post-Quantum Zcash book` check is always
+# reported (a workflow skipped by `on.paths` would leave a required check
+# pending and block merges). The heavy build/deploy is instead gated on a path
+# filter computed inside the run: it is skipped only when the change is
+# provably irrelevant to the book (touches nothing but Lean source and Lake
+# build files, which cannot affect the book).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  changes:
+    name: Detect book-relevant changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists changed files through the pull request API
+    outputs:
+      book: ${{ steps.filter.outputs.book }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      # A change is book-relevant iff some changed file is not purely a Lean
+      # source or Lake build file. The single negated brace pattern matches any
+      # file outside that set (dorny/paths-filter uses picomatch, not GitHub's
+      # own `on.paths` engine).
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        id: filter
+        with:
+          filters: |
+            book:
+              - '!{**/*.lean,lakefile.toml,lakefile.lean,lean-toolchain,lake-manifest.json}'
+
+  build:
+    name: Build the book
+    needs: changes
+    if: needs.changes.outputs.book == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Install mdbook and plugins
+        uses: taiki-e/install-action@6c1f7cf125e42770ff087ea443901b487cc5471a # v2.79.5
+        with:
+          tool: mdbook@0.5.4,mdbook-katex@0.10.0,mdbook-mermaid@0.17.1
+
+      - name: Build the Post-Quantum Zcash book
+        # Run from within book/ so the todo preprocessor's relative
+        # command path resolves.
+        run: mdbook build
+        working-directory: book
+
+      - name: Upload built book
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: book
+          path: ./book/book
+
+  deploy:
+    name: Deploy the book to GitHub Pages
+    # Disabled while the repository is private, since GitHub Pages is not
+    # enabled for it. Remove the leading `false &&` to deploy pushes to main.
+    if: false && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the built book to the gh-pages branch
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Download built book
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: book
+          path: ./book/book
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./book/book
+
+  book-ci:
+    # The single stable check to mark as a required status check. It always
+    # runs, so it always reports; it fails only if the book build actually
+    # failed.
+    name: Post-Quantum Zcash book CI
+    needs: [changes, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on the build result
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "The changes-detection job did not succeed."
+            exit 1
+          fi
+          case "$BUILD_RESULT" in
+            success|skipped)
+              echo "Book build passed or was not required for this change." ;;
+            *)
+              echo "Book build result: $BUILD_RESULT."
+              exit 1 ;;
+          esac

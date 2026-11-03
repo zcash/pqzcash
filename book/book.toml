@@ -1,0 +1,26 @@
+[book]
+authors = ["Daira-Emma Hopwood"]
+description = "Design work towards post-quantum security for Zcash."
+language = "en"
+src = "src"
+title = "Post-Quantum Zcash"
+
+[preprocessor.katex]
+macros = "macros.txt"
+after = ["links"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[preprocessor.todo]
+command = "python3 preprocessor-todo.py"
+after = ["links"]
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js", "todo.js"]
+default-theme = "rust"
+preferred-dark-theme = "rust"
+additional-css = ["custom.css"]
+hash-files = true

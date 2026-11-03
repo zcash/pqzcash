@@ -1,0 +1,14 @@
+# Operators
+\floor:{\left\lfloor{#1}\right\rfloor}
+\ceil:{\left\lceil{#1}\right\rceil}
+\Prob:{\Pr\lbrack #1\rbrack}
+\card:{\kern-0.05em\textsf{\#}{#1}}
+
+# Groups, rings and fields
+\Group:{\mathbb{G}}
+\Field:{\mathbb{F}}
+\Fp:{\mathbb{F}_p}
+\Fq:{\mathbb{F}_q}
+\Ftwo:{\mathbb{F}_2}
+\Z:{\mathbb{Z}}
+\Zq:{\mathbb{Z}_q}
