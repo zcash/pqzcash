@@ -60,6 +60,7 @@ th { white-space: normal; }
 #table td:nth-child(9) { max-width: 14ch; }
 #table td:nth-child(10) { max-width: 12ch; }
 th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; user-select: none; }
+th .unit { text-transform: none; }  /* units keep their case: uppercasing turns µs into ΜS, which reads as milliseconds */
 th.sorted-asc::after { content: " \25B2"; }
 th.sorted-desc::after { content: " \25BC"; }
 td.num { font-family: var(--mono); text-align: right; }
@@ -464,8 +465,8 @@ function render() {
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="12">No family selected.</td></tr>';
-  document.getElementById('th-prover').innerHTML = `Prover<br>${uname}`;
-  document.getElementById('th-verify').innerHTML = `Verifier<br>${uname}`;
+  document.getElementById('th-prover').innerHTML = `Prover<br><span class="unit">${uname}</span>`;
+  document.getElementById('th-verify').innerHTML = `Verifier<br><span class="unit">${uname}</span>`;
   const table = document.getElementById('table');
   if (table.dataset.sortCol !== undefined) sortTable(table, +table.dataset.sortCol, table.dataset.sortDir);
 }
