@@ -1,3 +1,10 @@
 /book/book
 /.lake
 /.elan
+__pycache__/
+# The study's scratch and retained working files, its generated page, and the papers saved
+# beside it are not tracked.
+/ragu-pcs/work/
+/ragu-pcs/keep/
+/ragu-pcs/hash-based/
+/ragu-pcs/pareto.html

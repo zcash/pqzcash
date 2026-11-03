@@ -1,0 +1,29 @@
+2026-10-14 00:15:27 start build-estimator
+2026-10-14 00:15:34 ok    build-estimator (7 s)
+2026-10-14 00:15:34 start build-planner
+2026-10-14 00:15:34 ok    build-planner (0 s)
+2026-10-14 00:15:34 start pasta-rank
+2026-10-14 00:15:34 ok    pasta-rank (0 s)
+2026-10-14 00:15:34 start catalog-reprice
+2026-10-14 00:15:34 ok    catalog-reprice (0 s)
+2026-10-14 00:15:34 start replan-pallas
+2026-10-14 00:20:51 ok    replan-pallas (317 s)
+2026-10-14 00:20:51 start replan-base
+2026-10-14 00:24:17 ok    replan-base (206 s)
+2026-10-14 00:24:17 start replan-q64
+2026-10-14 00:27:42 ok    replan-q64 (205 s)
+2026-10-14 00:27:42 start reprice-replan-q64
+2026-10-14 00:27:42 ok    reprice-replan-q64 (0 s)
+2026-10-14 00:27:42 start reprice-replan-pallas
+2026-10-14 00:27:42 ok    reprice-replan-pallas (0 s)
+2026-10-14 00:27:42 start reprice-replan-base
+2026-10-14 00:27:42 ok    reprice-replan-base (0 s)
+2026-10-14 00:27:42 start l2-table-pallas-goldilocks
+2026-10-14 00:27:42 ok    l2-table-pallas-goldilocks (0 s)
+2026-10-14 00:27:42 start linf-table-pallas
+2026-10-14 02:53:43 ok    linf-table-pallas (8761 s)
+2026-10-14 02:53:43 start linf-table-goldilocks
+2026-10-14 03:57:21 ok    linf-table-goldilocks (3818 s)
+2026-10-14 03:57:21 start catalog-security
+2026-10-14 04:34:29 ok    catalog-security (2228 s)
+2026-10-14 04:34:29 done; outputs in work/akita-pasta-out

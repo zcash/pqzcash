@@ -1,0 +1,1461 @@
+diff --git a/crates/akita-params/src/layout/mod.rs b/crates/akita-params/src/layout/mod.rs
+index d2673c7..a0ad3d2 100644
+--- a/crates/akita-params/src/layout/mod.rs
++++ b/crates/akita-params/src/layout/mod.rs
+@@ -49,6 +49,7 @@ pub use proof_size::{
+     extension_opening_reduction_level_bytes, extension_opening_reduction_proof_bytes, field_bytes,
+     padded_boolean_opening_vars, sumcheck_rounds, terminal_response_bytes,
+     terminal_response_max_bytes, terminal_response_planner_bytes,
++    terminal_response_planner_bytes_split,
+     try_extension_opening_reduction_level_bytes, EXTENSION_OPENING_REDUCTION_DEGREE,
+     SETUP_SUMCHECK_DEGREE,
+ };
+diff --git a/crates/akita-params/src/layout/proof_size.rs b/crates/akita-params/src/layout/proof_size.rs
+index d523134..55e0f04 100644
+--- a/crates/akita-params/src/layout/proof_size.rs
++++ b/crates/akita-params/src/layout/proof_size.rs
+@@ -43,20 +43,35 @@ fn checked_terminal_response_bytes(
+     shape: &TerminalResponseShape,
+     z_payload_bytes: usize,
+ ) -> Result<usize, AkitaError> {
+-    let field_count = shape
++    checked_terminal_response_bytes_split(field_bits, field_bits, shape, z_payload_bytes)
++}
++
++/// [`checked_terminal_response_bytes`] with the partial evaluations `e` and
++/// the inner images `t` priced at separate widths.
++///
++/// Offline comparison only. The partials are claim-field values, the inner
++/// images are commitment coordinates, and a design whose commitment modulus
++/// differs from its claim field serializes them at different widths.
++fn checked_terminal_response_bytes_split(
++    e_field_bits: u32,
++    t_field_bits: u32,
++    shape: &TerminalResponseShape,
++    z_payload_bytes: usize,
++) -> Result<usize, AkitaError> {
++    let (e_count, t_count) = shape
+         .layout
+         .groups
+         .iter()
+-        .try_fold(0usize, |count, group| {
+-            count
+-                .checked_add(group.e_field_elems)
+-                .and_then(|value| value.checked_add(group.t_field_elems))
+-                .ok_or_else(|| {
+-                    AkitaError::InvalidSetup("native terminal field-count overflow".into())
+-                })
+-        })?;
+-    let field_payload_bytes = field_count
+-        .checked_mul(field_bytes(field_bits))
++        .try_fold((0usize, 0usize), |(e, t), group| {
++            Some((
++                e.checked_add(group.e_field_elems)?,
++                t.checked_add(group.t_field_elems)?,
++            ))
++        })
++        .ok_or_else(|| AkitaError::InvalidSetup("native terminal field-count overflow".into()))?;
++    let field_payload_bytes = e_count
++        .checked_mul(field_bytes(e_field_bits))
++        .and_then(|e_bytes| t_count.checked_mul(field_bytes(t_field_bits))?.checked_add(e_bytes))
+         .ok_or_else(|| AkitaError::InvalidSetup("native terminal field-size overflow".into()))?;
+     let framing_bytes =
+         shape.layout.groups.len().checked_mul(4).ok_or_else(|| {
+@@ -78,13 +93,34 @@ pub fn terminal_response_planner_bytes(
+     field_bits: u32,
+     shape: &TerminalResponseShape,
+     response_l2_sq_cap: Option<u128>,
++) -> Result<usize, AkitaError> {
++    terminal_response_planner_bytes_split(field_bits, field_bits, shape, response_l2_sq_cap)
++}
++
++/// [`terminal_response_planner_bytes`] with the partial evaluations and the
++/// inner images priced at separate widths. Offline comparison only.
++pub fn terminal_response_planner_bytes_split(
++    e_field_bits: u32,
++    t_field_bits: u32,
++    shape: &TerminalResponseShape,
++    response_l2_sq_cap: Option<u128>,
+ ) -> Result<usize, AkitaError> {
+     let scheduled_z_bytes = shape.layout.z_payload_bytes();
+     let Some(l2_sq_cap) = response_l2_sq_cap else {
+-        return checked_terminal_response_bytes(field_bits, shape, scheduled_z_bytes);
++        return checked_terminal_response_bytes_split(
++            e_field_bits,
++            t_field_bits,
++            shape,
++            scheduled_z_bytes,
++        );
+     };
+     let [group] = shape.layout.groups.as_slice() else {
+-        return checked_terminal_response_bytes(field_bits, shape, scheduled_z_bytes);
++        return checked_terminal_response_bytes_split(
++            e_field_bits,
++            t_field_bits,
++            shape,
++            scheduled_z_bytes,
++        );
+     };
+     let Some(z_payload_bytes) =
+         crate::tail_golomb_rice_low_bits::golomb_rice_l2_planner_payload_bytes(
+@@ -93,10 +129,16 @@ pub fn terminal_response_planner_bytes(
+             group.z_rice_low_bits,
+         )
+     else {
+-        return checked_terminal_response_bytes(field_bits, shape, scheduled_z_bytes);
++        return checked_terminal_response_bytes_split(
++            e_field_bits,
++            t_field_bits,
++            shape,
++            scheduled_z_bytes,
++        );
+     };
+-    checked_terminal_response_bytes(
+-        field_bits,
++    checked_terminal_response_bytes_split(
++        e_field_bits,
++        t_field_bits,
+         shape,
+         z_payload_bytes.min(group.z_payload_bytes),
+     )
+diff --git a/crates/akita-params/src/lib.rs b/crates/akita-params/src/lib.rs
+index ec8b87f..202949a 100644
+--- a/crates/akita-params/src/lib.rs
++++ b/crates/akita-params/src/lib.rs
+@@ -52,7 +52,8 @@ pub use layout::{
+     setup_matrix_capacity_for_schedule, setup_matrix_field_elements_for_schedule,
+     setup_prefix_precommitted_params, setup_prefix_slot_field_elements, shared_d_digit_log_basis,
+     suffix_opening_layout, sumcheck_rounds, terminal_response_bytes, terminal_response_max_bytes,
+-    terminal_response_planner_bytes, terminal_response_upper_bound_bytes,
++    terminal_response_planner_bytes, terminal_response_planner_bytes_split,
++    terminal_response_upper_bound_bytes,
+     try_extension_opening_reduction_level_bytes, validate_role_dims, validate_schedule_ring_dims,
+     validate_setup_prefix_domain, verifier_setup_matrix_capacity_for_schedule,
+     witness_commitment_domain_len, BasisMode, BlockGeometry, CommitmentRingDims,
+diff --git a/crates/akita-params/src/proof_size.rs b/crates/akita-params/src/proof_size.rs
+index 9c3fc1a..2752a5d 100644
+--- a/crates/akita-params/src/proof_size.rs
++++ b/crates/akita-params/src/proof_size.rs
+@@ -15,6 +15,10 @@ use crate::layout::field_bytes;
+ use crate::{CommittedGroupParams, DigitRangePlan, RelationAddressGeometry, Stage1StageShape};
+ use akita_error::AkitaError;
+ 
++const fn field_bytes_const(field_bits: u32) -> usize {
++    (field_bits as usize).div_ceil(8)
++}
++
+ fn compressed_unipoly_bytes(degree: usize, elem_bytes: usize) -> usize {
+     degree * elem_bytes
+ }
+@@ -89,6 +93,22 @@ impl NonterminalLevelLayout {
+         self.next_outer_payload_coeffs
+     }
+ 
++    /// Re-price this layout's atoms at other field widths.
++    ///
++    /// Offline comparison only. The atom counts and sum-check shapes stay
++    /// those of the schedule that produced the layout; only the serialized
++    /// width of a base-field atom and of a challenge-field atom change. This
++    /// is how a schedule planned for one modulus is priced as if its atoms
++    /// were serialized over another, wider or narrower, modulus. It skips the
++    /// profile check of [`nonterminal_level_layout`], so it must not feed any
++    /// verifier-facing grammar.
++    #[must_use]
++    pub const fn with_field_widths(mut self, base_field_bits: u32, challenge_field_bits: u32) -> Self {
++        self.base_field_bytes = field_bytes_const(base_field_bits);
++        self.challenge_field_bytes = field_bytes_const(challenge_field_bits);
++        self
++    }
++
+     /// Maximum fixed-width bytes emitted by this level.
+     pub fn encoded_len(self) -> Result<usize, AkitaError> {
+         let opening_payload_bytes =
+diff --git a/crates/akita-planner/Cargo.toml b/crates/akita-planner/Cargo.toml
+index 0530f60..1f7e2e6 100644
+--- a/crates/akita-planner/Cargo.toml
++++ b/crates/akita-planner/Cargo.toml
+@@ -65,5 +65,10 @@ name = "catalog_security"
+ path = "examples/catalog_security.rs"
+ required-features = ["catalog-security"]
+ 
++[[example]]
++name = "catalog_reprice"
++path = "examples/catalog_reprice.rs"
++required-features = ["catalog-gen"]
++
+ [lints]
+ workspace = true
+diff --git a/crates/akita-planner/examples/catalog_reprice.rs b/crates/akita-planner/examples/catalog_reprice.rs
+new file mode 100644
+index 0000000..80ddee2
+--- /dev/null
++++ b/crates/akita-planner/examples/catalog_reprice.rs
+@@ -0,0 +1,219 @@
++//! Re-price every checked-in schedule artifact at other field widths.
++//!
++//! For each generated schedule row this prints the planner's proof estimate
++//! at the schedule's own modulus, then the same schedule geometry priced as
++//! if its atoms were serialized over the Pallas base field (255-bit base and
++//! challenge field, no extension) and over Goldilocks (64-bit base field with
++//! a degree-2 challenge extension, as the fp64 presets use). The geometry is
++//! not re-planned: see `FieldWidthOverride` in `akita-schedules` for exactly
++//! what is and is not re-priced.
++//!
++//! Output is TSV on stdout. The breakdown columns split each total into the
++//! non-terminal direct payloads, offloaded setup sum-checks, the terminal
++//! extension-opening reduction, the terminal response, and grinding nonces.
++
++use std::env;
++use std::fmt::Write as _;
++use std::fs;
++use std::path::PathBuf;
++
++use akita_planner::generated_families::{GeneratedFamily, ALL_GENERATED_FAMILIES};
++use akita_schedules::{expanded_schedule_proof_breakdown, FieldWidthOverride, ProofEstimateBreakdown};
++
++/// Every atom at Pasta width: the schedule serialized over the Pallas base
++/// field with the commitment modulus equal to the field, as Akita does.
++const PALLAS: FieldWidthOverride = FieldWidthOverride {
++    base_field_bits: 255,
++    challenge_field_bits: 255,
++    claim_ext_degree: 1,
++    commitment_field_bits: None,
++};
++
++/// Pasta claim field, with commitment coordinates kept at their fp128 width.
++/// Commitment coordinates are SIS-sized in bits, so a native Pasta plan needs
++/// about half the rows of the fp128 geometry here; pricing them at 128 bits
++/// approximates that without changing the geometry.
++const PALLAS_SIS: FieldWidthOverride = FieldWidthOverride {
++    base_field_bits: 255,
++    challenge_field_bits: 255,
++    claim_ext_degree: 1,
++    commitment_field_bits: Some(128),
++};
++
++/// Pasta claim field with a 64-bit commitment modulus: inner images and
++/// compressed payloads at 8 bytes, partials and sum-check messages at 32.
++const PALLAS_Q64: FieldWidthOverride = FieldWidthOverride {
++    base_field_bits: 255,
++    challenge_field_bits: 255,
++    claim_ext_degree: 1,
++    commitment_field_bits: Some(64),
++};
++
++const GOLDILOCKS: FieldWidthOverride = FieldWidthOverride {
++    base_field_bits: 64,
++    challenge_field_bits: 128,
++    claim_ext_degree: 2,
++    commitment_field_bits: None,
++};
++
++fn usage() -> &'static str {
++    "usage: cargo run --release -p akita-planner --features catalog-gen \
++     --example catalog_reprice -- [--artifacts DIR] [family_name ...]\n\
++     --artifacts DIR reads `<family>.aks` files from DIR instead of the checked-in artifacts; \
++     families whose file is missing there are skipped"
++}
++
++fn selected_families(names: &[String]) -> Result<Vec<&'static GeneratedFamily>, String> {
++    if names.is_empty() {
++        return Ok(ALL_GENERATED_FAMILIES.iter().collect());
++    }
++    names
++        .iter()
++        .map(|name| {
++            ALL_GENERATED_FAMILIES
++                .iter()
++                .find(|family| family.family_name() == name)
++                .ok_or_else(|| format!("unknown generated schedule family {name:?}\n{}", usage()))
++        })
++        .collect()
++}
++
++fn logical_key(key: &akita_params::ScheduleLookupKey) -> String {
++    let mut logical = format!(
++        "final={}:{};precommitted=",
++        key.final_group.num_vars(),
++        key.final_group.num_polynomials(),
++    );
++    for (index, precommitted) in key.precommitteds.iter().enumerate() {
++        if index != 0 {
++            logical.push(',');
++        }
++        write!(
++            logical,
++            "{}:{}",
++            precommitted.group.num_vars(),
++            precommitted.group.num_polynomials(),
++        )
++        .expect("writing to String cannot fail");
++    }
++    logical
++}
++
++fn breakdown_columns(breakdown: &ProofEstimateBreakdown) -> String {
++    format!(
++        "{}\t{}\t{}\t{}\t{}\t{}",
++        breakdown.total(),
++        breakdown.nonterminal_direct_bytes,
++        breakdown.stage3_bytes,
++        breakdown.terminal_eor_bytes,
++        breakdown.terminal_response_bytes,
++        breakdown.nonce_max_bytes,
++    )
++}
++
++fn main() -> Result<(), String> {
++    let mut names = Vec::new();
++    let mut artifacts_dir: Option<PathBuf> = None;
++    let mut args = env::args().skip(1);
++    while let Some(arg) = args.next() {
++        match arg.as_str() {
++            "--help" | "-h" => {
++                println!("{}", usage());
++                return Ok(());
++            }
++            "--artifacts" => {
++                let value = args
++                    .next()
++                    .ok_or_else(|| format!("--artifacts requires a directory\n{}", usage()))?;
++                artifacts_dir = Some(PathBuf::from(value));
++            }
++            _ if arg.starts_with('-') => {
++                return Err(format!("unknown option {arg:?}\n{}", usage()));
++            }
++            _ => names.push(arg),
++        }
++    }
++    let explicit_artifacts = artifacts_dir.is_some();
++    let artifacts_dir = artifacts_dir.unwrap_or_else(|| {
++        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../artifacts/schedules")
++    });
++
++    println!(
++        "family\tlogical_key\tfold_levels\tmodulus_profile\tbase_bits\tchallenge_bits\tclaim_ext_degree\
++         \toriginal_total\toriginal_nonterminal\toriginal_stage3\toriginal_terminal_eor\toriginal_terminal_response\toriginal_nonce\
++         \tpallas_total\tpallas_nonterminal\tpallas_stage3\tpallas_terminal_eor\tpallas_terminal_response\tpallas_nonce\
++         \tgoldilocks_total\tgoldilocks_nonterminal\tgoldilocks_stage3\tgoldilocks_terminal_eor\tgoldilocks_terminal_response\tgoldilocks_nonce\
++         \tpallas_sis_total\tpallas_sis_nonterminal\tpallas_sis_stage3\tpallas_sis_terminal_eor\tpallas_sis_terminal_response\tpallas_sis_nonce\
++         \tpallas_q64_total\tpallas_q64_nonterminal\tpallas_q64_stage3\tpallas_q64_terminal_eor\tpallas_q64_terminal_response\tpallas_q64_nonce"
++    );
++    let mut rows = 0usize;
++    for family in selected_families(&names)? {
++        let policy = (family.policy)();
++        let artifact_path = artifacts_dir.join(format!("{}.aks", family.family_name()));
++        if explicit_artifacts && !artifact_path.is_file() {
++            continue;
++        }
++        let bytes = fs::read(&artifact_path)
++            .map_err(|error| format!("read {}: {error}", artifact_path.display()))?;
++        let catalog = akita_schedules::ValidatedScheduleCatalog::from_artifact_bytes(
++            &bytes,
++            family.family_name(),
++            &policy,
++            family.ring_challenge_config,
++        )
++        .map_err(|error| format!("load {}: {error}", artifact_path.display()))?;
++        let challenge_bits = policy
++            .challenge_field_bits()
++            .map_err(|error| format!("{}: challenge field bits: {error}", family.family_name()))?;
++        for resolved in catalog.rows() {
++            let profiles = resolved.profiles();
++            let key = akita_params::ScheduleLookupKey {
++                final_group: profiles.final_group.group,
++                precommitteds: profiles.precommitteds.clone(),
++            };
++            let schedule = resolved.schedule();
++            let context = |what: &str| format!("{} {}: {what}", family.family_name(), logical_key(&key));
++            let original = expanded_schedule_proof_breakdown(&key, schedule, &policy, None)
++                .map_err(|error| context(&format!("original estimate: {error}")))?;
++            let expected = akita_schedules::expanded_schedule_proof_estimate_bytes(&key, schedule, &policy)
++                .map_err(|error| context(&format!("reference estimate: {error}")))?;
++            if original.total() != expected {
++                return Err(context(&format!(
++                    "breakdown total {} disagrees with the planner estimate {expected}",
++                    original.total()
++                )));
++            }
++            let pallas = expanded_schedule_proof_breakdown(&key, schedule, &policy, Some(PALLAS))
++                .map_err(|error| context(&format!("pallas re-pricing: {error}")))?;
++            let goldilocks =
++                expanded_schedule_proof_breakdown(&key, schedule, &policy, Some(GOLDILOCKS))
++                    .map_err(|error| context(&format!("goldilocks re-pricing: {error}")))?;
++            let pallas_sis =
++                expanded_schedule_proof_breakdown(&key, schedule, &policy, Some(PALLAS_SIS))
++                    .map_err(|error| context(&format!("pallas-sis re-pricing: {error}")))?;
++            let pallas_q64 =
++                expanded_schedule_proof_breakdown(&key, schedule, &policy, Some(PALLAS_Q64))
++                    .map_err(|error| context(&format!("pallas-q64 re-pricing: {error}")))?;
++            println!(
++                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
++                family.family_name(),
++                logical_key(&key),
++                schedule.num_fold_levels(),
++                policy.sis_modulus_profile.name(),
++                policy.decomposition.field_bits(),
++                challenge_bits,
++                policy.claim_ext_degree,
++                breakdown_columns(&original),
++                breakdown_columns(&pallas),
++                breakdown_columns(&goldilocks),
++                breakdown_columns(&pallas_sis),
++                breakdown_columns(&pallas_q64),
++            );
++            rows += 1;
++        }
++    }
++    if rows == 0 {
++        return Err("no generated schedule row matched the requested families".to_string());
++    }
++    Ok(())
++}
+diff --git a/crates/akita-planner/src/bin/gen_schedule_artifacts.rs b/crates/akita-planner/src/bin/gen_schedule_artifacts.rs
+index a91f009..dc7bcd7 100644
+--- a/crates/akita-planner/src/bin/gen_schedule_artifacts.rs
++++ b/crates/akita-planner/src/bin/gen_schedule_artifacts.rs
+@@ -619,9 +619,51 @@ fn emit_spec_with_overrides(
+     Ok(spec)
+ }
+ 
++/// Parse `AKITA_PRICING_WIDTHS=base_bits:challenge_bits:claim_ext_degree`.
++fn parse_pricing_widths(raw: &str) -> Result<akita_schedules::FieldWidthOverride, String> {
++    let parts: Vec<&str> = raw.split(':').collect();
++    let (base, challenge, ext, commitment) = match parts.as_slice() {
++        [base, challenge, ext] => (*base, *challenge, *ext, None),
++        [base, challenge, ext, commitment] => (*base, *challenge, *ext, Some(*commitment)),
++        _ => {
++            return Err(format!(
++                "AKITA_PRICING_WIDTHS must be `base_bits:challenge_bits:claim_ext_degree[:commitment_bits]`, got `{raw}`"
++            ));
++        }
++    };
++    let parse = |label: &str, value: &str| -> Result<u32, String> {
++        value
++            .parse::<u32>()
++            .ok()
++            .filter(|value| *value > 0)
++            .ok_or_else(|| format!("AKITA_PRICING_WIDTHS: invalid {label} `{value}`"))
++    };
++    Ok(akita_schedules::FieldWidthOverride {
++        base_field_bits: parse("base_bits", base)?,
++        challenge_field_bits: parse("challenge_bits", challenge)?,
++        claim_ext_degree: parse("claim_ext_degree", ext)? as usize,
++        commitment_field_bits: commitment
++            .map(|value| parse("commitment_bits", value))
++            .transpose()?,
++    })
++}
++
+ fn main() -> Result<(), String> {
+     let generation_started = Instant::now();
+     let args = parse_args()?;
++    if let Some(raw) = env::var_os("AKITA_PRICING_WIDTHS") {
++        let widths = parse_pricing_widths(&raw.to_string_lossy())?;
++        akita_schedules::set_pricing_width_override(Some(widths));
++        eprintln!(
++            "pricing width override: base {} bits, challenge {} bits, claim extension degree {}, \
++             commitment {} bits; schedules are selected and priced at these widths, geometry \
++             stays the policy's",
++            widths.base_field_bits,
++            widths.challenge_field_bits,
++            widths.claim_ext_degree,
++            widths.commitment_bits()
++        );
++    }
+     validate_explicit_output_isolation(&args.base_dir, &args.explicit_rows)?;
+     fs::create_dir_all(&args.base_dir)
+         .map_err(|e| format!("create {}: {e}", args.base_dir.display()))?;
+diff --git a/crates/akita-planner/src/schedule_params/suffix_dp.rs b/crates/akita-planner/src/schedule_params/suffix_dp.rs
+index 75e27a2..322d353 100644
+--- a/crates/akita-planner/src/schedule_params/suffix_dp.rs
++++ b/crates/akita-planner/src/schedule_params/suffix_dp.rs
+@@ -9,7 +9,7 @@ use akita_params::{
+     active_setup_field_len, CommitmentRingDims, CommittedGroupParams, OpeningClaimsLayout,
+     PolynomialGroupLayout, TerminalResponseShape,
+ };
+-use akita_params::{terminal_response_planner_bytes, ScheduleLookupKey};
++use akita_params::ScheduleLookupKey;
+ 
+ use crate::PlannerPolicy;
+ 
+@@ -708,12 +708,14 @@ fn price_terminal_candidate(
+     {
+         return Ok(());
+     }
++    // Priced at the process-wide pricing widths when an override is installed.
++    let pricing = akita_schedules::pricing_widths(policy)?;
+     let opening_reduction_bytes = akita_params::extension_opening_reduction_level_bytes(
+-        policy.challenge_field_bits()?,
+-        policy.claim_ext_degree,
++        pricing.challenge_field_bits,
++        pricing.claim_ext_degree,
+         candidate_params.group(),
+     )?;
+-    let field_bits = policy.decomposition.field_bits();
++    let field_bits = pricing.base_field_bits;
+     let Some((mut direct_step, suffix_cost)) = try_terminal_direct_suffix_cost(
+         policy,
+         state
+diff --git a/crates/akita-planner/src/schedule_params/suffix_dp/source.rs b/crates/akita-planner/src/schedule_params/suffix_dp/source.rs
+index 9474817..43bd9e5 100644
+--- a/crates/akita-planner/src/schedule_params/suffix_dp/source.rs
++++ b/crates/akita-planner/src/schedule_params/suffix_dp/source.rs
+@@ -20,9 +20,11 @@ pub(super) fn attach_source_moments(
+             .opening_method()
+             .requires_extension_opening_reduction(policy.claim_ext_degree)
+         {
++            // Geometry follows the policy; bytes follow the pricing widths.
++            let pricing = akita_schedules::pricing_widths(policy)?;
+             akita_params::extension_opening_reduction_level_bytes(
+-                policy.challenge_field_bits()?,
+-                policy.claim_ext_degree,
++                pricing.challenge_field_bits,
++                pricing.claim_ext_degree,
+                 opening_layout.aggregate_polynomial_group_layout()?,
+             )?
+         } else {
+diff --git a/crates/akita-planner/src/schedule_params/suffix_dp/terminal.rs b/crates/akita-planner/src/schedule_params/suffix_dp/terminal.rs
+index 8f96f03..752a267 100644
+--- a/crates/akita-planner/src/schedule_params/suffix_dp/terminal.rs
++++ b/crates/akita-planner/src/schedule_params/suffix_dp/terminal.rs
+@@ -147,8 +147,11 @@ pub(crate) fn terminal_direct_suffix_cost(
+         })
+         .unwrap_or(certified_linf_cap);
+     let witness_shape = TerminalResponseShape::derive(&terminal_params, encoding_scale)?;
+-    let estimated_terminal_bytes = terminal_response_planner_bytes(
++    // Partials at the (possibly overridden) base width, inner images at the
++    // commitment width; without an override both equal `field_bits`.
++    let estimated_terminal_bytes = akita_params::terminal_response_planner_bytes_split(
+         field_bits,
++        akita_schedules::pricing_widths(policy)?.commitment_bits(),
+         &witness_shape,
+         terminal_params.response_l2_sq_cap(),
+     )?;
+diff --git a/crates/akita-schedules/src/lib.rs b/crates/akita-schedules/src/lib.rs
+index 3da2b67..7f02ca9 100644
+--- a/crates/akita-schedules/src/lib.rs
++++ b/crates/akita-schedules/src/lib.rs
+@@ -19,9 +19,12 @@ pub use artifact::{
+ pub use policy_digest::policy_digest;
+ pub use resolve::ResolvedScheduleRow;
+ pub use runtime::{
+-    expanded_schedule_proof_bound, expanded_schedule_proof_estimate_bytes, validate_policy,
+-    PlannerCostModelId, PlannerPolicy, RecursiveSetupSearchPolicy, RecursiveSplitSearchPolicy,
+-    RingDimensionSchedule, SelectionPolicyId, SelectiveL2ResponseModelId, ADAPTIVE_SEARCH_LEVELS,
++    expanded_schedule_proof_bound, expanded_schedule_proof_breakdown,
++    expanded_schedule_proof_estimate_bytes, pricing_width_override, pricing_widths,
++    set_pricing_width_override, validate_policy, FieldWidthOverride, PlannerCostModelId,
++    PlannerPolicy, ProofEstimateBreakdown, RecursiveSetupSearchPolicy,
++    RecursiveSplitSearchPolicy, RingDimensionSchedule, SelectionPolicyId,
++    SelectiveL2ResponseModelId, ADAPTIVE_SEARCH_LEVELS,
+ };
+ 
+ /// Shared schedule-construction primitives used by offline search and artifact validation.
+diff --git a/crates/akita-schedules/src/runtime.rs b/crates/akita-schedules/src/runtime.rs
+index 33d6db7..b772583 100644
+--- a/crates/akita-schedules/src/runtime.rs
++++ b/crates/akita-schedules/src/runtime.rs
+@@ -484,10 +484,67 @@ pub struct CandidateMaterializationCost {
+     pub first_direct_setup_field_len: Option<usize>,
+ }
+ 
++static PRICING_WIDTH_OVERRIDE: std::sync::RwLock<Option<FieldWidthOverride>> =
++    std::sync::RwLock::new(None);
++
++/// Install or clear a process-wide pricing width override.
++///
++/// Offline experiments only. While set, every byte estimate that the planner
++/// and the catalog tooling derive from a policy, through
++/// [`nonterminal_level_payload_bytes`], [`stage3_payload_bytes_for_successor`],
++/// [`expanded_schedule_proof_estimate_bytes`], and the terminal pricing, uses
++/// these widths instead of the policy's own. Schedule geometry, SIS sizing,
++/// digit bases, and validation are unaffected: the override changes what the
++/// planner thinks a schedule costs on the wire, and therefore which schedule
++/// it selects, not what the schedule is. The artifact generator sets it from
++/// `AKITA_PRICING_WIDTHS=base_bits:challenge_bits:claim_ext_degree`.
++pub fn set_pricing_width_override(widths: Option<FieldWidthOverride>) {
++    *PRICING_WIDTH_OVERRIDE
++        .write()
++        .expect("pricing width override lock is not poisoned") = widths;
++}
++
++/// The process-wide pricing width override, if any.
++#[must_use]
++pub fn pricing_width_override() -> Option<FieldWidthOverride> {
++    *PRICING_WIDTH_OVERRIDE
++        .read()
++        .expect("pricing width override lock is not poisoned")
++}
++
++/// The widths at which bytes derived from `policy` are priced: the
++/// process-wide override if one is installed, else the policy's own.
++///
++/// # Errors
++///
++/// Returns an error when the policy's challenge field width is invalid.
++pub fn pricing_widths(policy: &PlannerPolicy) -> Result<FieldWidthOverride, AkitaError> {
++    if let Some(widths) = pricing_width_override() {
++        return Ok(widths);
++    }
++    Ok(FieldWidthOverride {
++        base_field_bits: policy.decomposition.field_bits(),
++        challenge_field_bits: policy.challenge_field_bits()?,
++        claim_ext_degree: policy.claim_ext_degree,
++        commitment_field_bits: None,
++    })
++}
++
+ /// Exact Stage-3 payload induced when `successor` consumes a setup prefix.
+ pub fn stage3_payload_bytes_for_successor(
+     policy: &PlannerPolicy,
+     successor: FoldSuccessor<'_>,
++) -> Result<usize, AkitaError> {
++    stage3_payload_bytes_for_successor_with_bits(
++        pricing_widths(policy)?.challenge_field_bits,
++        successor,
++    )
++}
++
++/// [`stage3_payload_bytes_for_successor`] at an explicit challenge-field width.
++fn stage3_payload_bytes_for_successor_with_bits(
++    challenge_field_bits: u32,
++    successor: FoldSuccessor<'_>,
+ ) -> Result<usize, AkitaError> {
+     let Some(prefix) = (match successor {
+         FoldSuccessor::Recursive(params) => params.setup_prefix(),
+@@ -501,7 +558,6 @@ pub fn stage3_payload_bytes_for_successor(
+             "setup-prefix field length does not align with its ring dimension".to_string(),
+         ));
+     }
+-    let challenge_field_bits = policy.challenge_field_bits()?;
+     Ok(akita_params::proof_size::stage3_setup_product_bytes(
+         challenge_field_bits,
+         prefix.d_setup(),
+@@ -525,7 +581,109 @@ pub fn nonterminal_level_payload_bytes(
+     successor: FoldSuccessor<'_>,
+     output_witness_len: usize,
+ ) -> Result<NonterminalLevelPayloadBytes, AkitaError> {
+-    let challenge_field_bits = policy.challenge_field_bits()?;
++    nonterminal_level_payload_bytes_with_widths(
++        policy,
++        params,
++        opening_layout,
++        successor,
++        output_witness_len,
++        pricing_width_override(),
++    )
++}
++
++/// Field widths at which an existing schedule is re-priced.
++///
++/// Offline comparison only. The schedule geometry is kept as planned: fold
++/// levels, witness lengths, digit bases, sum-check shapes, and the terminal
++/// shape all stay those of the schedule's own modulus. What changes is the
++/// serialized width of a base-field atom and of a challenge-field atom, and
++/// the claim extension degree used to price the extension-opening reduction.
++/// This prices "the same schedule, serialized over another field", which
++/// is a lower bound on what a schedule planned natively for that field would
++/// cost when the other field has more digits per coefficient, and an upper
++/// bound when it has fewer.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct FieldWidthOverride {
++    /// Bits of a base-field element: the width of a clear partial evaluation.
++    pub base_field_bits: u32,
++    /// Bits of a challenge-field element: the width of a sum-check message.
++    pub challenge_field_bits: u32,
++    /// Claim extension degree over the base field; `1` prices no extension-opening reduction.
++    pub claim_ext_degree: usize,
++    /// Bits of a commitment coordinate, when the commitment modulus differs
++    /// from the claim field: the width of a compressed image atom in a
++    /// non-terminal payload and of a clear inner image at the terminal.
++    /// `None` prices them at `base_field_bits`, as Akita does.
++    pub commitment_field_bits: Option<u32>,
++}
++
++impl FieldWidthOverride {
++    /// Width of a commitment coordinate.
++    #[must_use]
++    pub const fn commitment_bits(&self) -> u32 {
++        match self.commitment_field_bits {
++            Some(bits) => bits,
++            None => self.base_field_bits,
++        }
++    }
++}
++
++/// Byte breakdown of one schedule's proof estimate.
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub struct ProofEstimateBreakdown {
++    /// Direct payloads of every non-terminal level: opening payloads and
++    /// compressed images (base-field atoms), the range, norm, and fused
++    /// sum-checks and per-level extension-opening reductions (challenge-field
++    /// atoms).
++    pub nonterminal_direct_bytes: usize,
++    /// Setup-product sum-checks of offloaded levels (challenge-field atoms).
++    pub stage3_bytes: usize,
++    /// Terminal extension-opening reduction (challenge-field atoms).
++    pub terminal_eor_bytes: usize,
++    /// Terminal response: clear partials (base-field atoms) and the
++    /// digit-valued folded response.
++    pub terminal_response_bytes: usize,
++    /// Canonical grinding nonces, priced from the schedule's own policy.
++    pub nonce_max_bytes: usize,
++}
++
++impl ProofEstimateBreakdown {
++    /// Sum of every component; equals [`expanded_schedule_proof_estimate_bytes`]
++    /// when no override is applied.
++    #[must_use]
++    pub const fn total(&self) -> usize {
++        self.nonterminal_direct_bytes
++            + self.stage3_bytes
++            + self.terminal_eor_bytes
++            + self.terminal_response_bytes
++            + self.nonce_max_bytes
++    }
++}
++
++fn nonterminal_level_payload_bytes_with_widths(
++    policy: &PlannerPolicy,
++    params: &CommittedGroupParams,
++    opening_layout: &OpeningClaimsLayout,
++    successor: FoldSuccessor<'_>,
++    output_witness_len: usize,
++    widths: Option<FieldWidthOverride>,
++) -> Result<NonterminalLevelPayloadBytes, AkitaError> {
++    let policy_base_field_bits = policy.decomposition.field_bits();
++    let policy_challenge_field_bits = policy.challenge_field_bits()?;
++    // The base-field atoms of a non-terminal level are compressed commitment
++    // images, so they are priced at the commitment width.
++    let (payload_field_bits, challenge_field_bits, claim_ext_degree) = match widths {
++        Some(widths) => (
++            widths.commitment_bits(),
++            widths.challenge_field_bits,
++            widths.claim_ext_degree,
++        ),
++        None => (
++            policy_base_field_bits,
++            policy_challenge_field_bits,
++            policy.claim_ext_degree,
++        ),
++    };
+     let next_outer_payload = match successor {
+         FoldSuccessor::Recursive(params) => Some(params),
+         FoldSuccessor::Terminal(_) => None,
+@@ -536,13 +694,16 @@ pub fn nonterminal_level_payload_bytes(
+         successor.ring_dimension(),
+         output_witness_len,
+     )?;
++    // The layout is derived at the schedule's own widths so that its profile
++    // check runs, then re-priced at the requested widths.
+     let direct = akita_params::nonterminal_level_layout(
+-        policy.decomposition.field_bits(),
+-        challenge_field_bits,
++        policy_base_field_bits,
++        policy_challenge_field_bits,
+         params,
+         relation_geometry,
+         next_outer_payload,
+     )?
++    .with_field_widths(payload_field_bits, challenge_field_bits)
+     .encoded_len()?;
+     let eor = if matches!(
+         params.opening_method(),
+@@ -551,7 +712,7 @@ pub fn nonterminal_level_payload_bytes(
+         let opening_shape = opening_layout.aggregate_polynomial_group_layout()?;
+         akita_params::extension_opening_reduction_level_bytes(
+             challenge_field_bits,
+-            policy.claim_ext_degree,
++            claim_ext_degree,
+             opening_shape,
+         )?
+     } else {
+@@ -562,11 +723,113 @@ pub fn nonterminal_level_payload_bytes(
+         .ok_or_else(|| AkitaError::InvalidSetup("level proof payload size overflow".into()))?;
+     Ok(NonterminalLevelPayloadBytes {
+         direct,
+-        stage3: stage3_payload_bytes_for_successor(policy, successor)?,
++        stage3: stage3_payload_bytes_for_successor_with_bits(challenge_field_bits, successor)?,
+         relation_geometry,
+     })
+ }
+ 
++/// Break one expanded schedule's proof estimate into its components, at the
++/// schedule's own field widths or at an override.
++///
++/// With `widths == None` the total equals
++/// [`expanded_schedule_proof_estimate_bytes`]. With an override, see
++/// [`FieldWidthOverride`] for what is and is not re-priced. The nonce bytes
++/// always come from the schedule's own grinding plan.
++///
++/// # Errors
++///
++/// Returns the same errors as [`expanded_schedule_proof_estimate_bytes`].
++pub fn expanded_schedule_proof_breakdown(
++    key: &akita_params::ScheduleLookupKey,
++    schedule: &FoldSchedule,
++    policy: &PlannerPolicy,
++    widths: Option<FieldWidthOverride>,
++) -> Result<ProofEstimateBreakdown, AkitaError> {
++    let field_bits = policy.decomposition.field_bits();
++    key.validate(field_bits)?;
++    schedule.validate_structure()?;
++    let widths = Some(match widths {
++        Some(widths) => widths,
++        None => pricing_widths(policy)?,
++    });
++    let (terminal_field_bits, terminal_commitment_bits, terminal_challenge_bits, terminal_claim_ext_degree) = {
++        let widths = widths.expect("widths were just resolved");
++        (
++            widths.base_field_bits,
++            widths.commitment_bits(),
++            widths.challenge_field_bits,
++            widths.claim_ext_degree,
++        )
++    };
++    let nonterminal_levels = schedule
++        .recursive_folds
++        .len()
++        .checked_add(1)
++        .ok_or_else(|| AkitaError::InvalidSetup("fold level count overflow".into()))?;
++    let mut breakdown = ProofEstimateBreakdown::default();
++    let mut predecessor_rounds = None;
++    for level in 0..nonterminal_levels {
++        let (params, output_witness_len) = if level == 0 {
++            (&schedule.root.params, schedule.root.output_witness_len)
++        } else {
++            let fold = schedule.recursive_folds.get(level - 1).ok_or_else(|| {
++                AkitaError::InvalidSetup("recursive fold index is out of range".into())
++            })?;
++            (&fold.params, fold.output_witness_len)
++        };
++        let opening_layout = match predecessor_rounds {
++            None => key.opening_layout()?,
++            Some(rounds) => {
++                params.opening_layout_for_final_group(PolynomialGroupLayout::singleton(rounds))?
++            }
++        };
++        let successor = schedule.recursive_folds.get(level).map_or_else(
++            || FoldSuccessor::Terminal(&schedule.terminal),
++            |fold| FoldSuccessor::Recursive(&fold.params),
++        );
++        let payload = nonterminal_level_payload_bytes_with_widths(
++            policy,
++            params,
++            &opening_layout,
++            successor,
++            output_witness_len,
++            widths,
++        )?;
++        predecessor_rounds = Some(payload.relation_geometry.relation_point_variable_count());
++        breakdown.nonterminal_direct_bytes = breakdown
++            .nonterminal_direct_bytes
++            .checked_add(payload.direct)
++            .ok_or_else(|| AkitaError::InvalidSetup("proof payload size overflow".into()))?;
++        breakdown.stage3_bytes = breakdown
++            .stage3_bytes
++            .checked_add(payload.stage3)
++            .ok_or_else(|| AkitaError::InvalidSetup("proof payload size overflow".into()))?;
++    }
++
++    let terminal_predecessor_rounds = predecessor_rounds.ok_or_else(|| {
++        AkitaError::InvalidSetup("terminal proof is missing predecessor relation geometry".into())
++    })?;
++    breakdown.terminal_eor_bytes = akita_params::extension_opening_reduction_level_bytes(
++        terminal_challenge_bits,
++        terminal_claim_ext_degree,
++        PolynomialGroupLayout::singleton(terminal_predecessor_rounds),
++    )?;
++    breakdown.terminal_response_bytes = akita_params::terminal_response_planner_bytes_split(
++        terminal_field_bits,
++        terminal_commitment_bits,
++        &schedule.terminal.response_shape,
++        schedule.terminal.response_l2_sq_cap(),
++    )?;
++    let grinding_plan = akita_params::derive_transcript_grinding_plan_from_public_shape(
++        schedule,
++        &key.opening_layout()?,
++        policy.transcript_grinding_order()?,
++        policy.claim_ext_degree,
++    )?;
++    breakdown.nonce_max_bytes = grinding_plan.nonce_max_bytes();
++    Ok(breakdown)
++}
++
+ struct ExpandedScheduleProofComponents {
+     fixed_bytes: usize,
+     terminal_planner_bytes: usize,
+@@ -625,18 +888,22 @@ fn expanded_schedule_proof_components(
+     let terminal_predecessor_rounds = predecessor_rounds.ok_or_else(|| {
+         AkitaError::InvalidSetup("terminal proof is missing predecessor relation geometry".into())
+     })?;
++    let pricing = pricing_widths(policy)?;
+     let terminal_eor = akita_params::extension_opening_reduction_level_bytes(
+-        policy.challenge_field_bits()?,
+-        policy.claim_ext_degree,
++        pricing.challenge_field_bits,
++        pricing.claim_ext_degree,
+         PolynomialGroupLayout::singleton(terminal_predecessor_rounds),
+     )?;
+-    let terminal_planner_bytes = akita_params::terminal_response_planner_bytes(
+-        field_bits,
++    let terminal_planner_bytes = akita_params::terminal_response_planner_bytes_split(
++        pricing.base_field_bits,
++        pricing.commitment_bits(),
+         &schedule.terminal.response_shape,
+         schedule.terminal.response_l2_sq_cap(),
+     )?;
+-    let terminal_max_bytes =
+-        akita_params::terminal_response_max_bytes(field_bits, &schedule.terminal.response_shape)?;
++    let terminal_max_bytes = akita_params::terminal_response_max_bytes(
++        pricing.base_field_bits,
++        &schedule.terminal.response_shape,
++    )?;
+     let grinding_plan = akita_params::derive_transcript_grinding_plan_from_public_shape(
+         schedule,
+         &key.opening_layout()?,
+diff --git a/crates/akita-sis-estimator/benches/fixed_infinity.rs b/crates/akita-sis-estimator/benches/fixed_infinity.rs
+index a95099b..bc35593 100644
+--- a/crates/akita-sis-estimator/benches/fixed_infinity.rs
++++ b/crates/akita-sis-estimator/benches/fixed_infinity.rs
+@@ -208,6 +208,8 @@ fn family_label(family: AkitaModulusProfileId) -> &'static str {
+         AkitaModulusProfileId::Q32Offset99 => "q32",
+         AkitaModulusProfileId::Q64Offset59 => "q64",
+         AkitaModulusProfileId::Q128OffsetA7F7 => "q128",
++        AkitaModulusProfileId::Q64Goldilocks => "goldilocks",
++        AkitaModulusProfileId::Q255Pallas => "pallas",
+     }
+ }
+ 
+diff --git a/crates/akita-sis-estimator/benches/infinity_optimizer.rs b/crates/akita-sis-estimator/benches/infinity_optimizer.rs
+index 1cfb9a2..f62a863 100644
+--- a/crates/akita-sis-estimator/benches/infinity_optimizer.rs
++++ b/crates/akita-sis-estimator/benches/infinity_optimizer.rs
+@@ -351,6 +351,8 @@ fn family_label(family: AkitaModulusProfileId) -> &'static str {
+         AkitaModulusProfileId::Q32Offset99 => "q32",
+         AkitaModulusProfileId::Q64Offset59 => "q64",
+         AkitaModulusProfileId::Q128OffsetA7F7 => "q128",
++        AkitaModulusProfileId::Q64Goldilocks => "goldilocks",
++        AkitaModulusProfileId::Q255Pallas => "pallas",
+     }
+ }
+ 
+diff --git a/crates/akita-sis-estimator/examples/infinity_width_table.rs b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+index 431009a..93421b2 100644
+--- a/crates/akita-sis-estimator/examples/infinity_width_table.rs
++++ b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+@@ -1,13 +1,13 @@
+ use akita_sis_estimator::{
+     width_table::{
+-        generate_infinity_width_row, generate_infinity_width_rows, infinity_width_work_items,
+-        is_production_infinity_width_table_config, runtime_width_rows,
+-        validate_infinity_width_rows, InfinityWidthProfile, InfinityWidthRow,
+-        InfinityWidthTableConfig, InfinityWidthWorkItem, RuntimeWidthRow,
+-        INFINITY_WIDTH_EVALUATOR_ID, PRODUCTION_CERTIFICATE_DOMAIN,
++        canonical_origin_cells, generate_infinity_width_row, generate_infinity_width_rows,
++        infinity_width_work_items, is_production_infinity_width_table_config,
++        runtime_width_rows, validate_infinity_width_rows, InfinityWidthOrigin,
++        InfinityWidthProfile, InfinityWidthRow, InfinityWidthTableConfig, InfinityWidthWorkItem,
++        RuntimeWidthRow, INFINITY_WIDTH_EVALUATOR_ID, PRODUCTION_CERTIFICATE_DOMAIN,
+     },
+     work_cache::WorkCache,
+-    AkitaModulusProfileId,
++    AkitaModulusProfileId, SisSecurityPolicy,
+ };
+ #[cfg(feature = "parallel")]
+ use rayon::prelude::*;
+@@ -141,6 +141,7 @@ impl Args {
+                             config.progress_every = Some(parse(&value, "--progress-every"));
+                         }
+                         "--profile" => config.profile = parse_profile(&value),
++                        "--policy" => config.policy = parse_policy(&value),
+                         "--shard" => shard = Some(parse_shard(&value)),
+                         _ => fatal(&format!("unknown argument {arg}")),
+                     }
+@@ -156,6 +157,29 @@ impl Args {
+         if assemble_only && shard.is_some() {
+             fatal("--assemble-only and --shard are mutually exclusive");
+         }
++        // A comparison modulus with no params profile has no canonical origin
++        // cells. Give every requested profile the canonical (d, bound) cells
++        // as explicit origins so that such a profile is swept over the same
++        // role cells as the checked-in ones. Production runs name only
++        // checked-in profiles and keep the canonical origin set.
++        if config.explicit_origins.is_none()
++            && config.profiles.iter().any(|profile| !profile.is_checked_in())
++        {
++            let cells = canonical_origin_cells();
++            config.explicit_origins = Some(
++                config
++                    .profiles
++                    .iter()
++                    .flat_map(|&modulus_profile| {
++                        cells.iter().map(move |&(d, coeff_linf_bound)| InfinityWidthOrigin {
++                            modulus_profile,
++                            d,
++                            coeff_linf_bound,
++                        })
++                    })
++                    .collect(),
++            );
++        }
+         Self {
+             config,
+             output,
+@@ -644,6 +668,14 @@ fn parse_profile(value: &str) -> InfinityWidthProfile {
+     }
+ }
+ 
++fn parse_policy(value: &str) -> SisSecurityPolicy {
++    match value {
++        "Quantum128BitADPS16" => SisSecurityPolicy::Quantum128BitADPS16,
++        "Quantum150BitADPS16" => SisSecurityPolicy::Quantum150BitADPS16,
++        _ => fatal("--policy must be one of: Quantum128BitADPS16, Quantum150BitADPS16"),
++    }
++}
++
+ fn parse_format(value: &str) -> OutputFormat {
+     match value {
+         "csv" => OutputFormat::Csv,
+@@ -679,7 +711,7 @@ where
+ 
+ fn usage(code: i32) -> ! {
+     eprintln!(
+-        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--progress-every N] [--skip-validation]"
++        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--policy Quantum128BitADPS16|Quantum150BitADPS16] [--progress-every N] [--skip-validation]"
+     );
+     process::exit(code);
+ }
+diff --git a/crates/akita-sis-estimator/examples/pasta_rank.rs b/crates/akita-sis-estimator/examples/pasta_rank.rs
+new file mode 100644
+index 0000000..4c1bdb4
+--- /dev/null
++++ b/crates/akita-sis-estimator/examples/pasta_rank.rs
+@@ -0,0 +1,127 @@
++//! Minimal scalar SIS rows for a Euclidean collision bound at a Pasta modulus.
++//!
++//! For each length bound (given as log2), binary-search the smallest number of
++//! scalar SIS rows `n` such that Akita's Euclidean estimator (ADPS16 quantum)
++//! reports at least `target` bits. Reports the same for Akita's q64 and q128
++//! families so that the "bits of commitment are independent of q" claim can be
++//! read off directly.
++
++use akita_sis_estimator::{
++    akita_q128, akita_q255_pallas, akita_q64, akita_q64_goldilocks, estimate, Bound, CostValue,
++    EstimateConfig, SisNorm, SisParameters,
++};
++use num_bigint::BigUint;
++use std::env;
++
++fn log2_biguint(q: &BigUint) -> f64 {
++    let bits = q.bits();
++    let top = if bits > 64 { q >> (bits - 64) } else { q.clone() };
++    let top: u64 = top.try_into().expect("fits");
++    (top as f64).log2() + (bits.saturating_sub(64)) as f64
++}
++
++struct Cell {
++    bits: f64,
++    beta: Option<u32>,
++    dim: u64,
++}
++
++/// Cheapest attack over the estimator's own dimension choice and a ladder of
++/// explicit lattice dimensions. The estimator reports infinity when the BKZ
++/// block it needs exceeds the lattice dimension it picked, which at tiny row
++/// counts hides a trivial attack in a larger sublattice; the ladder removes
++/// that artefact. An all-infinite result means the bound sits below the
++/// expected shortest vector, so no solution is expected.
++fn cost(n: u32, q: &BigUint, m: u64, log2_bound: f64) -> Cell {
++    let base = EstimateConfig::akita_euclidean_table();
++    let mut dims: Vec<Option<u64>> = vec![None];
++    let mut d = 50u64;
++    while d <= m.min(1 << 16) {
++        dims.push(Some(d));
++        d *= 2;
++    }
++    let mut best = Cell {
++        bits: f64::INFINITY,
++        beta: None,
++        dim: 0,
++    };
++    for dim in dims {
++        let params = SisParameters::try_new(
++            n,
++            q.clone(),
++            Some(m),
++            Bound::Float(2f64.powf(log2_bound)),
++            SisNorm::Euclidean,
++        )
++        .expect("valid SIS parameters");
++        let config = EstimateConfig {
++            lattice_dimension: dim,
++            ..base
++        };
++        let cost = estimate(&params, &config).expect("estimate");
++        let bits = match cost.rop {
++            CostValue::Finite(c) | CostValue::ProvenAboveTarget(c) => c.log2,
++            CostValue::Infinity => f64::INFINITY,
++        };
++        if bits < best.bits {
++            best = Cell {
++                bits,
++                beta: cost.beta,
++                dim: cost.d,
++            };
++        }
++    }
++    best
++}
++
++fn min_rows(q: &BigUint, m: u64, log2_bound: f64, target: f64) -> (u32, Cell) {
++    let mut hi = 1u32;
++    while cost(hi, q, m, log2_bound).bits < target {
++        hi *= 2;
++        assert!(hi < (1 << 24), "no secure row count found");
++    }
++    let mut lo = 1u32;
++    while lo < hi {
++        let mid = (lo + hi) / 2;
++        if cost(mid, q, m, log2_bound).bits >= target {
++            hi = mid;
++        } else {
++            lo = mid + 1;
++        }
++    }
++    (lo, cost(lo, q, m, log2_bound))
++}
++
++fn main() {
++    let args: Vec<String> = env::args().skip(1).collect();
++    let target: f64 = args.first().map_or(128.0, |s| s.parse().expect("target bits"));
++    let m: u64 = args.get(1).map_or(1 << 22, |s| s.parse().expect("columns"));
++    let bounds: Vec<f64> = if args.len() > 2 {
++        args[2..].iter().map(|s| s.parse().expect("log2 bound")).collect()
++    } else {
++        vec![20.0, 24.0, 27.0, 32.0, 36.0, 41.6, 44.0, 48.0]
++    };
++
++    let moduli = [
++        ("pallas", akita_q255_pallas()),
++        ("goldilocks", akita_q64_goldilocks()),
++        ("q64", akita_q64()),
++        ("q128", akita_q128()),
++    ];
++    println!("target_bits={target} columns_m={m}");
++    println!("modulus,log2_q,log2_bound,min_rows_n,commit_bits,commit_bytes,cost_bits,bkz_beta,lattice_dim");
++    for (label, q) in &moduli {
++        let log2_q = log2_biguint(q);
++        for &b in &bounds {
++            let (n, cell) = min_rows(q, m, b, target);
++            let commit_bits = n as f64 * log2_q;
++            println!(
++                "{label},{log2_q:.3},{b},{n},{commit_bits:.0},{:.0},{:.2},{},{}",
++                commit_bits / 8.0,
++                cell.bits,
++                cell.beta.map_or(String::new(), |v| v.to_string()),
++                cell.dim
++            );
++        }
++    }
++}
+diff --git a/crates/akita-sis-estimator/src/akita.rs b/crates/akita-sis-estimator/src/akita.rs
+index 60909f1..6362960 100644
+--- a/crates/akita-sis-estimator/src/akita.rs
++++ b/crates/akita-sis-estimator/src/akita.rs
+@@ -4,10 +4,18 @@ use num_bigint::BigUint;
+ 
+ use crate::{
+     error::{EstimatorError, Result},
+-    params::{akita_q128, akita_q32, akita_q64, Bound, SisNorm, SisParameters},
++    params::{
++        akita_q128, akita_q255_pallas, akita_q32, akita_q64, akita_q64_goldilocks, Bound, SisNorm,
++        SisParameters,
++    },
+ };
+ 
+ /// Supported Akita exact modulus profiles for golden and table generation.
++///
++/// The first three are the checked-in params profiles. The remaining ones are
++/// estimator-only comparison moduli: they have no params profile, no
++/// generated table, and no runtime support, and the table generators emit
++/// them as CSV only.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub enum AkitaModulusProfileId {
+     /// `2^32 - 99`.
+@@ -16,6 +24,10 @@ pub enum AkitaModulusProfileId {
+     Q64Offset59,
+     /// `2^128 - (2^32 - 22537)`.
+     Q128OffsetA7F7,
++    /// Goldilocks, `2^64 - 2^32 + 1`. Estimator-only.
++    Q64Goldilocks,
++    /// Pallas base field, 255 bits. Estimator-only.
++    Q255Pallas,
+ }
+ 
+ impl AkitaModulusProfileId {
+@@ -29,6 +41,8 @@ impl AkitaModulusProfileId {
+             "q32" | "Q32Offset99" => Ok(Self::Q32Offset99),
+             "q64" | "Q64Offset59" => Ok(Self::Q64Offset59),
+             "q128" | "Q128OffsetA7F7" => Ok(Self::Q128OffsetA7F7),
++            "goldilocks" | "Q64Goldilocks" => Ok(Self::Q64Goldilocks),
++            "pallas" | "pasta" | "Q255Pallas" => Ok(Self::Q255Pallas),
+             _ => Err(EstimatorError::InvalidParameter {
+                 field: "modulus_profile",
+                 reason: format!("unknown Akita modulus profile {label:?}"),
+@@ -43,6 +57,8 @@ impl AkitaModulusProfileId {
+             Self::Q32Offset99 => akita_q32(),
+             Self::Q64Offset59 => akita_q64(),
+             Self::Q128OffsetA7F7 => akita_q128(),
++            Self::Q64Goldilocks => akita_q64_goldilocks(),
++            Self::Q255Pallas => akita_q255_pallas(),
+         }
+     }
+ 
+@@ -53,8 +69,19 @@ impl AkitaModulusProfileId {
+             Self::Q32Offset99 => "q32",
+             Self::Q64Offset59 => "q64",
+             Self::Q128OffsetA7F7 => "q128",
++            Self::Q64Goldilocks => "goldilocks",
++            Self::Q255Pallas => "pallas",
+         }
+     }
++
++    /// Whether this profile has a checked-in params profile and generated tables.
++    #[must_use]
++    pub const fn is_checked_in(self) -> bool {
++        matches!(
++            self,
++            Self::Q32Offset99 | Self::Q64Offset59 | Self::Q128OffsetA7F7
++        )
++    }
+ }
+ 
+ impl From<akita_params::sis::SisModulusProfileId> for AkitaModulusProfileId {
+diff --git a/crates/akita-sis-estimator/src/config.rs b/crates/akita-sis-estimator/src/config.rs
+index 56b40ac..aeee48a 100644
+--- a/crates/akita-sis-estimator/src/config.rs
++++ b/crates/akita-sis-estimator/src/config.rs
+@@ -46,6 +46,9 @@ pub struct SisSecurityConstraint {
+ pub enum SisSecurityPolicy {
+     /// Corrected ADPS16 quantum LGSA gate at 128 bits.
+     Quantum128BitADPS16,
++    /// The same gate at 150 bits: a comparison floor with a margin over the
++    /// cost model, not a shipped policy (no generated runtime table yet).
++    Quantum150BitADPS16,
+ }
+ 
+ impl SisSecurityPolicy {
+@@ -54,6 +57,7 @@ impl SisSecurityPolicy {
+     pub const fn label(self) -> &'static str {
+         match self {
+             Self::Quantum128BitADPS16 => "Quantum128BitADPS16",
++            Self::Quantum150BitADPS16 => "Quantum150BitADPS16",
+         }
+     }
+ 
+@@ -67,6 +71,12 @@ impl SisSecurityPolicy {
+                 },
+                 minimum_log2_rop: 128.0,
+             },
++            Self::Quantum150BitADPS16 => SisSecurityConstraint {
++                reduction_model: ReductionCostModel::Adps16 {
++                    mode: Adps16Mode::Quantum,
++                },
++                minimum_log2_rop: 150.0,
++            },
+         }
+     }
+ }
+@@ -217,7 +227,15 @@ impl EstimateConfig {
+     /// proven-pruned beta and zeta search.
+     #[must_use]
+     pub fn akita_infinity_table() -> Self {
+-        let constraint = SisSecurityPolicy::Quantum128BitADPS16.adps16_quantum_constraint();
++        Self::akita_infinity_table_for(SisSecurityPolicy::Quantum128BitADPS16)
++    }
++
++    /// The same certificate profile with the proven-pruned decision threshold
++    /// taken from `policy`, so that a comparison floor certifies against its
++    /// own target rather than the production one.
++    #[must_use]
++    pub fn akita_infinity_table_for(policy: SisSecurityPolicy) -> Self {
++        let constraint = policy.adps16_quantum_constraint();
+         Self {
+             red_cost_model: constraint.reduction_model,
+             optimizer: OptimizerConfig::OptimizeZeta {
+diff --git a/crates/akita-sis-estimator/src/lib.rs b/crates/akita-sis-estimator/src/lib.rs
+index 4f506f7..fc1742f 100644
+--- a/crates/akita-sis-estimator/src/lib.rs
++++ b/crates/akita-sis-estimator/src/lib.rs
+@@ -36,7 +36,10 @@ pub use config::{
+ pub use cost::{CostValue, LatticeCost, LogCost};
+ pub use error::{EstimatorError, Result};
+ pub use numeric::{NumericBackend, NumericConfig, Probability};
+-pub use params::{akita_q128, akita_q32, akita_q64, Bound, SisNorm, SisParameters};
++pub use params::{
++    akita_q128, akita_q255_pallas, akita_q32, akita_q64, akita_q64_goldilocks, Bound, SisNorm,
++    SisParameters,
++};
+ pub use schedule_security::{
+     estimate_schedule_security, ScheduleSecurityEstimate, ScheduleSisBound,
+     ScheduleSisInstanceEstimate, ScheduleSisRole,
+diff --git a/crates/akita-sis-estimator/src/params.rs b/crates/akita-sis-estimator/src/params.rs
+index 4db0884..f9d9637 100644
+--- a/crates/akita-sis-estimator/src/params.rs
++++ b/crates/akita-sis-estimator/src/params.rs
+@@ -198,6 +198,31 @@ pub fn akita_q128() -> BigUint {
+     (BigUint::one() << 128usize) - ((BigUint::one() << 32usize) - BigUint::from(22_537u32))
+ }
+ 
++/// Goldilocks modulus, `2^64 - 2^32 + 1`.
++///
++/// Estimator-only: there is no checked-in params profile or generated table
++/// for it. For SIS sizing it differs from the q64 representative only through
++/// `log2(q)`, by about one part in `2^32`.
++#[must_use]
++pub fn akita_q64_goldilocks() -> BigUint {
++    BigUint::from(18_446_744_069_414_584_321u64)
++}
++
++/// Pallas base-field modulus (the Vesta scalar field), a 255-bit prime:
++/// `2^254 + 45560315531419706090280762371685220353`.
++///
++/// Estimator-only: there is no checked-in params profile or generated table
++/// for it. The Vesta base field differs from it by less than one part in
++/// `2^126` and gives the same SIS sizing.
++#[must_use]
++pub fn akita_q255_pallas() -> BigUint {
++    BigUint::parse_bytes(
++        b"40000000000000000000000000000000224698fc094cf91b992d30ed00000001",
++        16,
++    )
++    .expect("Pallas modulus literal parses")
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/crates/akita-sis-estimator/src/width_table.rs b/crates/akita-sis-estimator/src/width_table.rs
+index 78c3956..5d7cd47 100644
+--- a/crates/akita-sis-estimator/src/width_table.rs
++++ b/crates/akita-sis-estimator/src/width_table.rs
+@@ -32,6 +32,22 @@ pub static COEFF_LINF_BOUNDS: LazyLock<Vec<u64>> = LazyLock::new(|| {
+         .collect()
+ });
+ 
++/// The canonical `(ring dimension, coefficient bound)` cells, with the modulus
++/// profile dropped and duplicates removed.
++///
++/// A comparison modulus that has no params profile has no canonical origins of
++/// its own; a caller can combine these cells with such a profile to build
++/// explicit origins that cover the same role cells as the checked-in profiles.
++#[must_use]
++pub fn canonical_origin_cells() -> Vec<(u32, u64)> {
++    canonical_scalar_origins()
++        .into_iter()
++        .map(|(_, d, bound)| (d, bound))
++        .collect::<BTreeSet<_>>()
++        .into_iter()
++        .collect()
++}
++
+ fn canonical_scalar_origins() -> Vec<(AkitaModulusProfileId, u32, u64)> {
+     let mut origins = BTreeSet::new();
+     origins.extend(akita_params::sis::sis_role_cells().into_iter().map(|cell| {
+@@ -800,6 +816,11 @@ fn max_secure_width_row(
+     let first_tall_width = u64::from(rank).saturating_add(1);
+     let policy = table_config.policy;
+     let target = policy.adps16_quantum_constraint().minimum_log2_rop;
++    // A comparison policy may ask for a floor that narrow matrices cannot
++    // reach at all; there the estimate degenerates to a non-finite cost.
++    // Read that as insecure, so the row records no secure width, rather than
++    // stopping the table. The production policy keeps the stop.
++    let lenient = policy != SisSecurityPolicy::Quantum128BitADPS16;
+     let discovery = |width| {
+         let cost = estimate_width(
+             modulus_profile,
+@@ -809,7 +830,7 @@ fn max_secure_width_row(
+             coeff_linf_bound,
+             estimator_config,
+         )?;
+-        secure_or_error(cost.rop, target)
++        secure_or_error(cost.rop, target, lenient)
+     };
+     let discovered = max_true_in_prefix(first_tall_width, search_cap, discovery)?;
+     let (max_width, next_width, hit_cap) =
+@@ -822,8 +843,9 @@ fn max_secure_width_row(
+                 first_tall_width,
+                 search_cap,
+                 discovered.max_value,
+-                &EstimateConfig::akita_infinity_table(),
++                &EstimateConfig::akita_infinity_table_for(policy),
+                 target,
++                lenient,
+             )?
+         } else {
+             (
+@@ -832,7 +854,7 @@ fn max_secure_width_row(
+                 discovered.hit_cap,
+             )
+         };
+-    let boundary_certificate_config = EstimateConfig::akita_infinity_table();
++    let boundary_certificate_config = EstimateConfig::akita_infinity_table_for(policy);
+     let boundary_config = if table_config.profile == InfinityWidthProfile::LocalMinimum {
+         &boundary_certificate_config
+     } else {
+@@ -894,10 +916,11 @@ fn certify_boundary(
+     discovered: u64,
+     config: &EstimateConfig,
+     target: f64,
++    lenient: bool,
+ ) -> Result<(u64, Option<u64>, bool)> {
+     let result = certified_boundary_from_hint(start, cap, discovered, |width| {
+         let cost = estimate_width(modulus_profile, d, rank, width, bound, config)?;
+-        secure_or_error(cost.rop, target)
++        secure_or_error(cost.rop, target, lenient)
+     })?;
+     Ok((result.max_value, result.next_value, result.hit_cap))
+ }
+@@ -934,7 +957,7 @@ fn estimate_width(
+     )
+ }
+ 
+-fn secure_or_error(rop: CostValue, target: f64) -> Result<bool> {
++fn secure_or_error(rop: CostValue, target: f64, lenient: bool) -> Result<bool> {
+     match rop {
+         CostValue::Finite(cost) if cost.log2.is_finite() => Ok(cost.log2 >= target),
+         CostValue::ProvenAboveTarget(lower_bound)
+@@ -949,6 +972,10 @@ fn secure_or_error(rop: CostValue, target: f64) -> Result<bool> {
+         CostValue::Infinity => Err(EstimatorError::Unsupported {
+             feature: "unclassified infinite ADPS16 quantum estimate",
+         }),
++        // A non-finite cost, or a proof that falls short of this target, is
++        // not evidence of security either. A comparison policy reads it as
++        // insecure; the production policy stops.
++        CostValue::Finite(_) | CostValue::ProvenAboveTarget(_) if lenient => Ok(false),
+         CostValue::Finite(_) | CostValue::ProvenAboveTarget(_) => {
+             Err(EstimatorError::Unsupported {
+                 feature: "non-finite ADPS16 quantum estimate",
+@@ -1085,6 +1112,7 @@ fn parse_csv_record(record: &str) -> Result<InfinityWidthRow> {
+     }
+     let policy = match fields[0] {
+         "Quantum128BitADPS16" => SisSecurityPolicy::Quantum128BitADPS16,
++        "Quantum150BitADPS16" => SisSecurityPolicy::Quantum150BitADPS16,
+         _ => return invalid_config("work_result", "unknown SIS policy label"),
+     };
+     let modulus_profile = AkitaModulusProfileId::parse(fields[1])?;
+diff --git a/crates/akita-sis-estimator/tests/euclidean_width_goldens.rs b/crates/akita-sis-estimator/tests/euclidean_width_goldens.rs
+index b20253d..7778d6e 100644
+--- a/crates/akita-sis-estimator/tests/euclidean_width_goldens.rs
++++ b/crates/akita-sis-estimator/tests/euclidean_width_goldens.rs
+@@ -62,6 +62,8 @@ fn euclidean_width_goldens_match_checked_in_l2_table() {
+             AkitaModulusProfileId::Q32Offset99 => SisModulusProfileId::Q32Offset99,
+             AkitaModulusProfileId::Q64Offset59 => SisModulusProfileId::Q64Offset59,
+             AkitaModulusProfileId::Q128OffsetA7F7 => SisModulusProfileId::Q128OffsetA7F7,
++            // Estimator-only comparison moduli have no params profile or golden rows.
++            AkitaModulusProfileId::Q64Goldilocks | AkitaModulusProfileId::Q255Pallas => continue,
+         };
+         let key = sis_l2_table_key_for_collision_sq(
+             DEFAULT_SIS_SECURITY_POLICY,

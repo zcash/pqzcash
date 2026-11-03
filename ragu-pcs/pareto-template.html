@@ -1,0 +1,501 @@
+<title>Ragu PCS Pareto</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f6f5f2; --surface: #ffffff; --ink: #1f2430; --muted: #5f6675; --rule: #d9d6cf;
+  --accent: #b8731a; --accent-ink: #7a4a0c;
+  --c-pedersen: #8a8f9a; --c-fp128: #3b6ea5; --c-gold: #6a9f3a; --c-q64: #b8731a; --c-sis: #1b8a7a; --c-pasta: #8b2f6f; --c-whir: #c0392b; --c-whirgold: #6f42c1; --c-whirhybrid: #a89400; --c-plonky3: #1f1f1f; --c-flock: #0288d1;
+  --c-whirrec: #e8846f; --c-whirgoldrec: #c71585; --c-whirhybridrec: #ff7f0e; --c-plonky3rec: #6b6b6b; --c-flockrec: #6cc1ea; --c-bitz: #2e7d32; --c-bitzrec: #7cc47f; --c-bitsq64: #d35400;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #15171c; --surface: #1d2027; --ink: #e8e6e1; --muted: #a2a8b4; --rule: #343843;
+    --accent: #e0a24a; --accent-ink: #f0c88a;
+    --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7;
+    --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15171c; --surface: #1d2027; --ink: #e8e6e1; --muted: #a2a8b4; --rule: #343843;
+  --accent: #e0a24a; --accent-ink: #f0c88a;
+  --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7;
+  --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; margin: 0; }
+.wrap { max-width: none; margin: 0; padding-block: 28px 48px; padding-inline: 16px; }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 16px; align-items: start; margin: 18px 0 12px; }
+@media (max-width: 1000px) { .top { grid-template-columns: 1fr; } .controls { max-height: none; } }
+h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; margin: 0 0 6px; text-wrap: balance; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 32px 0 10px; }
+p { margin: 0 0 10px; }
+.lede { color: var(--muted); }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
+.group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.group.wide { grid-column: 1 / -1; }
+.group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
+.group label input { margin-top: 3px; flex: none; }
+.group label .swatch { margin-top: 5px; flex: none; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.swatch.square { border-radius: 0; }
+.swatches { display: inline-flex; gap: 3px; align-items: center; align-self: center; width: 40px; justify-content: center; flex: none; }
+.group label .swatches .swatch { margin-top: 0; }
+select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
+.group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
+button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
+#plot { width: 100%; height: 720px; background: var(--surface); border: 1px solid var(--rule); min-width: 0; }
+@media (max-width: 640px) { #plot { height: 440px; } }
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.num { white-space: nowrap; }
+th { white-space: normal; }
+#table td:nth-child(1) { max-width: 26ch; }
+#table td:nth-child(2) { max-width: 40ch; }
+#table td:nth-child(9) { max-width: 14ch; }
+#table td:nth-child(10) { max-width: 12ch; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; user-select: none; }
+th.sorted-asc::after { content: " \25B2"; }
+th.sorted-desc::after { content: " \25BC"; }
+td.num { font-family: var(--mono); text-align: right; }
+th.num { text-align: right; }
+.frontier td:first-child { border-left: 3px solid var(--accent); }
+ul { padding-left: 20px; }
+li { margin-bottom: 4px; }
+code { font-family: var(--mono); font-size: 0.92em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<div class="wrap">
+  <h1>Ragu PCS Pareto</h1>
+  <p class="lede">Ragu as a PCD scheme, priced with its Pedersen-IPA decider today, with the lattice scheme Akita under five field and modulus choices, and with the hash-based schemes: WHIR over Pasta, over Goldilocks, and with Pasta claims in 64‑bit limbs; a Plonky3-style FRI over Goldilocks; the Flock/Binius-style binary-field family; and BitZ, each with ARC accumulation and with its own recursion, and a draft of BitZ's arithmetization over Akita. Each point is one configuration; its coordinates are compressed proof bytes, prover work, and a third measure of the merge circuit, either its gates or the atoms that it absorbs. The hash-based rows' rate and grinding, the security floor, and zero knowledge are selectable. Each class, pre-quantum (Pedersen-IPA) and post‑quantum (the rest), has its own frontier: the configurations that nothing else in the class beats on all three at once, where native support for the Pasta base field counts as a requirement rather than a cost.</p>
+
+  <div class="top">
+  <div id="plot"></div>
+  <div class="controls">
+    <div class="group wide"><span class="eyebrow">Families</span><div id="families"></div></div>
+    <div class="group"><span class="eyebrow">Rank</span>
+      <label><input type="checkbox" class="rank" value="13" checked id="rank13"> <span>13 (2<sup>11</sup> gates)</span></label>
+      <label><input type="checkbox" class="rank" value="14" checked id="rank14"> <span>14 (2<sup>12</sup> gates)</span></label>
+      <label><input type="checkbox" class="rank" value="15" checked id="rank15"> <span>15 (2<sup>13</sup> gates)</span></label>
+      <label><input type="checkbox" class="rank" value="16" checked id="rank16"> <span>16 (2<sup>14</sup> gates)</span></label>
+    </div>
+    <div class="group"><span class="eyebrow">Header</span>
+      <label><input type="checkbox" class="header" value="2" checked id="header2"> <span>2 elements</span></label>
+      <label><input type="checkbox" class="header" value="4" checked id="header4"> <span>4 elements</span></label>
+    </div>
+    <div class="group"><span class="eyebrow">Fixed circuits</span>
+      <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> as today, one circuit each</label>
+      <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the rank's budget</label>
+    </div>
+    <div class="group"><span class="eyebrow">Changes</span>
+      <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
+    </div>
+    <div class="group"><span class="eyebrow">Zero knowledge</span>
+      <label><input type="checkbox" id="zk"> zero knowledge (see text)</label>
+    </div>
+    <div class="group"><span class="eyebrow">Security floor (Pedersen‑IPA, about 126 classical bits, is shown at 128 only)</span>
+      <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits, ADPS16 core-SVP</label>
+      <label><input type="radio" name="floor" value="150" id="floor150"> 150 quantum bits</label>
+    </div>
+    <div class="group"><span class="eyebrow">Grinding (hash-based families: proof of work in the query phase)</span>
+      <label><select id="grind">
+        <option value="auto" selected>best per row (smallest prover)</option>
+        <option value="0">none</option>
+        <option value="8">8 bits</option>
+        <option value="12">12 bits</option>
+        <option value="16">16 bits</option>
+        <option value="17">17 bits</option>
+        <option value="18">18 bits</option>
+        <option value="19">19 bits</option>
+        <option value="20">20 bits</option>
+        <option value="22">22 bits</option>
+        <option value="24">24 bits</option>
+      </select></label>
+    </div>
+    <div class="group"><span class="eyebrow">Third measure</span>
+      <label><input type="radio" name="third" value="gates" checked id="thirdgates"> merge gates</label>
+      <label><input type="radio" name="third" value="accumulation" id="thirdatoms"> accumulation atoms</label>
+      <label><input type="radio" name="third" value="verify" id="thirdverify"> verifier work</label>
+    </div>
+    <div class="group"><span class="eyebrow">Work unit</span>
+      <label><input type="radio" name="unit" value="muls" checked id="unitmuls"> 64‑bit multiplications</label>
+      <label><input type="radio" name="unit" value="us" id="unitus"> microseconds on one core, at 3e9 multiplications per second</label>
+    </div>
+    <div class="group"><span class="eyebrow">Axes</span>
+      <label><input type="radio" name="view" value="2d" checked id="view2d"> bytes against prover 64‑bit word multiplications, third measure as marker size (square-root scale, capped at 50 px)</label>
+      <label><input type="radio" name="view" value="3d" id="view3d"> bytes, prover work, third measure</label>
+    </div>
+    <div class="group"><span class="eyebrow">Scale</span>
+      <label><input type="radio" name="scale" value="log" checked id="scalelog"> logarithmic</label>
+      <label><input type="radio" name="scale" value="linear" id="scalelinear"> linear</label>
+    </div>
+    <div class="group"><span class="eyebrow">Camera</span>
+      <label><input type="checkbox" id="holdcamera" checked> hold the view (axes, camera, zoom) when options change</label>
+    </div>
+    <div class="group"><span class="eyebrow">Frontier</span>
+      <label><input type="checkbox" id="collapse-pre"> collapse pre-quantum to its frontier</label>
+      <label><input type="checkbox" id="collapse-post"> collapse post‑quantum to its frontier</label>
+      <label><input type="checkbox" id="perfamily"> within each family separately</label>
+    </div>
+  </div>
+  </div>
+
+  <h2>Frontiers</h2>
+  <p>The table lists the configurations of each class that are not dominated within that class on bytes, prover work, and the selected third measure together, among the selection above, and also each family's own frontier, marked "family" in the last column, so that every scheme's best configurations appear even where its class dominates it. Header size only adds cost, so select one to compare at a fixed shape.</p>
+  <p><strong>Pasta as a requirement.</strong> Native support for the Pasta base field, which the Ironwood recovery circuit needs, enters the dominance test as a requirement rather than a cost. A configuration that has it (Pedersen-IPA, the Pasta variants of Akita, WHIR over Pasta and the limb hybrid, BitZ and its draft frontend over Akita) is dominated only by another that has it, while a 128‑bit, Goldilocks or F<sub>2</sub> configuration can be dominated by any. So the post‑quantum frontier always keeps the best Pasta-native points beside the cheaper other-field ones, and the table's Pasta column says which is which.</p>
+  <p><strong>Which third measure.</strong> Merge gates is the better third measure now that every family has an estimate of them. Accumulation atoms is kept because it is the more robust proxy for the lattice merge, whose gate count is estimated. For the hash-based families atoms say nothing, since their merge cost is the Merkle hashing. Verifier work is the decider's cost, milliseconds for the lattice and binary-field families, tens for Pedersen-IPA and for WHIR over Goldilocks, and tens to over a hundred for WHIR over Pasta, so it rarely decides a frontier, but it is there to check.</p>
+  <p><strong>Parameter changes against design changes.</strong> When configurations that need code or design changes are included, each class's frontier is the union of its frontier over all of them and its frontier over the parameter-only ones, so that what the changes buy stays visible. The table's last column says which frontier a row is on. The per-family box collapses each family to its own frontier instead, so that a dominated family still shows its best configurations.</p>
+  <p><strong>Rank.</strong> The circuit budget below limits the endoscalings per step and the binders at each rank, which makes rank a real trade-off for Pedersen-IPA. A larger circuit holds more endoscalings and fewer binders, which removes committed components and with them bytes and atoms, while the IPA grows by 128 bytes per rank and every remaining polynomial doubles. Rank 14 with the fixed circuits packed beats rank 13 on all three measures; ranks 15 and 16 buy bytes and atoms with prover work. For Akita the step circuits' witnesses open as one batch, so the rank moves bytes and atoms only through each circuit's own evaluation claim and the last circuit's unused capacity, a few hundred bytes across the range. Mostly the field choice trades: smaller fields buy bytes and prover work at the cost of atoms absorbed per merge.</p>
+  <p><strong>The hash-based families.</strong> WHIR with ARC accumulation is dominated by Akita on every measure: with the grinding chosen per row its proofs are 197 to 831 KB, its prover is 16 to 650 times Pedersen-IPA's, and its merge is 0.6 to 3.1 million gates, 20 to 140 times Akita's. The proof is the decider's. At the root nobody has yet combined the two child accumulators with the root's own witness, so the decider's proof opens those three oracles in its first round, each under its own Merkle root (Ulrich Haböck's point). A stand-alone WHIR proof of the same witness is 177 KB at rate 1/8 and rank 13. The two extra first rounds bring it to 326, with their paths pruned as a multiproof, as the reference implementation already prunes its own. The lower rates and the grinding, added after Ulrich Haböck's questions, take a third off its proof at rate 1/32 against rate 1/8 (226 against 326 KB at rank 13) and a third off its merge, at two and a half times the encoding and hashing. The sizes are extrapolated from measurements at 2<sup>17</sup>, 2<sup>18</sup> and 2<sup>20</sup>; the growth per doubling is not uniform, since a folding round is added every two doublings, and the three-doubling slope used here is about nine KiB against five over the first doubling alone, which is why these rows are larger than the earlier page showed. Goldilocks cuts its prover by about five times and its proof by a sixth, and grows its merge, since a Goldilocks Poseidon costs more gates per node. The Pasta-claims-with-64‑bit-limbs hybrid, unlike Akita's 64‑bit commitment variant, gains nothing: the Pasta merge circuit forces Pasta's hash on the trees, and four limbs per coefficient is more hashing, not less. WHIR over Pasta is dominated by Akita's Pasta variants, which is a like-for-like comparison. What the hash-based route has that Akita does not is a native Pasta field with no design change beyond the commitment scheme, and a prover that would be cheap with a bit-oriented hash, which the recursion cannot afford; the F<sub>2</sub> family shows what that prover buys.</p>
+  <p><strong>ARC against each scheme's own recursion.</strong> Every hash-based scheme appears twice, with ARC accumulation and, in a lighter shade of the same colour, with full recursion: the merge circuit verifies its two input proofs, each step emits a full proof, and the decider verifies one. The hash and the field are the same; the proofs differ, since the recursive decider verifies one stand-alone proof while the ARC decider's first round opens three oracles, so the recursive rows' proofs are a little over half the ARC rows' (181 against 326 KB for WHIR at rate 1/8 and rank 13). For WHIR the recursion is about a wash on the prover at rate 1/8: the verifier's hashes per input match ARC's openings through the tree's levels (2,600 against 86 × 26 without grinding, and both fall with it), and its merge is two fifths larger. At rate 1/2 it saves a third of the prover and a twentieth of the merge, because the verifier's queries fall with the rate while ARC's openings grow with it. FRI's verifier has twice WHIR's hashes, so its recursion costs about twice ARC. Ligerito's verifier, under BitZ, opens 491 columns over its five levels at 100 bits, against ARC's 86 openings at rate 1/8, so its recursion is seven times ARC's hashing (200 against 28 million witness bits at rate 1/8), and the proof grows with the merge; the ARC row is the better one for BitZ. The F<sub>2</sub> family's recursion verifies its own FRI-Binius proof, whose ring-switching verifier costs 2ℓ′·2<sup>κ</sup> field multiplications. So its merge is 116 million witness bits in the 192‑bit design, 168 million in the 191‑bit one, whose one-step ring switching costs the verifier 191 field multiplications per variable rather than 64, and 263 million in the 256‑bit one, against 25 million under ARC, at three and a half to eight times the prover. Its proof is a quarter smaller (131 against 174 KB at rate 1/8).</p>
+  <div class="tablewrap"><table id="table"><thead><tr>
+    <th>Family</th><th>Configuration</th><th class="num">Proof<br>bytes</th><th class="num" id="th-prover">Prover<br>64‑bit muls</th><th class="num" id="th-verify">Verifier<br>64‑bit muls</th><th class="num">Accumulation<br>atoms</th><th class="num">Merge<br>gates</th><th class="num">Commitments<br>folded</th><th>Pasta<br>field</th><th>Assumption</th><th>Changes<br>needed</th><th>Frontier</th>
+  </tr></thead><tbody></tbody></table></div>
+
+  <h2>What the axes mean</h2>
+  <ul>
+    <li><strong>Proof bytes.</strong> The compressed PCD proof. For Pedersen-IPA it is counted from Ragu's structs: the instance's commitments and scalars, two revdot reductions, two batches, and two IPAs with one round per bit of the rank; the checked-in configuration gives 7,460 bytes and is pinned by a test. For Akita it is the planner's byte estimate for the decider's opening of one final group plus the separately committed groups, from the estimation runs, plus an instance of 128-byte commitments and two claims per group. For WHIR with ARC it is the WHIR proof that decides the final accumulator, measured with the reference implementation over a 256‑bit field at 128‑bit security in the proven Johnson regime, at the batched witness size, at the selected rate and grinding, plus the two extra first-round trees of the decider's batched opening and the accumulator's roots and claims. For the F<sub>2</sub> family it is the optimizer's proof as the binary-field section describes, and for BitZ its Table 10 proof with the Zinc+ PIOP's, each with the extra trees under ARC.</li>
+    <li><strong>Prover work.</strong> Native 64‑bit word multiplications for one step's commitments, with every committed polynomial taken as dense. Pedersen over Pasta: a Pippenger multi-scalar multiplication costs about 255/rank mixed additions per coefficient, each about 11 field multiplications of about 32 word multiplications, roughly 6,400 per coefficient at rank 14, over all of the step's polynomials (about 100 at the checked-in configuration). Ajtai by NTT: per digit about rows/64 pointwise multiplications plus 3 for its share of the transform, at the modulus width, which is 32 word multiplications at 255 bits, 8 at 128, 2 at 64; with 85 digits per Pasta coefficient that is about 14,000 per coefficient when the commitment modulus is Pasta, 2,000 when it is 64‑bit, 2,600 at a 128‑bit field, and 400 on Goldilocks, over every step circuit's witness. The cycle's endoscaling and binder polynomials do not exist in the lattice design. Folding and sum-check work is not included. For WHIR with ARC it is the Reed–Solomon encoding by FFT over the witness divided by the rate, plus the Merkle trees of the witness and of the new accumulator, with Poseidon at about 35,000 word multiplications per permutation over a 255‑bit field, since natively the matrix multiplications are full multiplications too; at rate 1/8 that is about 180,000 per coefficient. A bit-oriented hash such as Blake3 would be a hundred times cheaper natively and a hundred times dearer in the circuit, which the recursion cannot afford. The F<sub>2</sub> family's prover is counted as the binary-field section describes, a carry-less multiplication as one word multiplication, and BitZ's is its measured Table 10 prover.</li>
+    <li><strong>Accumulation atoms.</strong> An atom is one element of the merge circuit's native field. A configuration's accumulation atoms are the atoms that the merge circuit absorbs per fold, to derive the fold's challenges from the two proofs that it merges. The count stands in for the merge circuit's size: each absorbed atom costs hashing constraints, and the Pedersen coordinates also feed the point arithmetic. For Pedersen-IPA it is two atoms per commitment folded, the x and y coordinates, over the commitments of both instances. For Akita it is the sum-check messages of the range and norm checks, about 120 elements for two sum-checks of about 20 rounds with three elements each, counted as one atom each, plus each compressed commitment image: 128 bytes at the variant's atom width, which is 8 atoms at a 128‑bit field, 16 on Goldilocks, 4 on Pasta, and 6 for Pasta claims with 64‑bit commitment coordinates, three coordinates to an atom. The folding arithmetic is not included, and for Pedersen-IPA neither is the endoscaling arithmetic, which is what a higher endoscaling count costs in gates. For the hash-based families, with ARC or with their own recursion, the merge absorbs only the accumulators' or input proofs' roots and claims, about 40 atoms, which is why atoms are the wrong measure for them.</li>
+    <li><strong>Merge gates.</strong> The gates synthesized across every circuit of one merge: measured for Pedersen-IPA, and estimated for Akita and for WHIR with ARC as the Circuit budget section describes, and for the binary-field families counted in AND gates or witness bits as their sections describe. It is the default third measure. In the 2D view the marker's size grows with the square root of the third measure and is capped at 50 pixels; the binary-field and BitZ families' witness-bit counts exceed the cap by far, so their markers all show at the cap. Markers over 20 pixels carry a small contrasting cross at their centre, so that they can be read against the axes. The swatches in the families list are sized like each family's median marker, up to 18 pixels, so the list carries the same cue.</li>
+    <li><strong>Verifier work.</strong> The decider's verification, in the same word-multiplication equivalents as the prover, at 3e9 per second of one core, which is also what the microsecond option assumes. Pedersen-IPA is modelled: the two IPAs each need a multi-scalar multiplication of 2<sup>rank</sup> points, plus a scalar multiplication per folded commitment to combine the instance, about 49 ms at rank 13. Akita is measured: the paper's single-thread verifier takes 4.2 ms at the 128‑bit field and 3.9 ms on Goldilocks at 2<sup>27</sup> committed bits, growing by about 0.4 ms per doubling, so 2.5 to 3 ms at this witness size; the Pasta variants are taken at four times the 128‑bit figure, the ratio of word multiplications per field multiplication, since the verifier's work is sum-check arithmetic in the claim field, about 11 ms; the masked witness adds three rounds to each sum-check. The hash-based deciders are the WHIR verifier's hashes at the witness size, measured, at the variant's native permutation cost, plus about a million for the arithmetic, and in the ARC rows the decider's two extra first-round trees. At rate 1/8 and rank 13 that is 13 ms on Goldilocks and 62 ms with Poseidon over Pasta under ARC, and 7 and 31 ms under recursion; FRI has 2.07 times the hashes. The F<sub>2</sub> family's decider is the FRI-Binius verifier: the proof's authentication and leaf hashes at BLAKE3's native cost plus its field multiplications, 0.2 to 1.4 ms. BitZ is its Table 10 verifier at the merge's bits, 2.4 ms at 2<sup>25</sup>, scaled with the floor and, in the ARC rows, by the decider's two extra first-round trees, plus 2 ms for Zinc+'s PIOP.</li>
+  </ul>
+  <h2>Circuit budget</h2>
+  <p>A step circuit at rank <i>r</i> holds 2<sup><i>r</i>−2</sup> gates and four times as many constraints, 2,048 and 8,192 at rank 13, and the gate limit binds first. The Pedersen-IPA figures are the internal circuits' synthesis counts pinned in Ragu's tests at rank 13. An endoscaling step costs 459 gates per point plus 190. A binder costs about 1,985 gates for two of the ten challenges, taken as 590 per challenge plus 805 of overhead; that split is derived, not measured. The fixed circuits are hashes_1 (1,992 gates), hashes_2 (2,044), inner_collapse (1,921), outer_collapse (1,592), compute_v (1,834), bind_beta (2,029) and bind_endoscalar (780) on the native side, and export (1,384), collapse (1,624), compute_v (1,661) and loading (776) on the nested side. Packing them into a larger rank's budget is first-fit decreasing on these counts, and merging circuits is a design change rather than a parameter.</p>
+  <div class="tablewrap"><table><thead><tr>
+    <th>Rank</th><th class="num">Gates per circuit</th><th class="num">Endoscalings per step</th><th class="num">Binders</th><th class="num">Fixed circuits packed (native, nested)</th>
+  </tr></thead><tbody>
+    <tr><td>13</td><td class="num">2,048</td><td class="num">4</td><td class="num">5</td><td class="num">7, 4 (as today)</td></tr>
+    <tr><td>14</td><td class="num">4,096</td><td class="num">8</td><td class="num">2</td><td class="num">4, 2</td></tr>
+    <tr><td>15</td><td class="num">8,192</td><td class="num">17</td><td class="num">1</td><td class="num">2, 1</td></tr>
+    <tr><td>16</td><td class="num">16,384</td><td class="num">35</td><td class="num">1</td><td class="num">1, 1</td></tr>
+  </tbody></table></div>
+  <p>The Akita merge circuit is estimated, not measured. In-circuit Poseidon absorbs four elements per 288-gate permutation, so 72 gates per accumulation atom. Folding each child's 128-byte commitment image needs a modular reduction, taken as one gate per bit. The sum-check verifier's arithmetic is about 400 gates. The step circuits are that total divided by the rank's budget, rounded up. Merge gates, in the hover text and the table, is the total over every circuit of one merge.</p>
+  <p>The hash-based merge is also estimated. A hash commitment is not homomorphic, so Ragu's split accumulation does not apply; ARC accumulates Reed–Solomon proximity claims instead. Its verifier checks 2(λ − g)/log<sub>2</sub>(1/ρ) Merkle openings per input at rate ρ with g bits of grinding in the query phase, in the proven, Johnson-bound regime: at λ = 128 and 16 bits of grinding, 224, 112, 75, 56, 45 and 38 at rates 1/2 to 1/64, and 256, 128 and 85 at 1/2, 1/4 and 1/8 without grinding. The factor of two would go away only under the list-decoding conjectures refuted in late 2025. Each opening is a path through the accumulator's tree over the witness divided by the rate, one Poseidon permutation per node at 288 gates, and a merge has two inputs. The step circuits follow as for Akita, with the tree's depth growing with the batched witness, which is why the number of circuits is in the hundreds. WARP has the same opening count for Reed–Solomon codes and a linear-time prover only with linear-time codes, which does not help here, since the cost is the hashing rather than the encoding. Verifying a WHIR proof in the circuit instead of accumulating, the other route, costs about the same hashing for a single oracle and more with the oracles of a real polynomial IOP, with the proof of each step's growing witness fed back into the next step.</p>
+  <h2>Binary-field systems</h2>
+  <p>The binary-field, sum-check-based systems of 2025 and 2026, Flock (arXiv 2607.27491) and Binius64 on the FRI-Binius and Ligerito commitments, and Blaze on repeat-accumulate-accumulate codes, are the efficient end of the hash-based line. They are Boolean arithmetizations over F<sub>2</sub> with claims in F<sub>2<sup>128</sup></sub>, so they have no 2<sup>rank</sup> Pasta circuits and the rank filter does not apply to them; the Flock/Binius-style family is priced in its own terms. Its merge is ARC's openings as for the other hash-based variants, each Merkle node a BLAKE3 compression of about 2<sup>13</sup> AND gates, so the merge is a Boolean witness of that many gates, 14 to 74 million from rate 1/64 to 1/2, and its merge-gates figure is a count of AND gates that is not comparable with Pasta gates; bytes and prover work are comparable. Proof bytes come from Ulrich Haböck's FRI-Binius proof-size optimizer, in three designs that each row names: the witness packed into F<sub>2<sup>256</sup></sub>, which is also the field of the folding and sum-check challenges; packed into F<sub>2<sup>64</sup></sub> with the challenges drawn from its cubic extension F<sub>2<sup>192</sup></sub>, which is the field that the agreement bound sees, as Plonky3's FRI pairs a base field with an extension; or packed straight into GF(2<sup>191</sup>), a prime-degree field with the trinomial x<sup>191</sup> + x<sup>9</sup> + 1 and no subfields, which Ulrich Haböck suggested for its arithmetic. The proof is at 128 bits of security in the list-decoding regime up to the Johnson bound with the largest list that the correlated-agreement bound allows (the simplified BCHKS25 bound; BCIKS20 for unique decoding), the Guruswami–Sudan multiplicity, the selected grinding, and the folding schedule chosen to minimise the compressed proof, with Merkle-cap multiproofs. Checked against the reference WHIR implementation at the same witness, field, regime and grinding, its query counts are within one to five of WHIR's and its proofs about a tenth smaller, from the optimised schedule. A 128‑bit field cannot reach 128 bits in any regime at these sizes, since the agreement term alone is about 100 bits, which is why FRI-Binius's published figures are at 100. Ring switching (ePrint 2024/504, §1.3) packs 2<sup>κ</sup> bits into each element and assumes a power-of-two degree over F<sub>2</sub>, which 192 and 191 are not; so the 192‑bit design packs into F<sub>2<sup>64</sup></sub> (κ = 6) and needs the ring-switching sum-check restated over the tensor product of the two fields, and the 191‑bit design lays the witness out as 191 columns, which the PIOP batches and the ring switching takes in one step of degree 191; both are design changes that the paper does not write down. The first-round oracle is the packed witness and has the same bytes under any packing, so the designs differ in the later rounds' elements, 24 bytes against 32, and in the agreement margin: 256 bits leaves about 25 bits, 192 one to five and 191 one less, and their list of 2<sup>6</sup> to 2<sup>7</sup> costs a query or two; so the 192‑ and 191‑bit proofs are five to ten percent smaller than the 256‑bit ones, and equal to each other. Under ARC the decider's first round opens three oracles, the two child accumulators and the root's witness, each under its own root, which the optimizer prices and schedules for. Prover work is counted in word multiplications, a 64‑bit carry-less multiplication as one. The PIOP is Flock's measured 82,100 BLAKE3 compressions per second on one core less its commitment (its Table 5: witness generation 5%, zero-check and lincheck 46%), with the zero-check and lincheck, which run over F<sub>2<sup>128</sup></sub>, scaled by half the challenge field's multiplication cost over F<sub>2<sup>128</sup></sub>'s (4, 8 and 11 carry-less multiplications per product in 128, 192 and 256 bits, Karatsuba over the 64‑bit limbs with the limb reductions, and 7 in GF(2<sup>191</sup>), whose one trinomial reduction is cheaper than the tower's six). The commitment is counted operation by operation: the additive NTT of the first oracle, with a 32‑bit subfield twiddle per limb in the tower fields and a full-field twiddle in GF(2<sup>191</sup>), which has no subfield to hold the evaluation domain, and its tree; the ring switching, two passes of a challenge-field element by each witness bit and a sum-check over the packed coefficients; the folds, the folded trees and the BaseFold sum-check; in carry-less multiplications, BLAKE3 compressions and word XORs at an eighth each, scaled to the FRI-Binius paper's single-threaded 144 ms commitment and 160 ms opening at 2<sup>28</sup> bits, rate 1/2, over F<sub>2<sup>128</sup></sub> (its Table 2), which the counts reproduce at 1.1 and 1.7 times. An ARC step pays the NTT, two trees and the ring switching; a recursive step a full proof, and its merge verifies two, the field multiplications by Karatsuba. So the prover grows with the inverse rate below 1/4, as the other hash-based rows do: with the grinding chosen per row it is 430 to 630 million word multiplications at rates 1/4 to 1/2, 450 to 570 million at 1/8 and 1/16, and 1.4 billion at 1/64 in the 192‑bit design; the 256‑bit one a tenth more; and the 191‑bit one six percent less at rate 1/2 but three to ten percent more from rate 1/8 down, where the NTT's full-field twiddles outweigh its cheaper reduction and half-size folds; against 150 million for Flock's whole measured pipeline at this witness size and its own rate 1/2 over F<sub>2<sup>128</sup></sub>. The decider's verifier is the proof's authentication and leaf hashes at BLAKE3's native cost plus its field multiplications, 0.2 to 1.4 ms. Zero knowledge is modelled in two variants, a full mask and a Zook-style one, which the zero-knowledge paragraph below describes. It does not support the Pasta base field, so under the dominance rule it can be dominated by anything. Its proofs under ARC are 106 to 446 KB from rate 1/64 to 1/2 in the 192‑bit design, with the three first-round trees, and under recursion 81 to 340 KB; the prover is least at rates 1/4 to 1/8, 430 to 450 million word multiplications, eight times Akita over Goldilocks's, whose proof is 68 KB; and the merge is 14 to 74 million AND gates against Akita's 25 thousand Pasta gates. The price of the field is the application: Pasta arithmetic in a Boolean circuit, or in any small field, pays the embedding and simulation overhead that the small-field survey (ePrint 2026/1371, §5) quantifies, and the Ironwood recovery circuit is Pasta arithmetic.</p>
+  <p><strong>BitZ.</strong> BitZ (ePrint 2026/2141) removes that price. It is a hash-based commitment for multilinears over any finitely generated ring. The witness is bit-decomposed and committed packed over F<sub>2<sup>128</sup></sub> with Flock's Ligerito. An evaluation claim over a ring R is lifted to the integers, through a random prime where R is large, and proved in the exponent of F<sub>2<sup>128</sup></sub> by batched GKR grand products. So its cost is per committed bit and does not depend on R. With the Universal Constraint Systems of Zinc+ (ePrint 2026/855) the application is native over Pasta's field: integer witnesses with ideal membership modulo p, projected to a random prime field for the PIOP. So the Ironwood recovery circuit stays Pasta arithmetic, at 255 bits of value and 255 bits of quotient per gate, 510 committed bits. The merge is a hybrid circuit: the Merkle hashing over F<sub>2</sub> as for the F<sub>2</sub> family, and the GKR and PIOP verifiers native over the binary extension and the projection field, a few thousand constraints that are not counted. Its costs are the paper's Table 10: the PCS at 2<sup>20</sup> to 2<sup>31</sup> committed bits on one thread at 100 bits, interpolated at the merge's bits. The paper's own benchmark, run here on one thread, reproduces those bytes exactly at 2<sup>25</sup> to 2<sup>28</sup> and gives the scalings. On one thread this machine is 1.3 times the paper's and on ten threads it matches, ten threads giving four to five times the single-thread prover. At 128 bits, which its implementation reaches only in the unique-decoding regime with fold grinding, the Ligerito part of the proof is 1.8 times the 100-bit one and the verifier 1.17 times, while the prover is unchanged. Rate 1/8 has 0.83 of the Ligerito bytes for 1.25 times the prover, and it is the proof-size minimum: at rate 1/16, the lowest the implementation allows, the proof is 3% larger again and the prover 27% slower. The unique-decoding regime is what the implementation certifies at 128 bits; at the Johnson bound it stops at 118 bits, its out-of-domain binding term with one sample. There the proof is 217 KB at 2<sup>25</sup> and rate 1/2, against 304 KB in the unique-decoding regime at 128 bits. The Ligerito part grows linearly with the bits (1.18 times from 100 to 118), so a Johnson-regime BitZ at 128 bits, which analysis in progress may reach, would be about 231 KB, a quarter less than the stand-alone figure under the rows. The rows keep the certified figures. The prover is the grand-product GKR, 120 of the 150 ms at 2<sup>25</sup>, with Ligerito at 10 to 30 ms: as Quang Dao puts it, the prover with grand-product GKR is just really expensive. Zinc+'s PIOP is added from its Table 4: 1.6 times the PCS prover on the application's share, 2 ms of verifier, and 36 KB of proof. At rank 13 and rate 1/8 with ARC it comes to 500 KB with the decider's three first-round trees, 3.5e8 word multiplications, a 28 million bit merge, and a 7.5 ms decider. That is on the frontier: it supports Pasta natively, and nothing with Pasta claims has both a smaller proof and a cheaper prover. Akita's Pasta variants beat it on proof size, and its merge is a Boolean witness of the F<sub>2</sub> family's size. BitZ does not support zero knowledge yet. Quang Dao notes that BitZ's arithmetization, the bit-decomposed witnesses with claims over any ring, might in future be combined with a lattice backend such as Akita.</p>
+  <p><strong>BitZ over Akita (draft frontend).</strong> An internal research draft of September 2026, provisional and unreviewed, supplies the piece that such a combination needs: a Booleanity check over the lattice's own prime field. The committed table's bits are certified by one unweighted quadratic identity plus an integer norm bound, which a structured random projection supplies by revealing 160 coordinates, so BitZ's exponent-lift GKR, 80% of its prover, is not needed. The draft measures the reduction alone, single-threaded at 2<sup>27</sup> bits over 2<sup>64</sup> − 59. The projection prover takes 113 ms against 438 ms for the optimized conventional Booleanity sumcheck, with verifiers of 0.85 and 0.023 ms and payloads of 2.6 and 1.7 KB. Neither includes the commitment opening or hiding. The family prices a Pasta value as 255 one-bit digits over Akita's 64-bit modulus, plus the check at 2.5 or 9.8 word multiplications per bit. Its Pasta claims go through the decoupled commitment as the 64‑bit Akita variant's do, with the same open soundness obligation. At rank 15 that is 88 KB, a prover of 6.6e8 (projection) or 8.4e8 (sumcheck) word multiplications, and a merge of 27 thousand Pasta gates in the sumcheck form. The projection's verifier scans 3.1 million sampled coefficients, at least a gate each under recursion, so its merge is 3.1 million. Against BitZ the proof is 5.7 times smaller and the merge a thousand times smaller, for about twice the prover. Against the 64‑bit Akita variant it is 5 KB more proof and three to four times the prover, since three times the digits are committed and then checked, so under the page's accounting, which prices every step gate as a 255-bit Pasta value, that variant dominates it. Quang Dao thinks the prover here is likely overestimated: the commitment is priced at rows sized by the loose security analysis, with its grinding, and a tighter analysis would cut them, so the family's prover should be read as an upper bound. The plot's measures are the recursion's: the step's commitments, the accumulator's opening and the merge circuit, which every design pays and which can be estimated, whereas which application circuit to benchmark is hard to agree on, since it depends on the application; so the application enters only through the rank, as 2<sup>rank</sup> gates at 255 bits each. The Ironwood recovery circuit itself is hash-heavy: its expensive parts are seven BLAKE2b-512 compressions (ZIP 2005's cost section; beside two Sinsemilla commitments, two full-width Pallas scalar multiplications, a Merkle path, and a BLAKE3 compression in the quantum-key signature). In this frontend a Boolean hash is one bit per wire against many Pasta gates per round in the others, and the integer arithmetic simulates F<sub>p</sub> without a bit decomposition per operation, with range checks free. Costing the recovery circuit component by component in the bit arithmetization is the open step. Revealing the projection gives no zero knowledge, and the draft's certificates are conditional and not yet formalized.</p>
+  <p>LaBinius (ePrint 2026/2103) is a lattice commitment whose modulus is decoupled from the constraint field: the commitment runs over a composite, NTT-friendly modulus, the evaluation claim lives in a binary extension field, and extraction avoids reduction modulo the commitment modulus by working over the number field. With LaBRADOR as a compressor its proofs are under 100 KiB, in the class of Akita's openings here, and its prover is within twice the hash-based provers at 67,000 BLAKE3 compressions per second on one core. For this study its importance is that it is a worked, implemented instance of the decoupled commitment modulus that the Pasta-claims-with-64‑bit-commitments variant assumes for Akita, with a soundness argument to adapt. Its evaluation field is binary rather than Pasta, so it does not plot here either.</p>
+  <h2>Knobs</h2>
+  <ul>
+    <li><strong>Pedersen-IPA:</strong> rank 13 to 16; endoscalings per step on both curves, 4 as checked in, up to what the rank's circuit holds; challenge binders, 5 as checked in, down to the fewest that bind the ten challenges at the rank; the fixed circuits as today or packed into the rank's budget; header size 2 or 4.</li>
+    <li><strong>Akita:</strong> rank; header size; and the field and modulus variant. The committed groups are five stages plus one batch of every step circuit's witness, and the number of step circuits follows from the merge circuit's gate estimate. Each step circuit's polynomial carries its own evaluation claim: one claim-field element in the proof, one atom per merge, and a few gates, which is why fewer, larger circuits help a little. The rank itself is set by the largest application step, not by the merge, which is spread over as many step circuits of that size as it needs. The opening sizes come from the planner's runs with groups of 2<sup>14</sup> coefficients, which overstates the cost of the small stage groups.</li>
+    <li><strong>WHIR with ARC:</strong> rank; header size; the code rate, from 1/2 to 1/64, which trades the prover's encoding and hashing against the number of openings and the proof size; the grinding, from the control above, one setting for every hash-based family or the best per row; and the field. Pasta is FFT friendly, so the witness, the trees and the merge circuit can all stay over it. Goldilocks puts everything over the 64‑bit field with the claims in its cubic extension, which 128‑bit security needs, and prices the merge with a width-12 Poseidon of rate 8 at about 480 gates and 7,200 word multiplications per permutation. The hybrid keeps a Pasta witness and merge circuit and commits each coefficient as four 64‑bit limbs tested over Goldilocks, so its trees use Pasta's Poseidon over limbs packed three to an element. Basefold adds nothing here: its field-agnostic codes exist for fields that are not FFT friendly, and over Reed–Solomon codes it is subsumed by WHIR.</li>
+    <li><strong>The F<sub>2</sub> family:</strong> the rate, the field design (256‑bit; 64‑bit packing with 192‑bit challenges; or 191‑bit, packed directly), header size, the grinding, and under zero knowledge the variant; it has no rank, since its merge is a Boolean witness.</li>
+    <li><strong>BitZ:</strong> rank, header size, the grinding, and rate 1/2 or 1/8, the two its implementation measures.</li>
+    <li><strong>Plonky3:</strong> the commitment layer of the STARK toolkit, univariate FRI over a small prime field with Poseidon2 hashing, priced over Goldilocks for comparability under the same ARC accumulation, with the same knobs. Its merge and prover match the Goldilocks WHIR variant, since ARC's openings and the Merkle trees do not depend on the low-degree test; its decider proof is FRI's, 1.95 times WHIR's at matched field, rate and security, the ratio the WHIR paper measures, because FRI's queries scale as λ log <i>d</i> against WHIR's λ log log <i>d</i>. It is priced with Poseidon rather than its default Poseidon2, and at 128 proven bits rather than the roughly 100 conjectured bits its deployments target.</li>
+  </ul>
+  <p>The marker shape says what a configuration needs beyond its family. A circle needs parameter changes only. For Pedersen-IPA, rank, endoscalings per step and header size are constants in the code; for Akita, the 128‑bit field and Goldilocks are the paper's published parameter sets. A square needs more. For Pedersen-IPA that is a code change within the protocol: a binder that binds more than two challenges, or the fixed circuits merged. For Akita it is a design change: the Pasta variants need a modulus profile that Akita does not have, and the 64‑bit commitment variant a decoupled commitment modulus with its own soundness argument. The hash-based families are design changes throughout, with ARC or with their own recursion, since either replaces Ragu's split accumulation. The table says which.</p>
+  <p><strong>Zero knowledge.</strong> With the box ticked, the Akita configurations carry the masked witness of the companion note: the first fold masks the accumulator witness by rejection sampling, which makes it about nine times longer and raises every commitment's Module-SIS rank about 2.4 times. On this page that is three more doublings of the batched witness in the opening, 2.4 times the rows term of the prover's work, and three more rounds in each sum-check, 18 atoms. Not modelled: the growth of the inner images in the two variants that price them at the SIS rank, and the accumulator witness itself, about 14 MB against 1.5 MB, which passes between provers rather than into any proof. Pedersen-IPA's blinding costs nothing visible here, so its points do not change. For the WHIR and FRI families the zero‑knowledge rows carry the overhead measured with Plonky3's HVZK-WHIR, which composes Zook (ePrint 2026/391) into a hiding commitment. On one core over KoalaBear with a quintic extension, at rate 1/4 and 100 bits, the proof is 103.6 KB against 30.9 KB at 2<sup>16</sup> and 110.1 KB against 37.5 KB at 2<sup>18</sup>: an additive 73 KB of mask spot checks. The prover takes 19 to 22 ms more, 15% at 2<sup>18</sup> and halving per doubling. So the rows add 73 KB scaled with the floor, a prover factor that is a few percent at these sizes, and about 1,300 hash checks per proof to the decider and to the recursive merge. The mask symbols would be larger over Pasta's field, which is not applied, and whether ARC's accumulation preserves zero knowledge has not been examined, so the ARC merge is left unchanged. Flock and BitZ offer succinctness only, by their own papers; Flock expects zero knowledge could be added at low cost, through zero‑knowledge IOPPs or VEIL. The F<sub>2</sub> family's zero‑knowledge rows carry the full mask of Diamond's binary-field construction (ePrint 2025/1015), which is the zk option of Ulrich Haböck's optimizer: a random polynomial of witness size under the same root as the witness, opened with it in an extra first round, so the commitment doubles and the proof gains a round of openings, under ARC in each of the three trees. At rate 1/8 that is 103 KiB more proof (280 against 174 KB) for 1.4 times the prover under ARC, and 46 KiB more for 1.8 times the prover under recursion, where the commitment is the larger share. The second variant, labelled Zook-style and derived rather than measured, prices Zook's masks (ePrint 2026/391) for FRI-Binius's own structure. The main oracle's zero‑knowledge encoding costs nothing in the proof, since its random coefficients fit the witness padding. Each folding round's sum-check variables get a group of four-coefficient masks, each with its own randomness, encoded at rate 1/256 and spot-checked 16 times through a pruned multiproof; the ring-switching claim's revealed element gets a mask of 2<sup>κ</sup> coefficients; and the terminal takes a full mask of its own size. FRI-Binius has no code switching and no out-of-domain samples, which are what make WHIR's masks large, since their message must hold the previous encoding's randomness, about a hundred coefficients; so its masks stay small, and as they belong to the proof rather than to the oracles, ARC's three trees do not multiply them. That gives 27 to 54 KiB more proof for one to four percent more prover under ARC, and 32 to 61 KiB for three to fifteen percent under recursion, whose merge must verify the spot checks. The full-mask rows are the upper bound and these the lower estimate; the one cross-check is that the same count reproduces Plonky3's measured 73 KB for WHIR. In both variants the ring-switching mask is this page's design, not the paper's, and the ARC merge is left unchanged, as for WHIR. BitZ drops out when zero knowledge is selected, as Pedersen-IPA drops out at 150 bits.</p>
+  <p><strong>Security floor.</strong> Akita's catalog sizes every matrix so that the cheapest known attack on its Module-SIS instance costs at least 128 bits under the ADPS16 quantum core-SVP model, 2<sup>0.265β</sup> for BKZ block size β. That puts every instance at block size 484 to 486. ARC's openings are counted at the same λ, and the F<sub>2</sub> family's optimizer runs at the floor, which shrinks its lists. The 150‑bit setting re-derives Akita's commitment ranks from width tables generated at that floor; the margin paragraph below describes how. The resulting factor is applied to the prover's rows term, to the verifier, and to the inner images' share of the opening. That share is a third where the images are compressed and a half where they are at the SIS rank. The rank-one compression maps are assumed to hold. WHIR's proofs measure 18 percent larger at 150 bits over both fields. ARC's openings scale with the floor. Pedersen-IPA over Pasta rests on the discrete logarithm in a group of order near 2<sup>254</sup>: about 126 classical bits by Pollard rho, and nothing against a quantum adversary. It is shown at the 128‑bit floor as the conventional pre‑quantum baseline. It drops out at 150 bits, which it does not reach even classically. The table's Assumption column names what each family rests on: the discrete logarithm on Pasta, Module-SIS with a random oracle, or a random oracle alone. The next section says how much to trust the Module-SIS figures.</p>
+  <p><strong>Grinding.</strong> The hash-based families can spend proof of work in the query phase: with g bits of grinding the queries need carry only λ − g bits, so ARC's openings per input fall to 2(λ − g)/log<sub>2</sub>(1/ρ), and WHIR's own query counts fall in the same way. A fixed setting applies to every hash-based row at once; the default, best per row, gives each configuration the measured setting with the smallest prover, and the row's label says which. Each row's proof size is measured at its setting with the reference implementation over both fields, rates 1/2 to 1/64, at 2<sup>17</sup>, 2<sup>18</sup> and 2<sup>20</sup>, with the growth per doubling taken over the three doublings (the earlier rows were measured at 20 bits while ARC's openings were counted without grinding, which this corrects). At rate 1/8 over the 256‑bit field the proof is 143 KiB with no grinding, 127 at 16 bits, 123 at 20 and 119 at 24; at rate 1/32 it is 110, 98, 93 and 91 KiB. The prover pays 2<sup>g</sup> evaluations of the grinding hash per merge, taken as the family's own Merkle hash so that the merge circuit's check is one node per input. Each bit of grinding removes about one opening in a hundred, so about a percent of the circuits and of the prover, while the grinding's cost doubles; the prover is least where the two cross, at 17 to 19 bits for the Poseidon families (2<sup>17</sup> permutations are about half a percent of a merge's prover at rate 1/8 and rank 13, 2<sup>20</sup> about five percent) and 12 to 18 bits for the BLAKE3 families, and the minimum is shallow: within a percent from 16 to 20 bits. The settings and the lower rates follow Ulrich Haböck's questions. The capacity regime, which would halve the openings again, is not offered, since its conjectures were refuted.</p>
+  <h2>How much to trust the Module-SIS parameters</h2>
+  <p>Akita's advantage over the hash-based route rests on Module-SIS, where that route rests on a random oracle alone and Pedersen-IPA on the discrete logarithm. This section states what the parameters assume and where the uncertainty sits.</p>
+  <p><strong>The sizing rule.</strong> Every matrix in Akita's catalog is sized so that the cheapest known attack on its Module-SIS instance costs at least 2<sup>128</sup> operations under the quantum core-SVP model of [ADPS16]. That model charges 2<sup>0.265β</sup> for lattice reduction with BKZ block size β and ignores the polynomial factors. The block size that reaches a given root Hermite factor is taken from the BKZ 2.0 analysis of [CN11]. Every instance in the catalog lands at block size 484 to 486, in lattices of dimension 2,000 to 4,800. The catalog's own security check reports 128.26 bits on each. A cross-check with the maintained lattice estimator [LE] agrees on the ranks. The estimator is maintained; the paper that introduced it, [APS15], is not, and its authors say so in a 2019 note. The estimator costs BKZ as 8·n calls to an SVP oracle of the block size, with sieving per [BDGL16] classically and per [LMvdP15] and [Laa16] quantumly. It follows [ADPS16] for the primal attack, as [AGVW17] established, and leaves out the dimensions for free of [Duc18] and [ADH+19]. The same block size under other models:</p>
+  <div class="tablewrap"><table><thead><tr><th>Cost model</th><th class="num">Bits at β = 485</th><th>Source</th></tr></thead><tbody>
+    <tr><td>classical sieving, 2<sup>0.292β</sup></td><td class="num">142</td><td>[BDGL16]</td></tr>
+    <tr><td>quantum sieving, 2<sup>0.265β</sup>, the floor used</td><td class="num">128</td><td>[Laa16], as adopted in [ADPS16]</td></tr>
+    <tr><td>"paranoid" lower bound, 2<sup>0.2075β</sup></td><td class="num">101</td><td>[ADPS16]</td></tr>
+  </tbody></table></div>
+  <p>For calibration, ML-DSA [FIPS204], the standardized Dilithium, sizes its SIS instances at block sizes of about 423, 638 and 909 for its three security levels [Dil21]. These parameters therefore sit between its levels 2 and 3 on the same model.</p>
+  <p><strong>Where the uncertainty sits.</strong> Three places, in decreasing order of concern.</p>
+  <ul>
+    <li><em>Proof-level slack, not the assumption.</em> Lattice schemes have slipped before by sizing for honest norms rather than the extractor's. Akita sizes for the extractor's collision bound, which is why the masked variant needs rank 340 against 143. But the knowledge-soundness proof in the quantum random-oracle model is still in progress. And the decoupled commitment modulus has no soundness argument yet beyond the LaBinius analogue. A gap of that kind moves parameters by a lot, not by twenty bits.</li>
+    <li><em>The instantiation is unusual.</em> Ring dimension 64 with 128‑bit or 255‑bit moduli, compression rings of dimension 8 and 4, and norm bounds up to 2<sup>48</sup> are far from the regime of the standardized schemes. No attack exploits module structure beyond constant factors. Module-SIS has a worst-case reduction [LS15], and the quantum attacks on ideal lattices [CDW17] need principal ideals, which modules of rank 64 and more do not present. But there is less cryptanalytic attention on this corner, and the ℓ<sub>∞</sub> bounds take their own estimator route.</li>
+    <li><em>The cost model.</em> Core-SVP is already a lower-bound style model. Refinements since 2016, such as the dimensions for free of [Duc18], have moved concrete estimates by ten to twenty bits either way. The disputed dual-attack improvements of [MATZOV22], reassessed in [DP23], concern LWE rather than SIS, which is attacked through the primal route. A 128‑bit quantum floor is 142 classical bits, and the paranoid model still gives 101.</li>
+  </ul>
+  <p><strong>Against the other assumptions.</strong> The hash-based route's assumption is weaker in the good sense: a random oracle and collision resistance only. Its soundness risk is concentrated in the proximity-gap conjectures, which is exactly where the 2025 refutations landed. The proven Johnson regime is therefore where that route is priced here. Pedersen-IPA rests on the discrete logarithm on Pasta, about 126 classical bits and nothing against a quantum adversary. So the fair statement is that Akita dominates on efficiency while adding one assumption whose concrete hardness is estimated rather than proven. That assumption has SIS studied since [Ajt96], Module-SIS since [LS15], and standardization behind it.</p>
+  <p><strong>A margin.</strong> Raising the floor from 128 to 150 quantum bits moves the block size to about 567. The security-floor option above re-derives Akita's commitment ranks at that floor. The source is a set of width tables generated by Akita's own estimator with a 150‑bit policy. For each of the 115 weakest Module-SIS instances in the shipped catalog's security report, the model takes the smallest module rank that covers the instance's width, at both floors. With the catalog's own mix of moduli, the ranks sum to 121 at 128 bits and to 154 at 150 bits, a factor of 1.27. There, 32 instances move from rank one to two, and one moves from two to three. Over a 64‑bit modulus the ranks are higher to begin with: the sums are 185 and 215, a factor of 1.16. There, twelve instances move from one to two, seventeen from two to three, and one from four to five. Over Pallas the sums are 117 and 118. One instance moves, and the rest sit at the width cap at both floors. That factor is applied to the prover's rows term, to the verifier, and to the inner images' share of the opening. Where the floor binds, the tables move a long way. Over the rows that it binds, the median shrink of the maximum secure width is a factor of 2 to 4 at ring dimensions up to 32, 6 to 13 at 64, 14 to 19 at 128 and 256, and about 20 at 512 and 1024. The exception is the largest dimension of each table, where it is about 60: 512 for Pallas, 1024 for q128, and 2048 for q64 and Goldilocks. WHIR's proofs grow by 18 percent, and ARC's openings by 17 percent. The Akita figures are still not re-planned. The planner's policy and its runtime tables are fixed at 128 bits. The compression maps, which reach 147 bits, are assumed to hold at rank one.</p>
+  <p><strong>References.</strong></p>
+  <ul>
+    <li>[ADH+19] M. R. Albrecht, L. Ducas, G. Herold, E. Kirshanova, E. W. Postlethwaite, M. Stevens. The general sieve kernel and new records in lattice reduction. EUROCRYPT 2019. <a href="https://eprint.iacr.org/2019/089">eprint.iacr.org/2019/089</a></li>
+    <li>[ADPS16] E. Alkim, L. Ducas, T. Pöppelmann, P. Schwabe. Post-quantum key exchange: a new hope. USENIX Security 2016. <a href="https://eprint.iacr.org/2015/1092">eprint.iacr.org/2015/1092</a></li>
+    <li>[AGVW17] M. R. Albrecht, F. Göpfert, F. Virdia, T. Wunderer. Revisiting the expected cost of solving uSVP and applications to LWE. ASIACRYPT 2017. <a href="https://eprint.iacr.org/2017/815">eprint.iacr.org/2017/815</a></li>
+    <li>[Ajt96] M. Ajtai. Generating hard instances of lattice problems. STOC 1996. <a href="https://doi.org/10.1145/237814.237838">doi:10.1145/237814.237838</a></li>
+    <li>[APS15] M. R. Albrecht, R. Player, S. Scott. On the concrete hardness of Learning with Errors. J. Math. Cryptol. 9(3), 2015. <a href="https://eprint.iacr.org/2015/046">eprint.iacr.org/2015/046</a>. Marked outdated by its authors in 2019; see [LE] and [Pla18].</li>
+    <li>[BDGL16] A. Becker, L. Ducas, N. Gama, T. Laarhoven. New directions in nearest neighbor searching with applications to lattice sieving. SODA 2016. <a href="https://eprint.iacr.org/2015/1128">eprint.iacr.org/2015/1128</a></li>
+    <li>[CDW17] R. Cramer, L. Ducas, B. Wesolowski. Short Stickelberger class relations and application to Ideal-SVP. EUROCRYPT 2017. <a href="https://eprint.iacr.org/2016/885">eprint.iacr.org/2016/885</a></li>
+    <li>[CN11] Y. Chen, P. Q. Nguyen. BKZ 2.0: better lattice security estimates. ASIACRYPT 2011. <a href="https://doi.org/10.1007/978-3-642-25385-0_1">doi:10.1007/978-3-642-25385-0_1</a></li>
+    <li>[Dil21] L. Ducas, E. Kiltz, T. Lepoint, V. Lyubashevsky, P. Schwabe, G. Seiler, D. Stehlé. CRYSTALS-Dilithium: algorithm specifications and supporting documentation, version 3.1, 2021. <a href="https://pq-crystals.org/dilithium/data/dilithium-specification-round3-20210208.pdf">pq-crystals.org</a></li>
+    <li>[DP23] L. Ducas, L. Pulles. Does the dual-sieve attack on Learning with Errors even work? CRYPTO 2023. <a href="https://eprint.iacr.org/2023/302">eprint.iacr.org/2023/302</a></li>
+    <li>[Duc18] L. Ducas. Shortest vector from lattice sieving: a few dimensions for free. EUROCRYPT 2018. <a href="https://eprint.iacr.org/2017/999">eprint.iacr.org/2017/999</a></li>
+    <li>[FIPS204] NIST. Module-Lattice-Based Digital Signature Standard. FIPS 204, 2024. <a href="https://doi.org/10.6028/NIST.FIPS.204">doi:10.6028/NIST.FIPS.204</a></li>
+    <li>[Laa16] T. Laarhoven. Search problems in cryptography: from fingerprinting to lattice sieving. PhD thesis, Eindhoven University of Technology, 2016.</li>
+    <li>[LE] M. R. Albrecht et al. The lattice estimator. <a href="https://github.com/malb/lattice-estimator">github.com/malb/lattice-estimator</a>. Its SIS module is what the cross-check used.</li>
+    <li>[LMvdP15] T. Laarhoven, M. Mosca, J. van de Pol. Finding shortest lattice vectors faster using quantum search. Des. Codes Cryptogr. 77, 2015. <a href="https://eprint.iacr.org/2014/907">eprint.iacr.org/2014/907</a></li>
+    <li>[LS15] A. Langlois, D. Stehlé. Worst-case to average-case reductions for module lattices. Des. Codes Cryptogr. 75(3), 2015. <a href="https://eprint.iacr.org/2012/090">eprint.iacr.org/2012/090</a></li>
+    <li>[MATZOV22] MATZOV. Report on the security of LWE: improved dual lattice attack. Zenodo, 2022.</li>
+    <li>[Pla18] R. Player. Parameter selection in lattice-based cryptography. PhD thesis, Royal Holloway, University of London, 2018.</li>
+  </ul>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<script>
+const DATA = /*DATA*/;
+const COLORS = { pedersen: 'var(--c-pedersen)', fp128: 'var(--c-fp128)', goldilocks: 'var(--c-gold)', pasta_q64: 'var(--c-q64)', pasta_sis: 'var(--c-sis)', pasta: 'var(--c-pasta)', whir: 'var(--c-whir)', whir_gold: 'var(--c-whirgold)', whir_hybrid: 'var(--c-whirhybrid)', plonky3: 'var(--c-plonky3)', flock: 'var(--c-flock)',
+  whir_rec: 'var(--c-whirrec)', whir_gold_rec: 'var(--c-whirgoldrec)', whir_hybrid_rec: 'var(--c-whirhybridrec)', plonky3_rec: 'var(--c-plonky3rec)', flock_rec: 'var(--c-flockrec)', bitz: 'var(--c-bitz)', bitz_rec: 'var(--c-bitzrec)', bits_q64: 'var(--c-bitsq64)' };
+const css = getComputedStyle(document.documentElement);
+const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
+const order = ['pedersen', 'fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec', 'flock', 'flock_rec', 'bitz', 'bitz_rec', 'bits_q64'];
+const famBox = document.getElementById('families');
+// Each family's swatch uses the marker shapes its points have in the plot: a
+// circle for configurations needing parameter changes only, a square for the
+// rest, both where a family has both.
+for (const f of order) {
+  const l = document.createElement('label');
+  const shapes = [...new Set(DATA.points.filter(p => p.family === f).map(p => p.change === 'none' ? 'circle' : 'square'))].sort();
+  const swatches = shapes.map(s => `<span class="swatch ${s}" style="background:${color(f)}"></span>`).join('');
+  l.innerHTML = `<input type="checkbox" class="fam" value="${f}" id="fam-${f}" checked><span class="swatches">${swatches}</span>${DATA.labels[f]}`;
+  famBox.appendChild(l);
+}
+function selected() {
+  const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
+  const ranks = [...document.querySelectorAll('.rank:checked')].map(e => +e.value);
+  const headers = [...document.querySelectorAll('.header:checked')].map(e => +e.value);
+  const packings = [...document.querySelectorAll('.packing:checked')].map(e => e.value);
+  const paramsOnly = document.getElementById('paramsonly').checked;
+  const zk = document.getElementById('zk').checked;
+  const floor = +document.querySelector('input[name=floor]:checked').value;
+  const grind = document.getElementById('grind').value;
+  return DATA.points.filter(p => fams.includes(p.family) && (p.rank === null || ranks.includes(p.rank)) && headers.includes(p.H)
+    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
+    && (p.zk === null || p.zk === zk) && (p.floor === null || p.floor === floor)
+    && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
+}
+const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', whir: 'random oracle', whir_gold: 'random oracle', whir_hybrid: 'random oracle', plonky3: 'random oracle', flock: 'random oracle' };
+const SYMBOL = { none: 'circle', code: 'square', design: 'square' };
+const CHANGE = { none: 'parameters only', code: 'code changes', design: 'design changes' };
+// Dominance on bytes, prover work and the third measure, with native support
+// for the Pasta base field as a requirement: a configuration that has it is
+// dominated only by one that also has it.
+function frontierAmong(pts, third) {
+  return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q.prover <= p.prover && q[third] <= p[third] && q.pasta >= p.pasta && (q.bytes !== p.bytes || q.prover !== p.prover || q[third] !== p[third])));
+}
+const THIRD_REF = { gates: 300000, accumulation: 330, verify: 1e8 };  // marker-size references in the 2D view, in word multiplications
+const third = () => document.querySelector('input[name=third]:checked').value;
+// Prover and verifier work are stored in 64-bit word multiplications; the
+// unit option shows them as microseconds at 3e9 per second on one core.
+const unit = () => document.querySelector('input[name=unit]:checked').value;
+const unitFactor = () => unit() === 'us' ? 1 / 3000 : 1;
+const unitName = () => unit() === 'us' ? 'µs' : '64‑bit muls';
+const val = (p, key) => (key === 'prover' || key === 'verify') ? p[key] * unitFactor() : p[key];
+const thirdTitle = t => ({ gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `verifier ${unitName()}` })[t];
+function fmt(n) { return n.toLocaleString('en-GB'); }
+// A padded axis range over the points' values of one key, in log10 units for a
+// log axis, as Plotly expects.
+function padded(basis, key, logAxis) {
+  const v = basis.map(p => val(p, key));
+  if (!v.length) return undefined;
+  let lo = Math.min(...v), hi = Math.max(...v);
+  if (logAxis) { lo = Math.log10(lo); hi = Math.log10(hi); }
+  const pad = Math.max(0.05 * (hi - lo), logAxis ? 0.15 : 0.05 * Math.abs(hi) || 1);
+  return [lo - pad, hi + pad];
+}
+// The held view: the scale and view it was captured in, and the axis ranges.
+let held = null;
+// Ticking the hold box freezes the view as it is, from the ranges the plot is
+// showing, without re-rendering; unticking it rescales the axes to the plotted
+// points at once, keeping the camera for that render.
+let keepCameraOnce = false;
+document.getElementById('holdcamera').addEventListener('change', e => {
+  if (!e.target.checked) { held = null; keepCameraOnce = true; render(); return; }
+  const fl = document.getElementById('plot')._fullLayout || {};
+  const view = document.querySelector('input[name=view]:checked').value;
+  const scale = document.querySelector('input[name=scale]:checked').value;
+  const r = a => a && a.range ? a.range.slice() : undefined;
+  const sc = fl.scene || {};
+  const t = third(), u = unit();
+  held = view === '2d'
+    ? { scale, view, third: t, unit: u, x: r(fl.xaxis), y: r(fl.yaxis), z: padded(DATA.points, t, t !== 'accumulation' && scale === 'log') }
+    : { scale, view, third: t, unit: u, x: r(sc.xaxis), y: r(sc.yaxis), z: r(sc.zaxis) };
+});
+function wrapLabel(label, width = 60) {
+  const lines = [];
+  let line = '';
+  for (const part of label.split(', ')) {
+    if (line && line.length + part.length + 2 > width) { lines.push(line); line = part; }
+    else line = line ? `${line}, ${part}` : part;
+  }
+  if (line) lines.push(line);
+  return lines.join('<br>');
+}
+function hover(p) {
+  return `${p.family_label}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover ${fmt(Math.round(val(p, 'prover')))} ${unitName()}<br>verifier ${fmt(Math.round(val(p, 'verify')))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>${CHANGE[p.change]}`;
+}
+function render() {
+  // Each class, pre-quantum (Pedersen-IPA) and post‑quantum (Akita), has its
+  // own frontier, taken among the selected configurations of that class, so
+  // that fixing a rank or a header size gives the frontier at that circuit
+  // shape. A collapse box keeps only that class's frontier in the plot; the
+  // table always lists both frontiers.
+  // Each class's frontier is the union of its frontier over every selected
+  // configuration and its frontier over the parameter-only ones, so that what
+  // code or design changes buy stays visible beside what parameters reach.
+  const all = selected();
+  const t = third();
+  // With the per-family box ticked, each family's frontier is taken on its own,
+  // so that a family dominated by another still shows its best configurations.
+  const perFamily = document.getElementById('perfamily').checked;
+  const classFrontiers = pq => {
+    const cls = all.filter(p => p.pq === pq);
+    const groups = perFamily ? [...new Set(cls.map(p => p.family))].map(f => cls.filter(p => p.family === f)) : [cls];
+    const overall = new Set(), params = new Set();
+    for (const g of groups) {
+      frontierAmong(g, t).forEach(p => overall.add(p));
+      frontierAmong(g.filter(p => p.change === 'none'), t).forEach(p => params.add(p));
+    }
+    return { overall, params };
+  };
+  const pre = classFrontiers(false), post = classFrontiers(true);
+  const frontPre = new Set([...pre.overall, ...pre.params]);
+  const frontPost = new Set([...post.overall, ...post.params]);
+  const front = new Set([...frontPre, ...frontPost]);
+  const onOverall = new Set([...pre.overall, ...post.overall]);
+  // The table also lists every family's own frontier, so that a family
+  // dominated within its class still shows its best configurations there.
+  const familyOnly = new Set();
+  for (const f of order) {
+    const fam = all.filter(p => p.family === f);
+    frontierAmong(fam, t).forEach(p => { if (!front.has(p)) familyOnly.add(p); });
+  }
+  const collapsePre = document.getElementById('collapse-pre').checked;
+  const collapsePost = document.getElementById('collapse-post').checked;
+  const pts = all.filter(p => p.pq ? (!collapsePost || frontPost.has(p)) : (!collapsePre || frontPre.has(p)));
+  const view = document.querySelector('input[name=view]:checked').value;
+  const scale = document.querySelector('input[name=scale]:checked').value;
+  const ink = css.getPropertyValue('--ink').trim(), muted = css.getPropertyValue('--muted').trim(), rule = css.getPropertyValue('--rule').trim(), surface = css.getPropertyValue('--surface').trim();
+  const traces = [];
+  const markerSize = p => Math.min(50, 6 + 10 * Math.sqrt(p[t] / THIRD_REF[t]));
+  const u = unit(), uname = unitName();
+  // The families list's swatches follow the plot's marker sizes: each is the
+  // family's median marker size under the current third measure, capped so
+  // that the list stays legible.
+  for (const f of order) {
+    const sizes = DATA.points.filter(p => p.family === f).map(markerSize).sort((a, b) => a - b);
+    const px = Math.min(18, Math.round(sizes[Math.floor(sizes.length / 2)] || 10));
+    document.querySelectorAll(`#fam-${f} ~ .swatches .swatch`).forEach(s => { s.style.width = px + 'px'; s.style.height = px + 'px'; });
+  }
+  for (const f of order) {
+    const sub = pts.filter(p => p.family === f);
+    const base = { name: DATA.labels[f], text: sub.map(hover), hoverinfo: 'text', marker: { color: color(f), opacity: f === 'pedersen' ? 0.55 : 0.9 } };
+    if (view === '2d') {
+      traces.push({ ...base, type: 'scatter', mode: 'markers', x: sub.map(p => p.bytes), y: sub.map(p => val(p, 'prover')),
+        marker: { ...base.marker, symbol: sub.map(p => SYMBOL[p.change]), size: sub.map(markerSize), line: { width: sub.map(p => front.has(p) ? 2 : 0), color: css.getPropertyValue('--accent').trim() } } });
+    } else {
+      traces.push({ ...base, type: 'scatter3d', mode: 'markers', x: sub.map(p => p.bytes), y: sub.map(p => val(p, 'prover')), z: sub.map(p => val(p, t)),
+        marker: { ...base.marker, symbol: sub.map(p => SYMBOL[p.change]), size: sub.map(p => front.has(p) ? 7 : 4), line: { width: sub.map(p => front.has(p) ? 2 : 0), color: css.getPropertyValue('--accent').trim() } } });
+    }
+  }
+  // A small cross marks the centre of each large marker in the 2D view, so
+  // that it can be read against the axes; black on light markers, and the
+  // background colour on the near-black family.
+  if (view === '2d') {
+    const big = pts.filter(p => markerSize(p) > 20);
+    if (big.length) {
+      const crossColor = big.map(p => p.family === 'plonky3' ? surface : '#000');
+      traces.push({ type: 'scatter', mode: 'markers', x: big.map(p => p.bytes), y: big.map(p => val(p, 'prover')), hoverinfo: 'skip', showlegend: false,
+        marker: { symbol: 'cross-thin', size: 5, color: crossColor, line: { width: 0.8, color: crossColor } } });
+    }
+  }
+  const axis = t => ({ title: { text: t }, gridcolor: rule, zerolinecolor: rule, color: muted, tickfont: { family: 'IBM Plex Mono, monospace' } });
+  const layout = { paper_bgcolor: surface, plot_bgcolor: surface, font: { family: 'IBM Plex Sans, system-ui, sans-serif', color: ink, size: 13 },
+    // No in-plot legend: the families list beside the plot carries the colour
+    // swatches, and a legend inside the plot changes the plot area whenever it
+    // reflows.
+    margin: { l: 70, r: 20, t: 20, b: 90 }, showlegend: false, hoverlabel: { font: { family: 'IBM Plex Mono, monospace', size: 12 } } };
+  // Holding the view freezes the axis ranges, so that a selection only adds
+  // or removes points, and a constant uirevision keeps the camera and any
+  // zoom across re-renders. The ranges are captured when the box is ticked
+  // (see below), so ticking it moves nothing; a change of scale or of view
+  // needs new ranges, taken from the whole dataset. Without the hold, the
+  // ranges follow the plotted points and a fresh uirevision resets the
+  // camera. The 3D scene cannot autorange a single point, or equal values on
+  // a log axis, so its ranges are always set explicitly, with padding.
+  const hold = document.getElementById('holdcamera').checked;
+  const log = scale === 'log';
+  const zlog = t !== 'accumulation' && log;  // gates and verifier work span orders of magnitude; atoms do not
+  if (hold) {
+    if (held && held.scale === scale && held.view === view && held.third === t && held.unit !== u) {
+      // A change of work unit multiplies the prover axis, and the verifier
+      // axis when it is the third measure, by a constant. Carry the held
+      // ranges across it, so that the picture does not move: in log scale
+      // the ranges are log10 values, so the constant adds.
+      const f = (u === 'us' ? 1 / 3000 : 1) / (held.unit === 'us' ? 1 / 3000 : 1);
+      const carry = (r, isLog) => r && (isLog ? r.map(v => v + Math.log10(f)) : r.map(v => v * f));
+      held = { ...held, unit: u, y: carry(held.y, log), z: t === 'verify' ? carry(held.z, zlog) : held.z };
+    }
+    if (!held || held.scale !== scale || held.view !== view || held.third !== t || held.unit !== u) {
+      held = { scale, view, third: t, unit: u, x: padded(DATA.points, 'bytes', log), y: padded(DATA.points, 'prover', log), z: padded(DATA.points, t, zlog) };
+    }
+  } else {
+    held = null;
+  }
+  // Without the hold, every axis takes a padded range over the plotted points, in
+  // both views: Plotly's own autorange gives a point at the edge of the data no
+  // margin, so a lone frontier point at the far right could be lost or clipped.
+  const rx = held ? held.x : padded(pts, 'bytes', log);
+  const ry = held ? held.y : padded(pts, 'prover', log);
+  const rz = held ? held.z : padded(pts, t, zlog);
+  // A constant uirevision keeps the camera and any zoom across re-renders;
+  // the untick render keeps it for one more render so that the camera stays
+  // while the axes rescale.
+  layout.uirevision = hold || keepCameraOnce ? 'hold' : String(Date.now());
+  if (view === '2d') {
+    layout.xaxis = { ...axis('compressed proof bytes'), type: scale, range: rx, autorange: false };
+    layout.yaxis = { ...axis(`prover ${uname} per step, commitments only`), type: scale, range: ry, autorange: false };
+  } else {
+    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(`prover ${uname}`), type: scale, range: ry }, zaxis: { ...axis(thirdTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface };
+    layout.margin = { l: 0, r: 0, t: 0, b: 0 };
+  }
+  keepCameraOnce = false;
+  Plotly.react('plot', traces, layout, { responsive: true, displaylogo: false });
+  const tbody = document.querySelector('#table tbody');
+  tbody.innerHTML = '';
+  const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
+  for (const p of rows) {
+    const tr = document.createElement('tr'); tr.className = 'frontier';
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${color(p.family)}"></span> ${p.family_label}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)}</td><td class="num">${fmt(Math.round(val(p, 'prover')))}</td><td class="num">${fmt(Math.round(val(p, 'verify')))}</td><td class="num">${p.accumulation}</td><td class="num">${fmt(p.gates)}</td><td class="num">${p.folded}</td><td>${p.pasta ? 'native' : 'no'}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${onOverall.has(p) ? 'overall' : front.has(p) ? 'parameter-only' : 'family'}</td>`;
+    tbody.appendChild(tr);
+  }
+  if (!rows.length) tbody.innerHTML = '<tr><td colspan="12">No family selected.</td></tr>';
+  document.getElementById('th-prover').innerHTML = `Prover<br>${uname}`;
+  document.getElementById('th-verify').innerHTML = `Verifier<br>${uname}`;
+  const table = document.getElementById('table');
+  if (table.dataset.sortCol !== undefined) sortTable(table, +table.dataset.sortCol, table.dataset.sortDir);
+}
+// Every table sorts by a clicked column, numerically where the cells parse as
+// numbers; a second click on the same column reverses the order.
+function sortTable(table, col, dir) {
+  const tbody = table.tBodies[0];
+  const text = r => (r.cells[col] ? r.cells[col].textContent : '').trim();
+  const num = s => { const n = Number(s.replace(/,/g, '')); return s !== '' && !isNaN(n) ? n : null; };
+  const rows = [...tbody.rows];
+  rows.sort((a, b) => {
+    const sa = text(a), sb = text(b), na = num(sa), nb = num(sb);
+    const c = na !== null && nb !== null ? na - nb : sa.localeCompare(sb);
+    return dir === 'desc' ? -c : c;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  [...table.tHead.rows[0].cells].forEach((th, i) => {
+    th.classList.toggle('sorted-asc', i === col && dir === 'asc');
+    th.classList.toggle('sorted-desc', i === col && dir === 'desc');
+  });
+}
+document.querySelectorAll('table').forEach(table => {
+  [...table.tHead.rows[0].cells].forEach((th, i) => th.addEventListener('click', () => {
+    const dir = table.dataset.sortCol === String(i) && table.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+    table.dataset.sortCol = String(i);
+    table.dataset.sortDir = dir;
+    sortTable(table, i, dir);
+  }));
+});
+document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+render();
+</script>

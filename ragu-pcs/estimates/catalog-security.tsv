@@ -1,0 +1,116 @@
+family	row_digest	final_group	precommitted_groups	sis_policy	modulus_profile	min_attack_cost_bits	weakest_instance	norm_bound	d	rank	width
+fp128_onehot	19b6a23463fea7dcb72eb5963082fd53e0e7bc649ec4c9a427e748a3de9bd153	20x2	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	256	1	512
+fp128_onehot	1c25184f4c54fabde30dae95fbd65beacd3524369c1dc7d8dab48f7adfd1a69c	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:12852	256	1	64
+fp128_onehot	1e12acfe269495ad0481cd6a0f95f862c4d41684e168dc58645c7b5fd4261bb9	16x1	14x1,15x2	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot	1e26dcd29bb28c113bf76e344fb9c846ca6d09c372fb804b5679bba2031ad7fb	50x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:6684468	512	1	4194304
+fp128_onehot	28ba4a65c3424fe8ecd45e67f1dca13ab4519c7f45e8e7ed397435bf2639044c	20x1	14x2	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:12852	64	3	128
+fp128_onehot	2d92cccc2ab71996a229617b88c8eddf8bc075862f8cfe7b2ba7169128d7fe60	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	256	1	16384
+fp128_onehot	3160517d3bd70f85e6863d4bfe03224cdf1914073ea39f2caf6a61d3cb29b8bd	18x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	512	1	64
+fp128_onehot	3a6ac57118a0170bb7fc81995b7bb6dfc7d1b20a1a43536f6081d3ce1ff70450	20x4	14x1,14x1,14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot	4b608935aaedd77a4884802d522c9962edf94453472208f7dc000c21df6790bd	15x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:868	128	1	128
+fp128_onehot	54424ff94e1f27691782091713d98128ec915d27fe7ecc70c5df1b554a284727	20x1	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot	590476b8d83eb03fa19d185fccd85220f58afc8ca0599dff9a20af7c59e7797e	20x2	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot	5ed429ae3b1e45525cbf29e007481f369aca8eed602cafc4e1866586363e7c8a	15x4	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	256	1	32
+fp128_onehot	68d873e74592864c4d78a6d2e4888c78e07b990700724175dea6e2a5a70f1b2b	20x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	256	1	256
+fp128_onehot	7da2f37a943113b41c53087cd8cd4a13810e3e4e6cf08a8fbce7b56506417c8f	30x4	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	256	1	16384
+fp128_onehot	801fedaafa1dc1e283d445b653ca09acadac9a3b2018d4fc39a1f2799a94772e	14x2	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	64	3	128
+fp128_onehot	817c35a3ee33bb8c8be5832ae90c753436d06ea971af0d5fdd4e0e22878dacb5	32x4	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	16384
+fp128_onehot	87e6da45f1e107257dd1b6b0be9521374844d68c5646cdee000ab7cc23328390	36x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	32768
+fp128_onehot	a7f578a00dc63a74fec0ae0d032be5c0ec558200f561f30484190e681f75b974	16x2	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	256	1	64
+fp128_onehot	acbf8d5bd8a721e90a4baa021d848ea00aae9c8b905583996ecea829be6a9413	20x4	14x1,14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot	ae1a71c6d4102dafafb0346d2594788904e8f431ebdab716b2dab3873bfcb6c2	40x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	131072
+fp128_onehot	b075383a094e7e50a3a632faad6f64ed4aeeaa1bb173ed51eadc49494f86ecfa	44x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:507780	512	1	524288
+fp128_onehot	bc77783685290e4c84db961f46846192ed8575b831ddd466478014b47aa6de63	14x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:868	128	1	64
+fp128_onehot	c129e4ef1adcb5e804c45f6f68f2caf1f5ea3f512ed809688cd21c5573d60b3b	12x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	64	2	32
+fp128_onehot	c95fc74aa15b1e766534da6f6a4e0672aa337aa1736d20eddd731670f5a88a14	30x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	256	1	8192
+fp128_onehot	ce86a48e7be3ff9aa7870839966e79c01c6303f3712e5f08a4ca92bf3eb872fc	28x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	256	1	4096
+fp128_onehot	d84f61d4534e3403424a363c8ec5e2fc374fe15b32e8c6985604e805a46e03bc	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:12852	256	1	64
+fp128_onehot	dbd4874f0ad396d48979153d91c91a3b7f3a25ac8cb9a172d8802b99dc8fa743	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:12852	256	1	64
+fp128_onehot	e3143142f1d5589daeb24466f1e8431e7edf4056c5cc7c426be7a9518254eb34	16x1	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:427818804	512	1	40
+fp128_onehot	e88ff4774912dae2fc4b3a43fd690964b5b5c21e77dfa73359d72589689f3755	20x4	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	256	1	512
+fp128_onehot	ef80b0cb3fd3f89f17ea6bb8ac7f932be1cd13836dac3bef6a49a0c3a6fdc723	16x1	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:868	128	1	64
+fp128_onehot_recursive	0c71ce4dafc27687c55e0ac687a45df66707801b21cae04a3852db5923e16b0c	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:12852	256	1	64
+fp128_onehot_recursive	1c7d21bba89b037f1348e69afcd911c319b8f8b4a805c28a1c544b9ecd7dfce6	36x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	32768
+fp128_onehot_recursive	f4ee4e2e506f3978898e0cb3b71142fe8d05dfc01b216fabaa684a522610e4d9	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:12852	256	1	64
+fp128_onehot_recursive_multi_chunk_w8r2	79902bb3a8e37693b3560246897957b1555185e7a6304b3be6978ead8e67845d	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_onehot_recursive_multi_chunk_w8r2	9234f05f6da13d2c97c17bd0fc774aff09733c51d0043c58790132cfeb244bea	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_dense	059e2c14eea64824f0025264b680ab23b4916718a55fe1c2c2233e48d3ee68d9	28x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:27380416308	1024	1	4096
+fp128_dense	15b261ba207205cfd970c9a89eaa41303f22ff935ea6aad8f52332c22e4cc1d7	26x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:27380416308	1024	1	2048
+fp128_dense	40762c7e9941ed4e145966528071ca9878c95dc86ef1064fa148b86973fa3ea5	24x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	1536
+fp128_dense	58e24a7c08e74913343e880b2cef69be35403e495c037db81c62569a05e379b5	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	80
+fp128_dense	5a1b71911b2cc06eb1893de0df0c56508d17bdaae004f4e8db0f1d0a10028699	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:16642998148	1024	1	16384
+fp128_dense	be41412341155cf94daefa12ed59d8abc47ebbb4eeb1ba315430c13609958849	16x1	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:427818804	512	1	40
+fp128_dense	d3d4cd8a9d93b8cf23176c2675e7579b82d31c67b76b87da030a5c767bef6f13	14x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	40
+fp128_dense	dfc9329694b577eaffbcf304427b8e0a71764c75080498d535a877ba6e695ffc	15x2	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	80
+fp128_dense	e80322a20fd939e7a885c6a113596cc837ee30f869f884d1185b7381ebd7f4e6	17x4	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:260046724	512	1	320
+fp128_dense	f371bbb05c8224f3f9a34bfacaed89966e1de3cf1f225a659fd7bce93d6769df	30x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:27380416308	1024	1	8192
+fp128_dense	fc08a02cb75b77a95e5f8a131e3914c55b084403587858a67910ede0b7196bdd	16x2	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	160
+fp128_dense_recursive	1ebf5e2f3f1dad4a6f4c85dd0c3b4b3549cc4ae45142d0be34d99f2ecf756dd2	26x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:27380416308	1024	1	2048
+fp128_dense_recursive	40762c7e9941ed4e145966528071ca9878c95dc86ef1064fa148b86973fa3ea5	24x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	1536
+fp128_dense_recursive	7d290a784be7c11b67e18fa34134ff3a0411f2f4618a0b4bacfd2397dbb4156b	20x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	352
+fp128_dense_recursive	8e44a5da380fbaf4d4c3947c2fc65e1cf875aa5cb18aab91573650e8219368ef	28x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:27380416308	1024	1	4096
+fp128_dense_recursive	f5afa7694ded640726be6402851edb9dab44881505e30cfc6c9f59ae350426ab	22x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	768
+fp128_onehot_multi_chunk	106f6eca0f119f265fa70e475207468bbbe67222a359e090025c619af85e7cae	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	8192
+fp128_onehot_multi_chunk	5b698dcc34813428acac0e08fea7b3f339d4033cc4c3a67b2c4793ce5de1b153	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_onehot_multi_chunk	5c18cc49277eb710a7681ecc97e88512de80c7dc09d11e54e26e57b41c2e8095	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	512	1	4
+fp128_onehot_multi_chunk	dce612a4753aeb49484468c5518d08761d67f4f0b47797d0678039ab978000c1	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_onehot_multi_chunk_w2r2	13808e9510574df63c01048bb22fbcaa251512a744ec42a913c52e73d15d82e2	14x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:31620	512	1	8
+fp128_onehot_multi_chunk_w2r2	1b943edca2d08ef680a15b1108686be0d93a2c796e75e3781a8c595e2a1ed30d	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:208692	512	1	8192
+fp128_onehot_multi_chunk_w2r2	4df00291bdd6a45408ed66e5db54dcb537e1bd0c828535e940198b7854fa5ad4	14x1	14x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:31620	512	1	8
+fp128_onehot_multi_chunk_w4r2	55904e7895b8ed2c46e176a430fc2090f6c2f781b3e413d6aded658cdf9f4d64	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:416976	512	1	8192
+fp128_dense_multi_chunk	daa4f498de8d0b8d8b232523558f1eff5bb4314b11831293f059147b78c55e92	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	104
+fp128_onehot_multi_chunk_w2r3	101e0f68c8b54fcb3001694f8c4209acd6a5ee8f32b936eb8eeb4e9ce864eba8	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:31620	256	1	64
+fp128_onehot_multi_chunk_w2r3	89f063fc4779f0aa1e0de3134cbb26d81c6262eb7f78882d8d13404bc72a9ca3	14x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:31620	512	1	8
+fp128_onehot_multi_chunk_w2r3	8adc5a3a90180be30088a8bc24a296fcd94777bd1e67c36e26bfd84dfd5a414f	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:208692	512	1	8192
+fp128_onehot_multi_chunk_w4r3	527f5e260e75e0022bcb6e39f87fe80d6a3f53b65ddc975e943a429456893fdd	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:52020	512	1	8
+fp128_onehot_multi_chunk_w4r3	8d95438351ec4eb45a67305e455b23c6cd4e4ee2c9ecde35471026743efac72c	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:416976	512	1	8192
+fp128_onehot_multi_chunk_w8r3	469082344153cb96228b037f0414726c08bedbadc708465002037289b22a6d1d	32x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:835380	512	1	8192
+fp128_onehot_multi_chunk_w8r3	8760aff1a0366deb69246212d521101cc04518fc381ceca0aa63408c7a7b7779	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_onehot_multi_chunk_w8r3	dab2b490c0f8e227c704e11f8d597505137fd21eb4b3a0bd626bb323ac98ac62	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:104244	512	1	4
+fp128_onehot_multi_chunk_w8r3	fa9039c4da7bd5a7d8889ac80654be1c46d320519678a0458e7e766499d0a4b0	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_dense_multi_chunk_w8r3	6edd078a1d0780c1660fde2d179d226610de8a597402734b0f0429ff32260612	16x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	104
+fp128_onehot_recursive_multi_chunk_w2r3	2ba5ef616e04cab411648e05b9a2442d781a02b82a3333bed6605f44effc6b2c	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:31620	256	1	64
+fp128_onehot_recursive_multi_chunk_w2r3	7c3665503c45007e60cddb50df8cf434a52be882cc0cf341fa26188d90441ed6	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:31620	256	1	64
+fp128_onehot_recursive_multi_chunk_w4r3	28ba1cea47d1ed8b84cdfb647e58355acf5d2ead7af5e1cced7fabb1d3328bda	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:52020	512	1	8
+fp128_onehot_recursive_multi_chunk_w4r3	299936e0b55595757c16e9bc6ac1719269b01c92af345fbcdda61fe9e38a368b	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:52020	512	1	8
+fp128_onehot_recursive_multi_chunk_w8r3	2112d3912ac7b846f9c3cd4ad01eed1a18326aac8d4eaab8a2de777446c81003	34x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_onehot_recursive_multi_chunk_w8r3	269faee6b3993d57f356eaf26b7a7770ecb676704380f29077a51e19f0d22d8e	32x2	16x1,16x1	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold precommitted group 0 A	linf:104244	512	1	4
+fp128_dense_bounded	098613f6914e533abaf3d05fcd35bc43da7484de617ba66cf3f60df604998769	24x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	1536
+fp128_dense_bounded	8295bb5da9908e25d120f5de5806a3e0bd5117b8a68fc41a68fbfbe7f2cd202f	26x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:260046724	512	1	3072
+fp128_dense_bounded	e1b6057dd0a076737974a9bfa646cfb24d2a0232cc6ec4c98ef301d0a5655035	14x1	-	Quantum128BitADPS16	Q128OffsetA7F7	128.260000	root fold final group A	linf:427818804	512	1	40
+fp64_dense	0695d51620821388488cbe09f2d8112acf37331f2948b0acbe425cf5a98fd61f	29x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:27380416308	2048	1	2048
+fp64_dense	0d0e40a0703743bec4ea520e6ca7e341dfa0f8ae816c61aa39b34b8edff58a6d	30x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:53477172	1024	1	5632
+fp64_dense	1c40b4f059e8b3d734c6af7cdc347bdf980f76d06093b9fcb8629ed9a4c9c516	20x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:260046724	1024	1	160
+fp64_dense	212069ca27f700d1e7d61a2e7d3b163e829bae2a8ee23bb5053389bf55f7ac02	20x1	16x1	Quantum128BitADPS16	Q64Offset59	128.260000	root fold precommitted group 0 A	linf:427818804	1024	1	40
+fp64_dense	a8d4cba14ce29ec3b9118868b4425e45951bc0beec99b29813845302f330f5b0	16x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:427818804	1024	1	40
+fp64_dense	d6055fafb5e70b743a2ef9cc232c90a0bc0ae9ebe623ac4b0f25cee3fa71d2bc	28x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:32505732	1024	1	4096
+fp64_dense	deec1e7e5788735a6ddd2ac3b19f3c603a07cca6f4768fcbcf5996323c92dc50	14x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:835380	512	1	64
+fp64_dense	e45de409d4c5d3c1fe47388961787a84f0d16666e4902048275f59bdb123f1a6	26x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:260046724	1024	1	1536
+fp64_dense_recursive	28c7b6506b0ce045a2f79cae5a663afe65028b94ed301ef0d227a4a1014070a3	27x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:27380416308	2048	1	1024
+fp64_dense_recursive	3c2bdef96ffce948b6aad7d2255b08ec567aa67b5538c190f7267188879d534d	21x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:427818804	1024	1	192
+fp64_dense_recursive	60161ad9c3f3860778aad9d919cd56c85be7d5dbe4c0eebbb8a08f3f78c68c8d	29x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:27380416308	2048	1	2048
+fp64_dense_recursive	9bbc7cded54ce27b545f65bfda9d13c5eb3c82eb163e547587efeab2f98c3d07	23x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:427818804	1024	1	384
+fp64_dense_recursive	ef96504a1832a2aa1bcad9130197eabce47b8394535f4a5aa5187795fc1b80f7	25x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:427818804	1024	1	768
+fp64_onehot	01d3be2e837c87ace19fb3bf8d7a54c827dc41b86cbb828ddb6589d1c81f6f1c	35x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:63364	512	1	32768
+fp64_onehot	071620ca0544cf82d580f757d73f7e170402a7a9b8c1030932e38f26c369f3db	30x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:104244	512	1	4096
+fp64_onehot	43c63f2cb0a3f13271243c5d16d055c1c015921909f84697e50ac9b3174768ce	28x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:104244	512	1	2048
+fp64_onehot	592695274cdd3a058b52898b18295fa7d8f5c43a5e7fb572d494faa36021a184	34x1	-	Quantum128BitADPS16	Q64Offset59	128.260000	root fold final group A	linf:835380	1024	1	8192
+fp32_dense	36fb9a7a01675e19c8a51f7e6ef483bf75f4f67ede849fa8ebac73d631f7eeb1	28x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:32505732	2048	1	1024
+fp32_dense	71ccfe4fed6cec22b3be7bc50fb87697909c4b2338736c9ca78451f097777364	20x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	64
+fp32_dense	99776bcef59160faa8e9ec28a25ecdff31537497cb4660004ee0c859431e4502	20x1	20x1	Quantum128BitADPS16	Q32Offset99	128.260000	root fold precommitted group 0 A	linf:53477172	2048	1	64
+fp32_dense	c57dfefdc54aece92ae0eecc371183ecc11f66d5d8233b829246353322bae025	26x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	512
+fp32_dense	ff5b559c5638ee2bf44d165ad4c5a09b13511bc9518b3a94ab72fc4d44b6f5d4	30x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:260046724	2048	1	2048
+fp32_dense_recursive	13c551a1d09179f3a81004beafc5e07df9e489b1d3831c3b7ee637b0ced2e16c	30x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	2560
+fp32_dense_recursive	1b4e5a62f54487c360d5436d266123211c502277470d807b02d2bda7a1183e85	22x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	128
+fp32_dense_recursive	21ef0b2a885b0ab9e6570962366e8e8ee5e3fe993e5977dd98b95a784f97ea42	20x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	64
+fp32_dense_recursive	2a7d63d5081826aff0467d64dc2960824329c49cdb43c91b475feef6464d732d	28x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:32505732	1024	2	2048
+fp32_dense_recursive	7846033d88c876a3f2c593eb4382060eabd154d0c42d4110213c678992c1806e	26x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	512
+fp32_dense_recursive	c516a6f12d29ca8c2986f94ddf3b44023c5b3e178762b7f07222c44086ec814e	24x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:53477172	2048	1	256
+fp32_onehot	240d2d0d3652e3b671a564694ca4b71ec6e5f52fa545441e82559921c1df4635	14x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:7812	512	1	16
+fp32_onehot	43ad9444df6fe4afdd629cdcce145cca7f6b6f68d152381865327e24083a4d9b	20x1	14x1	Quantum128BitADPS16	Q32Offset99	128.260000	root fold precommitted group 0 A	linf:7812	512	1	16
+fp32_onehot	711f2e423ed56cc5459cbe0916b6dc0b09ce1f37a82b59936a8313fd7a217e1d	28x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:104244	1024	1	1024
+fp32_onehot	8617615543d5e86dffaac2dac9264b9e1b5a857e481fb81358cdf388b42f9a40	20x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:104244	1024	1	64
+fp32_onehot	d5e2d7797d87cb6197c475bd9e3c15ed23a47c6d4868d155083e9902d67bf1a1	30x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:835380	2048	1	1024
+fp32_onehot	d84fea803dd379748165d5c9dbbc3cbdc64ce2b19f7edd442f5598937eb639a9	34x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:835380	2048	1	4096
+fp32_onehot	def16abf4244f3514cef58b65b4129af23c48a728c32ea31135f9ad9aee7c054	16x1	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:12852	1024	1	16
+fp32_onehot	fb75678102bb2c2eb52d6f2889d3d921ce19bb6c7eab2035b7e29d4fc6a45449	16x2	-	Quantum128BitADPS16	Q32Offset99	128.260000	root fold final group A	linf:12852	1024	1	32

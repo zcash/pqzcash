@@ -1,0 +1,233 @@
+# Zero knowledge for a lattice accumulation step: Fiat–Shamir with aborts
+
+Ragu hides a user's witness from the aggregator by folding the user's proof with a random partner before handing it over. If Ragu's Pedersen commitments are replaced by Akita's Module-SIS commitments (ePrint 2026/1983), that fold needs Lyubashevsky's rejection sampling, also called Fiat–Shamir with aborts. This note gives the setting (§1), the technique (§2), the resulting protocol for the user's fold (§3), why it is zero knowledge and what remains to be proved (§4), what it costs (§5), proof hygiene (§6), and open points (§7). The audience is cryptographic engineers who know commitment schemes and Fiat–Shamir but not necessarily lattices, so lattice terms are defined at first use. Written 2026-10-13, after a discussion with Tal Derei and Quang Dao at the Cambridge PQC workshop.
+
+## 1. The setting and the problem
+
+### 1.1 What the aggregator sees, and what Ragu's fold does
+
+In split accumulation (Ragu's scheme, following BCLMS20), an accumulator is an instance (a commitment and an evaluation claim) and a witness (the committed vector). The accumulation prover needs the witnesses of everything it folds, and in Tachyon the aggregator is that prover. So the user has to hand over an accumulator whose witness does not depend on the user's secrets, and the intended mechanism is one fold by the user with a random partner.
+
+Ragu's fold is the PCS aggregation of its book. Take claims $(\bar C_i, x_i, y_i)$ on polynomials $p_i$ with blinding factors $\gamma_i$. The prover commits to $f = \sum_i \alpha^i q_i$ with $q_i = (p_i - y_i)/(X - x_i)$ and sends the evaluations $p_i(u)$ at a fresh point $u$. The folded witness is $p = f + \sum_i \beta^i p_i$ with blinding $\gamma = \gamma_f + \sum_i \beta^i \gamma_i$. A Pedersen commitment $\sum_j p_j G_j + \gamma H$ commits to any vector in $\mathbb{F}^n$, so $p$ is an opening of the folded commitment $\bar F + \sum_i \beta^i \bar C_i$ whatever the $p_i$ are.
+
+Now let one folded claim be on a uniformly random polynomial $r$ with a trivially true claim. Then $r$ enters $p$ through $\beta^k r$ and its own quotient $\alpha^k q_r$. The map $r \mapsto \beta^k r + \alpha^k q_r$ is a linear bijection of $\mathbb{F}^n$: if it vanished, $r(X)\,(\beta^k (X - x_r) + \alpha^k)$ would equal the constant $\alpha^k r(x_r)$, which forces $r = 0$. Two qualifications. The aggregator also holds the folded instance, which forces $p(u) = v$, so $p$ is uniform on that affine hyperplane rather than on all of $\mathbb{F}^n$; that is the most any handoff can hide. And $\beta$ is derived after the evaluations $p_i(u)$, which include $r(u)$, so the argument conditions on the transcript. Given $r(u) = \rho$, the partner is uniform on the hyperplane $r(u) = \rho$ and the challenges are fixed, and the bijection carries that hyperplane onto $p(u) = v$. Everything else the aggregator sees about $r$ is a perfectly hiding commitment. This is a statement about the witness vector alone; §4.3 states what has to hold for the whole handoff.
+
+The random partner does not exist yet. In the Ragu checkout at hand (commit 526b0e3ecdc1c39d03df315316ac075854769352, 2026-10-04), the rerandomization step folds the proof with a cached seeded trivial proof, which is deterministic, with an empty witness. Its comments say that the folded accumulator is then a deterministic function of the input proof, the cached proof, and the public challenges. They say that hiding it needs a fold-level randomizer claim, and that this is future work. They also note that the uncompressed output embeds the input proof's commitments and stage polynomials in the clear as child data. The book's NARK and PCD chapters say the same. A deterministic rerandomization cannot be zero knowledge: a guess at the witness is confirmed by recomputing the output.
+
+### 1.2 Lattice commitments and short openings
+
+An Ajtai commitment is $\mathrm{Com}(w) = A w \bmod q$, where $A$ is a public matrix over the ring $R_q = \mathbb{Z}_q[X]/(X^d+1)$ and $w \in R_q^m$ is the committed vector. Here $q$ is the field prime, for Ragu the Pasta prime, and $d$ is the ring dimension. A vector in $R_q^m$ is also an integer vector with $N = md$ coordinates once each coefficient is lifted to $(-q/2, q/2]$; $\|w\|_2$ and $\|w\|_\infty$ are the norms of that integer vector.
+
+The map $w \mapsto Aw$ is linear, so a preimage of arbitrary size is found by linear algebra. Binding applies only to short openings. Module-SIS says it is hard to find a nonzero $z$ with $Az = 0$ and $\|z\|_2 \le \beta$, for the bound $\beta$ that the parameters are chosen for. Two distinct openings of norm at most $\beta/2$ would give such a $z$. So an opening is by definition a short vector, and a long preimage is not an opening of anything.
+
+Akita commits to a polynomial over $\mathbb{F}_q$ by writing each coefficient in balanced base 8, digits in $\{-4, \ldots, 3\}$, which is 85 digits per coefficient at 255 bits. The digit vector $w$ is short, the polynomial is $p = Gw \bmod q$ for the public recomposition matrix $G$, and $p \mapsto \mathrm{digits}(p)$ is not linear.
+
+### 1.3 Why the uniformity argument does not transfer
+
+Fold the user's digit vector $s$ with a random vector $y$ under a challenge $c$: $z = y + cs$ in the ring. Then $Az = Ay + c \cdot As$, so the verifier checks the folded commitment from the two inputs. Because $z$ must be a short opening, $y$ and $c$ must be short too. But a short $y$ cannot pad $cs$. In one dimension, a uniform $y$ on $[-\gamma, \gamma]$ gives $z = y + v$ uniform on $[-\gamma + v, \gamma + v]$, and a $z$ near either end reveals $v$. A Gaussian $y$ of width $\sigma$ gives a Gaussian shifted by $v$, distinguishable from an unshifted one with advantage about $|v|/\sigma$ per coordinate, over millions of coordinates. The handed-over witness depends on $s$, and rejection sampling is the standard remedy.
+
+## 2. Rejection sampling
+
+### 2.1 Discrete Gaussians
+
+$D^N_\sigma$ is the discrete Gaussian on $\mathbb{Z}^N$ of width $\sigma$ centred at $0$, with probability proportional to $\exp(-\|x\|_2^2 / 2\sigma^2)$; $D^N_{v,\sigma}$ is the same centred at $v$, and $y \leftarrow D^N_\sigma$ gives $y + v \sim D^N_{v,\sigma}$. Two tail facts (Lyubashevsky 2012, Lemma 4.4): a coordinate of $z \leftarrow D^N_\sigma$ exceeds $t\sigma$ with probability at most $2e^{-t^2/2}$, below $2^{-140}$ at $t = 14$; and $\|z\|_2 \le 2\sigma\sqrt{N}$ except with probability below $e^{-0.8N}$.
+
+### 2.2 The theorem
+
+Theorem 4.6 of Lyubashevsky, "Lattice Signatures Without Trapdoors" (EUROCRYPT 2012, ePrint 2011/537). Let $V \subseteq \mathbb{Z}^N$ contain vectors of norm at most $T$, let $h$ be any distribution on $V$, and let $\sigma = \alpha T$.
+
+- Procedure $\mathcal{A}$ (the real prover): sample $v \leftarrow h$ and $z \leftarrow D^N_{v,\sigma}$; output $(z, v)$ with probability $\min\!\left(1, \dfrac{D^N_\sigma(z)}{M \cdot D^N_{v,\sigma}(z)}\right)$, else nothing.
+- Procedure $\mathcal{F}$ (the ideal): sample $v \leftarrow h$ and $z \leftarrow D^N_\sigma$; output $(z, v)$ with probability $1/M$, else nothing.
+
+With $M = e^{12/\alpha + 1/(2\alpha^2)}$, the outputs of $\mathcal{A}$ and $\mathcal{F}$ are within statistical distance $2^{-100}/M$, and $\mathcal{A}$ outputs something with probability at least $(1 - 2^{-100})/M$. In words: the prover samples $z$ around the secret-dependent centre $v$ and keeps it with a probability chosen so that kept samples are distributed as if drawn around $0$; the dependence on $v$ is paid in aborts, not leakage. With $\alpha = 12$, $M = e^{1 + 1/288} \approx 2.73$ expected attempts. The acceptance probability is computable from $z$ and $v$:
+
+$$
+\Pr[\text{accept}] \;=\; \min\!\left(1,\; \frac{1}{M} \exp\!\left(\frac{\|v\|_2^2 - 2\langle z, v\rangle}{2\sigma^2}\right)\right).
+$$
+
+In a signature $v = cs$ and $z = y + cs$, which is the shape of the fold in §1.3.
+
+### 2.3 Variants
+
+- Uniform masks (Lyubashevsky 2009; Dilithium): $y$ uniform in the box $\|y\|_\infty \le \gamma$, accept iff $\|z\|_\infty \le \gamma - T_\infty$ with $T_\infty \ge \|cs\|_\infty$; the accepted $z$ is uniform in the smaller box. Acceptance is about $\exp(-N T_\infty/\gamma)$, so a constant rate needs $\gamma \approx N T_\infty$. Competitive at signature sizes; at $N$ in the millions the Gaussian gives a smaller $z$ by several bits (§5.1), so this note uses Gaussians.
+- Bimodal Gaussians (BLISS, Ducas–Durmus–Lepoint–Lyubashevsky 2013): $z = y \pm cs$ with a hidden sign brings $\alpha$ from 12 to about 1. The sign stays hidden in BLISS because the public key satisfies $As = q \bmod 2q$, so both signs verify. In the fold the verifier checks $Az = Ay + c \cdot As$ and would need the sign, which makes the trick a symmetric challenge set and does not gain anything. Not applicable without a sign-hiding commitment structure.
+
+### 2.4 The cost in norm
+
+After acceptance $z \sim D^N_\sigma$ with $\sigma = \alpha \|cs\|_2$, so $\|z\|_2 \approx \alpha\sqrt{N}\,\|cs\|_2$. The $\sqrt{N}$ is the price of the technique: every coordinate is masked at a width covering the norm of the whole vector. At $N \approx 2^{10}$, as in a signature, that is 5 bits; at $N \approx 2^{22}$ it is 11.
+
+## 3. The protocol: a zero-knowledge user fold
+
+### 3.1 Notation
+
+- $A \in R_q^{n \times m}$: the commitment matrix, shared by every commitment in the accumulation chain.
+- $s \in R_q^m$: the concatenation of the user's secret committed vectors as digit vectors. Several staged commitments concatenate, and $C_s = As$ is their sum, since Ajtai commitments add.
+- $(x_i, v_i)_i$: the NARK's evaluation claims, that the polynomial recomposed from $s$ evaluates to $v_i$ at $x_i$. Several commitments each carry their own claim list and are handled alike.
+- $\mathcal{C} \subset R_q$: the challenge set, of small elements with invertible pairwise differences, of size at least $2^{128}$ times the extraction slack (§5.4).
+- $H$: the transcript hash, modeled as a random oracle; in the merge circuit it must be arithmetization-friendly.
+- $b = 8$: the digit base; $J$: digits needed for a coordinate of $z$; $N = md$.
+
+### 3.2 Steps
+
+1. Mask. Sample $y \leftarrow D^N_\sigma$ and commit $C_y = Ay$ directly, not through digits (§4.2). For each claim point $x_i$ compute $u_i$, the evaluation at $x_i$ of the polynomial recomposed from $y$, so that $(C_y, x_i, u_i)$ is a valid claim. This is the random partner: a random claim, not a proof of a random instance (§4.3).
+2. Challenge. $c = H(\text{instance}, C_s, (x_i, v_i)_i, C_y, (u_i)_i)$, mapped into $\mathcal{C}$.
+3. Response. $z = y + cs$ in the ring, as integer vectors.
+4. Rejection test. With $v = cs$, accept with the probability of §2.2; on rejection return to step 1 with a fresh $y$, hence a fresh $C_y$ and a fresh $c$. Also return to step 1 in the rare case that a coordinate of $z$ exceeds $14\sigma$, so that $J$ is fixed.
+5. Decomposition. Write $z = \sum_{j<J} b^j z_j$ with each $z_j \in \{-4, \ldots, 3\}^N$, and commit $C_{z_j} = A z_j$.
+6. Claim fold. For each $i$ the folded claim is $(C_z, x_i, u_i + c \cdot v_i)$ with $C_z = \sum_j b^j C_{z_j}$, the addition in Akita's packing. Akita arranges its folds so that evaluation commutes with multiplication by a subring challenge, and the same arrangement is assumed here. Claims stay at their own points: moving them to a common point first, as LatticeFold-style folds do, would run a sum-check over the unmasked $s$ and need its own masking. The claim count does not grow, and the aggregator's later folds reduce the claims to a common point on masked data.
+7. Obligations. Prove that each $z_j$ has digits in the alphabet and that $\|z\|_2$ is at most its certified bound, as Akita certifies its folded responses, by sum-checks absorbed into the transcript. The $\ell_2$ bound matters for soundness (§5.2).
+
+### 3.3 What the verifier checks and what the aggregator receives
+
+The merge circuit that verifies the fold checks:
+
+- the challenge derivation;
+- the commitment identity $\sum_j b^j C_{z_j} = C_y + c \cdot C_s$, which is ring-linear in the commitment vectors and holds because $z = y + cs$ and $z = \sum_j b^j z_j$ both hold over the integers;
+- the claim fold, which is field arithmetic;
+- the sum-check transcripts of step 7, whose final evaluation claims join the accumulator.
+
+Absorbing $C_y$ and the $C_{z_j}$ is where the commitment rank enters the circuit cost; the compressed-commitment deferral discussed separately makes that cost rank-insensitive and does not change anything here.
+
+The aggregator receives the output accumulator, instance $(C_{z_j})_j$ with the folded claims and the obligations' final claims and witness $(z_j)_j$, together with the merge NARK that verifies the fold, instance and witness. The merge NARK's witness is the merge circuit's trace: transcript values, commitments, and verifier arithmetic on them.
+
+## 4. Why it is zero knowledge
+
+### 4.1 The simulator
+
+Given the public instance and the output, the simulator:
+
+1. samples $c \leftarrow \mathcal{C}$ and $z \leftarrow D^N_\sigma$, conditioned on every coordinate being at most $14\sigma$;
+2. decomposes $z$ into $(z_j)_j$ and commits them;
+3. sets $C_y := Az - c \cdot C_s$ and $u_i := z(x_i) - c \cdot v_i$;
+4. programs the random oracle so that $H(\ldots, C_y, (u_i)_i) = c$;
+5. runs the honest prover for the obligations of step 7 on $z$, which it knows.
+
+### 4.2 What the proof needs
+
+- The rejection-sampling theorem: the real accepted $z$ is within $2^{-100}/M$ of $D^N_\sigma$ and independent of $s$ and $c$.
+- The mask commitment is a function of $z$ and $c$. Because $y$ is committed as one vector, the real $C_y = Ay$ equals $Az - c \cdot C_s$ exactly, so the simulator can compute it. This is the Schnorr simulator's $R = g^z y^{-c}$: the first message must be a function of the response and the challenge alone. Committing to the digits $y_j$ of $y$ instead would also be sound, but a distinguisher who knows $s$ computes $y = z - cs$, its digits, and $A \cdot \mathrm{digit}_j(y)$, and a simulator cannot. The price of the direct commitment is that $y$, with coordinates up to $14\sigma$, must itself be a short opening, which §5.2 needs anyway.
+- Programming succeeds. By the regularity lemma for discrete Gaussians (Gentry–Peikert–Vaikuntanathan 2008), $Ay \bmod q$ is statistically close to uniform on $R_q^n$ when $\sigma$ exceeds the smoothing parameter of $\{y : Ay = 0\}$. That holds with enormous margin at $N$ and $\sigma$ in the millions. So the real $C_y$ has high min-entropy and the adversary has not queried $H$ at it except with negligible probability.
+- Everything else published is a function of $z$, $c$, and public values: the $C_{z_j}$, the $u_i = z(x_i) - c \cdot v_i$, the folded claims, and the obligation transcripts, which are proofs about $z$. None needs masking of its own.
+- $C_s$ must be hiding. An Ajtai commitment is deterministic, and $A \cdot \mathrm{digits}(\text{trace})$ of a trace driven by a few hundred secret bits is not statistically hiding. Appending uniformly random digits $\rho$ to the committed vector fixes this by the leftover hash lemma when $H_\infty(\rho) \ge nd \log_2 q + 2\lambda$. At the parameters of §5.3 that is about 86K bits, about 29K base-8 digits or the digits of about 340 random field elements. The padding folds and range-checks like everything else.
+- Revealed evaluations must not leak. Ragu's NARK is deliberately not zero knowledge: it sends the witness vectors unmasked, and its trace polynomial has a hiding commitment but does not have any random coefficients. The vectors go into the accumulator, which the randomizer pads; the evaluations $a(xz)$, $b(x)$, $s(x,y)$ in the NARK and $p_i(u)$ in the fold are linear functionals of the trace and do not. The standard fix is one random coefficient in the trace polynomial per evaluation revealed over its lifetime.
+- The merge NARK's witness, handed to the aggregator, contains $C_s$ (hiding by the previous item), $C_y$, $c$, the claims, and the obligation transcripts, all simulatable, so it does not carry any further information.
+
+### 4.3 The "one fold suffices" statement, and what the random partner has to be
+
+The statement to prove, in either setting: after the user's single fold with a random partner, the joint distribution of everything the aggregator receives is simulatable from the public statement of the action and the output instance alone. What the aggregator receives is the output accumulator's instance and witness and the merge NARK's instance and witness. Neither setting has a proof yet. In the DL setting the witness side is the uniformity argument of §1.1, and the message side is the quotient commitment, hidden by $\gamma_f$, and the evaluations at $u$, hidden by blinding coefficients. In the lattice setting the witness side is rejection sampling and the message side is the list of §4.2. That list is longer because the commitment does not have any blinding factor and the fold's messages include a decomposition and sum-check transcripts, but each item reduces to a function of the masked $z$.
+
+One part of the statement is decided by what the partner is. A proof of a random instance of the circuit has as its polynomial the trace of that instance, a deterministic function of a few free inputs, not a uniform vector, and then $p + \beta r$ is not uniform. For a circuit that computes the powers of its one input, $p = (x, x^2, x^3, \ldots)$ and $r = (y, y^2, y^3, \ldots)$ give $w_j = x^j + \beta y^j$. That is $n$ equations in the two unknowns $x$ and $y$, which determine $x$ for $n \ge 3$; more random instances add unknowns but add equations faster. The partner must be a uniformly random vector with a trivially true claim, folded as an extra claim rather than as a proof. The lattice setting has the same requirement in another form: the rejection-sampling theorem needs a fresh Gaussian $y$, and a random trace is not one.
+
+## 5. Costs
+
+### 5.1 Norm growth
+
+With $\sigma = \alpha\|cs\|_2$ and $\alpha = 12$: $\|z\|_2 \approx 12\sqrt{N}\,\|cs\|_2$, and $\|z\|_\infty \le 14\sigma = 168\,\|cs\|_2$ fixes the digit count $J$. The uniform-box variant would give $\|z\|_\infty \approx N\,\|cs\|_\infty$, about 6 bits worse in $\ell_2$ at $N = 2^{22}$.
+
+### 5.2 The Module-SIS bound
+
+The extractor rewinds to a second challenge $c'$ and obtains short responses $z^*, z'^*$ with $A(z^* - z'^*) = (c - c') C_s$. This is a relaxed opening of $C_s$: $(c - c')^{-1}(z^* - z'^*)$ opens it, but only its multiple by $c - c'$ is known to be short. Binding for relaxed openings is the cross-multiplication argument of Attema–Lyubashevsky–Seiler 2020, which Akita uses in its lemma on binding from weak openings. Two relaxed openings with challenge differences $\delta_1, \delta_2$ give a kernel vector of norm at most $\|\delta_2\|_1 \|\delta_1 \bar s_1\|_2 + \|\delta_1\|_1 \|\delta_2 \bar s_2\|_2$. So the bound of $A$ must be at least
+
+$$
+\beta \;\gtrsim\; 2 \cdot \|c - c'\|_1 \cdot 2\,\|z^*\|_2 ,
+$$
+
+with $\|z^*\|_2$ the certified Euclidean bound on responses. That is why step 7 certifies the $\ell_2$ norm and not only the digit range: a digit range alone gives $\|z\|_\infty \sqrt{N} = 14\sigma\sqrt{N}$ rather than $2\sigma\sqrt{N}$, which costs 3 bits of $\beta$.
+
+The bound is a property of $A$, and $A$ is shared by every commitment that the decider opens through this chain, because binding transfers only through the matrix under which the fold identity is checked. So the mask raises $\beta$ for the whole system. A smaller matrix for later folds does not help: their checks would cover only a prefix of the rows, and the extracted openings would satisfy only that prefix.
+
+The rank follows from the usual estimate: lattice reduction with root Hermite factor $\delta$ finds a kernel vector of norm about $2^{2\sqrt{nd \log_2 q \cdot \log_2 \delta}}$, so hardness at $\beta$ needs
+
+$$
+nd \log_2 q \;\ge\; \frac{(\log_2 \beta)^2}{4 \log_2 \delta}.
+$$
+
+At the 128-bit quantum ADPS16 target the block size is 484 and $\log_2 \delta \approx 0.0050$. The commitment's size in bits depends on $\beta$ and not on $q$, and doubling $\log_2 \beta$ quadruples the rank; §5.5 confirms both with Akita's estimator.
+
+### 5.3 A worked example
+
+Assumptions are listed so that each can be replaced. The two rank rows come from Akita's SIS estimator at the Pasta modulus (§5.5); the rows above them are this note's assumptions.
+
+| quantity | assumption or derivation | value |
+|---|---|---|
+| secret committed vectors | three vectors of $2^{14}$ coefficients over Pasta | $3 \cdot 2^{14}$ coefficients |
+| digits $N$ | 85 digits per coefficient | $\approx 2^{22}$ |
+| $\|s\|_2$ | digits at most 4 | $\le 2^{13}$ |
+| challenge set | ring dimension $d = 128$, ternary, weight 32 | $\binom{128}{32} 2^{32} \approx 2^{130}$ elements |
+| $\|cs\|_2$ | $\le \|c\|_1 \|s\|_2$ | $\le 2^{18}$ |
+| $\sigma$ | $12\,\|cs\|_2$ | $\approx 2^{21.6}$ |
+| $\|z\|_2$ | $2\sigma\sqrt{N}$ certified | $\approx 2^{33.6}$ |
+| $\|z\|_\infty$ | $14\sigma$ | $\approx 2^{25.4}$ |
+| digits per coordinate $J$ | balanced base 8 | 9 |
+| masked $\beta$ | $2 \cdot 64 \cdot 2 \cdot 2^{33.6}$ | $\approx 2^{41.6}$ |
+| masked rank $nd$ | Akita's estimator, 128 quantum bits | 340 field elements, 10.8 KB |
+| unmasked $\beta$ | responses of norm about $2^{19}$ | $\approx 2^{27}$ |
+| unmasked rank $nd$ | Akita's estimator, 128 quantum bits | 143 field elements, 4.5 KB |
+| hiding padding $\rho$ | $nd \log_2 q + 256$ bits of uniform digits | $\approx 29$K digits |
+
+So the mask costs about 2.4 times the commitment rank, 9 times the witness length handed to the aggregator, and about $e$ attempts per fold.
+
+### 5.4 Other costs
+
+- Witness size. The aggregator receives $JN$ digits instead of $N$: about $2^{25.2}$ digits, 14 MB at three bits each, against about 1.5 MB unmasked. The information content is $N$ coordinates of 25 bits, so no encoding does better than about 13 MB, and every later fold and range check on this contribution scales with it.
+- Prover time per attempt: one commitment $Ay$ of a vector with 22-bit entries, plus Gaussian sampling of $N$ coordinates. With NTT-friendly ring arithmetic over Pasta the commitment is about $2^{26}$ field operations, under a second on one core, and $M \approx 2.7$ attempts are expected. The merge circuit sees only the accepted one.
+- Challenge set. $d = 128$ because ternary challenges in dimension 64 give only about $2^{101}$ choices. Wider coefficients at fixed positions are cheaper to apply in a circuit, since the positions are constants, at the price of a larger $\|c\|_1$.
+- Gaussian sampling must be within statistical distance about $2^{-\lambda}$ of $D^N_\sigma$ for the theorem to apply as stated. At $\sigma \approx 2^{21}$ double precision is not enough; Karney's exact sampler or a high-precision CDT is the standard answer.
+
+### 5.5 Checking the ranks with Akita's estimator
+
+The rank rows of §5.3 come from Akita's own SIS estimator, the component of its planner that sizes every matrix: repository `LayerZero-Labs/akita` at commit 60b82bc30f4f8f1130ccd71fe10b0b9bed909ab9 (2026-10-09, Apache-2.0 or MIT), crate `akita-sis-estimator`, Euclidean path, configuration `akita_euclidean_table` (ADPS16 quantum Core-SVP, 128-bit floor). The driver `pasta_rank.rs` beside this note, added as an example to a scratch clone, takes the Pallas base-field prime, $2^{22}$ columns, and a Euclidean collision bound, and binary-searches the least number of scalar rows reaching 128 bits. One adjustment: the estimator reports infinity when the BKZ block it needs exceeds the lattice dimension it chose, which at tiny row counts hides a trivial attack in a larger sublattice. The driver therefore takes the cheapest attack over the estimator's own dimension and a ladder of explicit ones.
+
+| $\log_2$ of collision bound | rows at Pasta | rows at $q_{64}$ | rows at $q_{128}$ | commitment bits |
+|---|---|---|---|---|
+| 20 | 79 | 312 | 156 | 20.0K |
+| 24 | 113 | 448 | 224 | 28.7K |
+| 27 | 143 | 567 | 284 | 36.3K |
+| 32 | 201 | 797 | 399 | 51.1K |
+| 36 | 254 | 1008 | 504 | 64.5K |
+| 41.6 | 340 | 1346 | 673 | 86.3K |
+| 44 | 380 | 1506 | 753 | 96.5K |
+| 48 | 452 | 1792 | 896 | 114.8K |
+
+Every row sits at BKZ block size 484 to 486, and the commitment bits agree across the three moduli to within half a percent, which is §5.2 made concrete; the two §5.3 rows are in the ratio 2.38. Cross-checks:
+
+- The pinned Python lattice-estimator in Akita's `third_party` submodule, run under Sage with `sage-sis-check.py` beside this note, gives the same Pasta figures. At $2^{27}$, 143 rows give 128.26 bits with block 484 in dimension 2690, and 142 rows give 126.94. At $2^{41.6}$, 340 rows give 128.53 with block 485 in dimension 4151, and 339 rows give 128.00. The Rust estimator ports the same formula, so this checks the port and the driver, not the cost model.
+- A shipped schedule, `artifacts/schedules/fp128_dense.aks` row 0, has a Euclidean terminal instance with collision bound $2^{22}$, ring dimension 64, rank 3, width 256, so 192 rows. The same path says 189 rows are needed at $q_{128}$, and 192 is the least multiple of 64 above it: the driver reproduces the planner's choice on an instance the planner chose.
+- The catalog security report covers 115 schedule rows across the three moduli and passes its own check; every weakest instance is a coefficient-$\ell_\infty$ instance at the 128.26-bit floor. For the root inner matrix of `fp128_onehot_recursive`, ring dimension 512, rank 1, width 131072, $\ell_\infty$ bound 835380, the $\ell_\infty$ estimator reports at least 128.26 bits at dimensions 512 and 384 and 84.0 bits at 256. So 512 is the least power of two that meets the floor.
+- The six compression maps of the paper's Table 5, rank one with $\ell_\infty$ bound one, pass the 128-bit floor under the proven-pruned profile; the paper states at least 147 bits for them.
+
+This checks that the §5.3 ranks are what Akita's estimator gives for the stated Euclidean bounds at a 254-bit modulus, and that its behaviour there is continuous with the paper's moduli. It does not check the collision bounds themselves, which rest on this note's assumptions about the witness, the challenge set, and the extraction slack. Nor does it check the $\ell_\infty$ route, which Akita prefers for digit-bounded witnesses and which may price the unmasked parts more favourably. Proof sizes at a Pasta modulus are the subject of `pasta-proof-size.md` beside this note.
+
+## 6. Proof hygiene
+
+- The original Fiat–Shamir-with-aborts analyses had gaps in the treatment of aborted iterations, fixed in 2023 by Devevey–Fallahpour–Passelègue–Stehlé and by Barbosa et al. (both CRYPTO 2023). A proof for the fold should follow a corrected treatment. Two practical consequences: cap the number of attempts, accepting a negligible completeness error, and never publish anything from an aborted attempt.
+- The QROM treatment of Fiat–Shamir with aborts for signatures is Kiltz–Lyubashevsky–Schaffner (EUROCRYPT 2018), the natural starting point here, and separate from Akita's own QROM proof, which covers the opening protocol.
+- The number of aborts is not in the transcript but is visible to anyone timing the user's device. Minor for a wallet, but to be noted.
+- The relaxed openings of §5.2 are a soundness matter, not a zero-knowledge one: whatever NARK runs on top of the lattice accumulation must be sound with respect to relaxed openings of its commitments. That is a property of the whole lattice-Ragu design and out of scope here.
+
+## 7. Open points
+
+1. Add the fold-level randomizer to Ragu's rerandomization step, which its code lists as future work: a uniformly random polynomial with a trivially true claim, folded as an extra claim (§4.3).
+2. Add a random coefficient to the trace polynomial per evaluation revealed over its lifetime (§4.2).
+3. Stop the handed-over object from carrying the child's commitments and stage polynomials in the clear (§1.1).
+4. Write the one-fold statement of §4.3 as a theorem and prove it, DL version first, since its proof is shorter and fixes the statement. The DL proof relies on the partner's own quotient being folded in, which is what makes the map of §1.1 a bijection.
+5. Decide the challenge set and get $\|c\|_1$ and the extraction slack from Akita's planner, then redo §5.3 with real numbers.
+6. Check that the commutation of evaluation with the challenge in step 6 holds for the packing Ragu would use, or choose the packing so that it does.
+7. Settle how the obligations of step 7 are verified, in the user's merge circuit or deferred with Akita's fused range and norm checks, and what each costs in gates.
+8. Decide whether the hiding padding $\rho$ goes into every staged commitment or only into the published ones.
+9. Look for a sign-hiding structure that would make the bimodal variant applicable, saving about 3.6 bits of $\beta$ and one digit of $J$.
+
+## References
+
+- V. Lyubashevsky. Fiat–Shamir with Aborts: Applications to Lattice and Factoring-Based Signatures. ASIACRYPT 2009. <https://doi.org/10.1007/978-3-642-10366-7_35>
+- V. Lyubashevsky. Lattice Signatures Without Trapdoors. EUROCRYPT 2012. <https://eprint.iacr.org/2011/537>, <https://doi.org/10.1007/978-3-642-29011-4_43>. Theorem 4.6 and Lemma 4.4.
+- L. Ducas, A. Durmus, T. Lepoint, V. Lyubashevsky. Lattice Signatures and Bimodal Gaussians. CRYPTO 2013. <https://eprint.iacr.org/2013/383>
+- C. Gentry, C. Peikert, V. Vaikuntanathan. Trapdoors for Hard Lattices and New Cryptographic Constructions. STOC 2008. <https://eprint.iacr.org/2007/432>. The regularity lemma for discrete Gaussians.
+- T. Attema, V. Lyubashevsky, G. Seiler. Practical Product Proofs for Lattice Commitments. CRYPTO 2020. <https://eprint.iacr.org/2020/517>. Relaxed openings and the cross-multiplication binding argument.
+- E. Kiltz, V. Lyubashevsky, C. Schaffner. A Concrete Treatment of Fiat-Shamir Signatures in the Quantum Random-Oracle Model. EUROCRYPT 2018. <https://eprint.iacr.org/2017/916>
+- J. Devevey, P. Fallahpour, A. Passelègue, D. Stehlé. A Detailed Analysis of Fiat-Shamir with Aborts. CRYPTO 2023. <https://eprint.iacr.org/2023/245>
+- M. Barbosa et al. Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium. CRYPTO 2023. <https://eprint.iacr.org/2023/246>
+- NIST FIPS 204, Module-Lattice-Based Digital Signature Standard (ML-DSA). <https://doi.org/10.6028/NIST.FIPS.204>. The uniform-mask variant in deployment.
+- D. Boneh, B. Chen. LatticeFold: A Lattice-based Folding Scheme and its Applications to Succinct Proof Systems. <https://eprint.iacr.org/2024/257>. Decomposition and range checks in a folding verifier.
+- Q. Dao et al. Akita: A High-Performance Lattice-Based Polynomial Commitment Scheme. <https://eprint.iacr.org/2026/1983>
+- B. Bünz, A. Chiesa, W. Lin, P. Mishra, N. Spooner. Proof-Carrying Data without Succinct Arguments. CRYPTO 2021 (BCLMS). <https://eprint.iacr.org/2020/1618>. Split accumulation, and zero-knowledge accumulation by folding with a random instance.
