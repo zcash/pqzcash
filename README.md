@@ -6,6 +6,18 @@ eventually include formal verification of the claims made about them. The book i
 primary document. The models, data and notes that it draws on live beside it in this
 repository.
 
+## Building the Lean package
+
+The Lean package `PQZcash` is where the formal verification will live; it is empty so far.
+Building a Lean development re-elaborates every proof, so a successful build is the
+verification. Install [`elan`](https://github.com/leanprover/elan), the Lean toolchain
+manager, which reads [`lean-toolchain`](lean-toolchain) and installs the pinned toolchain
+automatically. Then, from the repository root:
+
+```sh
+lake build --wfail   # verify every proof; --wfail makes warnings fail, as CI does
+```
+
 ## Documentation
 
 - [The Post-Quantum Zcash Book](https://zcash.github.io/pqzcash/), built from `book/` and

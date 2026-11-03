@@ -1,0 +1,3 @@
+-- This module is the root of the `PQZcash` library: its sole import root, so `lake build PQZcash`
+-- is exactly this file's transitive closure. It is a build entry point, not a re-export surface.
+-- Import here the modules that should be built as part of the library.

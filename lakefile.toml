@@ -1,0 +1,13 @@
+name = "PQZcash"
+version = "0.1.0"
+keywords = ["cryptography", "math", "protocols"]
+defaultTargets = ["PQZcash"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+autoImplicit = false
+
+# `PQZcash.lean` is this library's only import root, so the root glob alone builds exactly its
+# transitive closure.
+[[lean_lib]]
+name = "PQZcash"
