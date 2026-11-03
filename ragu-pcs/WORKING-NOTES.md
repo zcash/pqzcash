@@ -831,3 +831,17 @@ a principled argument. Changes:
   route unless recoveries are very rare; the lever that would restore Goldilocks is lookup
   accumulation (fractional sums proven by GKR or folded in the accumulator), a Ragu design
   change.
+
+## 2026-11-03: moved into the Post-Quantum Zcash repository
+
+This directory is now `ragu-pcs/` in the pqzcash repository (private at zodl-inc/pqzcash for
+now), whose book presents the study as a comparison of candidates; no commitment scheme has
+been chosen, and the directory's name was chosen not to suggest otherwise. Tracked: the notes,
+the scripts, the page template, `estimates/`, and the FRI-Binius optimizer with its port.
+Not tracked: `work/` (the scratch clones, logs and texts; the `akita-src-150` worktree link
+was repaired after the move), `keep/` (the three 2026-11-03 write-ups and the saved papers),
+`hash-based/` (the user's paper PDFs), `pareto.html`, and the nine TSVs of 2026-10-13 at the
+top level, which are older copies of what `estimates/` holds. The book is built from the
+repository root with `nix develop --command scripts/build-book.sh`, which regenerates
+`pareto.html` and serves it as the book's PCS frontier page. Open: the optimizer's licence
+(Ulrich's script came without one) must be settled before the repository goes public.
