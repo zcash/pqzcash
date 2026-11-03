@@ -4,7 +4,8 @@ This repository holds design work towards post-quantum security for Zcash: the c
 proof systems and commitment schemes, and the analyses that compare them. It will
 eventually include formal verification of the claims made about them. The book is the
 primary document. The models, data and notes that it draws on live beside it in this
-repository.
+repository: the study of commitment schemes for Ragu is under `ragu-pcs/`, and the book's
+Proof Systems section presents it.
 
 ## Building the Lean package
 
