@@ -69,13 +69,13 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
 - Per-coefficient prover word multiplications: Pedersen 6,400; Ajtai at Pasta 14,200; 128-bit
   2,600; Pasta/64-bit 2,000; Goldilocks 400.
 - Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice
-  the prover work (the 2.4x rows term, system-wide), 36 to 59% more opening bytes and 1.4 to 1.6x the
-  verifier by variant (the masked rank through the inner images' share of each, 26 to 42% from
-  the shipped terminal geometry, composed with the floor's factor), and 18 more atoms in the zero-knowledge
-  layer's merge, which is the merge priced; the length is charged nowhere else, since the
-  decider's accumulator is at the ordinary length (since 2026-11-04; before, the length was
-  charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15, and the rank to the prover
-  only).
+  the prover work (the 2.4x rows term of the accumulation matrix, system-wide) and 18 more atoms
+  in the zero-knowledge layer's merge, which is the merge priced; the opening bytes and the
+  verifier are unchanged, since the decider's accumulator is at the ordinary length and Akita's
+  internal levels and terminal keep their own bounds (since 2026-11-04; before, the length was
+  charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15; the same day's modelling of
+  the masked rank through the terminal images' share, +36 to 59% bytes, was withdrawn, since
+  that share is the floor's mechanism, not the mask's).
   Pedersen-IPA's blinding is free, so its points do not change.
 - Hash-based (WHIR with ARC accumulation over Pasta, on the Pareto page): WHIR at 2^17 over a
   256-bit field, 128 bits, Johnson regime: 244/155/123 KiB at rates 1/2, 1/4, 1/8 with 2.7k,
@@ -886,3 +886,26 @@ planned at the masked rank would replace it. The same day: the cross-references 
 became links; 𝔽₂ is written with the double-struck letter; the table's unit heading no longer
 reads MS under the CSS uppercase transform. The book is rebuilt after every change the user
 is to review: `nix develop --command scripts/build-book.sh` from the repository root.
+
+Later on 2026-11-04 (the user: try harder to reduce the zk proof-size overhead; why does the
+DL trick, folding with a random proof, not transfer; zk could be applied only at a trust
+boundary): re-examining which matrices the masked bound binds showed that it is the
+accumulation matrix only. The fold identity is checked under it and every accumulator shares
+it; Akita's internal levels and terminal open the final accumulator's ordinary witness under
+their own matrices (Akita §5: inner images are carried onward as digit-decomposed auxiliary
+data of lower order; the terminal's images are under A_term). So the masked-rank effect on
+the opening and the verifier modelled earlier in the day (+36 to 59% bytes, x1.4 to 1.6
+verifier) was the floor's mechanism misapplied and is withdrawn; the zk rows' bytes and
+verifier equal the plain rows' again, and the mask is charged to the prover's rows term and
+the zk-layer merge only. IMAGE_SHARE keeps its derivation from the terminal geometry, which
+the floor's factor still uses. The page, both notes and the model's comments say which
+matrix the mask binds. Consequence for the user's aim: Akita's zk overhead in the final
+proof is essentially nil; what the mask costs is the prover's 2x (root rows), the zk-layer
+accumulator (14 MB) and the zk-layer merge's sum-checks, and the levers (α, the challenge
+set's ℓ1 norm, block-wise masking) act on those. The hash-based families' 73 KB of masks
+remain the real zk proof-size overhead on the page. Exact extraction (an opening
+(c - c')^{-1}(z - z') instead of a relaxed one) was explained as unlikely to beat the relaxed
+bound: it needs the inverse's operator norm, 1 over the smallest canonical embedding of
+c - c', to be small for every pair in a 2^128-size set, and the quotient to be integral,
+neither of which holds for large ternary challenge sets; monomial sets have small
+denominators but a factor of order d and far too few challenges.

@@ -64,8 +64,12 @@ WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_q64": 2, "pasta_sis": 32, "p
 
 # The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
 # fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is about nine
-# times longer, and every commitment's Module-SIS rank is about 2.4 times higher, since the
-# note's extraction argument needs one matrix for the whole chain. The length stays at the
+# times longer, and the accumulation matrix's Module-SIS rank is about 2.4 times higher, since
+# the note's extraction argument needs that matrix binding at the masked bound and every
+# accumulator is committed under it. Akita's internal fold levels and its terminal commit the
+# final accumulator's ordinary witness under their own matrices, whose bounds the mask does
+# not change, so the opening proof is nearly unaffected: the accumulation matrix's larger
+# images enter the first level only as lower-order auxiliary digits. The length stays at the
 # zero-knowledge layer: the aggregator's first fold on a masked accumulator range-checks its
 # nine digit slices and folds them back to the ordinary length with its other inputs, as every
 # lattice fold decomposes and folds, so the merges above and the decider's opening see witnesses
@@ -284,11 +288,11 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                 log_len = rank + math.log2(circuits)  # the decider's accumulator is at the ordinary length, masked or not
                 for H in (2, 4):
                     rank_scale = RANK_SCALE[floor][variant]
-                    # The masked rank composes with the floor's factor and enters the opening and
-                    # the verifier through the same mechanism, the inner images' share of each
-                    # (the prover's rows term takes it in ajtai_per_coefficient).
-                    rank_factor = rank_scale * (MASK_RANK if zk else 1)
-                    opening = akita_bytes(variant, K - 1, log_len) * rank_factor_share(variant, rank_factor)
+                    # The floor's factor enters the opening and the verifier through the inner
+                    # images' share of each. The masked rank does not: it binds the accumulation
+                    # matrix, whose rows term the prover pays in ajtai_per_coefficient, while the
+                    # terminal's images are under the terminal's own matrix (see MASK_RANK).
+                    opening = akita_bytes(variant, K - 1, log_len) * rank_factor_share(variant, rank_scale)
                     instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES[variant]
                     # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                     # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
@@ -301,7 +305,7 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         accumulation=atoms,
                         gates=gates,
-                        verify=akita_verify(variant, log_len, zk, rank_factor_share(variant, rank_factor)),
+                        verify=akita_verify(variant, log_len, zk, rank_factor_share(variant, rank_scale)),
                         folded=K,
                         label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}"
                             + (", ZK" if zk else "") + floor_label(floor),

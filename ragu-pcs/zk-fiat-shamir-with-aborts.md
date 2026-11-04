@@ -134,7 +134,7 @@ $$
 
 with $\|z^*\|_2$ the certified Euclidean bound on responses. That is why step 7 certifies the $\ell_2$ norm and not only the digit range: a digit range alone gives $\|z\|_\infty \sqrt{N} = 14\sigma\sqrt{N}$ rather than $2\sigma\sqrt{N}$, which costs 3 bits of $\beta$.
 
-The bound is a property of $A$, and $A$ is shared by every commitment that the decider opens through this chain, because binding transfers only through the matrix under which the fold identity is checked. So the mask raises $\beta$ for the whole system. A smaller matrix for later folds does not help: their checks would cover only a prefix of the rows, and the extracted openings would satisfy only that prefix.
+The bound is a property of $A$, and $A$ is shared by every commitment that the decider opens through this chain, because binding transfers only through the matrix under which the fold identity is checked. So the mask raises $\beta$ for the whole system. That system is the accumulation: every accumulator is committed under this matrix. Akita's internal fold levels and its terminal commit the final accumulator's ordinary witness under their own matrices, whose bounds the mask does not change, so the opening proof is nearly unaffected; only this matrix's larger images, carried as auxiliary digits at the first level, grow. A smaller matrix for later folds does not help: their checks would cover only a prefix of the rows, and the extracted openings would satisfy only that prefix.
 
 The rank follows from the usual estimate: lattice reduction with root Hermite factor $\delta$ finds a kernel vector of norm about $2^{2\sqrt{nd \log_2 q \cdot \log_2 \delta}}$, so hardness at $\beta$ needs
 
