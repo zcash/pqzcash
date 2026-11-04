@@ -926,3 +926,13 @@ opened at B leaves in the zk-layer merge (about a million gates at B = 256), and
 four bits off the bound (factor 1.94, or 1.70 with §5.6's parameters) and an 11 MB
 accumulator; open. Items 3 (re-plan the accumulation matrix under Akita's policy) and the
 exact-extraction lever were not pursued.
+
+Same day, later (the user: the fold's seconds are too expensive for one zk step on a cheap
+phone): §5.4 now derives the per-attempt cost (2^24.6 multiplications for the commitment at
+340 Pasta rows, 0.3 s at 3e9 word mults/s; Karney sampling of 2^22 coordinates comparable;
+about a second per attempt, 3 s per fold at α 12, 8-10 s at α 6) and §5.8 moves it off the
+device: precomputed candidate masks (sampled and committed in idle time, bound before the
+challenge, first accepted index published, batch discarded; k+1 rewinds for extraction) and
+deferral of the slice decomposition and the range/norm obligations to the aggregator's first
+fold (open point 7), leaving online a sparse ring product and a vector addition (~2^27
+additions, 0.1 s on a phone core) and the ~13 MB transfer of z, which is intrinsic.
