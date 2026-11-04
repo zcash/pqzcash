@@ -909,3 +909,20 @@ bound: it needs the inverse's operator norm, 1 over the smallest canonical embed
 c - c', to be small for every pair in a 2^128-size set, and the quotient to be integral,
 neither of which holds for large ternary challenge sets; monomial sets have small
 denominators but a factor of order d and far too few challenges.
+
+Same day, the user's list (reduce the zk overhead), items 1 and 2: (1) the mask's parameters
+are priced in zk-fiat-shamir-with-aborts.md §5.6 (α and the challenge set's ℓ1 norm, with the
+challenge-set sizes at the accumulation matrix's ring dimension, 512 in the catalog at 2^14):
+α = 6 with weight-20 challenges in dimension 512 brings the rank factor 2.37 -> 2.11 and the
+masked accumulator 14.2 -> 12.6 MB for 7.5 attempts; pareto-model.py now derives MASK_RANK
+(2.372, was the rounded 2.4), MASK_LENGTH and MASK_SUMCHECK_ATOMS from MASK_ALPHA and
+MASK_CHALLENGE_L1 via `masked_log_beta`, keeping the note's α = 12, ‖c‖₁ = 32 as the page's
+default; the page's zk paragraph says so. (2) §5.7 is the block-wise masking write-up for the
+user to judge: per-block challenges need B commitments per vector (12,000 atoms at B = 256,
+not attractive); one challenge with k candidate masks per block and a published index (the
+index leaks nothing, the acceptance probability being independent of the secret) costs k
+times the sampling and a binding of kB candidates, a Merkle tree over compressed images
+opened at B leaves in the zk-layer merge (about a million gates at B = 256), and would give
+four bits off the bound (factor 1.94, or 1.70 with §5.6's parameters) and an 11 MB
+accumulator; open. Items 3 (re-plan the accumulation matrix under Akita's policy) and the
+exact-extraction lever were not pursued.

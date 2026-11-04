@@ -76,8 +76,26 @@ WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_q64": 2, "pasta_sis": 32, "p
 # of the usual size. The merge priced here is one at the zero-knowledge layer, the costlier
 # kind: each of its two sum-checks gains three rounds (log2 of the length factor) of three
 # elements. Merges above that layer pay the rank's rows term only.
-MASK_LENGTH = 9
-MASK_RANK = 2.4
+#
+# The masked bound follows the note's §5.3: the digit vector has N = 2^22 digits of size at most
+# 4, so ‖s‖₂ ≤ 2^13; a challenge of ℓ1 norm MASK_CHALLENGE_L1 gives ‖cs‖₂ ≤ that times 2^13; the
+# Gaussian mask has width σ = MASK_ALPHA · ‖cs‖₂, the accepted response ‖z‖₂ ≈ 2σ√N, and the
+# relaxed opening that extraction yields needs binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖₂, with ‖c − c'‖₁
+# at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
+# the unmasked 2^27 (§5.2, §5.5). The note's choices, α = 12 and weight-32 ternary challenges
+# (‖c‖₁ = 32), give 2^41.6 and a factor of 2.37; its §5.6 prices the alternatives. The masked
+# coordinates are at most 14σ, which sets the slices: base-8 digits per coordinate.
+MASK_ALPHA = 12
+MASK_CHALLENGE_L1 = 32
+MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
+
+def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+    log_sigma = math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S
+    log_z = 1 + log_sigma + MASK_LOG_N / 2
+    return 1 + math.log2(2 * c_l1) + 1 + log_z
+
+MASK_RANK = (masked_log_beta() / MASK_UNMASKED_LOG_BETA) ** 2
+MASK_LENGTH = math.ceil((math.log2(14) + math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S) / 3)
 MASK_SUMCHECK_ATOMS = 2 * round(math.log2(MASK_LENGTH)) * 3
 
 def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0):
