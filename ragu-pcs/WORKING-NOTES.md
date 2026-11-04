@@ -948,8 +948,8 @@ Later on 2026-11-04 (the user: the zk effect on a typical transaction is hard to
 the rejection is a large fraction of it; expose it as a third measure): the page has a
 fourth third measure, "transaction prover", with a knob for the transaction's size in
 application gates (2^16 to 2^20, default 2^17). Per point the model supplies `step_prover`
-(one application step circuit's commitments at the family's per-coefficient cost; None for
-the 𝔽₂ family, which has no rank or Pasta circuit and drops out of the measure) and `fold`
+(one application step circuit's commitments at the family's per-coefficient cost; for the
+𝔽₂ family, which has no rank, BitZ's convention of 510 bits per Pasta gate in steps of 2^13) and `fold`
 (Akita zk rows: `mask_fold` = MASK_ATTEMPTS x N x (masked per-digit commitment cost + 900
 word-mult equivalents of Karney sampling at 300 ns), plus the fold's own merge; 0 elsewhere);
 the page computes transaction = (G / 2^rank) x (step_prover + prover) + fold and uses it in

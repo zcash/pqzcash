@@ -776,6 +776,10 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT):
         hashes = new
     return round(hashes), round(hashes * BLAKE3_ANDS)
 
+# A Pasta gate as committed bits in BitZ's arithmetization, a 255-bit value and a 255-bit
+# quotient (see the BitZ section below); the 𝔽₂ family's transaction pricing borrows it.
+BITZ_GATE_BITS = 510
+
 for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
@@ -789,7 +793,9 @@ for grind in GRINDS:
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 10 * 16 + 2 * H * 32 + 4),
                             prover=round(f2_prover(ands, rate, floor, grind, chal, False, zk)),
-                            step_prover=None, fold=0,
+                            # The family has no rank: the transaction measure prices its application as BitZ's,
+                            # 510 committed bits per Pasta gate, in steps of 2^13 gates at the merge's per-bit cost.
+                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(ands, rate, floor, grind, chal, False, zk) / ands), fold=0,
                             accumulation=ARC_ATOMS,
                             gates=ands,
                             verify=round(f2_verify(p, grind, chal, zk)),
@@ -920,7 +926,7 @@ for grind in GRINDS:
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 2 * H * 32 + 4),
                             prover=round(f2_prover(bits, rate, floor, grind, chal, True, zk)),
-                            step_prover=None, fold=0,
+                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(bits, rate, floor, grind, chal, True, zk) / bits), fold=0,
                             accumulation=ARC_ATOMS,
                             gates=bits,
                             verify=round(f2_verify(p, grind, chal, zk)),
@@ -962,7 +968,6 @@ BITZ_T10 = {20: (7.31, 0.82, 17.3, 84.1), 21: (12.0, 1.08, 18.2, 92.8), 22: (17.
 
 BITZ_RATE = {"1/2": (1.0, 1.0), "1/8": (0.83, 1.25)}  # (Ligerito bytes, prover) against rate 1/2, measured at 128 bits
 BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
-BITZ_GATE_BITS = 510
 BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
 
 def bitz_t10(log_bits):
