@@ -169,10 +169,11 @@ So the mask costs about 2.4 times the commitment rank, 9 times the witness lengt
 
 ### 5.4 Other costs
 
-- Witness size. The aggregator receives $JN$ digits instead of $N$: about $2^{25.2}$ digits, 14 MB at three bits each, against about 1.5 MB unmasked. The information content is $N$ coordinates of 25 bits, so no encoding does better than about 13 MB, and every later fold and range check on this contribution scales with it.
+- Witness size. The aggregator receives $JN$ digits instead of $N$: about $2^{25.2}$ digits, 14 MB at three bits each, against about 1.5 MB unmasked. The information content is $N$ coordinates of 25 bits, so no encoding does better than about 13 MB. The length is paid in that transfer and in the aggregator's first fold on this accumulator, whose range checks cover the nine slices and which folds them back to $N$ digits with its other inputs. The folds above are at the ordinary length; what every fold pays is the rank of §5.2.
 - Prover time per attempt: one commitment $Ay$ of a vector with 22-bit entries, plus Gaussian sampling of $N$ coordinates. With NTT-friendly ring arithmetic over Pasta the commitment is about $2^{26}$ field operations, under a second on one core, and $M \approx 2.7$ attempts are expected. The merge circuit sees only the accepted one.
 - Challenge set. $d = 128$ because ternary challenges in dimension 64 give only about $2^{101}$ choices. Wider coefficients at fixed positions are cheaper to apply in a circuit, since the positions are constants, at the price of a larger $\|c\|_1$.
 - Gaussian sampling must be within statistical distance about $2^{-\lambda}$ of $D^N_\sigma$ for the theorem to apply as stated. At $\sigma \approx 2^{21}$ double precision is not enough; Karney's exact sampler or a high-precision CDT is the standard answer.
+- Where refinements change these figures. The rank rests on the single shared matrix of §5.2; a design that checked the masked fold under a matrix of its own would confine the rank to the zero-knowledge layer, if the extraction argument can be made for it. The digit count $J$ follows from the base, from $\alpha = 12$ and from $\|c\|_1$; a Pasta profile of Akita with another base, a smaller $\alpha$ at the price of more rejections, or sparser challenges changes it, and Akita's $\ell_\infty$ certification may price the unmasked parts more favourably (§5.5). The witness size is the example's, three vectors of $2^{14}$ coefficients, so the 14 MB is four times larger at $2^{16}$.
 
 ### 5.5 Checking the ranks with Akita's estimator
 

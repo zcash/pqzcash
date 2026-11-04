@@ -62,12 +62,19 @@ RING_D = 64
 ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pasta": 143}
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_q64": 2, "pasta_sis": 32, "pasta": 32}
 
-# The zero-knowledge option masks the accumulator witness by rejection sampling at the first
-# fold (zk-fiat-shamir-with-aborts.md §5): the witness is about nine times longer, and every
-# commitment's Module-SIS rank about 2.4 times higher. Each sum-check gains three rounds.
+# The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
+# fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is about nine
+# times longer, and every commitment's Module-SIS rank is about 2.4 times higher, since the
+# note's extraction argument needs one matrix for the whole chain. The length stays at the
+# zero-knowledge layer: the aggregator's first fold on a masked accumulator range-checks its
+# nine digit slices and folds them back to the ordinary length with its other inputs, as every
+# lattice fold decomposes and folds, so the merges above and the decider's opening see witnesses
+# of the usual size. The merge priced here is one at the zero-knowledge layer, the costlier
+# kind: each of its two sum-checks gains three rounds (log2 of the length factor) of three
+# elements. Merges above that layer pay the rank's rows term only.
 MASK_LENGTH = 9
 MASK_RANK = 2.4
-MASK_SUMCHECK_ATOMS = 18
+MASK_SUMCHECK_ATOMS = 2 * round(math.log2(MASK_LENGTH)) * 3
 
 def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0):
     rows = ROWS[variant] * (MASK_RANK if zk else 1) * rank_scale
@@ -172,8 +179,8 @@ def akita_verify(variant, log_len, zk, rank_scale=1.0):
     ms = base + slope * (log_len - ref)
     if variant not in ("fp128", "goldilocks"):
         ms *= 4
-    if zk:
-        ms *= 1.15
+    # With zero knowledge the final accumulator is at the ordinary length, so the sum-checks
+    # are unchanged; the masked rank's effect on the verifier is not modelled.
     return round(ms * rank_scale * WORD_MULTS_PER_MS)
 
 def pedersen_verify(rank, nat, nes):
@@ -259,7 +266,7 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                 circuits = akita_circuits(variant, K, rank, zk)
                 gates = akita_merge_gates(variant, K, circuits, zk)
                 atoms = akita_atoms(variant, K, circuits, zk)
-                log_len = rank + math.log2(circuits) + (math.log2(MASK_LENGTH) if zk else 0)
+                log_len = rank + math.log2(circuits)  # the decider's accumulator is at the ordinary length, masked or not
                 for H in (2, 4):
                     rank_scale = RANK_SCALE[floor][variant]
                     opening = akita_bytes(variant, K - 1, log_len) * (1 + IMAGE_SHARE[variant] * (rank_scale - 1))

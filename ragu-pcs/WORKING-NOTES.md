@@ -68,9 +68,12 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   (re-planned) / 83,234 SIS-aware; Pasta with 64-bit commitments 70,725 (re-planned).
 - Per-coefficient prover word multiplications: Pedersen 6,400; Ajtai at Pasta 14,200; 128-bit
   2,600; Pasta/64-bit 2,000; Goldilocks 400.
-- Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about 1.5 KB
-  (Goldilocks) to 7 KB (Pasta variants) more in the opening, about twice the prover work, and
-  18 more atoms per merge; the SIS-sized-image variants' image growth is not modelled.
+- Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice
+  the prover work (the 2.4x rows term, system-wide) and 18 more atoms in the zero-knowledge
+  layer's merge, which is the merge priced; the opening bytes and the verifier are unchanged,
+  since the decider's accumulator is at the ordinary length (since 2026-11-04; before, the
+  length was charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15). The masked
+  rank's effect on the opening and the verifier is not modelled.
   Pedersen-IPA's blinding is free, so its points do not change.
 - Hash-based (WHIR with ARC accumulation over Pasta, on the Pareto page): WHIR at 2^17 over a
   256-bit field, 128 bits, Johnson regime: 244/155/123 KiB at rates 1/2, 1/4, 1/8 with 2.7k,
@@ -845,3 +848,28 @@ top level, which are older copies of what `estimates/` holds. The book is built 
 repository root with `nix develop --command scripts/build-book.sh`, which regenerates
 `pareto.html` and serves it as the book's PCS frontier page. Open: the optimizer's licence
 (Ulrich's script came without one) must be settled before the repository goes public.
+
+## 2026-11-04: the masked witness's length charged to the zero-knowledge layer only
+
+The user: the 14 MB masked accumulator applies to the split accumulation of zk steps, not to
+the folds above them. Agreed, from the note's own protocol: §3.2 step 5 decomposes z into nine
+digit slices, each committed; the aggregator's first fold range-checks them and folds them
+back to N digits with its other inputs, as every lattice fold decomposes and folds. What
+persists above is the Module-SIS rank, 2.4x, since §5.2's extraction argument needs one
+matrix for the whole chain. Changes: pareto-model.py no longer adds log2(9) to the decider's
+`log_len` (opening bytes and verifier) and no longer multiplies the verifier by 1.15;
+MASK_RANK stays on the rows term everywhere; MASK_SUMCHECK_ATOMS, now derived from
+MASK_LENGTH, stays in the merge, which the page describes as one at the zk layer, merges
+above paying the rows term only. Effect at 128 bits: the zk rows' bytes equal the plain rows'
+(before: +1.5 KB Goldilocks to +7 KB Pasta variants), the verifier is 13% lower, prover and
+atoms unchanged (Goldilocks rank 13: 67,866 B both; prover 4.81e7 -> 9.84e7; atoms 231 ->
+249). Prose: the page's zk paragraph and verifier bullet; zk-fiat-shamir-with-aborts.md §5.4,
+whose witness-size bullet is corrected and which gains a bullet on where refinements change
+the figures (the shared matrix; the digit base, α and the challenge weight; the witness
+size); pasta-proof-size.md's accumulator-witness paragraph. Still not modelled: the masked
+rank's effect on the opening and the verifier. The 150-bit rank factor shows the mechanism
+(IMAGE_SHARE); applying it to MASK_RANK would raise the zk rows' bytes by a third to a half,
+a decision not taken. The same day: the cross-references between the notes and from the page
+became links; 𝔽₂ is written with the double-struck letter; the table's unit heading no longer
+reads MS under the CSS uppercase transform. The book is rebuilt after every change the user
+is to review: `nix develop --command scripts/build-book.sh` from the repository root.
