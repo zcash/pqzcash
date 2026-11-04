@@ -69,7 +69,8 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
 - Per-coefficient prover word multiplications: Pedersen 6,400; Ajtai at Pasta 14,200; 128-bit
   2,600; Pasta/64-bit 2,000; Goldilocks 400.
 - Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice
-  the prover work (the 2.4x rows term of the accumulation matrix, system-wide) and 18 more atoms
+  the prover work (the 2.2x rows term of the accumulation matrix, system-wide; weight-20
+  challenges in dimension 512 since the evening of 2026-11-04, 2.37 with the note's weight-32 example) and 18 more atoms
   in the zero-knowledge layer's merge, which is the merge priced; the opening bytes and the
   verifier are unchanged, since the decider's accumulator is at the ordinary length and Akita's
   internal levels and terminal keep their own bounds (since 2026-11-04; before, the length was
@@ -936,3 +937,9 @@ challenge, first accepted index published, batch discarded; k+1 rewinds for extr
 deferral of the slice decomposition and the range/norm obligations to the aggregator's first
 fold (open point 7), leaving online a sparse ring product and a vector addition (~2^27
 additions, 0.1 s on a phone core) and the ~13 MB transfer of z, which is intrinsic.
+
+Later on 2026-11-04 (the clock had not yet passed midnight in the user's zone): the page's default challenge set is weight 20 in the accumulation matrix's ring
+dimension 512 (MASK_CHALLENGE_L1 = 20; free, §5.6), rank factor 2.22 instead of 2.37; α stays
+12. The zk note's §5.8 (candidate masks precomputed offline, obligations deferred to the
+cross-transaction aggregator's first fold, which is the party untrusted for privacy) answers
+the user's point that seconds of masking work are too much for one zk step on a phone.

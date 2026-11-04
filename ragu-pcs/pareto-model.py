@@ -82,11 +82,13 @@ WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_q64": 2, "pasta_sis": 32, "p
 # Gaussian mask has width σ = MASK_ALPHA · ‖cs‖₂, the accepted response ‖z‖₂ ≈ 2σ√N, and the
 # relaxed opening that extraction yields needs binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖₂, with ‖c − c'‖₁
 # at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
-# the unmasked 2^27 (§5.2, §5.5). The note's choices, α = 12 and weight-32 ternary challenges
-# (‖c‖₁ = 32), give 2^41.6 and a factor of 2.37; its §5.6 prices the alternatives. The masked
-# coordinates are at most 14σ, which sets the slices: base-8 digits per coordinate.
+# the unmasked 2^27 (§5.2, §5.5). The page takes α = 12 with weight-20 ternary challenges in the
+# accumulation matrix's ring dimension of 512 (‖c‖₁ = 20), which give 2^40.2 and a factor of
+# 2.22; the note's §5.3 example used weight 32 in dimension 128, 2.37, and its §5.6 prices the
+# alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
+# coordinate.
 MASK_ALPHA = 12
-MASK_CHALLENGE_L1 = 32
+MASK_CHALLENGE_L1 = 20
 MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
 
 def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
