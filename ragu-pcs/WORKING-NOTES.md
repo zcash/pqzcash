@@ -87,10 +87,10 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   Poseidon, not its default Poseidon2, and at 128 proven bits. All dominated by Akita on every
   measure; the advantage of the Pasta variant is a native Pasta field. Dominance treats native
   Pasta support as a requirement: a Pasta-native point is dominated only by a Pasta-native one.
-  Binary-field family (Flock/Binius-style over F2 with ARC, no rank): bytes from Ulrich
+  Binary-field family (Flock/Binius-style over 𝔽₂ with ARC, no rank): bytes from Ulrich
   Haböck's FRI-Binius optimizer (frib_optimizer.py, since 2026-10-22; before that FRI-Binius
   Table 1 at 100-bit unique decoding x1.3, 1.7x larger) at the merge's witness size, in two
-  designs (pack 256 = challenge field 256; pack 64 with challenges in F2^192), list decoding up
+  designs (pack 256 = challenge field 256; pack 64 with challenges in 𝔽₂^192), list decoding up
   to the Johnson bound, the row's grinding, and for ARC rows the decider's three first-round
   trees; prover = Flock's measured PIOP (scaled by the challenge field) + FRI-Binius's
   commitment counted operation by operation and calibrated to its Table 2 (see 2026-10-28/29);
@@ -98,7 +98,7 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   gates). ARC, 192-bit, best grinding: 446/241/174/140/121/106 KB at rates 1/2..1/64, prover
   6.0e8/4.2e8/4.4e8/5.7e8/8.5e8/1.4e9, 74M..14M AND gates; recursive 340..81 KB at 2.5e9..5.1e9
   and 332M..76M witness bits. The prover is least at rates 1/4..1/8 (8x Akita Goldilocks's 5.1e7,
-  whose proof is 68 KB); no F2 row beats Akita on bytes and prover together. Zero knowledge (full
+  whose proof is 68 KB); no 𝔽₂ row beats Akita on bytes and prover together. Zero knowledge (full
   mask, Diamond 2025/1015 = the optimizer's zk option, since 2026-10-30): ARC +63..265 KiB and
   x1.2..1.5 prover; recursive +30..115 KiB and x1.5..2.1; the upper bound. Zook-style (derived,
   since 2026-11-02): ARC +27..54 KiB at x1.00..1.03; recursive +32..61 KiB at x1.03..1.15; the
@@ -127,7 +127,7 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   fp128, 3.9 ms Goldilocks at 2^27 bits, +0.4 ms per doubling; Pasta variants x4, an
   assumption); hash-based deciders = WHIR verifier hashes x native Poseidon cost (+1e6 for
   arithmetic; the ARC rows add the decider's two extra first-round trees, so WHIR over Pasta is
-  62 ms at rate 1/8 under ARC and 31 under recursion), Blake3-measured 0.7-1.4 ms; F2 = the
+  62 ms at rate 1/8 under ARC and 31 under recursion), Blake3-measured 0.7-1.4 ms; 𝔽₂ = the
   FRI-Binius verifier: auth + leaf hashes x BLAKE3 native + field mults x clmuls, 0.2-1.4 ms;
   BitZ's Ligerito 1.3 ms-class verifier scaled by the extra trees in its ARC rows. Akita's small-field
   (p32) verifier is slower than p64/p128 at equal bits because of 4x the coefficients and
@@ -233,7 +233,7 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   unchanged. Ligerito (Flock, BitZ): Flock's instantiation, five levels at rates 1/2..1/32
   with 218/106/71/53/43 queries at 100 bits (linear in the floor), two variables folded per
   level (an assumption), a column of four elements per query; nodes priced as BLAKE3 for
-  parity with the F2 ARC row (Flock's implementation uses SHA-256: 3.8x the bits, half the
+  parity with the 𝔽₂ ARC row (Flock's implementation uses SHA-256: 3.8x the bits, half the
   throughput, for every row of these families alike). Findings: WHIR recursion is a wash at
   rate 1/8 and saves a fifth of the merge and half the prover at rate 1/2; FRI recursion costs
   about twice ARC; Ligerito recursion opens 491 columns per proof against ARC's 86 openings at
@@ -407,7 +407,7 @@ decoding regime" (true up to capacity, 43 at rate 1/8, but those conjectures are
 is at the Johnson bound); (2) "you need a larger field than 128 bits to go up to the Johnson
 bound, but then significantly fewer samples" (true: unique decoding needs 154 at rate 1/8 against
 86 at Johnson; the page's ARC rows over Pasta and Goldilocks-cubic are already at Johnson, the
-F2/BitZ rows are in the unique-decoding regime because F_{2^128} cannot reach Johnson at 128 bits);
+𝔽₂/BitZ rows are in the unique-decoding regime because F_{2^128} cannot reach Johnson at 128 bits);
 (3) grinding in the query phase: t = 2(λ − g)/log2(1/ρ); the page's ARC count is ungrinded while
 the WHIR measurements carry 20 bits, an inconsistency to fix; the user: choose g so that the
 prover cost does not appreciably rise; (4) "rate 1/32, 16 bits of grinding, 256-bit field: how
@@ -428,7 +428,7 @@ ms at 2^17 (58.5 against 47.8 at rate 1/8), 16 bits about 1 ms. At 2^18: rate 1/
 `pareto-model.py` now loads `estimates/whir-sweep-grind.tsv` (both fields, rates 1/2 to 1/64,
 maximum proof of work 0/16/20/24 bits, 2^17 and 2^18, 128 bits, Johnson, --reps 3; the prover_ms
 column is noisy at 24 bits and two cells are blank, unused). `RATES` has six rates for the WHIR,
-FRI, Goldilocks and hybrid families (ARC and recursive rows); F2 and BitZ keep their rates.
+FRI, Goldilocks and hybrid families (ARC and recursive rows); 𝔽₂ and BitZ keep their rates.
 `GRINDS = (0, 16, 20, 24)`, default 16 (the user: a grinding amount that does not appreciably
 raise the prover; for the BLAKE3 families 20 bits is about half a merge's prover). Hash-based
 points carry `grind`; `arc_openings(rate, floor, grind) = ceil(2 (floor − grind) / log2(1/ρ))`;
@@ -481,8 +481,8 @@ State at the end of the night session (the integration itself is the last bullet
   WHIR reference implementation's first-round samples at every rate and grinding (e.g. 75 vs 79
   at rate 1/8, 16 bits), his compressed sizes 10–13% below WHIR's measured (113 vs 127 KiB at
   rate 1/8; 82 vs 98 at 1/32), his CAT margin 152–165 bits. Unique decoding at rate 1/8, 16
-  bits: 135 queries, 181 KiB — matches the page's OLD F2 basis (FRI-Binius Table 1 at 100 bits
-  unique decoding ×1.3 = 194 KB). So his model is at the WHIR rows' level, 1.7× below the old F2
+  bits: 135 queries, 181 KiB — matches the page's OLD 𝔽₂ basis (FRI-Binius Table 1 at 100 bits
+  unique decoding ×1.3 = 194 KB). So his model is at the WHIR rows' level, 1.7× below the old 𝔽₂
   rows.
 - FIELD SIZE (the user asked about 128–256): with n = w + rate_bits as his check counts it, at
   2^25 bits, 16-bit grinding: 128 bits not reachable at 128-bit security in any regime (CAT
@@ -513,30 +513,30 @@ State at the end of the night session (the integration itself is the last bullet
   now scale with (floor − grind)/100 (linear in the security level, Remark 10) plus the
   grinding check per input, so "best per row" finds a real minimum at 16 bits instead of 0 bits
   (the first run picked 0 because the rec prover did not see the grinding at all). `FRIBINIUS`
-  and the 1.3× and WHIR_SCALE on F2 bytes are gone. BitZ's Ligerito use is untouched (its
+  and the 1.3× and WHIR_SCALE on 𝔽₂ bytes are gone. BitZ's Ligerito use is untouched (its
   numbers are its own measurements).
-- RESULTING F2 ROWS (floor 128, header 2, best per row = 12 bits at rates 1/4..1/64, 16 at 1/2):
+- RESULTING 𝔽₂ ROWS (floor 128, header 2, best per row = 12 bits at rates 1/4..1/64, 16 at 1/2):
   ARC, 192-bit: 257/144/105/84/71/64 KB at rates 1/2..1/64 (256-bit: 285/159/115/92/79/69 KB),
   lists 2^7 (2^6 at 1/64) against 2^15 at 256 bits, queries within one of each other, prover
   3.4e8..6.6e7, merge 74M..15M AND gates, verifier 0.4–1 ms. Recursive (16 bits), 192-bit:
   306/187/143/119/103/93 KB, prover 7.8e8, 173M witness bits, Ligerito 1.3 ms. NEW CONCLUSION:
   rate 1/64 with 192-bit packing (64 KB, 6.6e7, 15M AND gates) is on the post-quantum frontier:
   below Akita over Goldilocks's 68 KB (prover 5.1e7) on bytes at 1.3× its prover; every other
-  F2 row stays dominated. Said on the page in the "Binary-field systems" paragraph.
+  𝔽₂ row stays dominated. Said on the page in the "Binary-field systems" paragraph.
 - PAGE TEXT: the "Binary-field systems" paragraph (rewritten in the night) now matches the
   model; its merge range is "14 to 74 million from rate 1/64 to 1/2"; the "Verifier work" bullet
-  splits the F2 family into ARC rows (the optimizer's hashes) and recursive rows (Ligerito);
+  splits the 𝔽₂ family into ARC rows (the optimizer's hashes) and recursive rows (Ligerito);
   the lede was stale (the user) and now lists the families (five Akita variants, WHIR ×3,
-  Plonky3-style FRI, the F2 family, BitZ, each with ARC and recursion, BitZ over Akita as a
+  Plonky3-style FRI, the 𝔽₂ family, BitZ, each with ARC and recursion, BitZ over Akita as a
   draft), the selectable rate, grinding, floor and zero knowledge, and the Pasta requirement;
   the model's docstring likewise. Republished to the same URL on 2026-10-22 (version 61).
   SUPERSEDED on 2026-10-29 by the entry below: the 64 KB frontier point is gone.
 
-## 2026-10-28/29: a realistic F2 cost model, the 192-bit design, and the ARC decider's three trees
+## 2026-10-28/29: a realistic 𝔽₂ cost model, the 192-bit design, and the ARC decider's three trees
 
-Ulrich asked what the page assumed about GF(2^192) arithmetic (version 61 charged nothing: the F2
+Ulrich asked what the page assumed about GF(2^192) arithmetic (version 61 charged nothing: the 𝔽₂
 prover was Flock's throughput per merge hash, the verifier a flat 1e6 for arithmetic), then, on
-2026-10-23 about version 61, that the F2 recursive prover did not grow with lower rates and that
+2026-10-23 about version 61, that the 𝔽₂ recursive prover did not grow with lower rates and that
 the ARC decider's opening proof must deal with several Merkle trees (the current witness and the
 accumulation polynomials), and that a stand-alone FRI-Binius at 2^25 bits and rate 1/64 is about
 66 KiB (the model: 67 KB at the merge's 14M bits, 16-bit grinding). The user: use a more realistic
@@ -551,10 +551,10 @@ a principled argument. Changes:
   me: the degree 2^kappa gives the packing its sub-hypercube structure and the tensor algebra its
   symmetry, it is not a soundness condition (2024/504 §1.2: "We write 2^kappa for the degree of L
   over K, which we assume is a power of 2"; §1.3 "ring-switching works for any such field
-  extension"). The design modelled: pack bits into F2^64 (kappa = 6, ring switching as written),
-  draw the folding and sum-check challenges from the cubic extension F2^192, the field the
+  extension"). The design modelled: pack bits into 𝔽₂^64 (kappa = 6, ring switching as written),
+  draw the folding and sum-check challenges from the cubic extension 𝔽₂^192, the field the
   agreement bound sees, as Plonky3 pairs a base field with an extension; it needs the ring-switching
-  sum-check restated over L tensor F2^64, which the paper does not write down. Since every design's
+  sum-check restated over L tensor 𝔽₂^64, which the paper does not write down. Since every design's
   first round costs opened bits / 8 per query, the 64/192 sizes equal the night's dense-192 figures
   up to the arity granularity; the later rounds' elements are 24 B against 32. `F2_DESIGNS = {256:
   pack 256, 192: pack 64}`; labels "256-bit field" / "64-bit packing, 192-bit field".
@@ -570,7 +570,7 @@ a principled argument. Changes:
   words) + sum-checks (7 x packed coefficients x c_L: tensor expansion, ring-switch sum-check,
   BaseFold sum-check) + folds (first step over the packing field, then L x L) + folded trees;
   interpolated geometrically between whole w. Calibrated to FRI-Binius Table 2 (2^28 bits, rate
-  1/2, F2^128, SHA-256 Merkle, folding factor 4, 100-bit unique decoding, single-threaded on a c7i
+  1/2, 𝔽₂^128, SHA-256 Merkle, folding factor 4, 100-bit unique decoding, single-threaded on a c7i
   Xeon with AVX-512 and CLMUL: commit 144 ms, open 160 ms) with a hand-built schedule of ell = 2
   per round: F2_SCALE = (1.11, 1.70). ARC step prover = PIOP + k_c (NTT + 2 trees) + k_o (ring
   switch) + grinding; recursive = PIOP + k_c (NTT + tree) + k_o (switch + folds) + grinding.
@@ -581,12 +581,12 @@ a principled argument. Changes:
   (BitZ keeps Ligerito); the 2^kappa = 256 factor makes the 256-bit design's recursive merge 263M
   bits against 116M at 192 (rate 1/8). `f2_merge` (the ARC merge: openings x depth) is unchanged.
 - Sanity check: at 2^25 bits, rate 1/2, 256-bit, an ARC step is 3.0e8 against Flock's whole
-  measured pipeline, 1.5e8, at its own rate 1/2 over F2^128; the PIOP alone is 1.4e8 after the
+  measured pipeline, 1.5e8, at its own rate 1/2 over 𝔽₂^128; the PIOP alone is 1.4e8 after the
   field scaling.
 - The ARC decider's three trees (Ulrich): at the root nobody has yet combined the two child
   accumulators with the root's own witness, so the decider's batched proof opens three oracles in
   its first round, each under its own root (cheaper than a separate accumulation check plus a
-  stand-alone proof, which would open four). F2: `first_trees=3` for ARC rows, 1 for recursive.
+  stand-alone proof, which would open four). 𝔽₂: `first_trees=3` for ARC rows, 1 for recursive.
   WHIR/FRI: `whir_extra_trees` adds, per extra tree, first_samples x 16 elements x 32 or 24 B of
   leaves plus the paths as a pruned multiproof, `frib.expected_multiproof_hashes(height,
   first_samples)` x 32 B (the user, 2026-10-29: assume pruning of path segments or a Merkle cap;
@@ -598,7 +598,7 @@ a principled argument. Changes:
   implementation does not do it. Checked: the WHIR crate at the sweep's revision prunes already
   (`src/protocols/merkle_tree.rs`, `opening_sibling_indices` merges neighbouring branches and
   sends no hint for them; the verifier mirrors it), so the measured sizes are pruned multiproofs
-  and the extra trees priced the same way are not a design change for WHIR. The F2 rows use the
+  and the extra trees priced the same way are not a design change for WHIR. The 𝔽₂ rows use the
   optimizer's own Merkle-cap accounting (Ulrich's expected multiproof hashes); BitZ's extra is a
   share of its measured Ligerito bytes, so pruning cancels in the ratio. BitZ ARC: the Ligerito part x (1 + 2 x the first level's share of columns and paths,
   `ligerito_first_share`), the verifier likewise as a bound. Effect: WHIR ARC at rank 13, rate
@@ -609,23 +609,23 @@ a principled argument. Changes:
   (ARC, ePrint 2024/1731, §1: "t = 2 lambda / log(1/rho) Merkle path openings per input"); whether
   the step's own witness oracle and the output accumulator add in-circuit openings was not
   re-examined.
-- RESULTS (floor 128, header 2, best grinding per row). F2 ARC, 192-bit: 446/241/174/140/121/106
+- RESULTS (floor 128, header 2, best grinding per row). 𝔽₂ ARC, 192-bit: 446/241/174/140/121/106
   KB at rates 1/2..1/64, prover 6.0e8/4.2e8/4.4e8/5.7e8/8.5e8/1.4e9, merge 74M..14M AND gates,
   verifier 0.25-1.4 ms; the 256-bit design about a tenth larger and costlier. Recursive, 192-bit:
   340/182/131/106/92/81 KB, prover 2.5e9..5.1e9, merge 332M..76M bits; 256-bit: 398..101 KB,
   4.0e9..1.25e10. The 2026-10-22 "frontier point" (64 KB at 1.3x Akita Goldilocks) is GONE: with
-  the three trees and the real prover, the smallest F2 ARC proof is 106 KB at 1.4e9, 27x Akita
-  Goldilocks's prover. F2 rows still show on the post-quantum frontier through the accumulation
+  the three trees and the real prover, the smallest 𝔽₂ ARC proof is 106 KB at 1.4e9, 27x Akita
+  Goldilocks's prover. 𝔽₂ rows still show on the post-quantum frontier through the accumulation
   measure (40 atoms against Akita's 150-230). WHIR-type ARC rows are now 171 KB-1.3 MB (whir
   197-831 KB).
 - Page prose updated: lede unchanged; "Which third measure" (verifier range), "The hash-based
   families" (197-831 KB, the three trees, 226 vs 326 KB, Goldilocks a sixth), "ARC against each
-  scheme's own recursion" (proofs now differ; recursion's proof a little over half of ARC's; the F2
-  family's own recursion), "Verifier work" (13/62 ms ARC, 7/31 recursion; F2 0.2-1.4 ms; BitZ scaled), and the
-  F2 paragraph (two designs, the ring-switching degree, the cost model, the prover and proof
+  scheme's own recursion" (proofs now differ; recursion's proof a little over half of ARC's; the 𝔽₂
+  family's own recursion), "Verifier work" (13/62 ms ARC, 7/31 recursion; 𝔽₂ 0.2-1.4 ms; BitZ scaled), and the
+  𝔽₂ paragraph (two designs, the ring-switching degree, the cost model, the prover and proof
   ranges). Republished to the same URL on 2026-10-29. The 2024/504 and Flock texts extracted for
   this are work/2024-504.txt, work/flock.txt, work/arc.txt.
-- 2026-10-30, ZERO-KNOWLEDGE ROWS for the F2 family. The user asked whether zk can be added to
+- 2026-10-30, ZERO-KNOWLEDGE ROWS for the 𝔽₂ family. The user asked whether zk can be added to
   FRI-Binius, by what scheme, and whether we can price it with confidence; then "add the
   defensible ones". Two routes. (a) The full mask: Diamond, "Zero-Knowledge Polynomial Commitment
   in Binary Fields" (ePrint 2025/1015), which is the optimizer's zk='true' option (a mask
@@ -649,7 +649,7 @@ a principled argument. Changes:
   paragraph describes the rows, the upper-bound status, and the two caveats (the ring-switching
   reduction's revealed partial evaluations need their own mask, unwritten; the ARC merge is left
   unchanged, as for WHIR). Republished 2026-10-30.
-- 2026-10-30, ZOOK FOR FRI-BINIUS WORKED OUT (the user: "why do the F2 zk rows grow so much when
+- 2026-10-30, ZOOK FOR FRI-BINIUS WORKED OUT (the user: "why do the 𝔽₂ zk rows grow so much when
   Zook claims o(1); work out whether Zook's spot checks could be cheaper for FRI-Binius than
   Plonky3's parameters make them for WHIR"). Read Zook §2.2-2.7, §8, §10 (work/zook.txt). Its
   structure: (1) the main oracle is a zk ENCODING of the code (r random coefficients per
@@ -699,10 +699,10 @@ a principled argument. Changes:
   extracted prose is work/page-prose.txt). Fixed: the binary-field section's "zero knowledge is
   not modelled"; BitZ's ARC row figures (302 KB / 31M bits / 5 ms -> 500 KB with the three
   trees / 28M / 7.5 ms) and the frontend's "3.4 times smaller" (-> 5.7); "What the axes mean"
-  now mentions the extra trees and the F2 and BitZ sources for bytes, prover and atoms, and
+  now mentions the extra trees and the 𝔽₂ and BitZ sources for bytes, prover and atoms, and
   AND gates / witness bits for merge gates; the Grinding paragraph's BLAKE3 settings (12 to 18
   bits, not "lower"); the Pasta-requirement list adds BitZ and the frontend; the Knobs list
-  gains F2 and BitZ entries; the Security-floor paragraph says the F2 optimizer runs at the
+  gains 𝔽₂ and BitZ entries; the Security-floor paragraph says the 𝔽₂ optimizer runs at the
   floor; the zero-knowledge checkbox label is "(see text)". Republished.
 - 2026-11-02, THE DIRECT 191-BIT DESIGN (Ulrich: why pack into GF(2^64) elements for the
   192-bit strategy; "I would have gone for packing into the 191/192 bit field, for the

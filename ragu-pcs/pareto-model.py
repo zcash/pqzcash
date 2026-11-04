@@ -126,12 +126,12 @@ LABEL = {
     "whir_gold": "WHIR with ARC, Goldilocks, hash-based",
     "whir_hybrid": "WHIR with ARC, Pasta claims, 64‑bit limbs, hash-based",
     "plonky3": "Plonky3-style FRI with ARC, Goldilocks, hash-based",
-    "flock": "Flock/Binius-style over F2 with ARC, hash-based",
+    "flock": "Flock/Binius-style over 𝔽₂ with ARC, hash-based",
     "whir_rec": "WHIR, recursive, Pasta, hash-based",
     "whir_gold_rec": "WHIR, recursive, Goldilocks, hash-based",
     "whir_hybrid_rec": "WHIR, recursive, Pasta claims, 64‑bit limbs, hash-based",
     "plonky3_rec": "Plonky3-style FRI, recursive, Goldilocks, hash-based",
-    "flock_rec": "Flock/Binius-style over F2, recursive, hash-based",
+    "flock_rec": "Flock/Binius-style over 𝔽₂, recursive, hash-based",
     "bitz": "BitZ with ARC, Pasta claims over committed bits, hash-based",
     "bitz_rec": "BitZ, recursive, Pasta claims over committed bits, hash-based",
     "bits_q64": "BitZ over Akita, 64‑bit commitments, Pasta claims (draft frontend)",
@@ -162,7 +162,7 @@ def akita_bytes(variant, K, log_len):
 # sum-check arithmetic in the claim field; the masked witness adds three rounds to each
 # sum-check of about twenty. Hash-based: the WHIR verifier's hashes at the witness size, at
 # the variant's native permutation cost, plus about a million for the arithmetic; FRI has
-# 2.07 times the hashes. F2: Flock's Ligerito verifier, 1.3 ms in the same table.
+# 2.07 times the hashes. 𝔽₂: Flock's Ligerito verifier, 1.3 ms in the same table.
 WORD_MULTS_PER_MS = 3e6
 SCALAR_MULT_WORD_MULTS = 255 * 2 * 11 * 32
 AKITA_VERIFY_MS = {"fp128": (4.2, 0.45, 20), "goldilocks": (3.9, 0.35, 21)}
@@ -487,7 +487,7 @@ for variant in HASH_VARIANTS:
                             ))
 
 # Binary-field systems: Flock (arXiv 2607.27491) and Binius64 on the FRI-Binius and Ligerito
-# commitments, Boolean R1CS over F2 with claims in F2^128 and a bit-oriented hash. They have
+# commitments, Boolean R1CS over 𝔽₂ with claims in 𝔽₂^128 and a bit-oriented hash. They have
 # no Pasta circuits, so the merge is priced in its own terms: ARC's openings as for the other
 # hash-based variants, each path node a BLAKE3 compression of about 2^13 AND gates, so the
 # merge is a Boolean witness of that many gates, and there is no rank. Proof bytes come from
@@ -496,14 +496,14 @@ for variant in HASH_VARIANTS:
 # that the correlated-agreement bound allows, up to 2^15, the row's grinding, and the folding
 # schedule that minimises the compressed proof with Merkle-cap multiproofs, interpolated
 # between the whole witness sizes around the merge's. Three designs: the witness packed into
-# F2^256, which is also the field of the folding and sum-check challenges; the witness
-# packed into F2^64 with the challenges drawn from its cubic extension F2^192, which is the
+# 𝔽₂^256, which is also the field of the folding and sum-check challenges; the witness
+# packed into 𝔽₂^64 with the challenges drawn from its cubic extension 𝔽₂^192, which is the
 # field that the agreement bound sees, as Plonky3's FRI pairs a base field with an extension;
 # and the witness packed straight into GF(2^191), a prime-degree field with a trinomial and
 # no subfields (Ulrich Haböck's suggestion, for the arithmetic). Ring switching (ePrint
 # 2024/504, §1.3) packs 2^kappa bits into each element and assumes a power-of-two degree over
-# F2, which 192 and 191 are not, so the second design packs into F2^64 (kappa = 6) and needs
-# the ring-switching sum-check restated over L tensor F2^64, and the third lays the witness
+# 𝔽₂, which 192 and 191 are not, so the second design packs into 𝔽₂^64 (kappa = 6) and needs
+# the ring-switching sum-check restated over L tensor 𝔽₂^64, and the third lays the witness
 # out as 191 columns that the PIOP batches and switches in one step of degree 191; both are
 # design changes that the paper does not write down. A 128-bit field cannot reach 128 bits
 # in any regime at these sizes. The first-round oracle has the same bytes under any packing,
@@ -511,11 +511,11 @@ for variant in HASH_VARIANTS:
 # element after it. The prover is counted in word multiplications, a 64-bit carry-less
 # multiplication as one: Flock's measured 82,100 BLAKE3 compressions per second on one core
 # for the PIOP (its Table 5: witness generation 5%, zero-check and lincheck 46%, which run
-# over F2^128 and are scaled by half the challenge field's multiplication cost over F2^128's);
+# over 𝔽₂^128 and are scaled by half the challenge field's multiplication cost over 𝔽₂^128's);
 # and for the commitment the additive NTT, the first tree, the ring-switching products, the
 # folds, the folded trees, and the sum-checks, counted in carry-less multiplications, hashes,
 # and word XORs, and scaled to the FRI-Binius paper's single-threaded 144 ms commitment and
-# 160 ms opening at 2^28 bits, rate 1/2, over F2^128 (its Table 2). The ARC rows pay the NTT,
+# 160 ms opening at 2^28 bits, rate 1/2, over 𝔽₂^128 (its Table 2). The ARC rows pay the NTT,
 # two trees, and the ring switching; the recursive rows a full proof. The decider's verifier
 # is the proof's authentication and leaf hashes at BLAKE3's native cost plus its field
 # multiplications. Zero knowledge comes in two variants. The full mask is Diamond's
@@ -534,7 +534,7 @@ for variant in HASH_VARIANTS:
 # proof, not to the oracles, so the ARC decider's three trees do not multiply them. The
 # ring-switching mask is this page's design, not the paper's; the ARC merge is left unchanged,
 # as for WHIR.
-# The designs, keyed by the challenge field's bits: the packing degree over F2 (what the ring
+# The designs, keyed by the challenge field's bits: the packing degree over 𝔽₂ (what the ring
 # switching handles, in one step or two), the NTT twiddle's cost in carry-less
 # multiplications (a 32-bit subfield twiddle in the tower fields, one per 64-bit limb; a
 # full-field twiddle in GF(2^191), which has no subfield to hold the evaluation domain), and
@@ -559,7 +559,7 @@ def limbs(bits):
 XOR_WEIGHT = 1 / 8  # a 64-bit word XOR against a word multiplication: the vector units do several per cycle
 NTT_STAGES_SAVED = 4  # butterfly stages that the paper's interleaving saves in the commitment (§5)
 FLOCK_PIOP_SHARE = (0.05, 0.464)  # of Flock's prover: witness generation; zero-check and lincheck (Table 5, BLAKE3)
-FRIB_MEASURED_MS = (144, 160)  # FRI-Binius Table 2: single-threaded commit and open at 2^28 bits, rate 1/2, F2^128
+FRIB_MEASURED_MS = (144, 160)  # FRI-Binius Table 2: single-threaded commit and open at 2^28 bits, rate 1/2, 𝔽₂^128
 BLAKE3_ANDS = 8192
 BLAKE3_PER_SECOND = 82100
 WORD_MULTS_PER_SECOND = 3e9
@@ -621,7 +621,7 @@ F2_SCALE = (FRIB_MEASURED_MS[0] * WORD_MULTS_PER_MS / (_calib["ntt"] + _calib["t
 def f2_piop(bits, chal):
     """Flock's measured prover less its commitment, per witness bit (one per AND gate), with
     the zero-check and lincheck scaled by half the challenge field's multiplication cost over
-    F2^128's."""
+    𝔽₂^128's."""
     per_gate = WORD_MULTS_PER_SECOND / BLAKE3_PER_SECOND / BLAKE3_ANDS
     gen, check = FLOCK_PIOP_SHARE
     return bits * per_gate * (gen + check * (1 + (CLMULS[chal] / CLMULS[128] - 1) / 2))
@@ -670,7 +670,7 @@ def f2_bytes(p, zk):
     return p["bytes"] + (p["zook"][0] if zk == "zook" else 0)
 
 def f2_prover(bits, rate, floor, grind, chal, recursive, zk=None):
-    """Word multiplications of the F2 prover: Flock's PIOP, the scaled commitment (the NTT
+    """Word multiplications of the 𝔽₂ prover: Flock's PIOP, the scaled commitment (the NTT
     and two trees with the ring switching for an ARC step; a full proof for a recursive
     step), under zero knowledge the mask's commitment of witness size or the Zook-style
     masks' encoding, and the grinding."""
@@ -693,7 +693,7 @@ def f2_verify(p, grind, chal, zk=None):
 
 def f2_merge(rate, floor, grind=GRIND_DEFAULT):
     """(hashes, AND gates) of a merge: two inputs, ARC's openings, paths through the tree of
-    the F2^128-packed witness divided by the rate, at its fixed point, plus the grinding
+    the 𝔽₂^128-packed witness divided by the rate, at its fixed point, plus the grinding
     check per input."""
     inv = int(rate.split("/")[1])
     t = arc_openings(rate, floor, grind)
@@ -790,9 +790,9 @@ for variant in HASH_VARIANTS:
 # Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
 # Appendix C and §5) folds two variables per level, five levels at rates 1/2, 1/4, 1/8, 1/16,
 # 1/32 with 218, 106, 71, 53, 43 queries at 100 bits, the queries linear in the security level
-# (Remark 10). A query opens a column of four F2^128 elements, one hash compression, through a
+# (Remark 10). A query opens a column of four 𝔽₂^128 elements, one hash compression, through a
 # path of the level's depth. The nodes are priced as BLAKE3 compressions of about 2^13 AND
-# gates, as the F2 family's rows price them.
+# gates, as the 𝔽₂ family's rows price them.
 # Flock's implementation hashes with SHA-256 (§2), 31,400 witness bits per compression in its
 # arithmetization (BitZ, Table 2) at 42,100 per second: 3.8 times the merge bits and half
 # the throughput, for every row of these families alike. BitZ reports that proving many
@@ -804,7 +804,7 @@ HASH_BITS = BLAKE3_ANDS
 HASH_PER_SECOND = BLAKE3_PER_SECOND
 
 def ligerito_hashes(log_bits, floor):
-    m = log_bits - 7  # F2^128 elements
+    m = log_bits - 7  # 𝔽₂^128 elements
     total = 0
     for inv, queries in LIGERITO_LEVELS:
         total += queries * floor / 100 * (m - 2 + math.log2(inv) + 1)
@@ -821,7 +821,7 @@ def ligerito_first_share(log_bits):
         m -= 2
     return parts[0] / sum(parts)
 
-# The F2 family's recursive merge verifies the step's own FRI-Binius proof twice: its hashes
+# The 𝔽₂ family's recursive merge verifies the step's own FRI-Binius proof twice: its hashes
 # as BLAKE3 compressions and its field multiplications by Karatsuba, at the fixed point.
 def f2_rec_merge(rate, floor, grind, chal, zk=None):
     """(hashes, witness bits) of the recursive merge, plus the grinding check per input."""
@@ -857,14 +857,14 @@ for grind in GRINDS:
                         ))
 
 # BitZ (ePrint 2026/2141): a hash-based PCS over any finitely generated ring through binary
-# fields. The witness is bit-decomposed and committed packed over F2^128 with Flock's
+# fields. The witness is bit-decomposed and committed packed over 𝔽₂^128 with Flock's
 # Ligerito; a claim over a ring R is lifted to the integers (a random prime where R is
-# large) and proved in the exponent of F2^128 by GKR grand products, so the cost is per bit
+# large) and proved in the exponent of 𝔽₂^128 by GKR grand products, so the cost is per bit
 # and independent of R. With the Universal Constraint Systems of Zinc+ (ePrint 2026/855) the
 # application is native over Pasta's field: integer witnesses with ideal membership modulo
 # p, projected to a random prime field for the PIOP, so a Pasta gate is a 255-bit value and a
 # 255-bit quotient, 510 committed bits. The merge is a hybrid circuit: the two Ligerito
-# verifications as SHA-256 over F2, and the GKR and PIOP verifiers native over F2^128 and the
+# verifications as SHA-256 over 𝔽₂, and the GKR and PIOP verifiers native over 𝔽₂^128 and the
 # projection field, a few thousand constraints that are not counted. The PCS costs are the
 # paper's Table 10 (rate 1/2, 100 bits, one thread of a MacBook Air M5) at the committed
 # bits, interpolated in their logarithm: prover, verifier, and the proof's non-Ligerito and
