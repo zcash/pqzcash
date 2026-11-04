@@ -108,6 +108,21 @@ def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0):
 def pedersen_per_coefficient(rank):
     return 255 / rank * 11 * 32
 
+# The user's masking fold, for the page's transaction measure: the expected rejection-sampling
+# attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
+# accumulation matrix and N Gaussian samples by Karney's exact method at about 300 ns a
+# coordinate, 900 word-multiplication equivalents at 3e9 per second; N is the accumulator's
+# digits, K groups of 2^rank coefficients (zk-fiat-shamir-with-aborts.md §5.4). The fold's own
+# merge is added at the point. §5.8 of the note moves the attempts off the device's critical
+# path, so this is total work, not latency.
+MASK_ATTEMPTS = math.exp(12 / MASK_ALPHA + 1 / (2 * MASK_ALPHA ** 2))
+MASK_SAMPLE_WORD_MULTS = 900
+
+def mask_fold(variant, K, rank, rank_scale):
+    digits = DIGITS[variant] * K * 2 ** rank
+    per_digit = ajtai_per_coefficient(variant, True, rank_scale) / DIGITS[variant]
+    return MASK_ATTEMPTS * digits * (per_digit + MASK_SAMPLE_WORD_MULTS)
+
 # Base-field atoms the merge circuit absorbs per compressed commitment (128 bytes).
 ATOMS_PER_COMMITMENT = {"fp128": 8, "goldilocks": 16, "pasta_q64": 6, "pasta_sis": 4, "pasta": 4}
 SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 elements, per merge
@@ -239,6 +254,7 @@ for rank in (13, 14, 15, 16):
                         groups=None, packing=packing, circuits=nat + nes, change=change, zk=None,
                         bytes=total,
                         prover=round(commitments * 2 ** rank * pedersen_per_coefficient(rank)),
+                        step_prover=round(2 ** rank * pedersen_per_coefficient(rank)), fold=0,
                         accumulation=2 * (nat + nes + 5),         # base-field atoms absorbed per merge
                         gates=gates_per_merge(binders, E, E, nat, nes),
                         verify=pedersen_verify(rank, nat, nes),
@@ -323,6 +339,8 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                         groups=K, packing=None, circuits=circuits, change=change, zk=zk,
                         bytes=round(opening + instance),
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
+                        step_prover=round(2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
+                        fold=round(mask_fold(variant, K, rank, rank_scale) + circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)) if zk else 0,
                         accumulation=atoms,
                         gates=gates,
                         verify=akita_verify(variant, log_len, zk, rank_factor_share(variant, rank_scale)),
@@ -529,6 +547,7 @@ for variant in HASH_VARIANTS:
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
                                 bytes=round((whir_bytes(variant, rate, log_elems, grind) + extra_bytes) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 10 * 32 + 2 * H * 32 + 4),
                                 prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk)), fold=0,
                                 accumulation=ARC_ATOMS,
                                 gates=round(arc_merge_gates(variant, rate, log_len, floor, grind)),
                                 verify=round((whir_verify_hashes(variant, rate, log_elems, floor, grind) + extra_hashes + zk_hashes(floor, zk)) * native + 1e6),
@@ -770,6 +789,7 @@ for grind in GRINDS:
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 10 * 16 + 2 * H * 32 + 4),
                             prover=round(f2_prover(ands, rate, floor, grind, chal, False, zk)),
+                            step_prover=None, fold=0,
                             accumulation=ARC_ATOMS,
                             gates=ands,
                             verify=round(f2_verify(p, grind, chal, zk)),
@@ -830,6 +850,7 @@ for variant in HASH_VARIANTS:
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
                                 bytes=round(whir_bytes(variant, rate, log_elems, grind) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 2 * H * 32 + 4),
                                 prover=round(2 ** log_len * rec_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * rec_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk)), fold=0,
                                 accumulation=ARC_ATOMS,
                                 gates=round(rec_merge_gates(variant, rate, log_len, floor, zk, grind)),
                                 verify=round(rec_hashes(variant, rate, log_elems, floor, zk, grind) * native + 1e6),
@@ -899,6 +920,7 @@ for grind in GRINDS:
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 2 * H * 32 + 4),
                             prover=round(f2_prover(bits, rate, floor, grind, chal, True, zk)),
+                            step_prover=None, fold=0,
                             accumulation=ARC_ATOMS,
                             gates=bits,
                             verify=round(f2_verify(p, grind, chal, zk)),
@@ -978,6 +1000,7 @@ def bitz_point(mode, rate, rank, floor, H, grind=None):
         floor=floor, grind=grind, groups=2, packing=None, circuits=None, change="design", zk=False, rate=rate,
         bytes=round(proof + 2 * 32 + (10 * 32 if mode == "arc" else 0) + 2 * H * 32 + 4),
         prover=round(prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)),
+        step_prover=round(BITZ_GATE_BITS * 2 ** rank * prover_ms * WORD_MULTS_PER_MS / bits), fold=0,
         accumulation=ARC_ATOMS,
         gates=round(hashes * HASH_BITS),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
@@ -1034,6 +1057,7 @@ for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.it
                     groups=K, packing=None, circuits=circuits, change="design", zk=False,
                     bytes=round(opening + instance + bool_bytes),
                     prover=round(circuits * 2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)),
+                    step_prover=round(2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)), fold=0,
                     accumulation=atoms,
                     gates=gates,
                     verify=akita_verify("pasta_q64", log_len, False, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),

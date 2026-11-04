@@ -943,3 +943,18 @@ dimension 512 (MASK_CHALLENGE_L1 = 20; free, §5.6), rank factor 2.22 instead of
 12. The zk note's §5.8 (candidate masks precomputed offline, obligations deferred to the
 cross-transaction aggregator's first fold, which is the party untrusted for privacy) answers
 the user's point that seconds of masking work are too much for one zk step on a phone.
+
+Later on 2026-11-04 (the user: the zk effect on a typical transaction is hard to see, since
+the rejection is a large fraction of it; expose it as a third measure): the page has a
+fourth third measure, "transaction prover", with a knob for the transaction's size in
+application gates (2^16 to 2^20, default 2^17). Per point the model supplies `step_prover`
+(one application step circuit's commitments at the family's per-coefficient cost; None for
+the 𝔽₂ family, which has no rank or Pasta circuit and drops out of the measure) and `fold`
+(Akita zk rows: `mask_fold` = MASK_ATTEMPTS x N x (masked per-digit commitment cost + 900
+word-mult equivalents of Karney sampling at 300 ns), plus the fold's own merge; 0 elsewhere);
+the page computes transaction = (G / 2^rank) x (step_prover + prover) + fold and uses it in
+the dominance test, the hover, a table column and the axis title. At G = 2^17, rank 13, 128
+bits: fp128 1.6 s plain -> 5.0 s zk (fold 42%), Goldilocks 0.3 -> 1.5 s (64%), pasta_q64 1.2
+-> 6.1 s (61%), Pedersen 29 s, WHIR ARC rate 1/2 about 3,000 s (Pasta) / 630 s (Goldilocks).
+The page's prose (Which third measure; a Transaction prover paragraph after Grinding) says
+it is total work, not latency, §5.8 moving the fold off the device. Republished.
