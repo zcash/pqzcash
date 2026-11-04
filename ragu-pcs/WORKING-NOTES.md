@@ -69,11 +69,13 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
 - Per-coefficient prover word multiplications: Pedersen 6,400; Ajtai at Pasta 14,200; 128-bit
   2,600; Pasta/64-bit 2,000; Goldilocks 400.
 - Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice
-  the prover work (the 2.4x rows term, system-wide) and 18 more atoms in the zero-knowledge
-  layer's merge, which is the merge priced; the opening bytes and the verifier are unchanged,
-  since the decider's accumulator is at the ordinary length (since 2026-11-04; before, the
-  length was charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15). The masked
-  rank's effect on the opening and the verifier is not modelled.
+  the prover work (the 2.4x rows term, system-wide), 36 to 59% more opening bytes and 1.4 to 1.6x the
+  verifier by variant (the masked rank through the inner images' share of each, 26 to 42% from
+  the shipped terminal geometry, composed with the floor's factor), and 18 more atoms in the zero-knowledge
+  layer's merge, which is the merge priced; the length is charged nowhere else, since the
+  decider's accumulator is at the ordinary length (since 2026-11-04; before, the length was
+  charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15, and the rank to the prover
+  only).
   Pedersen-IPA's blinding is free, so its points do not change.
 - Hash-based (WHIR with ARC accumulation over Pasta, on the Pareto page): WHIR at 2^17 over a
   256-bit field, 128 bits, Johnson regime: 244/155/123 KiB at rates 1/2, 1/4, 1/8 with 2.7k,
@@ -866,10 +868,21 @@ atoms unchanged (Goldilocks rank 13: 67,866 B both; prover 4.81e7 -> 9.84e7; ato
 249). Prose: the page's zk paragraph and verifier bullet; zk-fiat-shamir-with-aborts.md §5.4,
 whose witness-size bullet is corrected and which gains a bullet on where refinements change
 the figures (the shared matrix; the digit base, α and the challenge weight; the witness
-size); pasta-proof-size.md's accumulator-witness paragraph. Still not modelled: the masked
-rank's effect on the opening and the verifier. The 150-bit rank factor shows the mechanism
-(IMAGE_SHARE); applying it to MASK_RANK would raise the zk rows' bytes by a third to a half,
-a decision not taken. The same day: the cross-references between the notes and from the page
+size); pasta-proof-size.md's accumulator-witness paragraph. Then, the same day (the user: model the masked
+rank's effect on the opening and the verifier): the masked rank composes with the floor's
+factor (`rank_factor = rank_scale * MASK_RANK`) and goes through the 150-bit mechanism, the
+inner images' share of the opening and of the verifier. The user then asked whether the zk
+bytes had grown (they had, from this) and for corrections based on the inner-image share, so
+IMAGE_SHARE is now derived from the shipped terminal geometry (pasta-proof-size.md §6.1:
+1,344 clear t coordinates, 16 B each at fp128, the same bytes at a 64-bit modulus, 32 B with
+Pasta for everything) over the opening at K = 0: fp128 0.33, Goldilocks 0.35, q64 0.30,
+pasta_sis 0.26 (was 0.5), pasta 0.42 (was 0.5); the verifier scales through the same share
+(was: wholesale), which also lowers the 150-bit verifier figures a little. At 128 bits, rank
+13, header 2, plain -> zk: fp128 72,253 -> 105,093 B (+45%), verify 8.1e6 -> 1.21e7 (x1.49);
+goldilocks 67,866 -> 100,581 (+48%); pasta_q64 83,371 -> 118,136 (+42%); pasta_sis 96,941 ->
+131,763 (+36%); pasta 122,849 -> 195,203 (+59%); prover x2 as before; atoms +19 (18 plus one
+circuit). Caveat stated on the page: the share is the shipped geometry's, and a schedule
+planned at the masked rank would replace it. The same day: the cross-references between the notes and from the page
 became links; 𝔽₂ is written with the double-struck letter; the table's unit heading no longer
 reads MS under the CSS uppercase transform. The book is rebuilt after every change the user
 is to review: `nix develop --command scripts/build-book.sh` from the repository root.

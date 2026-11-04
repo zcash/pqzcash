@@ -180,7 +180,7 @@ def akita_verify(variant, log_len, zk, rank_scale=1.0):
     if variant not in ("fp128", "goldilocks"):
         ms *= 4
     # With zero knowledge the final accumulator is at the ordinary length, so the sum-checks
-    # are unchanged; the masked rank's effect on the verifier is not modelled.
+    # are unchanged; the masked rank arrives in rank_scale, composed by the caller.
     return round(ms * rank_scale * WORD_MULTS_PER_MS)
 
 def pedersen_verify(rank, nat, nes):
@@ -237,9 +237,8 @@ for rank in (13, 14, 15, 16):
 # 64-bit modulus (q64 and Goldilocks give identical tables for these cells) the sums are 185
 # and 215, factor 1.16: 12 go from 1 to 2, 17 from 2 to 3, one from 4 to 5. Over Pallas the
 # sums are 117 and 118, factor 1.01: one instance goes from 1 to 2, the rest sit at the width
-# cap at both floors. The factor is applied to the prover's rows term, to the verifier, and
-# to the inner images' share of the opening, taken as a third for the variants whose images
-# are compressed and a half where they are at the SIS rank. The figures are not re-planned:
+# cap at both floors. The factor is applied to the prover's rows term and to the inner images'
+# share of the opening and of the verifier's work (IMAGE_SHARE below). The figures are not re-planned:
 # the planner's policy and its runtime tables are fixed at 128 bits, and the compression
 # maps, which reach 147 bits, are assumed to hold at rank one. WHIR's proofs are 18% larger
 # at 150 bits over both fields (work/whir-sweep-150.log); ARC's openings scale with the floor.
@@ -250,7 +249,23 @@ RANK_SCALE_150 = {"fp128": 1.27, "goldilocks": 1.16, "pasta_q64": 1.16, "pasta_s
 RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_150}, 150: RANK_SCALE_150}
 WHIR_SCALE = {128: 1.0, 150: 1.18}
 FLOORS = (128, 150)
-IMAGE_SHARE = {"fp128": 0.33, "goldilocks": 0.33, "pasta_q64": 0.33, "pasta_sis": 0.5, "pasta": 0.5}
+# The share of the opening, and of the verifier's work, that scales with the commitment rank:
+# the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
+# 2^14 geometry (seven blocks of rank 3 over ring dimension 64; pasta-proof-size.md §6.1). The
+# bits of t are set by Module-SIS, so at a 64-bit modulus twice the coordinates at half the
+# width cost the same bytes, and the variant with Pasta images at SIS size prices them at 128
+# bits; the "Pasta for everything" variant reveals them as 32-byte field elements. The
+# non-terminal images are compressed to 128 bytes and do not scale. The verifier's work is
+# taken to divide as the message does. Over the opening at K = 0: 33% at the 128-bit field,
+# 35% on Goldilocks, 30% with 64-bit commitments, 26% with Pasta images at SIS size, and 42%
+# with Pasta for everything.
+IMAGE_COORDS = 1344
+IMAGE_COORD_BYTES = {"fp128": 16, "goldilocks": 16, "pasta_q64": 16, "pasta_sis": 16, "pasta": 32}
+IMAGE_SHARE = {v: IMAGE_COORDS * IMAGE_COORD_BYTES[v] / AKITA[v][0] for v in IMAGE_COORD_BYTES}
+
+def rank_factor_share(variant, factor):
+    """The multiplier on the opening, or on the verifier's work, when the rank grows by `factor`."""
+    return 1 + IMAGE_SHARE[variant] * (factor - 1)
 
 def floor_label(floor):
     return ", 150‑bit" if floor == 150 else ""
@@ -269,7 +284,11 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                 log_len = rank + math.log2(circuits)  # the decider's accumulator is at the ordinary length, masked or not
                 for H in (2, 4):
                     rank_scale = RANK_SCALE[floor][variant]
-                    opening = akita_bytes(variant, K - 1, log_len) * (1 + IMAGE_SHARE[variant] * (rank_scale - 1))
+                    # The masked rank composes with the floor's factor and enters the opening and
+                    # the verifier through the same mechanism, the inner images' share of each
+                    # (the prover's rows term takes it in ajtai_per_coefficient).
+                    rank_factor = rank_scale * (MASK_RANK if zk else 1)
+                    opening = akita_bytes(variant, K - 1, log_len) * rank_factor_share(variant, rank_factor)
                     instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES[variant]
                     # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                     # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
@@ -282,7 +301,7 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         accumulation=atoms,
                         gates=gates,
-                        verify=akita_verify(variant, log_len, zk, rank_scale),
+                        verify=akita_verify(variant, log_len, zk, rank_factor_share(variant, rank_factor)),
                         folded=K,
                         label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}"
                             + (", ZK" if zk else "") + floor_label(floor),
@@ -984,7 +1003,7 @@ for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.it
             rank_scale = RANK_SCALE[floor]["pasta_q64"]
             per_digit = ajtai_per_coefficient("pasta_q64", False, rank_scale) / DIGITS["pasta_q64"]
             for H in (2, 4):
-                opening = akita_bytes("pasta_q64", K - 1, log_len + math.log2(BITS_PER_VALUE / DIGITS["pasta_q64"])) * (1 + IMAGE_SHARE["pasta_q64"] * (rank_scale - 1))
+                opening = akita_bytes("pasta_q64", K - 1, log_len + math.log2(BITS_PER_VALUE / DIGITS["pasta_q64"])) * rank_factor_share("pasta_q64", rank_scale)
                 instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
                 points.append(dict(
                     family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor,
@@ -993,7 +1012,7 @@ for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.it
                     prover=round(circuits * 2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)),
                     accumulation=atoms,
                     gates=gates,
-                    verify=akita_verify("pasta_q64", log_len, False, rank_scale) + round(bool_verify_ms * WORD_MULTS_PER_MS),
+                    verify=akita_verify("pasta_q64", log_len, False, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
                     folded=K,
                     label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}, Booleanity by {check}" + floor_label(floor),
                 ))
