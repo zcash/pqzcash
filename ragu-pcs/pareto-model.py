@@ -1,10 +1,14 @@
 """Pareto surface for Ragu as a split-accumulation PCD scheme: Pedersen-IPA today against
 Akita under five field/modulus choices, and against the hash-based schemes (WHIR over Pasta,
 Goldilocks and a limb hybrid, a Plonky3-style FRI, the Flock/Binius-style binary-field family,
-BitZ), each with ARC accumulation and with its own recursion.
+BitZ), each with ARC accumulation and with its own recursion, and a draft of BitZ's
+arithmetization over Akita; each priced with a conventional hash (BLAKE3) in its circuits
+and, as an option, with Poseidon 1.1 (HASH_POLICIES).
 
-Every point is one configuration. Its coordinates are compressed proof bytes and two cost
-proxies, defined in PROXIES below. The numbers come from:
+Every point is one configuration. Its coordinates are compressed proof bytes, prover work,
+and a third measure: the merge circuit's gates or the atoms it absorbs, the decider's
+verification work, or the prover's work for a whole transaction; the `proxies` of the page's
+data define them. The numbers come from:
   - ragu-size-model.py: the compressed Pedersen-IPA proof, counted from Ragu's structs and
     pinned by the `encoded_len_matches_the_shape` test (7,460 bytes at the checked-in
     configuration), and the circuit budget: the internal circuits' measured gate counts,
