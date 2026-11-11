@@ -1183,13 +1183,42 @@ for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
 
+# ---- Pruning ---------------------------------------------------------------------------
+# A point that another point of its family beats or equals on every measure the page can
+# plot (bytes, prover, atoms, gates, verifier, and the transaction measure at every
+# transaction size, which is monotone in the per-step prover plus the merge prover and in
+# the fold) is never on any frontier, provided the two are selectable only together: the
+# same floor, zero-knowledge variant, hash policy, grinding, rank, packing, field design,
+# endoscalings and binders. Within such a group the rows differ by rate, and by header for
+# the post-quantum families, where the header is a constant 128 bytes with no other effect,
+# so the header-4 rows go and the header knob acts on Pedersen-IPA, whose checked-in
+# configuration has a header of 4. This keeps the page's size down without removing
+# anything that a knob could isolate.
+PRUNE_MEASURES = ("bytes", "prover", "accumulation", "gates", "verify")
+
+def prune_key(p):
+    return (p["family"], p["floor"], p["zk"], p.get("zkv"), p["hashes"], p.get("grind"), p["rank"],
+            None if p["pq"] else p["H"], p.get("packing"), p.get("field"), p.get("E"), p.get("binders"))
+
+def prune_measures(p):
+    return tuple((p[m] or 0) for m in PRUNE_MEASURES) + ((p["step_prover"] or 0) + p["prover"], p["fold"] or 0)
+
+def dominates(q, p):
+    a, b = prune_measures(q), prune_measures(p)
+    return all(x <= y for x, y in zip(a, b)) and a != b
+
+prune_groups = {}
 for p in points:
-    p["family_label"] = LABEL[p["family"]]
+    prune_groups.setdefault(prune_key(p), []).append(p)
+before = len(points)
+points = [p for grp in prune_groups.values() for p in grp if not any(q is not p and dominates(q, p) for q in grp)]
+pruned = before - len(points)
 
 budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r), binders=min_binders(r),
                fixed=fixed_counts(r, True)) for r in (13, 14, 15, 16)]
 
-data = dict(points=points, labels=LABEL, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
+# `frontier` serves the printout below; the page computes its own frontiers over the selection.
+data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
     prover="native 64-bit word multiplications for one step's commitments, dense polynomials assumed; see the page",
     per_coefficient={v: round(ajtai_per_coefficient(v)) for v in DIGITS} | {"pedersen_rank14": round(pedersen_per_coefficient(14))},
     accumulation="base-field atoms the merge circuit absorbs per fold: 2 per Pedersen commitment; for Akita 120 sum-check elements plus the compressed images at the variant's atom width",
@@ -1203,7 +1232,7 @@ html = template.replace("/*DATA*/", json.dumps(data, separators=(",", ":")))
 pre = [p for p in points if not p["pq"]]
 post = [p for p in points if p["pq"] and p["zk"] is not True and p["floor"] == 128]
 post_zk = [p for p in points if p["pq"] and p["zk"] is not False and p["floor"] == 128]
-print(f"{len(points)} points: {len(pre)} Pedersen-IPA with {sum(p['frontier'] for p in pre)} on its frontier, "
+print(f"{len(points)} points after pruning {pruned} dominated within their family: {len(pre)} Pedersen-IPA with {sum(p['frontier'] for p in pre)} on its frontier, "
       f"{len(post)} post-quantum with {sum(p['frontier'] for p in post)} on its frontier, "
       f"{len(post_zk)} post-quantum zero-knowledge with {sum(p['frontier'] for p in post_zk)}; wrote pareto.html")
 
