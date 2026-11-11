@@ -958,3 +958,83 @@ bits: fp128 1.6 s plain -> 5.0 s zk (fold 42%), Goldilocks 0.3 -> 1.5 s (64%), p
 -> 6.1 s (61%), Pedersen 29 s, WHIR ARC rate 1/2 about 3,000 s (Pasta) / 630 s (Goldilocks).
 The page's prose (Which third measure; a Transaction prover paragraph after Grinding) says
 it is total work, not latency, §5.8 moving the fold off the device. Republished.
+
+## 2026-11-11 22:36 UTC: hashes in circuits, pruning, ranks 12 and 17, the licence, LaBinius
+
+Ulrich (relayed by the user) asked whether the page took Akita's transcript hashing into account
+or assumed Poseidon; it assumed Poseidon 1.1 everywhere but the 𝔽₂ family and BitZ. The user's
+ruling: arithmetic hashes on the merits (Tachyon uses Poseidon 1.1; no attack near a break at
+large fields and our widths), but conventional hashes by default for future-proofing (decisive
+for long-term storage), with an "arithmetic allowed" option. Done, six commits on main (the user
+pushes): ad39215 licence headers (Ulrich agreed MIT or Apache-2.0 for frib_optimizer.sage,
+2026-11-11; the port the same, extensions as the repo), c6f24db the hash-policy setting
+(`HASH_POLICIES`, points carry `hashes` in blake3/poseidon/any; Akita's transcript at 14,900
+gates per 64 bytes absorbed, `akita_absorbed_bytes` = sum-check elements and claims at the claim
+width + K × 128; `hv(variant, hp)` swaps the WHIR-type trees to BLAKE3 at one compression per
+node and the leaf's bytes in 64-byte blocks; Pedersen rows hashes="poseidon"; `akita_circuits`
+returns None where a circuit's claim costs more to absorb than the budget: ranks 13-14, and 15
+for Pasta claims, under BLAKE3), 06623b8 pruning (rows dominated within their family on every
+plottable measure among rows selectable only together: rates, and the post-quantum header-4
+twins; the header knob now acts on Pedersen only; family_label dropped from the JSON; the
+table's assumption column covers the _rec, bitz and bits_q64 families; page 21 → 8.7 MB),
+5a16e26 marker sizes on a log scale over the plotted points (5-22 px; the 50-px cap had every
+hash-based marker at the cap), 22d1292 prose (lede's four third measures, per-circuit claims in
+the bytes and atoms bullets, docstring), then ranks 12 and 17 (RANKS 12-17; HASH_RANKS 13-16 for
+the WHIR-type rows; Pedersen skips ranks where no binder challenge fits). Verified: each of the
+first five commits runs the model on its own (git archive + run). Numbers at 128 bits, header
+2, no zk: Akita BLAKE3 rank 16: fp128 75.7 KB / 8.55e9 / 0.83M gates / 51 circuits (Poseidon
+rank 16: 72.2 KB / 3.35e8 / 25k / 2); Goldilocks 70.7 KB / 1.31e9; pasta_q64 97.7 KB / 1.61e10 /
+2.0M / 122; rank 17: fp128 7.38e9, Goldilocks 1.13e9, pasta_q64 1.14e10 (−14 to −29%). WHIR
+Pasta ARC rate 1/8 rank 13: BLAKE3 385 KB / 1.49e12 / 64.6M gates / 31,536 circuits / verify
+2.5e6, Poseidon 326 KB / 7.7e11 / 1.07M / 524 / 1.86e8; the asymmetry is real: the hash-based
+prover was hashing-dominated (180k → 5k per coefficient), so cheaper hashing offsets the 60×
+circuits, while Akita's per-coefficient cost is Ajtai and unchanged, so its 26× circuits go
+straight to the merge prover. Rank 12: BitZ −1% bytes, −12% merge prover; Pedersen infeasible.
+Page prose: a "Hashes in circuits" paragraph (rationale in the user's words, the figures), the
+Knobs entry, the Circuit budget paragraph (claims fixed point; splitting a compression across
+circuits assumed free), the Rank paragraph (12 and 17), and policy qualifiers wherever
+Poseidon figures are quoted. Artifact republished to the same URL. The screenshot script
+work/pup/default-shot.mjs shoots the default view under both policies.
+
+Ulrich's updated optimizer (github.com/ulrich-haboeck/scripts, ada1e779, 2026-11-10; revisions
+saved under work/ulrich-scripts/): automatic list size (his counts the codeword in elements,
+w − 8 + rate_bits, where the original and our port count bits: 8 bits of slack); zk charged at
+every round (a mask row per leaf plus a 32-byte leaf blinder, and the reveal as a batching
+step), where the original, which our full-mask rows use, charged one init round: our full-mask
+rows undercount by ~30-40 KiB stand-alone, so they are not an upper bound under his model; a
+constant 2 KiB Galois-orbit overhead; verifier hashes = pruned paths + opened leaves (our port
+counts unpruned paths). He says the full-entropy mask in a batching step before FRI is the only
+secure randomization for FRI-Binius, which contradicts our derived Zook-style rows. TO DO: port
+his version as the new base with our three extensions, re-run the 𝔽₂ rows; ask him why a mask row
+is needed in every round once the first round is batched with a full-entropy mask, and whether
+leaf blinders are needed beyond the first round; his objection to the Zook-style rows decides
+whether they stay.
+
+LaBinius (ePrint 2026/2103; the user asked why it is not on the graph): the old reason (no Pasta
+circuits) lapsed with the 𝔽₂ family's own accounting. The paper gives a decider only: native
+proofs are the amortised opening v = W c, √N-sized (307 KiB at 2^18 elements to 2.9 MiB at 2^24,
+commitments 283 KiB to 2.4 MiB), LaBRADOR compresses to 73-86 KiB constant at a 10× prover and a
+77-713 ms verifier, all at 100 bits over 𝔽₂₁₆₂; Table 1 = PCS alone vs BaseFold/WHIR/Ligerito/
+Brakedown, Tables 2-4 Binius outer system (Keccak/SHA-256/BLAKE3), Tables 5-6 Flock outer system.
+No accumulation or recursion layer: folding the √N commitment in a Boolean circuit ~1e8-1e9 AND
+gates, in-circuit LaBRADOR unpriced. The practical combination is Akita's binary groups:
+LayerZero-Labs/akita#285 (tracking; the LaBinius root reduction and nested PCS of PR #229 are
+REPLACED by binary groups opening inside one ordinary grouped Akita opening on `dev`, feature
+`binary`; LaBinius crates deleted in #421). Data: PR #312 (full-size binary-source measurements,
+2^22/2^23 F128 carriers = 2^29/2^30 bits: 82.7-84.6 KB proofs) and PR #428 (P64/E64 root, stage
+6: at 2^22 carriers P128 82.8 KB / prove 648 ms / verify 8.5 ms, P64 79.2 KB / 1,045 ms / 11 ms;
+plus-ordinary shapes 84 KB; shared M4 Max, parallelism unstated; security ledger open, q24
+certificate open, "no security claim"). Specs saved under work/akita-binary/*.md. The user
+wants it on the graph: the row is a Flock-style Boolean arithmetization over Akita's binary
+groups, priced like bits_q64 (Akita per-digit prover at one digit per bit, Akita merge in AND
+gates with BLAKE3 absorption native and the Z_q folding emulated, the decider from #312/#428
+scaled to the merge's bits, pasta=False, zk=False, 510 bits per Pasta gate in the transaction
+measure), flagged experimental. NOT DONE YET.
+
+Also pending: the user's knob-simplification question (proposal in chat: merge Header and Fixed
+circuits into a Pedersen-IPA group; cut Grinding to best/none/16/20/24; merge Axes, Scale and
+Camera into one View group; fold Transaction size into Third measure); rates that are not
+negative powers of two (answered in chat: possible over prime fields with mixed-radix FFT domains
+and for expander codes, not over 𝔽₂'s additive domains; the trade-off is smooth between the
+powers of two, so nothing new on the frontier); BitZ reruns on mains and the recovery circuit
+per component (older).
