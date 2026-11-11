@@ -670,7 +670,6 @@ F2_DESIGNS = {
     192: dict(pack=64, twiddle=1, label="64-bit packing, 192-bit field"),
     191: dict(pack=191, twiddle=7, label="191-bit field, direct packing"),
 }
-F2_LIST_CAP = 15
 F2_FIRST_BYTES = 32  # opened bytes per 256 witness bits in the first round, under any packing
 CLMULS = {64: 1, 128: 4, 191: 7, 192: 8, 256: 11}  # 64-bit carry-less multiplications per field multiplication: Karatsuba over the limbs, plus the reductions
 KARATSUBA_ANDS = {128: 3 ** 7, 191: 6 * 3 ** 6, 192: 6 * 3 ** 6, 256: 3 ** 8}  # AND gates per field multiplication in a Boolean circuit
@@ -687,7 +686,7 @@ FRIB_MEASURED_MS = (144, 160)  # FRI-Binius Table 2: single-threaded commit and 
 BLAKE3_ANDS = 8192
 BLAKE3_PER_SECOND = 82100
 WORD_MULTS_PER_SECOND = 3e9
-ZK_LABEL = {None: "", "mask": ", ZK, full mask", "zook": ", ZK, Zook-style, derived"}
+ZK_LABEL = {None: "", "mask": ", ZK, batched mask", "zook": ", ZK, Zook-style, derived"}
 ZOOK_MASK_COEFFS = 4  # a sum-check mask: the round polynomials' degree plus one
 ZOOK_MASK_RATE_BITS = 8  # the mask code's rate, 1/256
 
@@ -759,18 +758,22 @@ def frib_at(w, rate_bits, floor, grind, chal, trees, zk):
     switching, the folds per query, the sum-checks, the mask's combination), and the prover's
     counts over the folding rounds (the mask's commitment is charged in `f2_prover`)."""
     pack, twiddle = F2_DESIGNS[chal]["pack"], F2_DESIGNS[chal]["twiddle"]
-    lb = next((lb for lb in range(F2_LIST_CAP, 0, -1)
-               if frib.CAT_bits(w + rate_bits, lb, chal) <= -floor), 0)
-    out = frib.optimize(w, rate_bits, floor, lb, grind, zk="true" if zk else "false", field_bits=chal,
+    # The list is the optimizer's own: the largest that the agreement bound admits, with the
+    # codeword's length counted in field elements, as the original now does.
+    out = frib.optimize(w, rate_bits, floor, grind, zk="true" if zk else "false", field_bits=chal,
                         first_bytes=F2_FIRST_BYTES, first_trees=trees)
     rounds = out["rounds"]
-    folds = rounds[1:] if zk else rounds  # the mask's opening round folds nothing
+    folds = [r for r in rounds if r["ell"] > 0]  # a zk schedule with no reduction opens the mask and folds nothing
     packed_log = w - math.log2(pack)
-    return dict(bytes=out["compressed"], queries=out["queries"], lb=lb,
-                auth=sum(r["uncompressed_auth_bytes"] for r in rounds) / frib.HASH_BYTES,
+    return dict(bytes=out["compressed"], queries=out["queries"], lb=out["list_bits"],
+                # the verifier hashes the pruned paths, as the original now counts them
+                auth=sum(r["compressed_auth_bytes"] for r in rounds) / frib.HASH_BYTES,
                 opened=sum(r["opened_bytes"] for r in rounds),
                 field_mults=2 * packed_log * pack + out["queries"] * (sum(2 ** r["ell"] for r in folds) + (1 if zk else 0)) + 6 * packed_log,
                 ops=f2_ops(2 ** w, rate_bits, chal, pack, folds, twiddle),
+                # the mask is one more row of the first round's matrix: a polynomial of the
+                # witness's size over the first fold's arity
+                mask_share=2 ** -folds[0]["ell"] if zk and folds else (1 if zk else 0),
                 zook=zook_masks(folds, out["terminal_elements"], floor, chal, pack))
 
 def frib_proof(bits, rate, floor, grind, chal, trees, zk=False):
@@ -785,7 +788,7 @@ def frib_proof(bits, rate, floor, grind, chal, trees, zk=False):
     b = frib_at(w0 + 1, rate_bits, floor, grind, chal, trees, zk) if f else a
     lin = lambda k: a[k] + (b[k] - a[k]) * f
     return dict(bytes=lin("bytes"), auth=lin("auth"), opened=lin("opened"), field_mults=lin("field_mults"),
-                queries=b["queries"], lb=b["lb"],
+                queries=b["queries"], lb=b["lb"], mask_share=a["mask_share"],
                 ops={k: a["ops"][k] * (b["ops"][k] / a["ops"][k]) ** f for k in a["ops"]},
                 zook=tuple(x + (y - x) * f for x, y in zip(a["zook"], b["zook"])))
 
@@ -796,11 +799,11 @@ def f2_bytes(p, zk):
 def f2_prover(bits, rate, floor, grind, chal, recursive, zk=None):
     """Word multiplications of the 𝔽₂ prover: Flock's PIOP, the scaled commitment (the NTT
     and two trees with the ring switching for an ARC step; a full proof for a recursive
-    step), under zero knowledge the mask's commitment of witness size or the Zook-style
-    masks' encoding, and the grinding."""
+    step), under zero knowledge the mask row's commitment (the witness's over the first
+    fold's arity) or the Zook-style masks' encoding, and the grinding."""
     p = frib_proof(bits, rate, floor, grind, chal, 1 if recursive else ARC_DECIDER_TREES, zk == "mask")
     ops = p["ops"]
-    mask = 2 if zk == "mask" else 1
+    mask = 1 + p["mask_share"] if zk == "mask" else 1
     if recursive:
         pcs = F2_SCALE[0] * mask * (ops["ntt"] + ops["tree"]) + F2_SCALE[1] * (ops["switch"] + ops["fold"])
     else:
