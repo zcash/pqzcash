@@ -1187,6 +1187,11 @@ for p in list(best.values()):
     q = dict(p, grind="auto", label=p["label"] + f", {p['grind']}-bit grinding")
     points.append(q)
 
+# The page offers the settings the text discusses; the other measured settings serve only
+# the best-per-row choice above.
+GRIND_OPTIONS = (0, 16, 20, 24)
+points = [p for p in points if p.get("grind") in (None, "auto") or p["grind"] in GRIND_OPTIONS]
+
 for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 128), (True, False, 150), (True, True, 150), (False, None, 128)), HASH_POLICIES):
     for grind in (None, "auto", *GRINDS):
         sub = [p for p in points if p["pq"] == cls and p["zk"] in (zk, None) and p["floor"] == floor
