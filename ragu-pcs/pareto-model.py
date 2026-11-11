@@ -17,7 +17,7 @@ proxies, defined in PROXIES below. The numbers come from:
 
 Writes pareto.html next to this script: a self-contained page with the data inlined.
 """
-import functools, json, math, pathlib
+import functools, itertools, json, math, pathlib
 import frib_optimizer as frib
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -127,11 +127,29 @@ def mask_fold(variant, K, rank, rank_scale):
 ATOMS_PER_COMMITMENT = {"fp128": 8, "goldilocks": 16, "pasta_q64": 6, "pasta_sis": 4, "pasta": 4}
 SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 elements, per merge
 
+# ---- Hashes in circuits --------------------------------------------------------------
+# Every in-circuit hash on the page is one of two. The conventional hash is BLAKE3, at
+# 14,900 gates per 64-byte compression in a lookup-free R1CS over Pasta or Goldilocks (the
+# recovery-circuit note's count: 56 quarter-rounds at 262 gates plus the output XORs) and
+# 200 word multiplications natively. The arithmetic hash is Poseidon 1.1 over the circuit's
+# own field: 72 gates per absorbed atom for the Akita transcript (four elements per 288-gate
+# Pasta permutation) and the per-variant figures in HASH_VARIANTS for the Merkle trees. The
+# page's default is the conventional hash, for future-proofing; the option allows the
+# arithmetic one, which is what Ragu's checked-in circuits and Tachyon use, so the
+# Pedersen-IPA rows exist only under that option. The 𝔽₂ family and BitZ hash with BLAKE3
+# natively and appear under both. A point's `hashes` is the policy it was priced under, or
+# "any".
+HASH_POLICIES = ("blake3", "poseidon")
+BLAKE3_GATES = 14900
+BLAKE3_BLOCK = 64
+HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon"}
+
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
 # today's native stages are, and every step circuit's witness goes into one more group, since
-# Akita opens a batch of polynomials at the cost of one. Gates: in-circuit Poseidon absorbs
-# four elements per 288-gate permutation; folding a child's 128-byte commitment image needs a
-# modular reduction, taken as one gate per bit; the sum-check verifier's arithmetic is small.
+# Akita opens a batch of polynomials at the cost of one. Gates: the transcript hashing at the
+# policy's price, over the atoms that the merge absorbs (Poseidon) or over their bytes
+# (BLAKE3); folding a child's 128-byte commitment image needs a modular reduction, taken as
+# one gate per bit; the sum-check verifier's arithmetic is small.
 STAGES = 5
 HASH_GATES_PER_ATOM = 72
 FOLD_GATES_PER_IMAGE = 1024
@@ -139,23 +157,41 @@ SUMCHECK_GATES = 400
 
 # Each step circuit's polynomial carries its own evaluation claim: one claim-field element
 # in the proof, one atom absorbed per merge, and a few gates to fold it. This is what makes
-# a larger rank, and so fewer circuits, cheaper for Akita.
+# a larger rank, and so fewer circuits, cheaper for Akita. Under BLAKE3 the claim's hashing,
+# about 3,700 gates for a 16-byte claim and 7,500 for a 32-byte one, can exceed what a small
+# rank's budget holds per circuit, and then no number of circuits suffices: the merge needs a
+# larger rank, or the claims aggregated before absorption, which is a design change.
 CLAIM_BYTES = {"fp128": 16, "goldilocks": 16, "pasta_q64": 32, "pasta_sis": 32, "pasta": 32}
 CLAIM_GATES = 4
 
 def akita_atoms(variant, K, circuits, zk):
     return SUMCHECK_ATOMS + K * ATOMS_PER_COMMITMENT[variant] + circuits + (MASK_SUMCHECK_ATOMS if zk else 0)
 
-def akita_merge_gates(variant, K, circuits, zk):
-    atoms = akita_atoms(variant, K, circuits, zk)
-    return HASH_GATES_PER_ATOM * atoms + 2 * K * FOLD_GATES_PER_IMAGE + SUMCHECK_GATES + CLAIM_GATES * circuits
+def akita_absorbed_bytes(variant, K, circuits, zk):
+    """The bytes the merge absorbs: the sum-check elements and the claims at the claim
+    field's width, and the K commitment images of 128 bytes."""
+    return (SUMCHECK_ATOMS + circuits + (MASK_SUMCHECK_ATOMS if zk else 0)) * CLAIM_BYTES[variant] + K * 128
 
-def akita_circuits(variant, K, rank, zk):
-    """The step circuits a merge needs at this rank: the gate estimate, which grows a
-    little with the circuit count, divided by the budget, at its fixed point."""
+def akita_hash_gates(variant, K, circuits, zk, hp):
+    if hp == "poseidon":
+        return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
+    return akita_absorbed_bytes(variant, K, circuits, zk) / BLAKE3_BLOCK * BLAKE3_GATES
+
+def akita_merge_gates(variant, K, circuits, zk, hp):
+    return (akita_hash_gates(variant, K, circuits, zk, hp) + 2 * K * FOLD_GATES_PER_IMAGE
+            + SUMCHECK_GATES + CLAIM_GATES * circuits)
+
+def akita_circuits(variant, K, rank, zk, hp):
+    """The step circuits a merge needs at this rank: the gate estimate, which grows with the
+    circuit count through each circuit's claim, divided by the budget, at its fixed point;
+    None where each circuit adds more gates than the budget holds, so that no count
+    converges."""
+    per_circuit = akita_merge_gates(variant, K, 2, zk, hp) - akita_merge_gates(variant, K, 1, zk, hp)
+    if per_circuit >= gate_budget(rank):
+        return None
     circuits = 1
-    for _ in range(20):
-        new = math.ceil(akita_merge_gates(variant, K, circuits, zk) / gate_budget(rank))
+    for _ in range(2000):
+        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp) / gate_budget(rank))
         if new == circuits:
             return circuits
         circuits = new
@@ -251,7 +287,7 @@ for rank in (13, 14, 15, 16):
                     # security (see the security-floor section below).
                     points.append(dict(
                         family="pedersen", pq=False, rank=rank, E=E, binders=binders, H=H, floor=128,
-                        groups=None, packing=packing, circuits=nat + nes, change=change, zk=None,
+                        groups=None, packing=packing, circuits=nat + nes, change=change, zk=None, hashes="poseidon",
                         bytes=total,
                         prover=round(commitments * 2 ** rank * pedersen_per_coefficient(rank)),
                         step_prover=round(2 ** rank * pedersen_per_coefficient(rank)), fold=0,
@@ -313,13 +349,15 @@ def floor_label(floor):
 # Akita: no cycle, so endoscalings and binders do not exist. The committed groups are the
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
 # from the merge circuit's gate estimate and the rank's budget.
-for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
+for variant, hp in itertools.product(("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
         for zk in (False, True):
             for rank in (13, 14, 15, 16):
-                circuits = akita_circuits(variant, K, rank, zk)
-                gates = akita_merge_gates(variant, K, circuits, zk)
+                circuits = akita_circuits(variant, K, rank, zk, hp)
+                if circuits is None:
+                    continue  # the per-circuit claim's hashing exceeds this rank's budget
+                gates = akita_merge_gates(variant, K, circuits, zk, hp)
                 atoms = akita_atoms(variant, K, circuits, zk)
                 log_len = rank + math.log2(circuits)  # the decider's accumulator is at the ordinary length, masked or not
                 for H in (2, 4):
@@ -335,7 +373,7 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                     # commitment variant a decoupled commitment modulus.
                     change = "none" if variant in ("fp128", "goldilocks") else "design"
                     points.append(dict(
-                        family=variant, pq=True, rank=rank, E=None, binders=None, H=H, floor=floor,
+                        family=variant, pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
                         groups=K, packing=None, circuits=circuits, change=change, zk=zk,
                         bytes=round(opening + instance),
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
@@ -346,7 +384,7 @@ for variant in ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"):
                         verify=akita_verify(variant, log_len, zk, rank_factor_share(variant, rank_scale)),
                         folded=K,
                         label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}"
-                            + (", ZK" if zk else "") + floor_label(floor),
+                            + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
                     ))
 
 # WHIR (ePrint 2024/1586), hash-based, over a 255-bit field such as Pasta's, which is FFT
@@ -405,12 +443,21 @@ def whir_meas(sizes, grind, rate):
 # 2^24, rate 1/2), which follows from FRI's queries scaling as lambda log d against WHIR's
 # lambda log log d. Its deployed parameters target about 100 bits under conjectures.
 HASH_VARIANTS = {
-    "whir":        dict(sizes="pasta", gates=288, native=35000, leaf_perms=4, elems=1, mult=32, size_factor=1),
-    "whir_gold":   dict(sizes="gold", gates=480, native=7200, leaf_perms=2, elems=1, mult=1.5, size_factor=1),
-    "whir_hybrid": dict(sizes="gold", gates=288, native=35000, leaf_perms=2, elems=4, mult=1.5, size_factor=1),
-    "plonky3":     dict(sizes="gold", gates=480, native=7200, leaf_perms=2, elems=1, mult=1.5, size_factor=1.95),
-
+    "whir":        dict(sizes="pasta", gates=288, native=35000, leaf_perms=4, leaf_bytes=512, elems=1, mult=32, size_factor=1),
+    "whir_gold":   dict(sizes="gold", gates=480, native=7200, leaf_perms=2, leaf_bytes=128, elems=1, mult=1.5, size_factor=1),
+    "whir_hybrid": dict(sizes="gold", gates=288, native=35000, leaf_perms=2, leaf_bytes=128, elems=4, mult=1.5, size_factor=1),
+    "plonky3":     dict(sizes="gold", gates=480, native=7200, leaf_perms=2, leaf_bytes=128, elems=1, mult=1.5, size_factor=1.95),
 }
+
+def hv(variant, hp):
+    """The variant's hash figures under the policy: its Poseidon (`gates` and `native` per
+    permutation, `leaf_perms` permutations per first-round leaf), or BLAKE3 at one
+    compression per node, with the leaf's bytes (16 elements of the witness's field: 32-byte
+    Pasta elements, or 8-byte Goldilocks words or limbs) in 64-byte blocks."""
+    v = HASH_VARIANTS[variant]
+    if hp == "poseidon":
+        return v
+    return dict(v, gates=BLAKE3_GATES, native=BLAKE3_NATIVE, leaf_perms=v["leaf_bytes"] / BLAKE3_BLOCK)
 
 def whir_bytes(variant, rate, log_elems, grind=GRIND_DEFAULT):
     v = HASH_VARIANTS[variant]
@@ -449,18 +496,18 @@ BLAKE3_NATIVE = 200  # word multiplications per compression natively, about 70 n
 def arc_openings(rate, floor=128, grind=GRIND_DEFAULT):
     return math.ceil(2 * (floor - grind) / math.log2(int(rate.split("/")[1])))
 
-def arc_merge_gates(variant, rate, log_len, floor=128, grind=GRIND_DEFAULT):
-    v = HASH_VARIANTS[variant]
+def arc_merge_gates(variant, rate, log_len, floor=128, grind=GRIND_DEFAULT, hp="blake3"):
+    v = hv(variant, hp)
     inv = int(rate.split("/")[1])
     depth = log_len + math.log2(v["elems"]) + math.log2(inv)  # path nodes plus the leaf's permutations
     t = arc_openings(rate, floor, grind)
     hashes = 2 * t * depth + (2 if grind else 0)  # plus the grinding check per input
     return hashes * v["gates"] + 2 * t * 16 + 2000
 
-def arc_circuits(variant, rate, rank, floor=128, grind=GRIND_DEFAULT):
+def arc_circuits(variant, rate, rank, floor=128, grind=GRIND_DEFAULT, hp="blake3"):
     circuits = 1
     for _ in range(30):
-        new = math.ceil(arc_merge_gates(variant, rate, rank + math.log2(circuits), floor, grind) / gate_budget(rank))
+        new = math.ceil(arc_merge_gates(variant, rate, rank + math.log2(circuits), floor, grind, hp) / gate_budget(rank))
         if new == circuits:
             return circuits
         circuits = new
@@ -470,11 +517,11 @@ def grind_prover(native, grind):
     """The grinding's word multiplications per merge: 2^g evaluations of the grinding hash."""
     return 2 ** grind * native if grind else 0
 
-def arc_per_coefficient(variant, rate, log_len):
+def arc_per_coefficient(variant, rate, log_len, hp="blake3"):
     """Word multiplications per Pasta-sized coefficient of the step's witness: the encoding
     FFT over the committed elements divided by the rate, and the Merkle trees of the witness
     and of the new accumulator."""
-    v = HASH_VARIANTS[variant]
+    v = hv(variant, hp)
     inv = int(rate.split("/")[1])
     log_elems = log_len + math.log2(v["elems"])
     fft = v["elems"] * inv * 0.5 * (log_elems + math.log2(inv)) * v["mult"]
@@ -517,12 +564,12 @@ ARC_DECIDER_TREES = 3  # the decider's first round opens the two child accumulat
 WHIR_FOLD = 16  # the reference implementation's folding factor: elements per first-round leaf
 ELEM_BYTES = {"pasta": 32, "gold": 24}  # a committed element: the 255-bit field; Goldilocks's cubic extension
 
-def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT):
+def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT, hp="blake3"):
     """(bytes, hashes) that the decider's batched first round adds to a stand-alone proof: the
     extra oracles' opened leaves and paths at the measured first-round sample count, the paths
     pruned as a multiproof (the optimizer's expected count, which also stands in for a Merkle
     cap)."""
-    v = HASH_VARIANTS[variant]
+    v = hv(variant, hp)
     m = WHIR_MEAS[(v["sizes"], grind, rate)][17]
     height = round(log_elems + math.log2(int(rate.split("/")[1])) - math.log2(WHIR_FOLD))
     path_hashes = frib.expected_multiproof_hashes(height, m["first"])
@@ -530,29 +577,29 @@ def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT):
     return (extra * (m["first"] * WHIR_FOLD * ELEM_BYTES[v["sizes"]] + path_hashes * 32) * v["size_factor"],
             extra * (path_hashes + m["first"] * v["leaf_perms"]))
 
-for variant in HASH_VARIANTS:
+for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
         for floor in FLOORS:
             for zk in (False, True):
                 for rate in RATES:
                     for rank in (13, 14, 15, 16):
-                        circuits = arc_circuits(variant, rate, rank, floor, grind)
+                        circuits = arc_circuits(variant, rate, rank, floor, grind, hp)
                         log_len = rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
-                        native = HASH_VARIANTS[variant]["native"]
-                        extra_bytes, extra_hashes = whir_extra_trees(variant, rate, log_elems, grind)
+                        native = hv(variant, hp)["native"]
+                        extra_bytes, extra_hashes = whir_extra_trees(variant, rate, log_elems, grind, hp)
                         for H in (2, 4):
                             points.append(dict(
-                                family=variant, pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind,
+                                family=variant, pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind, hashes=hp,
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
                                 bytes=round((whir_bytes(variant, rate, log_elems, grind) + extra_bytes) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 10 * 32 + 2 * H * 32 + 4),
-                                prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
-                                step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk)), fold=0,
+                                prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk)), fold=0,
                                 accumulation=ARC_ATOMS,
-                                gates=round(arc_merge_gates(variant, rate, log_len, floor, grind)),
+                                gates=round(arc_merge_gates(variant, rate, log_len, floor, grind, hp)),
                                 verify=round((whir_verify_hashes(variant, rate, log_elems, floor, grind) + extra_hashes + zk_hashes(floor, zk)) * native + 1e6),
                                 folded=2,
-                                label=f"rank {rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits, header {H}" + (", ZK" if zk else "") + floor_label(floor),
+                                label=f"rank {rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits, header {H}" + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
                             ))
 
 # Binary-field systems: Flock (arXiv 2607.27491) and Binius64 on the FRI-Binius and Ligerito
@@ -818,50 +865,50 @@ REC_ARITH_GATES = 10000  # the verifier's sum-check and folding arithmetic, per 
 def rec_hashes(variant, rate, log_elems, floor, zk=False, grind=GRIND_DEFAULT):
     return whir_verify_hashes(variant, rate, log_elems, floor, grind) + zk_hashes(floor, zk)
 
-def rec_merge_gates(variant, rate, log_len, floor, zk=False, grind=GRIND_DEFAULT):
-    v = HASH_VARIANTS[variant]
+def rec_merge_gates(variant, rate, log_len, floor, zk=False, grind=GRIND_DEFAULT, hp="blake3"):
+    v = hv(variant, hp)
     log_elems = log_len + math.log2(v["elems"])
     return 2 * rec_hashes(variant, rate, log_elems, floor, zk, grind) * v["gates"] + 2 * REC_ARITH_GATES
 
-def rec_circuits(variant, rate, rank, floor, zk=False, grind=GRIND_DEFAULT):
+def rec_circuits(variant, rate, rank, floor, zk=False, grind=GRIND_DEFAULT, hp="blake3"):
     circuits = 1
     for _ in range(30):
-        new = math.ceil(rec_merge_gates(variant, rate, rank + math.log2(circuits), floor, zk, grind) / gate_budget(rank))
+        new = math.ceil(rec_merge_gates(variant, rate, rank + math.log2(circuits), floor, zk, grind, hp) / gate_budget(rank))
         if new == circuits:
             return circuits
         circuits = new
     return circuits
 
-def rec_per_coefficient(variant, rate, log_len):
-    v = HASH_VARIANTS[variant]
+def rec_per_coefficient(variant, rate, log_len, hp="blake3"):
+    v = hv(variant, hp)
     inv = int(rate.split("/")[1])
     log_elems = log_len + math.log2(v["elems"])
     fft = v["elems"] * inv * 0.5 * (log_elems + math.log2(inv)) * v["mult"]
     tree = v["elems"] * inv / 16 * (v["leaf_perms"] + 1) * v["native"]
     return (fft + tree) * 4 / 3
 
-for variant in HASH_VARIANTS:
+for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
         for floor in FLOORS:
             for zk in (False, True):
                 for rate in RATES:
                     for rank in (13, 14, 15, 16):
-                        circuits = rec_circuits(variant, rate, rank, floor, zk, grind)
+                        circuits = rec_circuits(variant, rate, rank, floor, zk, grind, hp)
                         log_len = rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
-                        native = HASH_VARIANTS[variant]["native"]
+                        native = hv(variant, hp)["native"]
                         for H in (2, 4):
                             points.append(dict(
-                                family=variant + "_rec", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind,
+                                family=variant + "_rec", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind, hashes=hp,
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
                                 bytes=round(whir_bytes(variant, rate, log_elems, grind) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 2 * H * 32 + 4),
-                                prover=round(2 ** log_len * rec_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
-                                step_prover=round(2 ** rank * rec_per_coefficient(variant, rate, log_len) * zk_prover(log_elems, zk)), fold=0,
+                                prover=round(2 ** log_len * rec_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * rec_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk)), fold=0,
                                 accumulation=ARC_ATOMS,
-                                gates=round(rec_merge_gates(variant, rate, log_len, floor, zk, grind)),
+                                gates=round(rec_merge_gates(variant, rate, log_len, floor, zk, grind, hp)),
                                 verify=round(rec_hashes(variant, rate, log_elems, floor, zk, grind) * native + 1e6),
                                 folded=2,
-                                label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, zk, grind)):,} hashes/input, {circuits} circuits, header {H}" + (", ZK" if zk else "") + floor_label(floor),
+                                label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, zk, grind)):,} hashes/input, {circuits} circuits, header {H}" + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
                             ))
 
 # Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
@@ -1044,12 +1091,14 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
     "sumcheck": (437.7 / 2 ** 27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000),
 
 }
-for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.items():
+for (check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
         for rank in (13, 14, 15, 16):
-            circuits = akita_circuits("pasta_q64", K, rank, False)
-            gates = akita_merge_gates("pasta_q64", K, circuits, False) + bool_gates
+            circuits = akita_circuits("pasta_q64", K, rank, False, hp)
+            if circuits is None:
+                continue
+            gates = akita_merge_gates("pasta_q64", K, circuits, False, hp) + bool_gates
             atoms = akita_atoms("pasta_q64", K, circuits, False)
             log_len = rank + math.log2(circuits)
             rank_scale = RANK_SCALE[floor]["pasta_q64"]
@@ -1058,7 +1107,7 @@ for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.it
                 opening = akita_bytes("pasta_q64", K - 1, log_len + math.log2(BITS_PER_VALUE / DIGITS["pasta_q64"])) * rank_factor_share("pasta_q64", rank_scale)
                 instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
                 points.append(dict(
-                    family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor,
+                    family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
                     groups=K, packing=None, circuits=circuits, change="design", zk=False,
                     bytes=round(opening + instance + bool_bytes),
                     prover=round(circuits * 2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)),
@@ -1067,14 +1116,17 @@ for check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates) in BOOL_CHECK.it
                     gates=gates,
                     verify=akita_verify("pasta_q64", log_len, False, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
                     folded=K,
-                    label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}, Booleanity by {check}" + floor_label(floor),
+                    label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + floor_label(floor),
                 ))
 
 # Endoscaling capacity beyond the points to walk changes nothing; keep the smallest E of
 # each set of identical Pedersen-IPA results.
+for p in points:
+    p.setdefault("hashes", "any")  # the 𝔽₂ family and BitZ hash with BLAKE3 natively, under either policy
+
 seen, deduped = set(), []
 for p in points:
-    key = (p["family"], p["rank"], p["binders"], p["H"], p["packing"], p["floor"], p["bytes"], p["prover"], p["accumulation"])
+    key = (p["family"], p["rank"], p["binders"], p["H"], p["packing"], p["floor"], p["hashes"], p["bytes"], p["prover"], p["accumulation"])
     if key in seen:
         continue
     seen.add(key)
@@ -1110,7 +1162,7 @@ def pareto(pts):
 # and the minimum is shallow. "best per row" takes, for every hash-based configuration, the
 # measured setting with the smallest prover; the fixed settings stay selectable.
 def grind_key(p):
-    return (p["family"], p["floor"], p["zk"], p.get("rate"), p["rank"], p["H"], p.get("packing"), p.get("field"), p.get("zkv"))
+    return (p["family"], p["floor"], p["zk"], p.get("rate"), p["rank"], p["H"], p.get("packing"), p.get("field"), p.get("zkv"), p["hashes"])
 
 best = {}
 for p in points:
@@ -1124,10 +1176,10 @@ for p in list(best.values()):
     q = dict(p, grind="auto", label=p["label"] + f", {p['grind']}-bit grinding")
     points.append(q)
 
-for cls, zk, floor in ((True, False, 128), (True, True, 128), (True, False, 150), (True, True, 150), (False, None, 128)):
+for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 128), (True, False, 150), (True, True, 150), (False, None, 128)), HASH_POLICIES):
     for grind in (None, "auto", *GRINDS):
         sub = [p for p in points if p["pq"] == cls and p["zk"] in (zk, None) and p["floor"] == floor
-               and p.get("grind") in (None, grind)]
+               and p["hashes"] in (hp, "any") and p.get("grind") in (None, grind)]
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
 
@@ -1155,5 +1207,5 @@ print(f"{len(points)} points: {len(pre)} Pedersen-IPA with {sum(p['frontier'] fo
       f"{len(post)} post-quantum with {sum(p['frontier'] for p in post)} on its frontier, "
       f"{len(post_zk)} post-quantum zero-knowledge with {sum(p['frontier'] for p in post_zk)}; wrote pareto.html")
 
-for p in sorted([p for p in points if p["frontier"] and p["floor"] != 150], key=lambda p: (p["pq"], p["bytes"])):
+for p in sorted([p for p in points if p["frontier"] and p["floor"] != 150], key=lambda p: (p["pq"], p["hashes"], p["bytes"])):
     print(f"  {p['family']:10} {p['label']}: {p['bytes']:,} B, prover {p['prover']:.3g}, atoms {p['accumulation']}, gates {p['gates']:,}")
