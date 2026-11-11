@@ -34,6 +34,8 @@ gates_per_merge, gate_budget = _model["gates_per_merge"], _model["gate_budget"]
 # Akita opening bytes for one final group of 2^14 coefficients plus K separately committed
 # groups of 2^14, from catalog_reprice on the planner's outputs (K=0: the shipped schedule
 # re-planned under the matching pricing; K>0: groups/q64-k<K>).
+RANKS = (12, 13, 14, 15, 16, 17)  # step circuits of 2^(rank-2) gates
+HASH_RANKS = (13, 14, 15, 16)  # the WHIR-type rows depend on the rank only through their circuit count
 AKITA_K = [0, 1, 2, 4, 8, 12]
 AKITA = {
     "fp128":      [65074, 69044, 71066, 69492, 68485, 70404],
@@ -269,7 +271,9 @@ points = []
 
 # Pedersen-IPA: the checked-in cycle design, over the configurations the circuit budget
 # allows at each rank, with the fixed circuits as today or packed into the rank's budget.
-for rank in (13, 14, 15, 16):
+for rank in RANKS:
+    if _model["challenges_per_binder"](rank) < 1 or max_endoscalings(rank) < 1:
+        continue  # a rank-12 circuit holds no binder challenge and no endoscaling point
     for packing in (False, True):
         Fn, Fm = fixed_counts(rank, packing)
         if packing and (Fn, Fm) == (19, 14):
@@ -357,7 +361,7 @@ for variant, hp in itertools.product(("fp128", "goldilocks", "pasta_q64", "pasta
     K = STAGES + 1
     for floor in FLOORS:
         for zk in (False, True):
-            for rank in (13, 14, 15, 16):
+            for rank in RANKS:
                 circuits = akita_circuits(variant, K, rank, zk, hp)
                 if circuits is None:
                     continue  # the per-circuit claim's hashing exceeds this rank's budget
@@ -586,7 +590,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
         for floor in FLOORS:
             for zk in (False, True):
                 for rate in RATES:
-                    for rank in (13, 14, 15, 16):
+                    for rank in HASH_RANKS:
                         circuits = arc_circuits(variant, rate, rank, floor, grind, hp)
                         log_len = rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
@@ -896,7 +900,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
         for floor in FLOORS:
             for zk in (False, True):
                 for rate in RATES:
-                    for rank in (13, 14, 15, 16):
+                    for rank in HASH_RANKS:
                         circuits = rec_circuits(variant, rate, rank, floor, zk, grind, hp)
                         log_len = rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
@@ -1068,7 +1072,7 @@ for mode in ("arc", "rec"):
     for grind in (GRINDS if mode == "arc" else (None,)):
         for floor in FLOORS:
             for rate in ("1/2", "1/8"):
-                for rank in (13, 14, 15, 16):
+                for rank in RANKS:
                     for H in (2, 4):
                         points.append(bitz_point(mode, rate, rank, floor, H, grind))
 
@@ -1098,7 +1102,7 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
 for (check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
-        for rank in (13, 14, 15, 16):
+        for rank in RANKS:
             circuits = akita_circuits("pasta_q64", K, rank, False, hp)
             if circuits is None:
                 continue
@@ -1218,8 +1222,9 @@ before = len(points)
 points = [p for grp in prune_groups.values() for p in grp if not any(q is not p and dominates(q, p) for q in grp)]
 pruned = before - len(points)
 
-budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r), binders=min_binders(r),
-               fixed=fixed_counts(r, True)) for r in (13, 14, 15, 16)]
+budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r),
+               binders=min_binders(r) if _model["challenges_per_binder"](r) >= 1 else None,
+               fixed=fixed_counts(r, True)) for r in RANKS]
 
 # `frontier` serves the printout below; the page computes its own frontiers over the selection.
 data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
