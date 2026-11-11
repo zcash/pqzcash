@@ -30,6 +30,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
+          # On a push, paths-filter diffs against the previous push's commit, which a depth-1
+          # checkout lacks; fetching it afterwards fails without credentials in a private repository.
+          fetch-depth: 0
       # A change is book-relevant iff some changed file is not purely a Lean
       # source or Lake build file. The single negated brace pattern matches any
       # file outside that set (dorny/paths-filter uses picomatch, not GitHub's
