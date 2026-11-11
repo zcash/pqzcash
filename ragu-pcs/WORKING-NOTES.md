@@ -998,17 +998,21 @@ work/pup/default-shot.mjs shoots the default view under both policies.
 
 Ulrich's updated optimizer (github.com/ulrich-haboeck/scripts, ada1e779, 2026-11-10; revisions
 saved under work/ulrich-scripts/): automatic list size (his counts the codeword in elements,
-w − 8 + rate_bits, where the original and our port count bits: 8 bits of slack); zk charged at
-every round (a mask row per leaf plus a 32-byte leaf blinder, and the reveal as a batching
-step), where the original, which our full-mask rows use, charged one init round: our full-mask
-rows undercount by ~30-40 KiB stand-alone, so they are not an upper bound under his model; a
-constant 2 KiB Galois-orbit overhead; verifier hashes = pruned paths + opened leaves (our port
-counts unpruned paths). He says the full-entropy mask in a batching step before FRI is the only
-secure randomization for FRI-Binius, which contradicts our derived Zook-style rows. TO DO: port
-his version as the new base with our three extensions, re-run the 𝔽₂ rows; ask him why a mask row
-is needed in every round once the first round is batched with a full-entropy mask, and whether
-leaf blinders are needed beyond the first round; his objection to the Zook-style rows decides
-whether they stay.
+w − 8 + rate_bits, where the original and our port count bits: 8 bits of slack); zk restructured
+(CORRECTED, see the 2026-11-12 entry: the first version of this paragraph said his model charged
+MORE than ours; it charges much less): the separate opening round of the original (witness and a
+witness-size mask opened at t positions of the full tree, which our rows used) is gone; since
+c5bef266 "corrected leaf blinders" the FIRST round's leaves carry one mask row (a field element)
+plus a 32-byte blinder, the recursion passes zk='false' so later rounds carry neither, and a
+schedule with no reduction opens witness, mask and blinder before the reveal; the header
+comment still says "dense mask of the same size as the witness", which is the state before
+c5bef266 (2^ell mask rows); a constant 2 KiB Galois-orbit overhead; verifier hashes = pruned
+paths + opened leaves (our port counted unpruned paths). He says the full-entropy mask in a
+batching step before FRI is the only secure randomization for FRI-Binius, which contradicts our
+derived Zook-style rows. Questions sent to him (keep/ulrich-zk-question-2026-11-12.txt): one
+mask row or witness-size; what hides the opened columns of the first oracle (a zk encoding with
+random padding, with the row masking only the batched row?); mask and blinders in the first
+round only, and the direct-reveal case.
 
 LaBinius (ePrint 2026/2103; the user asked why it is not on the graph): the old reason (no Pasta
 circuits) lapsed with the 𝔽₂ family's own accounting. The paper gives a decider only: native
@@ -1038,3 +1042,29 @@ negative powers of two (answered in chat: possible over prime fields with mixed-
 and for expander codes, not over 𝔽₂'s additive domains; the trade-off is smooth between the
 powers of two, so nothing new on the frontier); BitZ reruns on mains and the recovery circuit
 per component (older).
+
+## 2026-11-11 23:49 UTC: the optimizer port and fewer knobs
+
+Commits 2f8a28a (port) and ccb2921 (knobs) on main, unpushed. `frib_optimizer.py` is now his
+ada1e779 with our three extensions (`field_bits`, `first_bytes`, `first_trees`) and an optional
+`list_bits` (automatic by default, as his). The mask row is charged at FIELD_BYTES + HASH_BYTES
+per opened leaf of the first round, times `first_trees` under ARC; `frib_at` no longer searches
+the list (F2_LIST_CAP gone), takes `out["list_bits"]`, counts the verifier's auth hashes over
+pruned paths, and returns `mask_share` = 2^-ell1, the mask row's commitment as a fraction of the
+witness's, which `f2_prover` uses instead of doubling. Results (192-bit design, best grinding,
+rates 1/4..1/64; rate 1/2 rows are pruned as dominated by 1/4): ARC plain 235/169/138/119/105 KiB
+(unchanged within 1 KiB; lists 2^8-2^9 instead of 2^7; 256-bit lists 2^20-2^21 instead of the old
+2^15 cap, queries equal), mask +19/+12/+9/+8/+6 KiB at x1.07-1.13 (was +143..+63 KiB at
+x1.27-1.52), Zook unchanged (+35..+27 KiB), now above the mask rows everywhere; recursive plain
+165/123/98/92/75 KiB with provers 1.05e9..4.2e9 (was 177..79 KiB, 1.6e9..5.2e9: the in-circuit
+verifier hashes pruned paths, merge 85M bits at 1/8 instead of 116M), mask +7..+2 KiB at
+x1.06-1.10 (was +64..+29 at x1.5-2.1); 𝔽₂ verifier 0.1-0.4 ms (was 0.2-1.4). Page text updated
+(binary-field paragraph: lists, margins, ranges, verifier; recursion paragraph: merge bits and
+prover ratio; zk paragraph: his model, the question, the Zook rows' status; verifier bullet).
+Knobs: Header + Fixed circuits merged into a "Pedersen-IPA" group; Grinding select = best per
+row, none, 16, 20, 24 (GRIND_OPTIONS filters the other measured settings out of the data after
+the best-per-row choice); Axes + Scale + Camera = one "View" group; Transaction size under the
+transaction-prover radio. Page 4.3 MB, 9,363 points. Artifact republished (version 81).
+Pending: Ulrich's answers (then drop or keep the Zook rows; revisit the mask row's prover charge);
+the Flock-style-over-Akita-binary-groups family; the 150-bit re-plan (staged, ~1 h on mains,
+expected single-digit percent); BitZ reruns on mains; the recovery circuit per component.
