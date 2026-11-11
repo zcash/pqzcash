@@ -1,4 +1,7 @@
 #!/usr/bin/env sage
+# Copyright (c) 2026 Ulrich Haböck. Licensed under the MIT license or the Apache License,
+# Version 2.0, at your option, with the author's agreement (2026-11-11): the same terms as
+# the rest of this repository.
 """FRI-Binius proof size optimizer. Given initial witness size and rate, determines the folding parameters
 achieving minimal proof size.
 Assumes packing into L = GF(2^256) to accomodate list-decoding soundness. Hashes are 256 bits.

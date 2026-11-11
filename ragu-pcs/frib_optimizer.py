@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+# A port of Ulrich Haböck's frib_optimizer.sage, copyright (c) 2026 Ulrich Haböck, with
+# extensions copyright 2026 Zcash Protocol Developers. Licensed under the MIT license or the
+# Apache License, Version 2.0, at your option: the original with its author's agreement
+# (2026-11-11), the extensions as the rest of this repository.
 """Python port of Ulrich Haböck's frib_optimizer.sage (beside this file, 2026-10-21): Sage's
 `^` is `**`, its log/ceil/sqrt are math's, and there are two extensions. `field_bits` (default
 256) in `CAT_bits` and `optimize` is the size of the field that the folding challenges are drawn
