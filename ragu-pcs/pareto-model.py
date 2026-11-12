@@ -600,9 +600,13 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                             points.append(dict(
                                 family=variant, pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind, hashes=hp,
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
+                                # Zero knowledge is paid once per transaction, at the handoff to the public
+                                # aggregator: the masks sit in the decider's proof and verification, and the
+                                # masked prover's extra work goes to the fold, not to every merge.
                                 bytes=round((whir_bytes(variant, rate, log_elems, grind) + extra_bytes) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 10 * 32 + 2 * H * 32 + 4),
-                                prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
-                                step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk)), fold=0,
+                                prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len, hp)),
+                                fold=round((zk_prover(log_elems, zk) - 1) * 2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp)),
                                 accumulation=ARC_ATOMS,
                                 gates=round(arc_merge_gates(variant, rate, log_len, floor, grind, hp)),
                                 verify=round((whir_verify_hashes(variant, rate, log_elems, floor, grind) + extra_hashes + zk_hashes(floor, zk)) * native + 1e6),
@@ -849,11 +853,14 @@ for grind in GRINDS:
                         points.append(dict(
                             family="flock", pq=True, rank=None, E=None, binders=None, H=H, floor=floor, grind=grind,
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
+                            # The masks sit in the decider's proof and verification; the mask's prover work
+                            # is paid once per transaction, at the handoff to the public aggregator, in the fold.
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 10 * 16 + 2 * H * 32 + 4),
-                            prover=round(f2_prover(ands, rate, floor, grind, chal, False, zk)),
+                            prover=round(f2_prover(ands, rate, floor, grind, chal, False, None)),
                             # The family has no rank: the transaction measure prices its application as BitZ's,
                             # 510 committed bits per Pasta gate, in steps of 2^13 gates at the merge's per-bit cost.
-                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(ands, rate, floor, grind, chal, False, zk) / ands), fold=0,
+                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(ands, rate, floor, grind, chal, False, None) / ands),
+                            fold=round(f2_prover(ands, rate, floor, grind, chal, False, zk) - f2_prover(ands, rate, floor, grind, chal, False, None)),
                             accumulation=ARC_ATOMS,
                             gates=ands,
                             verify=round(f2_verify(p, grind, chal, zk)),
@@ -904,7 +911,11 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
             for zk in (False, True):
                 for rate in RATES:
                     for rank in HASH_RANKS:
-                        circuits = rec_circuits(variant, rate, rank, floor, zk, grind, hp)
+                        # Under recursion only the user's last proof, handed to the public aggregator,
+                        # is masked; the public merges and the decider's proof are of public data, so
+                        # the zero-knowledge rows equal the plain rows but for the fold, which carries
+                        # the one masked proof's extra prover work.
+                        circuits = rec_circuits(variant, rate, rank, floor, False, grind, hp)
                         log_len = rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
                         native = hv(variant, hp)["native"]
@@ -912,14 +923,15 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                             points.append(dict(
                                 family=variant + "_rec", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, grind=grind, hashes=hp,
                                 groups=2, packing=None, circuits=circuits, change="design", zk=zk, rate=rate,
-                                bytes=round(whir_bytes(variant, rate, log_elems, grind) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 2 * H * 32 + 4),
-                                prover=round(2 ** log_len * rec_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk) + grind_prover(native, grind)),
-                                step_prover=round(2 ** rank * rec_per_coefficient(variant, rate, log_len, hp) * zk_prover(log_elems, zk)), fold=0,
+                                bytes=round(whir_bytes(variant, rate, log_elems, grind) * WHIR_SCALE[floor] + 2 * 32 + 2 * H * 32 + 4),
+                                prover=round(2 ** log_len * rec_per_coefficient(variant, rate, log_len, hp) + grind_prover(native, grind)),
+                                step_prover=round(2 ** rank * rec_per_coefficient(variant, rate, log_len, hp)),
+                                fold=round((zk_prover(log_elems, zk) - 1) * 2 ** log_len * rec_per_coefficient(variant, rate, log_len, hp)),
                                 accumulation=ARC_ATOMS,
-                                gates=round(rec_merge_gates(variant, rate, log_len, floor, zk, grind, hp)),
-                                verify=round(rec_hashes(variant, rate, log_elems, floor, zk, grind) * native + 1e6),
+                                gates=round(rec_merge_gates(variant, rate, log_len, floor, False, grind, hp)),
+                                verify=round(rec_hashes(variant, rate, log_elems, floor, False, grind) * native + 1e6),
                                 folded=2,
-                                label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, zk, grind)):,} hashes/input, {circuits} circuits, header {H}" + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
+                                label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, False, grind)):,} hashes/input, {circuits} circuits, header {H}" + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
                             ))
 
 # Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
@@ -976,18 +988,21 @@ for grind in GRINDS:
         for rate in RATES:
             for chal, design in F2_DESIGNS.items():
                 for zk in ZK_LABEL:
-                    hashes, bits = f2_rec_merge(rate, floor, grind, chal, zk)
-                    p = frib_proof(bits, rate, floor, grind, chal, 1, zk == "mask")
+                    # Under recursion only the user's last proof is masked (see the WHIR recursion
+                    # rows): the rows equal the plain rows but for the fold.
+                    hashes, bits = f2_rec_merge(rate, floor, grind, chal, None)
+                    p = frib_proof(bits, rate, floor, grind, chal, 1, False)
                     for H in (2, 4):
                         points.append(dict(
                             family="flock_rec", pq=True, rank=None, E=None, binders=None, H=H, floor=floor, grind=grind,
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
-                            bytes=round(f2_bytes(p, zk) + 2 * 32 + 2 * H * 32 + 4),
-                            prover=round(f2_prover(bits, rate, floor, grind, chal, True, zk)),
-                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(bits, rate, floor, grind, chal, True, zk) / bits), fold=0,
+                            bytes=round(f2_bytes(p, None) + 2 * 32 + 2 * H * 32 + 4),
+                            prover=round(f2_prover(bits, rate, floor, grind, chal, True, None)),
+                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(bits, rate, floor, grind, chal, True, None) / bits),
+                            fold=round(f2_prover(bits, rate, floor, grind, chal, True, zk) - f2_prover(bits, rate, floor, grind, chal, True, None)),
                             accumulation=ARC_ATOMS,
                             gates=bits,
-                            verify=round(f2_verify(p, grind, chal, zk)),
+                            verify=round(f2_verify(p, grind, chal, None)),
                             folded=2,
                             label=f"rate {rate}, {design['label']}, list 2^{p['lb']}, {p['queries']} queries, {hashes:,} hashes/merge, {bits / 1e6:.0f}M witness bits, header {H}" + ZK_LABEL[zk] + floor_label(floor),
                         ))
@@ -1137,7 +1152,8 @@ for p in points:
 
 seen, deduped = set(), []
 for p in points:
-    key = (p["family"], p["rank"], p["binders"], p["H"], p["packing"], p["floor"], p["hashes"], p["bytes"], p["prover"], p["accumulation"])
+    key = (p["family"], p["rank"], p["binders"], p["H"], p["packing"], p["floor"], p["hashes"], p["zk"], p.get("zkv"),
+           p.get("grind"), p.get("rate"), p.get("field"), p["bytes"], p["prover"], p["accumulation"])
     if key in seen:
         continue
     seen.add(key)
