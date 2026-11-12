@@ -267,6 +267,131 @@ def akita_verify(variant, log_len, zk, rank_scale=1.0):
 def pedersen_verify(rank, nat, nes):
     return round(2 * 2 ** rank * pedersen_per_coefficient(rank) + 2 * (nat + nes + 5) * SCALAR_MULT_WORD_MULTS)
 
+# ---- Multiplication in a Boolean circuit ------------------------------------------------
+# Counted in AND gates with XOR free, which is the garbled-circuit cost model and the cost of
+# the Flock-style families' witnesses: a full adder is one AND, since the carry is
+# b ⊕ ((a ⊕ b) ∧ (b ⊕ c)), so an m-bit addition or subtraction is about m.
+BLAKE3_ANDS = 8192
+
+@functools.lru_cache(maxsize=None)
+def mult_ands(n):
+    """AND gates of an n-bit by n-bit integer multiplication, the cheapest at each width of:
+    schoolbook, n² partial products and a reduction tree of about n² full adders; Karatsuba,
+    three products of about half the width, with the two half-width sums, two subtractions
+    and the recombination, about 4.5n; and Toom-Cook 3, five products of about a third of
+    the width (the evaluations at 1, -1 and -2 are two to four bits wider), with the
+    evaluations, the interpolation's eight additions on values of twice the part's width and
+    its one exact division by three, done bit-serially at about four ANDs per bit, and the
+    recombination, about 13.6n. Karatsuba pays from about 20 bits, as the free-XOR literature
+    finds; Toom-Cook 3 gains a further few percent at 128 bits."""
+    best = 2 * n * n - n
+    if n >= 8:
+        h = (n + 1) // 2
+        best = min(best, mult_ands(h) + mult_ands(n - h) + mult_ands(h + 1) + round(4.5 * n) + 4)
+    if n >= 12:
+        k = (n + 2) // 3
+        m = 2 * (k + 4)
+        best = min(best, mult_ands(k) + mult_ands(n - 2 * k) + 2 * mult_ands(k + 2) + mult_ands(k + 4)
+                   + (10 * k + 12) + 12 * m + 5 * k)
+    return best
+
+# ---- Pasta arithmetic in each arithmetization, for the transaction measure ----------------
+# The transaction measure counts application gates as Pasta gates of a Pasta-arithmetic
+# application, with the Ironwood recovery circuit as the reference (the recovery-circuit
+# estimate of 2026-11-03, extended to the bit arithmetizations on 2026-11-12): seven BLAKE2b
+# and one BLAKE3 compression, 160 Sinsemilla chunks, five fixed-base and one variable-base
+# full-width scalar multiplication with complete additions, the nullifier's Poseidon,
+# reductions and linking, and a Merkle path hashed under the page's policy; 570,000 gates
+# over Pasta with a Poseidon path and 1,050,000 with a BLAKE3 one. Each arithmetization is
+# costed component by component, in its own unit:
+#   - The hashes, the generator selections and the reductions are bit operations. Over a
+#     prime field they cost about the same gates in every field: one per bit for an XOR
+#     (x + y - 2xy), one per bit and a carry for an addition, and 1,013 per Sinsemilla chunk,
+#     the subset products of its ten bits, of which the generator's coordinates are free
+#     linear forms. In a Boolean circuit with XOR free a 64-bit addition is 64 ANDs and an
+#     XOR nothing, so a BLAKE2b compression is 24,576 ANDs against 51,600 Pasta gates, and a
+#     selection is the same 1,013 products, each output bit then a free XOR of them. In a bit
+#     arithmetization (BitZ's, or the draft frontend over Akita) each wire bit is one
+#     committed bit: the XOR's output, the addition's 64 sum bits and its carry, the chunk's
+#     1,013 products; a BLAKE2b compression is 50,560 bits.
+#   - The curve arithmetic, about 14,500 multiplications in Pallas's base field, must be
+#     emulated off Pasta: about 1,100 gates each over Goldilocks (nine 29-bit limbs, no
+#     lookups) and about 700 at a 128-bit field (61-bit limbs). In a Boolean circuit a
+#     multiplication is the 255-bit product by mult_ands and a Montgomery reduction by a
+#     prime of no special form, whose two multiplications by constants are about three
+#     quarters of a product each: about 120,000 ANDs. In BitZ's integer arithmetization it
+#     is 510 committed bits, the value and the quotient of a b = q p + r, checked as one
+#     integer relation; in the draft frontend, whose claims are native over Pasta, 255
+#     digits, the value alone.
+#   - The Merkle path is 33 BLAKE3 compressions in the bit arithmetizations under either
+#     policy, since Poseidon over Pallas's field would cost them 240 multiplications a node.
+# So the recovery circuit is about 16.5 million Goldilocks gates, 10.7 million at a 128-bit
+# field, 1.73 billion AND gates (the multiplications are all of it), 8.4 million committed
+# bits in BitZ's arithmetization and 4.7 million digits in the draft frontend's, against the
+# reference with a Poseidon path; per Pasta gate 29, 19, 3,100, 15 and 8, or 16, 11, 1,700, 8
+# and 4.5 with a BLAKE3 path, which raises the reference to 1.05 million gates. The hashes
+# are what makes the bit arithmetizations cheap: a field multiplication alone would put a
+# Pasta gate at 510 bits. The page's transaction measure takes an application, the recovery
+# circuit or a number of Merkle path checks (APPLICATIONS, in each arithmetization's unit
+# under each policy), and divides it by the step's capacity in the same unit, `step_units`:
+# 2^rank coefficients, which is 2^(rank-2) gates of four wires for the field families, 2^rank
+# bits or digits for BitZ and the draft frontend, and BOOL_STEP_BITS AND gates for the
+# Boolean families; rounded up, since a transaction smaller than a step pays a whole step.
+BITZ_GATE_BITS = 510  # a Pasta gate as committed bits in BitZ's arithmetization: a 255-bit value and a 255-bit quotient
+BITS_PER_VALUE = 255  # a Pasta value in the draft frontend's one-bit digits
+BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
+BLAKE2B_BITS = 12 * 8 * (4 * 65 + 4 * 64) + 16 * 64  # the additions' sums and carries, the XORs' outputs, the finalisation
+BLAKE3_BITS = 7 * 8 * (4 * 33 + 4 * 32) + 16 * 32
+RECOVERY_MULTS = 14_500
+RECOVERY_CURVE_PASTA = 16_100  # the multiplications as native gates, with the selectors and identity cases
+RECOVERY_BITS = {  # the hashes, the selections, the reductions and linking, in the arithmetization's unit
+    "pasta": 542_000, "goldilocks": 547_000, "fp128": 542_000,  # a 64-bit addition over Goldilocks is two halves
+    "boolean": 7 * BLAKE2B_ANDS + BLAKE3_ANDS + 162_000 + 4_000,
+    "bits": 7 * BLAKE2B_BITS + BLAKE3_BITS + 162_000 + 4_000,
+}
+RECOVERY_MULT = {"goldilocks": 1_100, "fp128": 700, "bitz": BITZ_GATE_BITS, "bits_pasta": BITS_PER_VALUE}
+RECOVERY_PATH_POSEIDON = {"pasta": 9_500, "goldilocks": 15_600, "fp128": 15_600}
+RECOVERY_PATH_BLAKE3 = {"pasta": 33 * BLAKE3_GATES, "goldilocks": 33 * BLAKE3_GATES, "fp128": 33 * BLAKE3_GATES,
+                        "boolean": 33 * BLAKE3_ANDS, "bits": 33 * BLAKE3_BITS}
+BOOL_REDUCTION = 1.5  # the Montgomery reduction, as a multiple of the product
+BOOL_STEP_BITS = 2 ** 22
+
+def recovery_cost(field, hp):
+    """The reference circuit in the unit of `field`'s arithmetization, its Merkle path under
+    policy `hp` where the field has a Poseidon; the bit arithmetizations hash it with BLAKE3
+    under either."""
+    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    if field == "pasta":
+        mult = RECOVERY_CURVE_PASTA / RECOVERY_MULTS
+    elif field == "boolean":
+        mult = (1 + BOOL_REDUCTION) * mult_ands(255)
+    else:
+        mult = RECOVERY_MULT[field]
+    path = RECOVERY_PATH_POSEIDON[field] if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON else RECOVERY_PATH_BLAKE3[unit]
+    return RECOVERY_BITS[unit] + RECOVERY_MULTS * mult + path
+
+def path_cost(field, hp):
+    """One Merkle path check, 32 levels and the leaf, in the unit of `field`'s
+    arithmetization: hashed under policy `hp` where the field has a Poseidon, by BLAKE3 in
+    the bit arithmetizations under either."""
+    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON:
+        return RECOVERY_PATH_POSEIDON[field]
+    return RECOVERY_PATH_BLAKE3[unit]
+
+ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", "bits_pasta")
+APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
+    "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
+    "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
+}
+
+# The arithmetization of each family's application circuit, for `step_gates`.
+FIELD = {"pedersen": "pasta", "fp128": "fp128", "goldilocks": "goldilocks", "pasta_q64": "pasta",
+         "pasta_sis": "pasta", "pasta": "pasta", "whir": "pasta", "whir_gold": "goldilocks",
+         "whir_hybrid": "pasta", "plonky3": "goldilocks", "flock": "boolean", "whir_rec": "pasta",
+         "whir_gold_rec": "goldilocks", "whir_hybrid_rec": "pasta", "plonky3_rec": "goldilocks",
+         "flock_rec": "boolean", "bitz": "bitz", "bitz_rec": "bitz", "bits_q64": "bits_pasta"}
+
 points = []
 
 # Pedersen-IPA: the checked-in cycle design, over the configurations the circuit budget
@@ -687,7 +812,6 @@ XOR_WEIGHT = 1 / 8  # a 64-bit word XOR against a word multiplication: the vecto
 NTT_STAGES_SAVED = 4  # butterfly stages that the paper's interleaving saves in the commitment (§5)
 FLOCK_PIOP_SHARE = (0.05, 0.464)  # of Flock's prover: witness generation; zero-check and lincheck (Table 5, BLAKE3)
 FRIB_MEASURED_MS = (144, 160)  # FRI-Binius Table 2: single-threaded commit and open at 2^28 bits, rate 1/2, 𝔽₂^128
-BLAKE3_ANDS = 8192
 BLAKE3_PER_SECOND = 82100
 WORD_MULTS_PER_SECOND = 3e9
 ZK_LABEL = {None: "", "mask": ", ZK, batched mask", "zook": ", ZK, Zook-style, derived"}
@@ -839,10 +963,6 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT):
         hashes = new
     return round(hashes), round(hashes * BLAKE3_ANDS)
 
-# A Pasta gate as committed bits in BitZ's arithmetization, a 255-bit value and a 255-bit
-# quotient (see the BitZ section below); the 𝔽₂ family's transaction pricing borrows it.
-BITZ_GATE_BITS = 510
-
 for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
@@ -858,9 +978,9 @@ for grind in GRINDS:
                             # is paid once per transaction, at the handoff to the public aggregator, in the fold.
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 10 * 16 + 2 * H * 32 + 4),
                             prover=round(f2_prover(ands, rate, floor, grind, chal, False, None)),
-                            # The family has no rank: the transaction measure prices its application as BitZ's,
-                            # 510 committed bits per Pasta gate, in steps of 2^13 gates at the merge's per-bit cost.
-                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(ands, rate, floor, grind, chal, False, None) / ands),
+                            # The family has no rank: its step is a Boolean circuit of BOOL_STEP_BITS AND gates
+                            # at the merge's per-bit cost, which is its capacity for the transaction measure.
+                            step_prover=round(BOOL_STEP_BITS * f2_prover(ands, rate, floor, grind, chal, False, None) / ands),
                             fold=round(f2_prover(ands, rate, floor, grind, chal, False, zk) - f2_prover(ands, rate, floor, grind, chal, False, None)),
                             accumulation=ARC_ATOMS,
                             gates=ands,
@@ -999,7 +1119,7 @@ for grind in GRINDS:
                             groups=2, packing=None, circuits=None, change="design", zk=zk is not None, zkv=zk, rate=rate, field=chal,
                             bytes=round(f2_bytes(p, None) + 2 * 32 + 2 * H * 32 + 4),
                             prover=round(f2_prover(bits, rate, floor, grind, chal, True, None)),
-                            step_prover=round(BITZ_GATE_BITS * 2 ** 13 * f2_prover(bits, rate, floor, grind, chal, True, None) / bits),
+                            step_prover=round(BOOL_STEP_BITS * f2_prover(bits, rate, floor, grind, chal, True, None) / bits),
                             fold=round(f2_prover(bits, rate, floor, grind, chal, True, zk) - f2_prover(bits, rate, floor, grind, chal, True, None)),
                             accumulation=ARC_ATOMS,
                             gates=bits,
@@ -1052,7 +1172,7 @@ def bitz_t10(log_bits):
     return [a + t * (b - a) for a, b in zip(BITZ_T10[lo], BITZ_T10[hi])]
 
 def bitz_point(mode, rate, rank, floor, H, grind=None):
-    app_bits = 2 ** rank * BITZ_GATE_BITS
+    app_bits = 2 ** rank  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
     inv = int(rate.split("/")[1])
     bits = app_bits + 2 ** 25
     hashes = 0
@@ -1079,7 +1199,7 @@ def bitz_point(mode, rate, rank, floor, H, grind=None):
         floor=floor, grind=grind, groups=2, packing=None, circuits=None, change="design", zk=False, rate=rate,
         bytes=round(proof + 2 * 32 + (10 * 32 if mode == "arc" else 0) + 2 * H * 32 + 4),
         prover=round(prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)),
-        step_prover=round(BITZ_GATE_BITS * 2 ** rank * prover_ms * WORD_MULTS_PER_MS / bits), fold=0,
+        step_prover=round(app_bits * prover_ms * WORD_MULTS_PER_MS / bits), fold=0,
         accumulation=ARC_ATOMS,
         gates=round(hashes * HASH_BITS),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
@@ -1173,6 +1293,17 @@ PASTA = {"pedersen": True, "fp128": False, "goldilocks": False, "pasta_q64": Tru
 for p in points:
     p["pasta"] = PASTA[p["family"]]
 
+# Each point's arithmetization and its step's capacity in that arithmetization's unit, for
+# the transaction measure (see APPLICATIONS).
+for p in points:
+    p["arith"] = FIELD[p["family"]]
+    if p["rank"] is None:
+        p["step_units"] = BOOL_STEP_BITS  # a Boolean step, in AND gates
+    elif p["arith"] in ("bitz", "bits_pasta"):
+        p["step_units"] = 2 ** p["rank"]  # bits or digits, one per committed coefficient
+    else:
+        p["step_units"] = gate_budget(p["rank"])  # gates of four coefficients
+
 def pareto(pts):
     keep = []
     for p in pts:
@@ -1252,7 +1383,7 @@ budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r),
                fixed=fixed_counts(r, True)) for r in RANKS]
 
 # `frontier` serves the printout below; the page computes its own frontiers over the selection.
-data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
+data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, applications=APPLICATIONS, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
     prover="native 64-bit word multiplications for one step's commitments, dense polynomials assumed; see the page",
     per_coefficient={v: round(ajtai_per_coefficient(v)) for v in DIGITS} | {"pedersen_rank14": round(pedersen_per_coefficient(14))},
     accumulation="base-field atoms the merge circuit absorbs per fold: 2 per Pedersen commitment; for Akita 120 sum-check elements plus the compressed images at the variant's atom width",
