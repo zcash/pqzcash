@@ -37,6 +37,12 @@ gates_per_merge, gate_budget = _model["gates_per_merge"], _model["gate_budget"]
 # re-planned under the matching pricing; K>0: groups/q64-k<K>).
 RANKS = (12, 13, 14, 15, 16, 17)  # step circuits of 2^(rank-2) gates
 HASH_RANKS = (13, 14, 15, 16)  # the WHIR-type rows depend on the rank only through their circuit count
+# The bit arithmetizations' steps commit 2^rank bits or digits, and their merge is nearly a
+# fixed cost, so the transaction measure falls with the rank until one step holds the whole
+# application: the recovery circuit's 8.4 million bits at rank 24 for BitZ, its 4.7 million
+# digits at rank 23 for the draft frontend. The ranks stop there.
+BITZ_RANKS = tuple(range(12, 25))
+FRONTEND_RANKS = tuple(range(12, 24))
 AKITA_K = [0, 1, 2, 4, 8, 12]
 AKITA = {
     "fp128":      [65074, 69044, 71066, 69492, 68485, 70404],
@@ -1212,7 +1218,7 @@ for mode in ("arc", "rec"):
     for grind in (GRINDS if mode == "arc" else (None,)):
         for floor in FLOORS:
             for rate in ("1/2", "1/8"):
-                for rank in RANKS:
+                for rank in BITZ_RANKS:
                     for H in (2, 4):
                         points.append(bitz_point(mode, rate, rank, floor, H, grind))
 
@@ -1272,7 +1278,7 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits):
 for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
-        for rank in RANKS:
+        for rank in FRONTEND_RANKS:
             circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits)
             if circuits is None:
                 continue  # the per-circuit claim's digits exceed this rank's circuit
