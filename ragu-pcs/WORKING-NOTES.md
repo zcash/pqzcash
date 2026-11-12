@@ -1294,3 +1294,29 @@ artifact v89.
   under the row's own policy (`p.hashes`), the "any" rows under the selected one; the model's
   frontier printout follows. The within-family pruning still keys on `hashes`, so a BLAKE3 row
   dominated by its Poseidon twin stays (it is selectable alone).
+
+## 2026-11-12 04:40 UTC: the 150-bit re-plan is blocked on the compression maps
+
+work/akita-150-replan.sh ran on mains (log work/akita-150-replan.log; outputs
+work/akita-150-out/replan/): every planner step failed at once, for two reasons.
+1. `--catalog-report` needs `--check-catalog` or `--catalog-baseline`; the 128-bit script never
+   used it. Drop it, or add `--check-catalog`; the rank growth can also be read from the
+   catalog snapshots and the reprice TSVs.
+2. The real one: "no compression SIS rank for profile=Q128OffsetA7F7 d=16 width=4096", for every
+   fp128 family and every group run (fp64 families would hit the Q64 cells the same way).
+   Akita's compression maps are rank one by construction: crates/akita-params/src/compression.rs
+   rejects any other rank ("compression map must be rank one"), sis/compression.rs's
+   `min_compression_secure_rank` returns 1 only when the width fits the cell's rank-one maximum,
+   and compression/chain.rs always builds rank 1. The six rank-one cells re-sized at 150 bits
+   give Q128 at d=16 a maximum width of 3,806 (7,077 at 128 bits; generated_sis_table/q128.rs,
+   row (16, 1): [3806, 214722, 4083861, ...] by rank), and the chain's first map at d=16 has
+   width 4,096 (512 coefficients × 128 bits / 16). So at 150 bits the rank-one compression maps
+   do NOT hold at the catalog's geometry, which the page assumes ("the rank-one compression
+   maps, which reach 147 bits, are assumed to hold"). Fixing it is a design change to Akita,
+   the user's call: (A) allow rank-2 maps (rank 2 covers width 214,722 at d=16): take the
+   secure rank from the table's ladder in CompressionMapPlan::new, pass it through chain.rs,
+   and let output_coefficients = rank × d flow into the planner's bytes (the tests that pin
+   "exactly the six rank-one cells" and the rank-one assertions would change); or (B) split the
+   first map's input into two rank-one maps of width 2,048 with the same total output. Either
+   doubles the compressed images at that level, so the 150-bit page figures would move by more
+   than the single-digit percent expected. Not started; the worktree is as it was.
