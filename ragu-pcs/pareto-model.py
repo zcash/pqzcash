@@ -1,9 +1,10 @@
 """Pareto surface for Ragu as a split-accumulation PCD scheme: Pedersen-IPA today against
 Akita under five field/modulus choices, and against the hash-based schemes (WHIR over Pasta,
 Goldilocks and a limb hybrid, a Plonky3-style FRI, the Flock/Binius-style binary-field family,
-BitZ), each with ARC accumulation and with its own recursion, and a draft of BitZ's
-arithmetization over Akita; each priced with a conventional hash (BLAKE3) in its circuits
-and, as an option, with Poseidon 1.1 (HASH_POLICIES).
+BitZ), each with ARC accumulation and with its own recursion, a draft of BitZ's
+arithmetization over Akita, and Flock-style Boolean circuits over Akita's binary groups;
+each priced with a conventional hash (BLAKE3) in its circuits and, as an option, with
+Poseidon 1.1 (HASH_POLICIES).
 
 Every point is one configuration. Its coordinates are compressed proof bytes, prover work,
 and a third measure: the merge circuit's gates or the atoms it absorbs, the decider's
@@ -223,7 +224,7 @@ LABEL = {
     "bitz": "BitZ with ARC, Pasta claims over committed bits, hash-based",
     "bitz_rec": "BitZ, recursive, Pasta claims over committed bits, hash-based",
     "bits_q64": "BitZ over Akita, 64‑bit commitments, Pasta claims (draft frontend)",
-
+    "bits_akita": "Flock/Binius-style over Akita's binary groups, lattice (experimental)",
 }
 
 def akita_bytes(variant, K, log_len):
@@ -1296,6 +1297,85 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                     label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + floor_label(floor),
                 ))
 
+# ---- Flock-style Boolean circuits over Akita's binary groups (experimental) ----------------
+# Akita's development branch commits a dense binary source as a group kind inside one
+# ordinary grouped opening (LayerZero-Labs/akita#285, the `binary` feature; it replaces the
+# LaBinius root reduction and nested commitment of its PR #229): the bits are packed into
+# 128-bit carriers, the claim is a multilinear evaluation over a binary field, and the
+# opening switches to the proof field inside. So the 𝔽₂ family's arithmetization, Boolean
+# circuits with Flock's PIOP over 𝔽₂^128, can commit with Akita instead of FRI-Binius and
+# accumulate with Akita's fold instead of ARC. The row prices that from the branch's
+# measurements (specs/binary-p64-root.md there, scripts/binary-full-size.sh at 8046b4cd2,
+# 2026-11): a binary-claim opening of 2^22 carriers, 2^29 bits, at the P128 root is 82,764 B,
+# committed in 174 ms, opened in 648 ms and verified in 8.5 ms on an M4 Max under load with
+# the `parallel` feature on; the P64 root is 1 to 4 percent smaller with times within noise.
+#   - The merge is Akita's fold in a Boolean circuit, our estimate: the transcript absorbed by
+#     BLAKE3 at 8,192 AND gates per compression, native in a Boolean circuit under either hash
+#     policy; the fold of each child's 128-byte image by a ternary challenge of the page's
+#     weight, one adder bit per image bit per unit of weight; and one proof-field
+#     multiplication per sum-check element, counted in AND gates with XOR free by the cheapest
+#     of schoolbook, Karatsuba and Toom-Cook 3 at each width (mult_ands), which dominates.
+#     The Flock PIOP's own verifier is not counted, as for the 𝔽₂ family.
+#   - Bytes: the measured opening extrapolated from 2^29 bits down to the merge's witness at
+#     the planner's growth per doubling for the 128-bit field, with the stage groups at that
+#     field's growth with K, plus the instance. The measured pair a doubling apart differ by
+#     1.8 KB, which would make the proof about 8 KB smaller, but a one-doubling difference
+#     between single runs is not a slope.
+#   - Prover: the measured commit and open times per committed bit, the open time standing
+#     in for the step's share of the fold's sum-checks, which the lattice rows do not count;
+#     at BINARY_THREADS times the measured times for one thread, since BitZ's benchmark gave
+#     four to five times on ten threads of this machine; plus Flock's PIOP. An upper bound.
+#   - Verify: the measured decider scaled to the merge's bits at Akita's single-thread slope.
+#   - Atoms: Akita's at the 128-bit claim width; the transaction measure as the 𝔽₂ family's.
+# Not modelled: zero knowledge (the groups are not hiding) and the 150-bit floor (the q24
+# Module-SIS certificate and the security ledger are open; the branch makes no security
+# claim), so the row is at the 128-bit floor only; and the binary carrier field switch.
+BINARY_MEASURED = dict(bytes=82764, commit_ms=174, prove_ms=648, verify_ms=8.5, log_bits=29, field=128)
+BINARY_THREADS = 10  # the measurements ran with the `parallel` feature; one thread is taken as ten times slower
+BINARY_VERIFY_SLOPE = AKITA_VERIFY_MS["fp128"][1]
+
+def reduce_ands(n):
+    """AND gates of the reduction of a 2n-bit product modulo a prime 2^n - c with a small c
+    of a few bits: the shifted additions of the high half by c's bits, a short second pass,
+    and the final conditional subtraction, about 6n."""
+    return 6 * n
+
+def bits_akita_merge_ands(K, circuits, field):
+    """AND gates of Akita's merge in a Boolean circuit: the transcript hashed by BLAKE3, the
+    fold of the children's images, the sum-check verifier's field multiplications, and the
+    claims."""
+    hashing = akita_absorbed_bytes("fp128", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_ANDS
+    fold = 2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2)
+    sumcheck = SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field))
+    return hashing + fold + sumcheck + CLAIM_GATES * circuits
+
+def binary_open_bytes(log_bits, K):
+    """The measured binary-source opening at the merge's bits, extrapolated at the 128-bit
+    field's slope, with K - 1 further groups at that field's growth."""
+    opening = BINARY_MEASURED["bytes"] - SLOPE["fp128"] * (BINARY_MEASURED["log_bits"] - log_bits)
+    return opening * akita_bytes("fp128", K - 1, 14) / AKITA["fp128"][0]
+
+K = STAGES + 1
+bits_akita_ands = bits_akita_merge_ands(K, 1, BINARY_MEASURED["field"])
+bits_akita_log = math.log2(bits_akita_ands)
+bits_akita_per_bit = ((BINARY_MEASURED["commit_ms"] + BINARY_MEASURED["prove_ms"]) * BINARY_THREADS * WORD_MULTS_PER_MS
+                      / 2 ** BINARY_MEASURED["log_bits"])
+bits_akita_prover = bits_akita_ands * bits_akita_per_bit + f2_piop(bits_akita_ands, 128)
+for H in (2, 4):
+    points.append(dict(
+        family="bits_akita", pq=True, rank=None, E=None, binders=None, H=H, floor=128, hashes="any",
+        groups=K, packing=None, circuits=None, change="design", zk=False,
+        bytes=round(binary_open_bytes(bits_akita_log, K) + K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + CLAIM_BYTES["fp128"]),
+        prover=round(bits_akita_prover),
+        step_prover=round(BOOL_STEP_BITS * bits_akita_prover / bits_akita_ands), fold=0,
+        accumulation=akita_atoms("fp128", K, 1, False),
+        gates=round(bits_akita_ands),
+        verify=round((BINARY_MEASURED["verify_ms"] - BINARY_VERIFY_SLOPE * (BINARY_MEASURED["log_bits"] - bits_akita_log)) * WORD_MULTS_PER_MS),
+        folded=K,
+        label=f"P128 root, 2^{bits_akita_log:.1f} committed bits, {bits_akita_ands / 1e6:.1f}M AND gates, {K} groups, header {H}, experimental",
+    ))
+FIELD["bits_akita"] = "boolean"
+
 # Endoscaling capacity beyond the points to walk changes nothing; keep the smallest E of
 # each set of identical Pedersen-IPA results.
 for p in points:
@@ -1318,7 +1398,8 @@ points = deduped
 PASTA = {"pedersen": True, "fp128": False, "goldilocks": False, "pasta_q64": True, "pasta_sis": True,
          "pasta": True, "whir": True, "whir_gold": False, "whir_hybrid": True, "plonky3": False,
          "flock": False, "whir_rec": True, "whir_gold_rec": False, "whir_hybrid_rec": True,
-         "plonky3_rec": False, "flock_rec": False, "bitz": True, "bitz_rec": True, "bits_q64": True}
+         "plonky3_rec": False, "flock_rec": False, "bitz": True, "bitz_rec": True, "bits_q64": True,
+         "bits_akita": False}
 
 for p in points:
     p["pasta"] = PASTA[p["family"]]
