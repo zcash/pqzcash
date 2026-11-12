@@ -1178,7 +1178,31 @@ def bitz_t10(log_bits):
     t = n - lo
     return [a + t * (b - a) for a, b in zip(BITZ_T10[lo], BITZ_T10[hi])]
 
-def bitz_point(mode, rate, rank, floor, H, grind=None):
+# Zero knowledge for BitZ is derived, since its paper offers succinctness only: Ligero's random
+# row per Ligerito level, whose symbol appears in every opened column, so that the columns
+# reveal nothing; and a Libra-style mask polynomial per sum-check (Flock's zero-check and
+# lincheck, Zinc+'s PIOP, and each layer of the GKR), a sum of univariates of degree three in
+# each variable, committed as extra rows of the same Ligerito matrix under those random rows
+# and opened with the witness, so that each sum-check runs over the masked polynomial. The
+# masks are 4 × (3 log N + log N (log N + 1) / 2) field elements for a witness of N bits,
+# 1,600 at 2^25, under a percent of the step, charged in the fold once per transaction; the
+# random rows cost 16 bytes per opened column, in the decider's proof under ARC with its three
+# first-round trees and nothing under recursion; the masks' claimed sums and evaluations are a
+# few hundred bytes. Zook-style spot-checked mask oracles would cost about 100 KB here, one
+# oracle per sum-check round over the GKR's 325 rounds, so they are not used. Whether ARC's
+# accumulation preserves zero knowledge is not examined, as for the other hash-based rows.
+BITZ_ZK_ELEM = 16  # a field element of 𝔽₂^128: a random row's symbol in an opened column, a mask's coefficient
+BITZ_ZK_SUMCHECKS = 3  # the zero-check, the lincheck and Zinc+'s PIOP, each over log N variables; the GKR adds a layer per variable
+
+def bitz_zk_queries(floor):
+    """Ligerito's opened columns over its levels, which scale with the floor."""
+    return sum(q for _, q in LIGERITO_LEVELS) * floor / 100
+
+def bitz_mask_elements(log_bits):
+    n = math.ceil(log_bits)
+    return ZOOK_MASK_COEFFS * (BITZ_ZK_SUMCHECKS * n + n * (n + 1) / 2)
+
+def bitz_point(mode, rate, rank, floor, H, grind=None, zk=False):
     app_bits = 2 ** rank  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
     inv = int(rate.split("/")[1])
     bits = app_bits + 2 ** 25
@@ -1201,26 +1225,32 @@ def bitz_point(mode, rate, rank, floor, H, grind=None):
     extra = (ARC_DECIDER_TREES - 1) * ligerito_first_share(log_bits) if mode == "arc" else 0
     proof = (nonlig * BITZ_128["nonlig"] + lig * lig_scale * BITZ_128["lig"] * floor / 128 * (1 + extra)) * 1000 + BITZ_PIOP["bytes"]
     verify_ms = verify_ms * BITZ_128["verify"] * floor / 128 * (1 + extra)
+    prover = prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)
+    # The zero-knowledge rows: the random rows' symbols and the masks' values in the decider's
+    # proof under ARC; the masks' share of the witness in the fold, once per transaction.
+    zk_bytes_ = (bitz_zk_queries(floor) * BITZ_ZK_ELEM * (1 + extra) + 3 * (BITZ_ZK_SUMCHECKS + 1) * BITZ_ZK_ELEM) if zk and mode == "arc" else 0
+    fold = round(prover * bitz_mask_elements(log_bits) * 128 / bits) if zk else 0
     return dict(
         family="bitz_rec" if mode == "rec" else "bitz", pq=True, rank=rank, E=None, binders=None, H=H,
-        floor=floor, grind=grind, groups=2, packing=None, circuits=None, change="design", zk=False, rate=rate,
-        bytes=round(proof + 2 * 32 + (10 * 32 if mode == "arc" else 0) + 2 * H * 32 + 4),
-        prover=round(prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)),
-        step_prover=round(app_bits * prover_ms * WORD_MULTS_PER_MS / bits), fold=0,
+        floor=floor, grind=grind, groups=2, packing=None, circuits=None, change="design", zk=zk, rate=rate,
+        bytes=round(proof + zk_bytes_ + 2 * 32 + (10 * 32 if mode == "arc" else 0) + 2 * H * 32 + 4),
+        prover=round(prover),
+        step_prover=round(app_bits * prover_ms * WORD_MULTS_PER_MS / bits), fold=fold,
         accumulation=ARC_ATOMS,
         gates=round(hashes * HASH_BITS),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
         folded=2,
-        label=f"rank {rank}, rate {rate}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits, header {H}" + floor_label(floor),
+        label=f"rank {rank}, rate {rate}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits, header {H}" + (", ZK, derived" if zk else "") + floor_label(floor),
     )
 
 for mode in ("arc", "rec"):
     for grind in (GRINDS if mode == "arc" else (None,)):
         for floor in FLOORS:
             for rate in ("1/2", "1/8"):
-                for rank in BITZ_RANKS:
-                    for H in (2, 4):
-                        points.append(bitz_point(mode, rate, rank, floor, H, grind))
+                for zk in (False, True):
+                    for rank in BITZ_RANKS:
+                        for H in (2, 4):
+                            points.append(bitz_point(mode, rate, rank, floor, H, grind, zk))
 
 # A bit-decomposed witness over Akita (an internal research draft of 2026-09-23 on Booleanity
 # checking via structured modular projections, provisional): the application's values are
