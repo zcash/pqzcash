@@ -1250,58 +1250,68 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
     "sumcheck": (437.7 / 2 ** 27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
 }
 
-def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits):
+def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk=False):
     """The draft frontend's merge in one-bit digits: the transcript hashing, the images'
-    reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier."""
+    reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier; with
+    zero knowledge the zk-layer merge's 18 more sum-check elements, as for the lattice rows."""
     if hp == "poseidon":
-        hashing = akita_atoms("pasta_q64", K, circuits, False) * HASH_GATES_PER_ATOM * BITS_PER_VALUE
+        hashing = akita_atoms("pasta_q64", K, circuits, zk) * HASH_GATES_PER_ATOM * BITS_PER_VALUE
     else:
-        hashing = akita_absorbed_bytes("pasta_q64", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_BITS
+        hashing = akita_absorbed_bytes("pasta_q64", K, circuits, zk) / BLAKE3_BLOCK * BLAKE3_BITS
     return (hashing + 2 * K * FOLD_GATES_PER_IMAGE
             + (SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults) * BITS_PER_VALUE + bool_bits)
 
-def frontend_circuits(K, rank, hp, bool_mults, bool_bits):
+def frontend_circuits(K, rank, hp, bool_mults, bool_bits, zk=False):
     """The step circuits of 2^rank digits that the merge needs, at its fixed point; None
     where each circuit's claim costs more digits than the circuit holds, as for the lattice
     rows under BLAKE3."""
-    per_circuit = frontend_merge_digits(K, 2, hp, bool_mults, bool_bits) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits)
+    per_circuit = frontend_merge_digits(K, 2, hp, bool_mults, bool_bits, zk) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits, zk)
     if per_circuit >= 2 ** rank:
         return None
     circuits = 1
     for _ in range(200):
-        new = math.ceil(frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits) / 2 ** rank)
+        new = math.ceil(frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk) / 2 ** rank)
         if new == circuits:
             return circuits
         circuits = new
     return circuits
 
+# Zero knowledge for the frontend is Akita's, as the lattice rows have it: the masked rank on
+# every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
+# handoff, whose rejection sampling runs over the accumulator's K × 2^rank digits, one per
+# committed bit, so it grows with the rank where the merges shrink. The projection form reveals
+# coordinates and has no zero-knowledge rows.
 for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
-        for rank in FRONTEND_RANKS:
-            circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits)
-            if circuits is None:
-                continue  # the per-circuit claim's digits exceed this rank's circuit
-            digits = frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits)
-            atoms = akita_atoms("pasta_q64", K, circuits, False)
-            log_len = rank + math.log2(circuits) - math.log2(DIGITS["pasta_q64"])  # in the 64-bit variant's coefficients of 85 digits
-            rank_scale = RANK_SCALE[floor]["pasta_q64"]
-            per_digit = ajtai_per_coefficient("pasta_q64", False, rank_scale) / DIGITS["pasta_q64"]
-            for H in (2, 4):
-                opening = akita_bytes("pasta_q64", K - 1, log_len) * rank_factor_share("pasta_q64", rank_scale)
-                instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
-                points.append(dict(
-                    family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
-                    groups=K, packing=None, circuits=circuits, change="design", zk=False,
-                    bytes=round(opening + instance + bool_bytes),
-                    prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
-                    step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=0,
-                    accumulation=atoms,
-                    gates=round(digits),
-                    verify=akita_verify("pasta_q64", log_len, False, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
-                    folded=K,
-                    label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + floor_label(floor),
-                ))
+        for zk in ((False,) if check == "projection" else (False, True)):
+            for rank in FRONTEND_RANKS:
+                circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, zk)
+                if circuits is None:
+                    continue  # the per-circuit claim's digits exceed this rank's circuit
+                digits = frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk)
+                atoms = akita_atoms("pasta_q64", K, circuits, zk)
+                log_len = rank + math.log2(circuits) - math.log2(DIGITS["pasta_q64"])  # in the 64-bit variant's coefficients of 85 digits
+                rank_scale = RANK_SCALE[floor]["pasta_q64"]
+                per_digit = ajtai_per_coefficient("pasta_q64", zk, rank_scale) / DIGITS["pasta_q64"]
+                masked_digit = ajtai_per_coefficient("pasta_q64", True, rank_scale) / DIGITS["pasta_q64"]
+                fold = round(MASK_ATTEMPTS * K * 2 ** rank * (masked_digit + MASK_SAMPLE_WORD_MULTS)
+                             + circuits * 2 ** rank * (per_digit + bool_per_bit)) if zk else 0
+                for H in (2, 4):
+                    opening = akita_bytes("pasta_q64", K - 1, log_len) * rank_factor_share("pasta_q64", rank_scale)
+                    instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
+                    points.append(dict(
+                        family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
+                        groups=K, packing=None, circuits=circuits, change="design", zk=zk,
+                        bytes=round(opening + instance + bool_bytes),
+                        prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
+                        step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=fold,
+                        accumulation=atoms,
+                        gates=round(digits),
+                        verify=akita_verify("pasta_q64", log_len, zk, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
+                        folded=K,
+                        label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + (", ZK" if zk else "") + floor_label(floor),
+                    ))
 
 # ---- Flock-style Boolean circuits over Akita's binary groups (experimental) ----------------
 # Akita's development branch commits a dense binary source as a group kind inside one
