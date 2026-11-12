@@ -1068,3 +1068,20 @@ transaction-prover radio. Page 4.3 MB, 9,363 points. Artifact republished (versi
 Pending: Ulrich's answers (then drop or keep the Zook rows; revisit the mask row's prover charge);
 the Flock-style-over-Akita-binary-groups family; the 150-bit re-plan (staged, ~1 h on mains,
 expected single-digit percent); BitZ reruns on mains; the recovery circuit per component.
+
+## 2026-11-12 00:42 UTC: zero knowledge paid at the handoff
+
+The user: in our model the cost of zk is paid when moving from private to public accumulation; the
+port does not change that. Fixed what did not match it: the hash-based zk rows charged the masked
+prover per merge (𝔽₂ x1.07-1.13, WHIR's Plonky3 factor). Now (commit after 5c1234a): per-merge
+prover of a zk row = plain; fold = the masked prover's extra (𝔽₂ ARC at 1/8: 4.1e7 against a
+4.45e8 step; WHIR Goldilocks ARC: 3.1e7); under ARC the masks stay in the decider's bytes and
+verify (𝔽₂ +12 KiB, WHIR +91 KiB at 128 bits); under recursion the zk rows equal plain but for
+the fold (the decider verifies a public proof). The dedup key (meant for Pedersen's E variants)
+had folded the now-identical rec zk rows into their plain twins; it keys on zk/zkv/grind/rate/
+field now. Page text: the zk paragraph (WHIR and 𝔽₂ parts), Which third measure, Transaction
+prover. Also earlier today: the held camera is passed back explicitly in the 3D view (5c1234a;
+the user's report that toggling zk turned the camera; a second report for the floor was a stale
+page). The binary-groups family: data gathered (specs under work/akita-binary/, the measurement
+table of binary-p64-root.md: 2^22/2^23 carriers, P128/P64, 79-85 KB, prove 0.65-1.65 s, verify
+8.5-20 ms on a loaded M4 Max, parallelism unstated), NOT yet modelled.
