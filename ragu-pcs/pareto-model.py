@@ -906,9 +906,9 @@ def frib_at(w, rate_bits, floor, grind, chal, trees, zk):
                 opened=sum(r["opened_bytes"] for r in rounds),
                 field_mults=2 * packed_log * pack + out["queries"] * (sum(2 ** r["ell"] for r in folds) + (1 if zk else 0)) + 6 * packed_log,
                 ops=f2_ops(2 ** w, rate_bits, chal, pack, folds, twiddle),
-                # the mask is one more row of the first round's matrix: a polynomial of the
-                # witness's size over the first fold's arity
-                mask_share=2 ** -folds[0]["ell"] if zk and folds else (1 if zk else 0),
+                # the mask is a polynomial of the witness's size, committed beside it in the
+                # first round (Ulrich Haböck's correction of 2026-11-12)
+                mask_share=1 if zk else 0,
                 zook=zook_masks(folds, out["terminal_elements"], floor, chal, pack))
 
 def frib_proof(bits, rate, floor, grind, chal, trees, zk=False):
@@ -934,8 +934,8 @@ def f2_bytes(p, zk):
 def f2_prover(bits, rate, floor, grind, chal, recursive, zk=None):
     """Word multiplications of the 𝔽₂ prover: Flock's PIOP, the scaled commitment (the NTT
     and two trees with the ring switching for an ARC step; a full proof for a recursive
-    step), under zero knowledge the mask row's commitment (the witness's over the first
-    fold's arity) or the Zook-style masks' encoding, and the grinding."""
+    step), under zero knowledge the witness-size mask's commitment or the Zook-style masks'
+    encoding, and the grinding."""
     p = frib_proof(bits, rate, floor, grind, chal, 1 if recursive else ARC_DECIDER_TREES, zk == "mask")
     ops = p["ops"]
     mask = 1 + p["mask_share"] if zk == "mask" else 1

@@ -3,8 +3,8 @@
 # extensions copyright 2026 Zcash Protocol Developers. Licensed under the MIT license or the
 # Apache License, Version 2.0, at your option: the original with its author's agreement
 # (2026-11-11), the extensions as the rest of this repository.
-"""Python port of Ulrich Haböck's frib_optimizer.sage at revision ada1e779 of
-github.com/ulrich-haboeck/scripts (2026-11-10; the copy beside this file is his original of
+"""Python port of Ulrich Haböck's frib_optimizer.sage at revision 1187ef3c of
+github.com/ulrich-haboeck/scripts (2026-11-12; the copy beside this file is his original of
 2026-10-21): Sage's `^` is `**`, its log/ceil/floor/sqrt are math's, and there are three
 extensions. `field_bits` (default 256) in `CAT_bits`, `max_list_size` and `optimize` is the
 size of the field that the folding challenges are drawn from, which sets the agreement bound
@@ -20,11 +20,12 @@ admits at the security level is taken, as the original now does.
 
 Changes in the original since the first port: the list size is automatic and the agreement
 check counts the codeword's length in field elements (`w - 8 + rate_bits`) rather than in
-bits; zero knowledge is a mask added in the first round, which gives that round's leaves one
-more field element and a hash-sized blinder, and a schedule with no reduction opens the
-mask beside the witness before revealing it, instead of the earlier separate opening round;
-every proof carries the Galois orbit of the evaluation claim; and the verifier's hash count
-is the pruned paths plus the opened leaves.
+bits; zero knowledge is a mask of the witness's size added in the first round, which doubles
+that round's leaves and adds a hash-sized blinder to each (his revision ada1e779 had one
+mask row per leaf, a slip he corrected at 1187ef3c when asked), and a schedule with no
+reduction opens the mask beside the witness before revealing it, instead of the earlier
+separate opening round; every proof carries the Galois orbit of the evaluation claim; and
+the verifier's hash count is the pruned paths plus the opened leaves.
 
 FRI-Binius proof size optimizer. Given initial witness size and rate, determines the folding parameters
 achieving minimal proof size.
@@ -138,11 +139,12 @@ def optimize(w, rate_bits, lambda_bits, grind_bits,
     @lru_cache(maxsize=None)
     def solve(m,zk,top=True):
         # the element size: `first` in the first round, the challenge field's after it; the
-        # first round opens `first_trees` oracles. The mask row is a challenge-field element
-        # and the blinder a hash, per oracle.
+        # first round opens `first_trees` oracles. The mask doubles the rows of each leaf
+        # and the blinder adds a hash, per oracle.
         unit = first if top else FIELD_BYTES
         trees = first_trees if top else 1
-        mask = (FIELD_BYTES + HASH_BYTES) if zk == 'true' else 0
+        rows = 2 if zk == 'true' else 1
+        blinder = HASH_BYTES if zk == 'true' else 0
 
         # reduction exponent ell=0, always terminates the protocol
         ell = 0
@@ -151,7 +153,7 @@ def optimize(w, rate_bits, lambda_bits, grind_bits,
         if zk == 'true':
             # Batching step with mask of witness size, then reveal.
             # Includes Merkle leaf blinder of size HASH_BYTES
-            b = (1 << ell) * unit + mask
+            b = rows * (1 << ell) * unit + blinder
             opened = b * t * trees
             uncompressed_auth = HASH_BYTES * t * h * trees
             compressed_auth = HASH_BYTES * expected_multiproof_hashes(h, t) * trees
@@ -186,8 +188,8 @@ def optimize(w, rate_bits, lambda_bits, grind_bits,
         for ell in range(1, m+1):
             # treee height
             h = m - ell + rate_bits
-            # leaf size, with the mask row and the leaf blinder under zk
-            b = (1 << ell) * unit + mask
+            # leaf size, with the witness-size mask and the leaf blinder under zk
+            b = rows * (1 << ell) * unit + blinder
 
             opened = b * t * trees
             uncompressed_auth = HASH_BYTES * t * h * trees
