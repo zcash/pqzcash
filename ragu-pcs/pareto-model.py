@@ -1226,44 +1226,74 @@ for mode in ("arc", "rec"):
 # prover 113 ms, the optimized conventional Booleanity sumcheck 438 ms; verifiers 0.85 and
 # 0.023 ms; reduction payloads 2,592 and 1,744 bytes; no commitment opening or hiding. Per
 # bit that is 2.5 and 9.8 word multiplications, beside Akita's own 23.7 per digit at the 64-bit
-# modulus. The projection verifier scans 3.1 million sampled coefficients, at least a gate
-# each in a Pasta merge circuit, so under recursion the sumcheck form is the usable one; the
-# projection form is shown for its prover. A value is 255 digits against 85 for the 64-bit
-# variant's three-bit digits, so the batched polynomial is three times longer. Revealing the
+# modulus. A step commits 2^rank digits, one bit each. The merge is Akita's, costed in digits
+# as the recovery circuit is in recovery_cost: a bit gate is one digit, so a BLAKE3
+# compression of the transcript is 15,072 digits and the images' reductions one per bit,
+# while a Pasta multiplication is the 255 digits of its result, so a Poseidon permutation is
+# 72 × 255 per absorbed atom, the sum-check's arithmetic 400 of them, and each circuit's
+# claim four; the Booleanity sum-check's verifier is about 3,000 multiplications, and the
+# projection verifier scans 3.1 million sampled coefficients, a digit each, so under
+# recursion the sum-check form is the usable one and the projection form is shown for its
+# prover. With a conventional hash the merge is cheaper here than with Poseidon, the reverse
+# of the field arithmetizations, since its hashing is bit operations. Revealing the
 # projection gives no zero knowledge, and the draft's certificates are conditional and not
 # yet formalized.
-BITS_PER_VALUE = 255
-BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, merge gates)
-    "projection": (113 / 2 ** 27 * WORD_MULTS_PER_MS, 2592, 0.85, 3_109_760),
-    "sumcheck": (437.7 / 2 ** 27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000),
-
+BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, merge multiplications, merge bit gates)
+    "projection": (113 / 2 ** 27 * WORD_MULTS_PER_MS, 2592, 0.85, 0, 3_109_760),
+    "sumcheck": (437.7 / 2 ** 27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
 }
-for (check, (bool_mults, bool_bytes, bool_verify_ms, bool_gates)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
+
+def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits):
+    """The draft frontend's merge in one-bit digits: the transcript hashing, the images'
+    reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier."""
+    if hp == "poseidon":
+        hashing = akita_atoms("pasta_q64", K, circuits, False) * HASH_GATES_PER_ATOM * BITS_PER_VALUE
+    else:
+        hashing = akita_absorbed_bytes("pasta_q64", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_BITS
+    return (hashing + 2 * K * FOLD_GATES_PER_IMAGE
+            + (SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults) * BITS_PER_VALUE + bool_bits)
+
+def frontend_circuits(K, rank, hp, bool_mults, bool_bits):
+    """The step circuits of 2^rank digits that the merge needs, at its fixed point; None
+    where each circuit's claim costs more digits than the circuit holds, as for the lattice
+    rows under BLAKE3."""
+    per_circuit = frontend_merge_digits(K, 2, hp, bool_mults, bool_bits) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits)
+    if per_circuit >= 2 ** rank:
+        return None
+    circuits = 1
+    for _ in range(200):
+        new = math.ceil(frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits) / 2 ** rank)
+        if new == circuits:
+            return circuits
+        circuits = new
+    return circuits
+
+for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
     K = STAGES + 1
     for floor in FLOORS:
         for rank in RANKS:
-            circuits = akita_circuits("pasta_q64", K, rank, False, hp)
+            circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits)
             if circuits is None:
-                continue
-            gates = akita_merge_gates("pasta_q64", K, circuits, False, hp) + bool_gates
+                continue  # the per-circuit claim's digits exceed this rank's circuit
+            digits = frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits)
             atoms = akita_atoms("pasta_q64", K, circuits, False)
-            log_len = rank + math.log2(circuits)
+            log_len = rank + math.log2(circuits) - math.log2(DIGITS["pasta_q64"])  # in the 64-bit variant's coefficients of 85 digits
             rank_scale = RANK_SCALE[floor]["pasta_q64"]
             per_digit = ajtai_per_coefficient("pasta_q64", False, rank_scale) / DIGITS["pasta_q64"]
             for H in (2, 4):
-                opening = akita_bytes("pasta_q64", K - 1, log_len + math.log2(BITS_PER_VALUE / DIGITS["pasta_q64"])) * rank_factor_share("pasta_q64", rank_scale)
+                opening = akita_bytes("pasta_q64", K - 1, log_len) * rank_factor_share("pasta_q64", rank_scale)
                 instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
                 points.append(dict(
                     family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
                     groups=K, packing=None, circuits=circuits, change="design", zk=False,
                     bytes=round(opening + instance + bool_bytes),
-                    prover=round(circuits * 2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)),
-                    step_prover=round(2 ** rank * BITS_PER_VALUE * (per_digit + bool_mults)), fold=0,
+                    prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
+                    step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=0,
                     accumulation=atoms,
-                    gates=gates,
+                    gates=round(digits),
                     verify=akita_verify("pasta_q64", log_len, False, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
                     folded=K,
-                    label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + floor_label(floor),
+                    label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, header {H}, Booleanity by {check}" + HASH_LABEL[hp] + floor_label(floor),
                 ))
 
 # Endoscaling capacity beyond the points to walk changes nothing; keep the smallest E of
