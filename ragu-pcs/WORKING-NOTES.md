@@ -1235,3 +1235,37 @@ pairing for the template's adjacent paragraphs (PAIR_BY_POSITION). Artifact repu
   Booleanity sum-check; the user will want them, since Ironwood transactions are private);
   Ulrich's answers (Zook rows); the 150-bit re-plan; BitZ reruns on mains; the notes' older
   items. The nine root TSVs are still untracked.
+
+## 2026-11-12 03:40 UTC: zero-knowledge rows for the draft frontend; four recovery inputs
+
+The user pushed everything through c604d95. Then f629ddd (zk rows) and 2a01e16 (the option),
+unpushed, each verified from git archive; artifact v87.
+
+- ZK ROWS (`bits_q64`, sum-check form only; the projection form reveals coordinates and has
+  none): Akita's mask as the lattice rows have it. The per-digit price at the masked rank (23.7
+  → 45.3 word mults, ×1.9) on every step; 18 more atoms in the zk-layer merge, hashed in digits
+  (+136k under BLAKE3, +330k under Poseidon); the fold = MASK_ATTEMPTS × K × 2^rank digits ×
+  (masked per-digit + 900 for Karney sampling) + the fold's own merge; opening and decider
+  unchanged. The accumulator is K × 2^rank digits, one per committed bit (the lattice rows'
+  mask_fold has 85 per coefficient), so the fold grows with the rank where the merges shrink.
+  Recovery circuit per note, one core, BLAKE3: rank 17 2.41 s, 18 2.31 s (the minimum; the
+  fold 4.2e9 is 1.4 s of it), 19 3.3 s, 21 11.2 s, 23 43.7 s; without zk 0.97 → 0.14 s at 21.
+  Poseidon: 3.08 s at rank 18. Akita with Pasta claims, zk: 44.7 s at rank 13 (fold 1.1e10),
+  63.7 s at 17 (fold 1.7e11). So zero knowledge costs the frontend 16× at its optimum, nearly
+  all of it the mask's sampling at 300 ns a sample (900 word mults); the levers are a faster
+  Gaussian sampler, fewer attempts (α) and a smaller zk-layer accumulator; §5.8 moves the work
+  off the device but not away.
+- THE OPTION `recovery:4`, "a transaction with 4 Ironwood recovery inputs" (the user: "4
+  Ironwood recovery inputs in a single tx, so only one zk step"): the page's formula already
+  added the fold once per transaction whatever it proves, since the masked accumulator is the
+  step's size; the text says so now. Four inputs on the frontend: without zk 0.47 s at rank 21;
+  with zk 4.9 s at rank 18 or 19 (the fold amortises: 2.3 s for one input); Pasta claims zk 73
+  s at rank 15; BitZ without zk 0.91 s at rank 24.
+- The user's reading: "it's interesting that we actually need the faster prover of the
+  post-quantum schemes to make it fast enough to prove the recovery circuit": Pedersen-Ragu at
+  rank 14 is 243 s per note in the model (139 merges of about fifty 2^14 commitments; the
+  Pippenger price of 6,400 per coefficient is on the pessimistic side, a 2^14 Pasta MSM being
+  nearer 1,000 to 2,000 in practice, so one to four minutes), against 0.14 s on the frontend;
+  the enabling ingredient is the bit arithmetization (a hash bit as one committed bit, 26 word
+  mults, against four field elements), which BitZ also has at 0.30 s; the lattice adds the
+  tiny merge and the small proof.
