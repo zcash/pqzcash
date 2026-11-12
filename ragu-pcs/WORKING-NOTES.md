@@ -1104,3 +1104,56 @@ transcript alone (an ~85 KB opening proof absorbed in-circuit) is ~2e7 gates wit
 Goldilocks at 2^17 gates), so dearer with conventional hashes and close with Poseidon.
 Conclusion: the rank stays with the shared matrix; revisit if a succinct switch for a
 structured A' appears or an in-circuit opening becomes cheap. Artifact at version 85.
+
+## 2026-11-12 01:22 UTC: STATE for resumption (context low)
+
+Everything through 6f8740d is pushed and CI is green (book, Lean, zizmor). Artifact version 85
+(https://claude.ai/artifact/CrW3rrJ8D7gUAk27y92LLm; this session published it, so a publish with
+that url updates it). Page: 4.3 MB, ~9,400 points. Pending Ulrich's answers to
+keep/ulrich-zk-question-2026-11-12.txt (sent on Signal, attributed to Claude): then drop or keep
+the Zook-style rows and revisit the mask row's prover charge (now 2^-ell1 of the witness's
+commitment, in the fold).
+
+NEXT: the Flock-style-Boolean-over-Akita-binary-groups family ("bits over Akita's binary groups",
+experimental). Facts gathered: LayerZero-Labs/akita#285 is the tracking issue; binary groups
+(bits) open inside one ordinary grouped Akita opening on `dev`, feature `binary`; PR #229's
+LaBinius root reduction and nested PCS are replaced and deleted (#421). Measurements: PR #428's
+table (copied in work/akita-binary/binary-p64-root.md lines 197-210): 2^22 carriers (a carrier =
+128 bits, so 2^29 bits) P128 binary-claim 82,764 B, commit 174 ms, prove 648 ms, verify 8.5 ms;
+P64 79,236 B / 207 / 1,045 / 11.0; 2^23 carriers P128 84,590 B / 296 / 922 / 9.5 (so ~1.8 KB
+per doubling of the witness); "plus-ordinary" shapes ~84 KB. CONDITIONS: scripts/binary-full-size.sh
+builds with features parallel,binary-measurements,transcript-blake2b, so the times are
+MULTI-THREADED on a shared M4 Max (load 7.7-13.9): assume ~10x for a single-thread equivalent
+and say so. Security: the q24 SIS certificate and the full ledger are open; "no security claim"
+(#312); P64 root grinding to 2^-128 per query. Specs saved: work/akita-binary/{binary-groups,
+binary-checkpoint,binary-multigroup,binary-p64-root,binary-q24-certificate}.md; the per-stage
+byte/atom tables are in specs/binary-opening.md on dev (298 KB; NOT fetched; path
+`specs/binary-source-opening.md` no longer exists).
+
+Pricing plan (state the assumptions on the page): family `bits_akita`, pq, pasta=False, no
+rank (like flock), zk=False, hashes="any" (its merge hashes natively in a Boolean circuit at
+8,192 AND gates per BLAKE3 compression under either policy), change="design", assumption
+Module-SIS + random oracle, label "experimental: Akita dev branch, security ledger open".
+- bytes: the measured opening extrapolated down from 2^22 carriers to the merge's witness
+  (14-37M bits = 2^17-2^18 carriers) at 1.8 KB per doubling (82.8 KB - 4-5 x 1.8 = ~74-76 KB)
+  + the instance (6 images x 128 B + claims), header 2.
+- prover per merge: the merge's AND-gate witness x per-bit cost; per-bit cost = (commit + prove)
+  single-thread-equivalent / 2^29 bits = (174 + 648) ms x ~10 / 2^29 = ~15 ns/bit = ~45
+  word-mult equivalents per bit at 3e9/s (against ~18 for the FRI-Binius step). Flag the x10.
+- merge (gates, in AND gates): Akita's merge in a Boolean circuit: the transcript's ~3 KB
+  absorbed in BLAKE3 at 8,192 AND per 64 B (~45 compressions = 0.37M), the fold of 6 images x
+  128 B in Z_q24 arithmetic (~0.1M), the sum-check verifier (120 atoms in E64/F_{2^128},
+  ~0.4M) => ~1M AND gates, i.e. 25x smaller than the F2 family's ARC merge at rate 1/8 (25M).
+  OUR ESTIMATE; say so.
+- accumulation atoms: Akita's (~170).
+- verify: measured 8.5 ms (P128) scaled to the merge's bits by the Akita slope (0.4 ms per
+  doubling): ~7 ms => 2.1e7 word mults.
+- transaction measure: BitZ's convention, 510 committed bits per Pasta gate in steps of 2^13.
+Expected result: ~75 KB, merge prover ~4e7 (1M bits x 45), verify 7 ms: would dominate the F2
+family on bytes and merge prover (169 KiB / 4.45e8) and lose on the verifier (0.3 ms). Present
+with the caveats (parallelism, our merge estimate, open security ledger, no Pasta, no zk).
+
+Then: the 150-bit re-plan (staged; work/akita-150-replan.sh; ~1 h on mains; expected
+single-digit percent); the lookup option as a flagged design change (logUp emulated: hash gates
+/5 over Pasta claims, -28% over Goldilocks; from keep/lookups-in-ragu.md); BitZ reruns on mains;
+the recovery circuit per component in the bit arithmetization.
