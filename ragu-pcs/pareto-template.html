@@ -441,6 +441,11 @@ function render() {
   // camera. The 3D scene cannot autorange a single point, or equal values on
   // a log axis, so its ranges are always set explicitly, with padding.
   const hold = document.getElementById('holdcamera').checked;
+  // With the hold on, the 3D camera is read from the live figure and passed back
+  // explicitly, so that it stays put whatever Plotly's own persistence decides
+  // when the traces change under it.
+  const live = document.getElementById('plot')._fullLayout || {};
+  const camera = hold && live.scene && live.scene.camera ? JSON.parse(JSON.stringify(live.scene.camera)) : undefined;
   const log = scale === 'log';
   const zlog = t !== 'accumulation' && log;  // gates and verifier work span orders of magnitude; atoms do not
   if (hold) {
@@ -473,7 +478,7 @@ function render() {
     layout.xaxis = { ...axis('compressed proof bytes'), type: scale, range: rx, autorange: false };
     layout.yaxis = { ...axis(`prover ${uname} per step, commitments only`), type: scale, range: ry, autorange: false };
   } else {
-    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(`prover ${uname}`), type: scale, range: ry }, zaxis: { ...axis(thirdTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface };
+    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(`prover ${uname}`), type: scale, range: ry }, zaxis: { ...axis(thirdTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface, ...(camera ? { camera } : {}) };
     layout.margin = { l: 0, r: 0, t: 0, b: 0 };
   }
   keepCameraOnce = false;
