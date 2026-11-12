@@ -1157,3 +1157,81 @@ Then: the 150-bit re-plan (staged; work/akita-150-replan.sh; ~1 h on mains; expe
 single-digit percent); the lookup option as a flagged design change (logUp emulated: hash gates
 /5 over Pasta claims, -28% over Goldilocks; from keep/lookups-in-ragu.md); BitZ reruns on mains;
 the recovery circuit per component in the bit arithmetization.
+
+## 2026-11-12 03:30 UTC: the binary-groups family, the transaction's application, the bit arithmetizations
+
+Six commits on main after 74362f3, unpushed: 9933707 (the 𝔽₂ decider absorbs its proof), c90fad1
+(the transaction's application in each arithmetization), fad0db7 (the draft frontend's merge in
+digits), f376237 (Flock-style circuits over Akita's binary groups), 7b1835d (the measure is called
+decider work), 6f799fb (ranks to 24 for BitZ and 23 for the frontend). Each runs the model on its
+own (git archive + run, work/verify/). The split was done by work/split-commits.py with per-line
+pairing for the template's adjacent paragraphs (PAIR_BY_POSITION). Artifact republished.
+
+- FAMILY `bits_akita` ("Flock/Binius-style over Akita's binary groups, lattice (experimental)",
+  brown): P128 root measurements (82,764 B at 2^29 bits, commit 174 + prove 648 ms, verify 8.5 ms,
+  parallel feature, loaded M4 Max; BINARY_MEASURED). Merge = Akita's fold in AND gates
+  (bits_akita_merge_ands): transcript 2.7 KB by BLAKE3 at 8,192 AND (0.35M), the twelve images
+  folded by adders at the page's challenge weight 20 (0.27M), 120 proof-field multiplications at
+  `mult_ands(128) + reduce_ands(128)` = 16,366 + 768 (2.1M): 2.7M AND gates in all (the user asked
+  whether Karatsuba or Toom-Cook help: `mult_ands` takes the cheapest of schoolbook, Karatsuba and
+  Toom-Cook 3 at each width, free XOR, one AND per full adder; schoolbook 32,640 at 128 bits,
+  Karatsuba 16,664, Toom-3 16,366, i.e. a few percent, not the 10-15% I first said). Bytes: the
+  measured opening extrapolated to the merge's 2^21.3 bits at the planner's 563 B/doubling with the
+  stage groups at fp128's growth (the measured pair's 1.8 KB/doubling is one difference between
+  single runs, not a slope): 84,780 B. Prover: (commit + prove) × 10 for one thread / 2^29 = 46
+  word mults per bit + Flock's PIOP 2.3 → 1.29e8 per merge (upper bound). Decider 5 ms. Pasta=False,
+  floor 128 only, zk none, hashes="any", security ledger open. On the post-quantum frontier under
+  BLAKE3. Under the recovery-circuit transaction it is 46 s (a Boolean circuit pays 120k AND gates
+  per Pallas multiplication), so it is a row for Boolean applications.
+- TRANSACTION MEASURE (the user: "Please try to compensate for" the Goldilocks rows' application
+  being priced as native gates; then "the application gates measure is unclear. we need to
+  estimate it for the recovery circuit and for a circuit with a given number of Merkle path
+  checks (the latter should respect whether Poseidon is allowed)"): the knob is now an application
+  (`#txapp`: the Ironwood recovery circuit, or 1/2/4/8/16/64 Merkle path checks of 33 nodes),
+  costed in each arithmetization's unit under the hash policy (DATA.applications, from
+  `recovery_cost`/`path_cost`), divided by the step's capacity `step_units` (2^(rank-2) gates of
+  four coefficients for the field families, which the old G/2^rank formula undercounted 4×;
+  2^rank bits/digits for BitZ and the frontend; 2^22 ANDs for the Boolean rows), rounded up (a
+  transaction smaller than a step pays a whole step). Recovery circuit: Pasta 567,600 (Poseidon
+  path) / 1,049,800 (BLAKE3) gates; Goldilocks 16.5M/17.0M (1,100 per emulated multiplication);
+  fp128 10.7M/11.2M (700, the 2026-11-03 figure); Boolean 1.73G ANDs (14,500 × 2.5 × 47,824: the
+  product plus a Montgomery reduction at 1.5 products; hashes 24,576 ANDs per BLAKE2b); BitZ 8.43M
+  bits (510 per multiplication, 50,560 per BLAKE2b, one per wire bit); draft frontend 4.73M digits
+  (255 per multiplication, no quotient). One path: 9,500 Pasta / 15,600 Goldilocks or fp128
+  (Poseidon), 491,700 gates (BLAKE3), 270,336 ANDs, 497,376 bits/digits. The table is in
+  keep/recovery-circuit-cost.md ("The bit arithmetizations"). Costing the recovery circuit
+  component by component in the bit arithmetization, the open step of 2026-10-15, is thereby done.
+- THE DRAFT FRONTEND'S MERGE IN DIGITS (the user: "make the recosting cover the merge circuit"):
+  `frontend_merge_digits`: a bit gate one digit (BLAKE3 compression 15,072, image reductions one
+  per bit, the projection's 3.1M-coefficient scan), a multiplication 255 (Poseidon 72 × 255 per
+  atom, sum-check 400, claims 4 per circuit, the Booleanity sum-check's verifier 3,000); a step
+  commits 2^rank digits; circuits at a fixed point, None where a claim's digits exceed the circuit
+  (rank 13; rank 14 under Poseidon). BLAKE3 is now cheaper than Poseidon for this family's merge.
+  Rank 17 BLAKE3 sumcheck: 81,718 B, 7.5e7, 2.1M digits, decider 7 ms; Poseidon 84,005 B, 1.5e8,
+  4.4M. The 64-bit Pasta-claims variant's BLAKE3 merge prover is 150× larger (1.14e10 at rank 17)
+  because every hash wire is a 255-bit value (four coefficients per gate, 8,064 word mults per
+  bit gate against 26 here). BitZ's step witness is 2^rank bits (was 2^rank × 510).
+- RESULTS, recovery circuit per note, one core: frontend 0.97 s at rank 17 → 0.14 s at rank 21
+  (3 merges); BitZ with ARC 5.9 s at 17 → 0.30 s at 24 (one step); Pasta claims/64-bit Poseidon
+  3.2 s at rank 17 (18 steps; its floor is the step commitment, 1.5 s, of which the seven
+  BLAKE2b are two thirds) and 128 s with BLAKE3; Goldilocks Poseidon 26 s, BLAKE3 204 s; bits_akita
+  46 s; 𝔽₂ ARC 72 s; Pedersen rank 14 243 s (139 steps × 1.7 s merges). The user: "we clearly have
+  a problem: proving the recovery circuit is *very* expensive, especially considering that it's
+  per recovered note"; then, on the single-core figures and the rank extension, "we have a clear
+  winner" (the draft frontend). Caveats recorded in the chat reply of 03:30: no zk modelled for
+  the frontend (its rows drop out under the zk toggle; the projection form reveals coordinates,
+  the sum-check form could take Akita's mask), the Booleanity draft is provisional with
+  conditional certificates, the decoupled commitment modulus has no soundness argument yet, the
+  figures are our component counts (BitZ's PCS is measured, the frontend's is not), and Quang
+  thinks the frontend's prover is overestimated (which would widen the win). Levers for the field
+  arithmetizations: lookups (hash gates /5), Poseidon in the path (1.8×), batching notes under one
+  key (≤ 2×: 45% of the gates are per key).
+- SMALLER: the 𝔽₂ decider now absorbs its proof bytes (1,200-3,700 compressions; 0.2-0.5 ms; the
+  FRI-Binius paper: under a millisecond at 2^28 bits, 0.35 MiB); "verifier work" → "decider
+  work" everywhere; the BitZ ranks under the transaction measure stay on the frontier because
+  the merge count falls with rank while the proof grows slightly (the user asked why they do not
+  collapse). work/pup/tx-probe.mjs selects the transaction measure and dumps the table.
+- PENDING: zero-knowledge rows for the draft frontend (Akita's mask on the rows term plus a zk
+  Booleanity sum-check; the user will want them, since Ironwood transactions are private);
+  Ulrich's answers (Zook rows); the 150-bit re-plan; BitZ reruns on mains; the notes' older
+  items. The nine root TSVs are still untracked.
