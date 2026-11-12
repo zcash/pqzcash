@@ -817,9 +817,10 @@ def f2_prover(bits, rate, floor, grind, chal, recursive, zk=None):
     return f2_piop(bits, chal) + pcs + grind_prover(BLAKE3_NATIVE, grind)
 
 def f2_verify(p, grind, chal, zk=None):
-    """The decider's word multiplications: the proof's authentication and leaf hashes, the
-    grinding check, the Zook-style masks' spot checks, and its field multiplications."""
-    return ((p["auth"] + p["opened"] / 64 + (2 if grind else 0) + (p["zook"][1] if zk == "zook" else 0)) * BLAKE3_NATIVE
+    """The decider's word multiplications: the proof's bytes absorbed into the transcript,
+    its authentication and leaf hashes, the grinding check, the Zook-style masks' spot
+    checks, and its field multiplications."""
+    return ((f2_bytes(p, zk) / 64 + p["auth"] + p["opened"] / 64 + (2 if grind else 0) + (p["zook"][1] if zk == "zook" else 0)) * BLAKE3_NATIVE
             + p["field_mults"] * CLMULS[chal])
 
 def f2_merge(rate, floor, grind=GRIND_DEFAULT):
