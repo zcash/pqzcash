@@ -1500,7 +1500,7 @@ points = [p for p in points if p.get("grind") in (None, "auto") or p["grind"] in
 for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 128), (True, False, 150), (True, True, 150), (False, None, 128)), HASH_POLICIES):
     for grind in (None, "auto", *GRINDS):
         sub = [p for p in points if p["pq"] == cls and p["zk"] in (zk, None) and p["floor"] == floor
-               and p["hashes"] in (hp, "any") and p.get("grind") in (None, grind)]
+               and (p["hashes"] in ("blake3", "any") or hp == "poseidon") and p.get("grind") in (None, grind)]
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
 
