@@ -239,7 +239,7 @@ def akita_bytes(variant, K, log_len):
         y = ys[i] + t * (ys[i + 1] - ys[i])
     return round(y + SLOPE[variant] * (log_len - 14))
 
-# ---- Verifier work ---------------------------------------------------------------
+# ---- Decider work ----------------------------------------------------------------
 # The decider's verification, in the same 64-bit word-multiplication equivalents as the
 # prover, at 3e9 per second of one core. Pedersen-IPA: the two IPAs each need a multi-scalar
 # multiplication of 2^rank points, plus a scalar multiplication per folded commitment to

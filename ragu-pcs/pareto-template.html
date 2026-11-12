@@ -120,7 +120,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="group"><span class="eyebrow">Third measure</span>
       <label><input type="radio" name="third" value="gates" checked id="thirdgates"> merge gates</label>
       <label><input type="radio" name="third" value="accumulation" id="thirdatoms"> accumulation atoms</label>
-      <label><input type="radio" name="third" value="verify" id="thirdverify"> verifier work</label>
+      <label><input type="radio" name="third" value="verify" id="thirdverify"> decider work</label>
       <label><input type="radio" name="third" value="transaction" id="thirdtx"> transaction prover, for a transaction proving</label>
       <label><select id="txapp">
         <option value="recovery" selected>the Ironwood recovery circuit</option>
@@ -160,7 +160,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p><strong>The hash-based families.</strong> The figures in this paragraph are with Poseidon trees, the arithmetic-hash option; the Hashes paragraph below gives the BLAKE3 ones. WHIR with ARC accumulation is dominated by Akita on every measure: with the grinding chosen per row its proofs are 197 to 831 KB, its prover is 16 to 650 times Pedersen-IPA's, and its merge is 0.6 to 3.1 million gates, 20 to 140 times Akita's. The proof is the decider's. At the root nobody has yet combined the two child accumulators with the root's own witness, so the decider's proof opens those three oracles in its first round, each under its own Merkle root (Ulrich Haböck's point). A stand-alone WHIR proof of the same witness is 177 KB at rate 1/8 and rank 13. The two extra first rounds bring it to 326, with their paths pruned as a multiproof, as the reference implementation already prunes its own. The lower rates and the grinding, added after Ulrich Haböck's questions, take a third off its proof at rate 1/32 against rate 1/8 (226 against 326 KB at rank 13) and a third off its merge, at two and a half times the encoding and hashing. The sizes are extrapolated from measurements at 2<sup>17</sup>, 2<sup>18</sup> and 2<sup>20</sup>; the growth per doubling is not uniform, since a folding round is added every two doublings, and the three-doubling slope used here is about nine KiB against five over the first doubling alone, which is why these rows are larger than the earlier page showed. Goldilocks cuts its prover by about five times and its proof by a sixth, and grows its merge, since a Goldilocks Poseidon costs more gates per node. The Pasta-claims-with-64‑bit-limbs hybrid, unlike Akita's 64‑bit commitment variant, gains nothing: the Pasta merge circuit forces Pasta's hash on the trees, and four limbs per coefficient is more hashing, not less. WHIR over Pasta is dominated by Akita's Pasta variants, which is a like-for-like comparison. What the hash-based route has that Akita does not is a native Pasta field with no design change beyond the commitment scheme, and a prover whose hashing is cheap with a conventional hash; the default view prices that, and the Hashes paragraph says what the recursion then costs.</p>
   <p><strong>ARC against each scheme's own recursion.</strong> Every hash-based scheme appears twice, with ARC accumulation and, in a lighter shade of the same colour, with full recursion: the merge circuit verifies its two input proofs, each step emits a full proof, and the decider verifies one. The hash and the field are the same; the proofs differ, since the recursive decider verifies one stand-alone proof while the ARC decider's first round opens three oracles, so the recursive rows' proofs are a little over half the ARC rows' (181 against 326 KB for WHIR at rate 1/8 and rank 13). For WHIR the recursion is about a wash on the prover at rate 1/8: the verifier's hashes per input match ARC's openings through the tree's levels (2,600 against 86 × 26 without grinding, and both fall with it), and its merge is two fifths larger. At rate 1/2 it saves a third of the prover and a twentieth of the merge, because the verifier's queries fall with the rate while ARC's openings grow with it. FRI's verifier has twice WHIR's hashes, so its recursion costs about twice ARC. Ligerito's verifier, under BitZ, opens 491 columns over its five levels at 100 bits, against ARC's 86 openings at rate 1/8, so its recursion is seven times ARC's hashing (200 against 28 million witness bits at rate 1/8), and the proof grows with the merge; the ARC row is the better one for BitZ. The 𝔽₂ family's recursion verifies its own FRI-Binius proof, whose ring-switching verifier costs 2ℓ′·2<sup>κ</sup> field multiplications. So its merge is 85 million witness bits in the 192‑bit design, 134 million in the 191‑bit one, whose one-step ring switching costs the verifier 191 field multiplications per variable rather than 64, and 224 million in the 256‑bit one, against 25 million under ARC, at two and a half to seven times the prover, with the verifier's paths pruned as a multiproof. Its proof is a quarter smaller (123 against 169 KiB at rate 1/8).</p>
   <div class="tablewrap"><table id="table"><thead><tr>
-    <th>Family</th><th>Configuration</th><th class="num">Proof<br>bytes</th><th class="num" id="th-prover">Prover<br>64‑bit muls</th><th class="num" id="th-verify">Verifier<br>64‑bit muls</th><th class="num" id="th-tx">Transaction<br>64‑bit muls</th><th class="num">Accumulation<br>atoms</th><th class="num">Merge<br>gates</th><th class="num">Commitments<br>folded</th><th>Pasta<br>field</th><th>Assumption</th><th>Changes<br>needed</th><th>Frontier</th>
+    <th>Family</th><th>Configuration</th><th class="num">Proof<br>bytes</th><th class="num" id="th-prover">Prover<br>64‑bit muls</th><th class="num" id="th-verify">Decider<br>64‑bit muls</th><th class="num" id="th-tx">Transaction<br>64‑bit muls</th><th class="num">Accumulation<br>atoms</th><th class="num">Merge<br>gates</th><th class="num">Commitments<br>folded</th><th>Pasta<br>field</th><th>Assumption</th><th>Changes<br>needed</th><th>Frontier</th>
   </tr></thead><tbody></tbody></table></div>
 
   <h2>What the axes mean</h2>
@@ -294,13 +294,13 @@ function frontierAmong(pts, third) {
   return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q.prover <= p.prover && q[third] <= p[third] && q.pasta >= p.pasta && (q.bytes !== p.bytes || q.prover !== p.prover || q[third] !== p[third])));
 }
 const third = () => document.querySelector('input[name=third]:checked').value;
-// Prover and verifier work are stored in 64-bit word multiplications; the
+// Prover and decider work are stored in 64-bit word multiplications; the
 // unit option shows them as microseconds at 3e9 per second on one core.
 const unit = () => document.querySelector('input[name=unit]:checked').value;
 const unitFactor = () => unit() === 'us' ? 1 / 3000 : 1;
 const unitName = () => unit() === 'us' ? 'µs' : '64‑bit muls';
 const val = (p, key) => (key === 'prover' || key === 'verify' || key === 'transaction') ? p[key] * unitFactor() : p[key];
-const thirdTitle = t => ({ gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `verifier ${unitName()}`, transaction: `transaction prover ${unitName()}` })[t];
+const thirdTitle = t => ({ gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `decider ${unitName()}`, transaction: `transaction prover ${unitName()}` })[t];
 function fmt(n) { return n.toLocaleString('en-GB'); }
 // A padded axis range over the points' values of one key, in log10 units for a
 // log axis, as Plotly expects.
@@ -341,7 +341,7 @@ function wrapLabel(label, width = 60) {
   return lines.join('<br>');
 }
 function hover(p) {
-  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover ${fmt(Math.round(val(p, 'prover')))} ${unitName()}<br>verifier ${fmt(Math.round(val(p, 'verify')))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}${p.transaction === null ? '' : `<br>transaction prover ${fmt(Math.round(val(p, 'transaction')))} ${unitName()}`}<br>${CHANGE[p.change]}`;
+  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover ${fmt(Math.round(val(p, 'prover')))} ${unitName()}<br>decider ${fmt(Math.round(val(p, 'verify')))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}${p.transaction === null ? '' : `<br>transaction prover ${fmt(Math.round(val(p, 'transaction')))} ${unitName()}`}<br>${CHANGE[p.change]}`;
 }
 function render() {
   // Each class, pre-quantum (Pedersen-IPA) and post‑quantum (Akita), has its
@@ -455,7 +455,7 @@ function render() {
   const live = document.getElementById('plot')._fullLayout || {};
   const camera = hold && live.scene && live.scene.camera ? JSON.parse(JSON.stringify(live.scene.camera)) : undefined;
   const log = scale === 'log';
-  const zlog = t !== 'accumulation' && log;  // gates and verifier work span orders of magnitude; atoms do not
+  const zlog = t !== 'accumulation' && log;  // gates and decider work span orders of magnitude; atoms do not
   if (hold) {
     if (held && held.scale === scale && held.view === view && held.third === t && held.unit !== u) {
       // A change of work unit multiplies the prover axis, and the verifier
@@ -501,7 +501,7 @@ function render() {
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="13">No family selected.</td></tr>';
   document.getElementById('th-prover').innerHTML = `Prover<br><span class="unit">${uname}</span>`;
-  document.getElementById('th-verify').innerHTML = `Verifier<br><span class="unit">${uname}</span>`;
+  document.getElementById('th-verify').innerHTML = `Decider<br><span class="unit">${uname}</span>`;
   document.getElementById('th-tx').innerHTML = `Transaction<br><span class="unit">${uname}</span>`;
   const table = document.getElementById('table');
   if (table.dataset.sortCol !== undefined) sortTable(table, +table.dataset.sortCol, table.dataset.sortDir);
