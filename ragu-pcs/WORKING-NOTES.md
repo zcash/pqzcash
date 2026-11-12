@@ -1269,3 +1269,28 @@ unpushed, each verified from git archive; artifact v87.
   the enabling ingredient is the bit arithmetization (a hash bit as one committed bit, 26 word
   mults, against four field elements), which BitZ also has at 0.30 s; the lattice adds the
   tiny merge and the small proof.
+
+## 2026-11-12 04:06 UTC: BitZ's zero-knowledge rows; the hash option adds rows
+
+Pushed through e0d9202 by the user. Then d514dc9 (BitZ zk rows) and 6972628 (the hash option adds rows), unpushed;
+artifact v89.
+
+- BITZ ZK ROWS (the user: the hash-based BitZ options dropped out under zk; "yes please"):
+  derived, since the paper offers succinctness only. Ligero's random row per Ligerito level
+  (one symbol of 16 B in every opened column: 491 columns × floor/100 × (1 + the ARC decider's
+  extra trees) → about 20 KB under ARC at 128 bits, nothing under recursion) and a Libra-style
+  mask polynomial per sum-check (zero-check, lincheck, Zinc+'s PIOP, and each GKR layer: 4 ×
+  (3 log N + log N (log N + 1)/2) elements, 1,600 at 2^25 bits) committed as extra rows of the
+  same Ligerito matrix and opened with the witness; the masks' share of the witness goes to the
+  fold (2-3e6 word mults, under a percent). Zook-style spot-checked oracles were considered and
+  rejected: with ~325 GKR rounds they would cost ~100 KB (masks × 16 spot checks × 16 B). So
+  the zk BitZ row stays at 0.30 s per recovery note at rank 24 with 20 KB more proof. ARC's zk
+  preservation unexamined, as for the other hash-based rows. `bitz_point(..., zk)`,
+  BITZ_ZK_ELEM, BITZ_ZK_SUMCHECKS, bitz_zk_queries, bitz_mask_elements.
+- THE HASH OPTION (the user: "saying 'Poseidon allowed' should just add extra points for the
+  Poseidon options, unless they are dominated"): the page's filter now keeps the BLAKE3-priced
+  rows always and adds the Poseidon-priced ones under the option (`p.hashes === 'any' ||
+  p.hashes === 'blake3' || hashes === 'poseidon'`); the transaction's application is hashed
+  under the row's own policy (`p.hashes`), the "any" rows under the selected one; the model's
+  frontier printout follows. The within-family pruning still keys on `hashes`, so a BLAKE3 row
+  dominated by its Poseidon twin stays (it is selectable alone).
