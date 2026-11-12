@@ -1085,3 +1085,22 @@ the user's report that toggling zk turned the camera; a second report for the fl
 page). The binary-groups family: data gathered (specs under work/akita-binary/, the measurement
 table of binary-p64-root.md: 2^22/2^23 carriers, P128/P64, 79-85 KB, prove 0.65-1.65 s, verify
 8.5-20 ms on a loaded M4 Max, parallelism unstated), NOT yet modelled.
+
+## 2026-11-12 01:10 UTC: the two-matrix design written up
+
+The user asked whether Akita can avoid every step paying the masked rows term. Written up as
+§5.9 of zk-fiat-shamir-with-aborts.md (commit f1f2b99; §5.2 and §5.4 point to it; open point
+10; the page's zk paragraph refers to it): a second matrix A' for the zero-knowledge layer,
+with the user's chain and the public merges under the ordinary A, would confine the rank, but
+the change of matrix at the handoff must be PROVED (the claims do not bind the witness: a
+dishonest user could mask a different short s' with the same claim values), and no
+homomorphic route exists (nothing linear takes As to A's). A sum-check proof of A's = C'
+needs the verifier to evaluate the multilinear extension of A'^T r, dense and pseudo-random,
+so Θ(N) work; the stacked-matrix variant is §5.2's prefix construction. The form that works is
+an opening at the boundary (Akita's levels down to a terminal the verifier recomputes),
+verified in the first public merge: that seals the handoff as recursion does, but its
+transcript alone (an ~85 KB opening proof absorbed in-circuit) is ~2e7 gates with BLAKE3 or
+~2e5 with Poseidon, against the rows term it saves (~0.25 s of a 1.5 s zk transaction over
+Goldilocks at 2^17 gates), so dearer with conventional hashes and close with Poseidon.
+Conclusion: the rank stays with the shared matrix; revisit if a succinct switch for a
+structured A' appears or an in-circuit opening becomes cheap. Artifact at version 85.
