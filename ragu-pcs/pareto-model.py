@@ -99,19 +99,22 @@ ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pa
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
 # lattice rows it is the folded digit vector, K groups of 2^rank coefficients in digits, each
-# digit held as an element of the commitment field, the form the sum-checks compute in; stored
-# as 32-bit integers, which the accumulated norm bound of 2^27 allows, it would be half of that
-# at 64 bits, a quarter at 128 and an eighth at Pasta's modulus. Pedersen's
+# digit stored at the width of its accumulator's norm bound. The certified l2 bound at the
+# handoff is about 2^19 (zk-fiat-shamir-with-aborts.md's ledger), which bounds every entry, so
+# 20 bits and a sign. Each fold multiplies the entries by up to 40, so a level below the top
+# needs five bits fewer. The measure is of the top level. The sum-checks expand a digit to an
+# element of the commitment field on the fly (8 bytes at 64 bits, 16 at 128, 32 at Pasta's
+# modulus), which is not storage. Pedersen's
 # is the uncompressed proof, every committed polynomial's 2^rank Pasta coefficients (26.5 MB
 # measured at rank 13 against the 24.9 MB counted). The hash-based rows under ARC hold the
 # accumulator's codeword, the witness over the rate in the field's elements, and its Merkle
 # tree; under their own recursion only the previous proof. BitZ and the 𝔽₂ family hold the
 # packed codeword with a tree of 256-byte leaves, and the binary-groups row the packed bits.
-DIGIT_BYTES = {"fp128": 16, "goldilocks": 8, "pasta_sis": 32, "pasta_q64": 8, "pasta": 32}
+PACKED_DIGIT_BITS = 1 + 20  # a sign and the handoff accumulator's bound of about 2^19 per entry
 
 def accumulator_bytes(variant, K, rank, digits=None):
     digits = DIGITS[variant] if digits is None else digits
-    return K * 2 ** rank * digits * DIGIT_BYTES[variant]
+    return K * 2 ** rank * digits * PACKED_DIGIT_BITS / 8
 
 # The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
 # fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is about nine
