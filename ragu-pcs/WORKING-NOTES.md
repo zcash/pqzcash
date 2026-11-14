@@ -1704,3 +1704,53 @@ ragu/work/bench-fuse-asm.log.
   PENDING unchanged: the zk-fold levers for the frontend; the Pallas factor at 147; generate
   the Transaction paragraph's figures from the model; re-render keep/tachyon-statements.md.
 - 18:32 UTC, addendum: the two measure groups share one full-width group laid out in two columns (bbd7dbe), since the two-column controls grid had put them diagonally; artifact v96. Main at bbd7dbe plus this line.
+
+## 2026-11-14 19:22 UTC: the accumulation prover measure (the fold's sum-checks were missing)
+
+- THE USER noticed the frontend's merge prover is flat over ranks 18-21. Two causes: (1) the
+  prover measure is the merge circuits' commitments, and the merge circuit (~1.97M digits with
+  BLAKE3, ~3.76M with Poseidon) rounds up to the same 2^21 (2^22) digits however it is chopped,
+  with the per-circuit claim absorption (8,500 / 19,000 digits a circuit) the only rank term
+  below 18 and the padding of one circuit above 21; (2) the model LEFT OUT the fold's own
+  prover work: Akita's two norm and range sum-checks over the accumulator, K groups of 2^rank
+  coefficients in digits, linear in the step size, where the merge circuit verifies them in
+  log size ("Folding and sum-check work is not in these figures", which the user's intuition
+  caught). Fold prover (the accumulation argument's native prover) vs merge prover (committing
+  the merge circuits): clarified in chat; the page's `fold` field is the zk mask handoff, so the
+  new term is called the ACCUMULATION PROVER.
+- COMMIT c2a9cf6 (artifact v97): accumulation_prover = prover + accumulation_sumchecks(variant,
+  K, rank, digits): (2 sum-check passes x 5 field mults + 1 for the fold's linear combination)
+  x WORD_MULTS[variant] x K x 2^rank x digits (DIGITS[variant], or 1 per bit for the
+  frontend); the 5 field mults per digit a pass come from the frontend's measured Booleanity
+  sum-check (437.7 ms / 2^27 bits one core = 9.8 word mults per 64-bit digit; an assertion
+  ties the constant to BOOL_CHECK). Other rows: accumulation_prover = prover (Pedersen: the
+  measured fuse includes its native folding, batching 95 polynomials of 2^13 (2.5e7) and a
+  100-point linear combination (1.8e7) = 1% of the fuse; hash-based: the ARC step already
+  hashes the new accumulator, one of its two trees, <10% with BLAKE3 and ~half with Poseidon;
+  binary groups: the measured opening includes its sum-checks). The measure is the default
+  second measure (radio value accumulation_prover, in WORK_MEASURES, table column, hover); the
+  transaction measure charges step_prover + accumulation_prover per step; PRUNE_MEASURES
+  includes it. Effect: frontend BLAKE3 accumulation prover 1.05e8 at rank 18 -> 3.5e8 at 21
+  (prover 7.0e7 flat); Akita Pasta claims rank 17: 1.73e9 vs prover 2.6e8 (85 digits per
+  coefficient). Transaction figures (floor 128, one core): recovery: Pasta claims 12 s (was
+  3.2), BLAKE3 144 s, Goldilocks 65 s (was 17), frontend 0.41 s at rank 20 (was 0.14 at 21),
+  zk frontend 2.5 s, zk Pasta claims 38 s; 2 tachyactions: Pasta claims 0.42 s (was 0.18),
+  frontend 0.21 s, Goldilocks 20 s; 16: Pasta claims 1.7 s, frontend 0.83 s, Goldilocks 132 s.
+  Pedersen, BitZ, F2 unchanged. Prose: the Which measures and knobs (new Accumulation prover
+  bullet) paragraphs, the Transaction, Tachyon and Zero knowledge figures, pasta-proof-size.md
+  (prover table caveat; "commitments nearly flat in rank, the sum-checks grow").
+- OPEN MODELLING QUESTIONS the user asked about (what else is left out): the claim-field
+  sum-check for the Pasta-claims rows (if the evaluation claim's sum-check runs in Pasta's
+  field it adds 5 x 32 x K x 2^rank per fuse: under 10% of the digit sum-checks for Akita's
+  85-digit coefficients, but up to 8x the frontend's accumulation term if its claims are not
+  limb-wise over the small field; the spike says limbs, so probably not); witness generation
+  (native hashing for the merge circuit's witness, small against commitments); the
+  aggregator's opening/compression of the final accumulator (Akita's catalog levels and
+  compression maps; Pedersen's IPA ~2% of a fuse), paid once per transaction off the device
+  under the zk note's handoff; accumulator MEMORY (Akita Pasta claims at rank 17: 6 x 2^17 x 85
+  digits x 8 B = 535 MB per accumulator; the frontend at rank 21: 100 MB; Pedersen 25 MB), a
+  phone constraint the page does not show; native transcript hashing (tiny); phone
+  parallelism (the fuse's 2.2x on 16 cores). Not changed.
+- STATE: pqzcash main at c2a9cf6 plus this entry, unpushed after aedc6a2. PENDING unchanged:
+  the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
+  re-render keep/tachyon-statements.md; maybe a memory column or note.
