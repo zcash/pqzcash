@@ -1755,3 +1755,4 @@ ragu/work/bench-fuse-asm.log.
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md; maybe a memory column or note.
 - 19:44 UTC, addendum: a crosshair pointer over the plot in both views (ad78671, CSS on Plotly's drag layer and 3D canvas), since the arrow covered the hover box; artifact v98. Main at ad78671 plus this line.
+- 20:00 UTC, addendum: the measure radio labels are "accumulation prover" and "prover work (commitments only)" (3e2e255); artifact v99. Main at 3e2e255 plus this line.
