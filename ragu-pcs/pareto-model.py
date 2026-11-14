@@ -54,8 +54,11 @@ AKITA = {
 }
 AKITA["goldilocks"] = [round(61050 * v / 65074) for v in AKITA["fp128"]]
 
-# Bytes per doubling of the polynomial, from the 2^14 -> 2^16 rows of the same runs.
-SLOPE = {"fp128": 563, "goldilocks": 476, "pasta_q64": 1743, "pasta_sis": 2094, "pasta": 2139}
+# Bytes per doubling of the polynomial, from the 2^14 and 2^24 rows of the same runs: the
+# growth is concave (fp128: 1,126 per doubling from 2^14 to 2^16, 459 from 2^16 to 2^24, 229
+# beyond), and the page extrapolates from 2^14 to about 2^23, so the slope over those ten
+# doublings is the one to use; Goldilocks takes fp128's, scaled as its table is.
+SLOPE = {"fp128": 592, "goldilocks": 555, "pasta_q64": 953, "pasta_sis": 1112, "pasta": 1371}
 DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "pasta": 85}
 
 # Prover work in native 64-bit word multiplications, for the commitments of one step.
