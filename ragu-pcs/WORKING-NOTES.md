@@ -1839,3 +1839,4 @@ ragu/work/bench-fuse-asm.log.
   PENDING: the review's remaining checks and its record under keep/; Kishu's application PIOP;
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md.
+- 21:19 UTC, addendum: Kishu's application digits now pay Zinc+'s constraint PIOP (4cfc722, artifact v105): ZINC_PIOP_PER_DIGIT = 1.6 x BitZ's Table 10 prover per bit at 2^25 = 11.4 word multiplications a digit, on the step's digits only (the merge circuit's own PIOP is not charged, as for BitZ). Effect about 5%, since the fold's sum-checks dominate Kishu's step at ranks 19-21: recovery 0.43 s (was 0.41), zk 2.6 s, two tachyactions 0.22 s, sixteen 0.88 s; the earlier "a third more" guess predated the accumulation prover. The review finding is closed; the other checks continue.
