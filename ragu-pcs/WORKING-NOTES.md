@@ -1685,3 +1685,21 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at 166e65e plus this entry, unpushed after aedc6a2. PENDING: the zk-fold
   levers for the frontend; the Pallas factor at 147; generate the Transaction paragraph's
   figures from the model; re-render keep/tachyon-statements.md.
+
+## 2026-11-14 18:26 UTC: the second and third measures chosen independently
+
+- (the user) The page's vertical axis was always prover work. Commit b1a58a0: a "Second
+  measure" radio group (prover work by default) beside the third (merge gates by default), both
+  over the same five measures (prover, merge gates, accumulation atoms, decider work,
+  transaction prover); the choice on one side is greyed out on the other. `frontierAmong(pts,
+  second, third)` takes the frontier on bytes and both; `measureTitle(m)` replaces
+  `thirdTitle`; each axis takes its type (atoms linear, the rest per the scale radio), title
+  and held range from its measure, with the work-unit carry on whichever axes are in work
+  units (WORK_MEASURES); the transaction select is its own group and applies to either side,
+  as does the forced header. The "Which measures" paragraph says so ("Merge gates is the
+  default third measure since every family has an estimate of them", the user's wording).
+  Artifact v95. The model's pruning is unchanged (PRUNE_MEASURES plus step+merge prover and
+  fold, so a row better on any shown measure survives).
+- STATE: pqzcash main at b1a58a0 plus this entry, unpushed after aedc6a2 (seven commits).
+  PENDING unchanged: the zk-fold levers for the frontend; the Pallas factor at 147; generate
+  the Transaction paragraph's figures from the model; re-render keep/tachyon-statements.md.
