@@ -33,8 +33,12 @@ max_endoscalings, min_binders = _model["max_endoscalings"], _model["min_binders"
 gates_per_merge, gate_budget = _model["gates_per_merge"], _model["gate_budget"]
 
 # Akita opening bytes for one final group of 2^14 coefficients plus K separately committed
-# groups of 2^14, from catalog_reprice on the planner's outputs (K=0: the shipped schedule
-# re-planned under the matching pricing; K>0: groups/q64-k<K>).
+# groups of 2^14, from catalog_reprice on the planner's outputs, by security floor. At 128
+# bits: the shipped schedule re-planned under the matching pricing (K = 0) and the per-K
+# group runs (K > 0); Goldilocks is the fp64 geometry's 61,050 at K = 0, scaled by fp128's
+# growth. At 147 bits: the re-plan of 2026-11-12 in a checkout whose single policy, runtime
+# width tables and compression cells are retargeted to that floor, the Goldilocks rows
+# planned in the fp64 geometry.
 RANKS = (12, 13, 14, 15, 16, 17)  # step circuits of 2^(rank-2) gates
 HASH_RANKS = (13, 14, 15, 16)  # the WHIR-type rows depend on the rank only through their circuit count
 # The bit arithmetizations' steps commit 2^rank bits or digits, and their merge is nearly a
@@ -44,21 +48,30 @@ HASH_RANKS = (13, 14, 15, 16)  # the WHIR-type rows depend on the rank only thro
 BITZ_RANKS = tuple(range(12, 25))
 FRONTEND_RANKS = tuple(range(12, 24))
 AKITA_K = [0, 1, 2, 4, 8, 12]
-AKITA = {
+AKITA_128 = {
     "fp128":      [65074, 69044, 71066, 69492, 68485, 70404],
     "goldilocks": None,  # fp64 geometry: 61,050 at K=0; scaled below by fp128's growth
     "pasta_q64":  [70725, 74212, 75562, 76804, 77445, 78580],
     "pasta_sis":  [83234, 87844, 90090, 89924, 89669, 91700],
     "pasta":      [101441, 115108, 119146, 116164, 114117, 117940],
-
 }
-AKITA["goldilocks"] = [round(61050 * v / 65074) for v in AKITA["fp128"]]
+AKITA_128["goldilocks"] = [round(61050 * v / 65074) for v in AKITA_128["fp128"]]
+AKITA_147 = {
+    "fp128":      [72443, 76559, 76972, 80721, 76019, 82521],
+    "goldilocks": [65669, 68584, 68734, 69530, 69646, 69810],
+    "pasta_q64":  [77227, 78863, 82236, 83233, 83859, 86697],
+    "pasta_sis":  [91755, 95439, 97916, 100961, 98515, 104425],
+    "pasta":      [110106, 128591, 129276, 136417, 127827, 139881],
+}
+AKITA = {128: AKITA_128, 147: AKITA_147}
 
 # Bytes per doubling of the polynomial, from the 2^14 and 2^24 rows of the same runs: the
 # growth is concave (fp128: 1,126 per doubling from 2^14 to 2^16, 459 from 2^16 to 2^24, 229
 # beyond), and the page extrapolates from 2^14 to about 2^23, so the slope over those ten
-# doublings is the one to use; Goldilocks takes fp128's, scaled as its table is.
-SLOPE = {"fp128": 592, "goldilocks": 555, "pasta_q64": 953, "pasta_sis": 1112, "pasta": 1371}
+# doublings is the one to use; at 128 bits Goldilocks takes fp128's, scaled as its table is,
+# and at 147 bits its own 2^14 and 2^26 rows.
+SLOPE = {128: {"fp128": 592, "goldilocks": 555, "pasta_q64": 953, "pasta_sis": 1112, "pasta": 1371},
+         147: {"fp128": 584, "goldilocks": 662, "pasta_q64": 1104, "pasta_sis": 1118, "pasta": 1175}}
 DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "pasta": 85}
 
 # Prover work in native 64-bit word multiplications, for the commitments of one step.
@@ -236,17 +249,18 @@ LABEL = {
     "bits_akita": "Flock/Binius-style over Akita's binary groups, lattice (experimental)",
 }
 
-def akita_bytes(variant, K, log_len):
+def akita_bytes(variant, K, log_len, floor=128):
     """Opening bytes with K extra committed groups and a batched witness of 2^log_len
-    coefficients, from the planner's rows at 2^14 and the per-doubling slope."""
-    xs, ys = AKITA_K, AKITA[variant]
+    coefficients, from the planner's rows at 2^14 and the per-doubling slope, at the floor's
+    plan."""
+    xs, ys = AKITA_K, AKITA[floor][variant]
     if K >= xs[-1]:
         y = ys[-1] + (ys[-1] - ys[-2]) / (xs[-1] - xs[-2]) * (K - xs[-1])
     else:
         i = max(j for j in range(len(xs) - 1) if xs[j] <= K)
         t = (K - xs[i]) / (xs[i + 1] - xs[i])
         y = ys[i] + t * (ys[i + 1] - ys[i])
-    return round(y + SLOPE[variant] * (log_len - 14))
+    return round(y + SLOPE[floor][variant] * (log_len - 14))
 
 # ---- Decider work ----------------------------------------------------------------
 # The decider's verification, in the same 64-bit word-multiplication equivalents as the
@@ -444,30 +458,31 @@ for rank in RANKS:
 
 # ---- Security floor ----------------------------------------------------------------
 # Akita's catalog and ARC's openings are sized at a 128-bit floor under the ADPS16 quantum
-# core-SVP model. For a 150-bit floor, Akita's commitment ranks are re-derived from width
-# tables generated at that floor by Akita's own estimator with a 150-bit policy
-# (work/akita-150-tables.sh; tables in work/akita-150-out/, 2026-10-15). For each of the 115
-# weakest Module-SIS instances in the shipped catalog's security report
-# (work/akita-pasta-out/catalog-security.tsv), the smallest module rank whose maximum secure
-# width covers the instance's width is taken at both floors, with the instance mapped through
-# the modulus that the variant commits over. The ratio of the summed ranks is the factor.
-# With the catalog's own mix of q128, q64 and q32 cells the ranks sum to 121 at 128 bits and
-# 154 at 150 bits, factor 1.27: 32 instances go from rank 1 to 2 and one from 2 to 3. Over a
-# 64-bit modulus (q64 and Goldilocks give identical tables for these cells) the sums are 185
-# and 215, factor 1.16: 12 go from 1 to 2, 17 from 2 to 3, one from 4 to 5. Over Pallas the
-# sums are 117 and 118, factor 1.01: one instance goes from 1 to 2, the rest sit at the width
-# cap at both floors. The factor is applied to the prover's rows term and to the inner images'
-# share of the opening and of the verifier's work (IMAGE_SHARE below). The figures are not re-planned:
-# the planner's policy and its runtime tables are fixed at 128 bits, and the compression
-# maps, which reach 147 bits, are assumed to hold at rank one. WHIR's proofs are 18% larger
-# at 150 bits over both fields (work/whir-sweep-150.log); ARC's openings scale with the floor.
-# Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order near
-# 2^254) and no post-quantum security, so it is shown at the 128-bit floor only, as the
-# conventional pre-quantum baseline, and drops out at 150 bits.
-RANK_SCALE_150 = {"fp128": 1.27, "goldilocks": 1.16, "pasta_q64": 1.16, "pasta_sis": 1.01, "pasta": 1.01}
-RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_150}, 150: RANK_SCALE_150}
-WHIR_SCALE = {128: 1.0, 150: 1.18}
-FLOORS = (128, 150)
+# core-SVP model. The higher floor is 147 bits, the most that Akita's rank-one compression
+# maps allow at the catalog's geometry: the compression chain's first map, at ring dimension
+# 16 and width 4,096, certifies at 147.3 bits, and a higher floor would need rank-two maps
+# or two maps where there is one, which doubles the compressed images at every level (a
+# 150-bit floor was tried first, 2026-10-15 to 2026-11-12, and stopped there). At 147 bits
+# Akita's catalog is re-planned by its own planner in a checkout whose single policy, runtime
+# width tables and compression cells are retargeted to that floor (2026-11-12), so the
+# openings in AKITA[147] are planned. What the planner does not give, the prover's rows term
+# and the verifier's inner-image share, takes the rank growth: for each of the 115 weakest
+# Module-SIS instances in the shipped catalog's security report, the smallest module rank
+# whose maximum secure width covers the instance's width, at both floors, with the instance
+# mapped through the modulus that the variant commits over; the ratio of the summed ranks is
+# the factor (work/rank-scale.py). With the catalog's own mix of q128, q64 and q32 cells the
+# ranks sum to 121 at 128 bits and 150 at 147 bits, factor 1.24, 29 instances moving up a
+# rank; over a 64-bit modulus (the Goldilocks table, identical to q64's for these cells) 185
+# and 211, factor 1.14, 26 moving; over Pallas the instances sit at the width cap at both
+# floors but one, factor 1.01 at 150 bits, carried as a bound. WHIR's proofs measure 18%
+# larger at 150 bits over both fields, taken as 16% at 147; ARC's openings scale with the
+# floor. Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order
+# near 2^254) and no post-quantum security, so it is shown at the 128-bit floor only, as the
+# conventional pre-quantum baseline, and drops out at 147 bits.
+RANK_SCALE_147 = {"fp128": 1.24, "goldilocks": 1.14, "pasta_q64": 1.14, "pasta_sis": 1.01, "pasta": 1.01}
+RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
+WHIR_SCALE = {128: 1.0, 147: 1.16}
+FLOORS = (128, 147)
 # The share of the opening, and of the verifier's work, that scales with the commitment rank:
 # the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
 # 2^14 geometry (seven blocks of rank 3 over ring dimension 64; pasta-proof-size.md §6.1). The
@@ -480,14 +495,14 @@ FLOORS = (128, 150)
 # with Pasta for everything.
 IMAGE_COORDS = 1344
 IMAGE_COORD_BYTES = {"fp128": 16, "goldilocks": 16, "pasta_q64": 16, "pasta_sis": 16, "pasta": 32}
-IMAGE_SHARE = {v: IMAGE_COORDS * IMAGE_COORD_BYTES[v] / AKITA[v][0] for v in IMAGE_COORD_BYTES}
+IMAGE_SHARE = {v: IMAGE_COORDS * IMAGE_COORD_BYTES[v] / AKITA[128][v][0] for v in IMAGE_COORD_BYTES}
 
 def rank_factor_share(variant, factor):
     """The multiplier on the opening, or on the verifier's work, when the rank grows by `factor`."""
     return 1 + IMAGE_SHARE[variant] * (factor - 1)
 
 def floor_label(floor):
-    return ", 150‑bit" if floor == 150 else ""
+    return ", 147‑bit" if floor == 147 else ""
 
 # Akita: no cycle, so endoscalings and binders do not exist. The committed groups are the
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
@@ -505,11 +520,12 @@ for variant, hp in itertools.product(("fp128", "goldilocks", "pasta_q64", "pasta
                 log_len = rank + math.log2(circuits)  # the decider's accumulator is at the ordinary length, masked or not
                 for H in (2, 4):
                     rank_scale = RANK_SCALE[floor][variant]
-                    # The floor's factor enters the opening and the verifier through the inner
-                    # images' share of each. The masked rank does not: it binds the accumulation
-                    # matrix, whose rows term the prover pays in ajtai_per_coefficient, while the
-                    # terminal's images are under the terminal's own matrix (see MASK_RANK).
-                    opening = akita_bytes(variant, K - 1, log_len) * rank_factor_share(variant, rank_scale)
+                    # The opening is the floor's own plan; the floor's rank factor enters the
+                    # verifier through the inner images' share. The masked rank enters neither:
+                    # it binds the accumulation matrix, whose rows term the prover pays in
+                    # ajtai_per_coefficient, while the terminal's images are under the terminal's
+                    # own matrix (see MASK_RANK).
+                    opening = akita_bytes(variant, K - 1, log_len, floor)
                     instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES[variant]
                     # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                     # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
@@ -701,7 +717,7 @@ def zk_prover(log_elems, zk):
 def whir_verify_hashes(variant, rate, log_elems, floor, grind=GRIND_DEFAULT):
     _, _, hashes, queries = whir_meas(HASH_VARIANTS[variant]["sizes"], grind, rate)
     return ((hashes + queries * (log_elems - 17))
-            * (1.15 if floor == 150 else 1) * (2.07 if variant == "plonky3" else 1))
+            * (1.13 if floor == 147 else 1) * (2.07 if variant == "plonky3" else 1))  # the 150-bit sweep's 1.15, interpolated
 
 ARC_DECIDER_TREES = 3  # the decider's first round opens the two child accumulators and the root's witness
 WHIR_FOLD = 16  # the reference implementation's folding factor: elements per first-round leaf
@@ -1331,7 +1347,7 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                 fold = round(MASK_ATTEMPTS * K * 2 ** rank * (masked_digit + MASK_SAMPLE_WORD_MULTS)
                              + circuits * 2 ** rank * (per_digit + bool_per_bit)) if zk else 0
                 for H in (2, 4):
-                    opening = akita_bytes("pasta_q64", K - 1, log_len) * rank_factor_share("pasta_q64", rank_scale)
+                    opening = akita_bytes("pasta_q64", K - 1, log_len, floor)
                     instance = K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
                     points.append(dict(
                         family="bits_q64", pq=True, rank=rank, E=None, binders=None, H=H, floor=floor, hashes=hp,
@@ -1376,7 +1392,7 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
 #     four to five times on ten threads of this machine; plus Flock's PIOP. An upper bound.
 #   - Verify: the measured decider scaled to the merge's bits at Akita's single-thread slope.
 #   - Atoms: Akita's at the 128-bit claim width; the transaction measure as the 𝔽₂ family's.
-# Not modelled: zero knowledge (the groups are not hiding) and the 150-bit floor (the q24
+# Not modelled: zero knowledge (the groups are not hiding) and the higher floor (the q24
 # Module-SIS certificate and the security ledger are open; the branch makes no security
 # claim), so the row is at the 128-bit floor only; and the binary carrier field switch.
 BINARY_MEASURED = dict(bytes=82764, commit_ms=174, prove_ms=648, verify_ms=8.5, log_bits=29, field=128)
@@ -1401,8 +1417,8 @@ def bits_akita_merge_ands(K, circuits, field):
 def binary_open_bytes(log_bits, K):
     """The measured binary-source opening at the merge's bits, extrapolated at the 128-bit
     field's slope, with K - 1 further groups at that field's growth."""
-    opening = BINARY_MEASURED["bytes"] - SLOPE["fp128"] * (BINARY_MEASURED["log_bits"] - log_bits)
-    return opening * akita_bytes("fp128", K - 1, 14) / AKITA["fp128"][0]
+    opening = BINARY_MEASURED["bytes"] - SLOPE[128]["fp128"] * (BINARY_MEASURED["log_bits"] - log_bits)
+    return opening * akita_bytes("fp128", K - 1, 14) / AKITA[128]["fp128"][0]
 
 K = STAGES + 1
 bits_akita_ands = bits_akita_merge_ands(K, 1, BINARY_MEASURED["field"])
@@ -1500,7 +1516,7 @@ for p in list(best.values()):
 GRIND_OPTIONS = (0, 16, 20, 24)
 points = [p for p in points if p.get("grind") in (None, "auto") or p["grind"] in GRIND_OPTIONS]
 
-for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 128), (True, False, 150), (True, True, 150), (False, None, 128)), HASH_POLICIES):
+for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 128), (True, False, 147), (True, True, 147), (False, None, 128)), HASH_POLICIES):
     for grind in (None, "auto", *GRINDS):
         sub = [p for p in points if p["pq"] == cls and p["zk"] in (zk, None) and p["floor"] == floor
                and (p["hashes"] in ("blake3", "any") or hp == "poseidon") and p.get("grind") in (None, grind)]
@@ -1543,7 +1559,7 @@ budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r),
                fixed=fixed_counts(r, True)) for r in RANKS]
 
 # `frontier` serves the printout below; the page computes its own frontiers over the selection.
-data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, applications=APPLICATIONS, akita_table=dict(K=AKITA_K, **AKITA), budget=budget, proxies=dict(
+data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, applications=APPLICATIONS, akita_table={f: dict(K=AKITA_K, **t) for f, t in AKITA.items()}, budget=budget, proxies=dict(
     prover="native 64-bit word multiplications for one step's commitments, dense polynomials assumed; see the page",
     per_coefficient={v: round(ajtai_per_coefficient(v)) for v in DIGITS} | {"pedersen_rank14": round(pedersen_per_coefficient(14))},
     accumulation="base-field atoms the merge circuit absorbs per fold: 2 per Pedersen commitment; for Akita 120 sum-check elements plus the compressed images at the variant's atom width",
@@ -1561,5 +1577,5 @@ print(f"{len(points)} points after pruning {pruned} dominated within their famil
       f"{len(post)} post-quantum with {sum(p['frontier'] for p in post)} on its frontier, "
       f"{len(post_zk)} post-quantum zero-knowledge with {sum(p['frontier'] for p in post_zk)}; wrote pareto.html")
 
-for p in sorted([p for p in points if p["frontier"] and p["floor"] != 150], key=lambda p: (p["pq"], p["hashes"], p["bytes"])):
+for p in sorted([p for p in points if p["frontier"] and p["floor"] != 147], key=lambda p: (p["pq"], p["hashes"], p["bytes"])):
     print(f"  {p['family']:10} {p['label']}: {p['bytes']:,} B, prover {p['prover']:.3g}, atoms {p['accumulation']}, gates {p['gates']:,}")
