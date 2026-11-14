@@ -197,13 +197,20 @@ ACCUMULATION_SUMCHECKS = 2
 SUMCHECK_FIELD_MULTS_PER_DIGIT = 5
 FOLD_FIELD_MULTS_PER_DIGIT = 1
 
-def accumulation_sumchecks(variant, K, rank, digits=None):
+# The sum-checks run in the CLAIM field, which for the decoupled Pasta-claims variant is
+# Pasta's field (pasta-proof-size.md §6.3: every sum-check message is an F_p value), not the
+# 64-bit commitment modulus; Kishu's claims are in the 64-bit field itself (its Pasta values
+# come from 32-bit limbs), so it passes the commitment field's rate.
+CLAIM_WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 32, "pasta": 32}
+
+def accumulation_sumchecks(variant, K, rank, digits=None, word_mults=None):
     """Word multiplications of the fold's sum-checks and linear combination over an
     accumulator of K groups of 2^rank coefficients of `digits` digits each (the variant's, or
-    one per bit)."""
+    one per bit), at the claim field's multiplication cost unless given."""
     digits = DIGITS[variant] if digits is None else digits
+    word_mults = CLAIM_WORD_MULTS[variant] if word_mults is None else word_mults
     per_digit = ACCUMULATION_SUMCHECKS * SUMCHECK_FIELD_MULTS_PER_DIGIT + FOLD_FIELD_MULTS_PER_DIGIT
-    return per_digit * WORD_MULTS[variant] * K * 2 ** rank * digits
+    return per_digit * word_mults * K * 2 ** rank * digits
 
 # Base-field atoms the merge circuit absorbs per compressed commitment (128 bytes).
 ATOMS_PER_COMMITMENT = {"fp128": 8, "goldilocks": 16, "pasta_q64": 6, "pasta_sis": 4, "pasta": 4}
@@ -1523,7 +1530,7 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                         groups=K, packing=None, circuits=circuits, change="design", zk=zk,
                         bytes=round(opening + instance + bool_bytes),
                         prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
-                        accumulation_prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit) + accumulation_sumchecks("pasta_q64", K, rank, digits=1)),
+                        accumulation_prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit) + accumulation_sumchecks("pasta_q64", K, rank, digits=1, word_mults=WORD_MULTS["pasta_q64"])),
                         memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
                         # The application step also pays Zinc+'s constraint PIOP on its digits, as
                         # BitZ's rows do on their application share.
