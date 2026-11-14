@@ -1782,3 +1782,4 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at 31f4a07 plus this entry, unpushed after aedc6a2. PENDING unchanged:
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md.
+- 20:15 UTC, addendum: the memory knob's "packed storage a quarter or less" was wrong for the 64-bit rows; corrected in 904d78e (32-bit integers: half at 64 bits, a quarter at 128, an eighth at Pasta's modulus; the field form made on the fly per sum-check pass), artifact v101. The Akita and frontend rows' memory is the same under either hash policy (K x 2^rank digits); WHIR + ARC at rank 16 rate 1/8 is 74 GB with BLAKE3 and 1.2 GB with Poseidon. The user pushed main through 50ddcfc.
