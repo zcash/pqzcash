@@ -1,6 +1,6 @@
-# Spike: BitZ over Akita, the Booleanity-by-projection frontend
+# Spike: Kishu (BitZ over Akita), the Booleanity-by-projection frontend
 
-`booleanity_spike.py` is a toy of the study's "BitZ over Akita" frontend: the internal draft
+`booleanity_spike.py` is a toy of Kishu, the study's BitZ-over-Akita frontend: the internal draft
 "Efficient Booleanity Checking via Structured Modular Projections" (2026-09-23) together with
 the decoupled-modulus bridge of `pasta-proof-size.md` §6.3. It is pure Python 3 with no
 dependencies and runs in under a second at n = 2^12. `python booleanity_spike.py [seed]` runs an

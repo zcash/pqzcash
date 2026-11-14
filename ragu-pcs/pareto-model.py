@@ -45,7 +45,7 @@ HASH_RANKS = (13, 14, 15, 16)  # the WHIR-type rows depend on the rank only thro
 # The bit arithmetizations' steps commit 2^rank bits or digits, and their merge is nearly a
 # fixed cost, so the transaction measure falls with the rank until one step holds the whole
 # application: the recovery circuit's 8.4 million bits at rank 24 for BitZ, its 4.7 million
-# digits at rank 23 for the draft frontend. The ranks stop there.
+# digits at rank 23 for Kishu. The ranks stop there.
 BITZ_RANKS = tuple(range(12, 25))
 FRONTEND_RANKS = tuple(range(12, 24))
 AKITA_K = [0, 1, 2, 4, 8, 12]
@@ -185,7 +185,7 @@ def mask_fold(variant, K, rank, rank_scale):
 
 # The accumulation prover: the fold's two norm and range sum-checks run over the accumulator,
 # K groups of 2^rank coefficients in digits. A sum-check pass costs about five field
-# multiplications per digit, from the draft frontend's measured Booleanity sum-check: 437.7 ms
+# multiplications per digit, from Kishu's measured Booleanity sum-check: 437.7 ms
 # for 2^27 bits on one core, 9.8 word multiplications per 64-bit digit (BOOL_CHECK below). The
 # page's accumulation prover measure adds that work to the merge's commitments for the lattice
 # rows, with the fold's own linear combination of the digit vectors, one multiplication per
@@ -298,7 +298,7 @@ LABEL = {
     "flock_rec": "Flock/Binius-style over 𝔽₂, recursive, hash-based",
     "bitz": "BitZ with ARC, Pasta claims over committed bits, hash-based",
     "bitz_rec": "BitZ, recursive, Pasta claims over committed bits, hash-based",
-    "bits_q64": "BitZ over Akita, 64‑bit commitments, Pasta claims (draft frontend)",
+    "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims (draft)",
     "bits_akita": "Flock/Binius-style over Akita's binary groups, lattice (experimental)",
 }
 
@@ -388,7 +388,7 @@ def mult_ands(n):
 #     linear forms. In a Boolean circuit with XOR free a 64-bit addition is 64 ANDs and an
 #     XOR nothing, so a BLAKE2b compression is 24,576 ANDs against 51,600 Pasta gates, and a
 #     selection is the same 1,013 products, each output bit then a free XOR of them. In a bit
-#     arithmetization (BitZ's, or the draft frontend over Akita) each wire bit is one
+#     arithmetization (BitZ's, or Kishu over Akita) each wire bit is one
 #     committed bit: the XOR's output, the addition's 64 sum bits and its carry, the chunk's
 #     1,013 products; a BLAKE2b compression is 50,560 bits.
 #   - The curve arithmetic, about 14,500 multiplications in Pallas's base field, must be
@@ -398,13 +398,13 @@ def mult_ands(n):
 #     prime of no special form, whose two multiplications by constants are about three
 #     quarters of a product each: about 120,000 ANDs. In BitZ's integer arithmetization it
 #     is 510 committed bits, the value and the quotient of a b = q p + r, checked as one
-#     integer relation; in the draft frontend, whose claims are native over Pasta, 255
+#     integer relation; in Kishu, whose claims are native over Pasta, 255
 #     digits, the value alone.
 #   - The Merkle path is 33 BLAKE3 compressions in the bit arithmetizations under either
 #     policy, since Poseidon over Pallas's field would cost them 240 multiplications a node.
 # So the recovery circuit is about 16.5 million Goldilocks gates, 10.7 million at a 128-bit
 # field, 1.73 billion AND gates (the multiplications are all of it), 8.4 million committed
-# bits in BitZ's arithmetization and 4.7 million digits in the draft frontend's, against the
+# bits in BitZ's arithmetization and 4.7 million digits in Kishu's, against the
 # reference with a Poseidon path; per Pasta gate 29, 19, 3,100, 15 and 8, or 16, 11, 1,700, 8
 # and 4.5 with a BLAKE3 path, which raises the reference to 1.05 million gates. The hashes
 # are what makes the bit arithmetizations cheap: a field multiplication alone would put a
@@ -412,10 +412,10 @@ def mult_ands(n):
 # circuit or a number of Merkle path checks (APPLICATIONS, in each arithmetization's unit
 # under each policy), and divides it by the step's capacity in the same unit, `step_units`:
 # 2^rank coefficients, which is 2^(rank-2) gates of four wires for the field families, 2^rank
-# bits or digits for BitZ and the draft frontend, and BOOL_STEP_BITS AND gates for the
+# bits or digits for BitZ and Kishu, and BOOL_STEP_BITS AND gates for the
 # Boolean families; rounded up, since a transaction smaller than a step pays a whole step.
 BITZ_GATE_BITS = 510  # a Pasta gate as committed bits in BitZ's arithmetization: a 255-bit value and a 255-bit quotient
-BITS_PER_VALUE = 255  # a Pasta value in the draft frontend's one-bit digits
+BITS_PER_VALUE = 255  # a Pasta value in Kishu's one-bit digits
 BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
 BLAKE2B_BITS = 12 * 8 * (4 * 65 + 4 * 64) + 16 * 64  # the additions' sums and carries, the XORs' outputs, the finalisation
 BLAKE3_BITS = 7 * 8 * (4 * 33 + 4 * 32) + 16 * 32
@@ -1465,7 +1465,7 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
 }
 
 def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk=False):
-    """The draft frontend's merge in one-bit digits: the transcript hashing, the images'
+    """Kishu's merge in one-bit digits: the transcript hashing, the images'
     reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier; with
     zero knowledge the zk-layer merge's 18 more sum-check elements, as for the lattice rows."""
     if hp == "poseidon":
@@ -1490,7 +1490,7 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, zk=False):
         circuits = new
     return circuits
 
-# Zero knowledge for the frontend is Akita's, as the lattice rows have it: the masked rank on
+# Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
 # handoff, whose rejection sampling runs over the accumulator's K × 2^rank digits, one per
 # committed bit, so it grows with the rank where the merges shrink. The projection form reveals
