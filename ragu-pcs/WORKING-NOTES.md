@@ -1508,3 +1508,67 @@ both sides a Tachyon 1+1-action transaction is 9.8 s one thread / 4.6 s all core
 1.88 / 0.35 s for two actions (5.2× / 13×), and 8+8 actions 70 / 33 s against 16 actions' ~14
 (extrapolated at 0.93 s per action) / 2.35 s (5× / 14×). Logs: orchard/work/bench-0.16/bench-*-asm.log,
 ragu/work/bench-fuse-asm.log.
+
+## 2026-11-14 16:08 UTC: Tachyon statements written; Tachyon runs Ragu's MOCK; gate-count probe blocked
+
+- THE STATEMENTS (the user: "write the circuit in the same style it is written in the protocol
+  spec and ZIP 2005 ... the high-level statement, with algorithms spelled out"):
+  keep/tachyon-statements.md, from tachyon 73031f7's stamp/proof/{output,spend,stamp}.rs,
+  digest/poseidon.rs, gadgets/, keys/, value.rs, primitives/sets.rs, relations/enforce.rs:
+  Notation (tagged Poseidon sponge, generators, fixed-base scalar forms, amounts, value
+  commitments, notes and keys, epochs and nullifier groups, actions, set polynomials and their
+  Pedersen commitments on Vesta, bridge hash, headers), then Output Bind, Output Action, Spend
+  Bind, Spend Action, Action Merge, Fee Fuse statements with named conditions, what a stamp
+  proof states and what Proof::verify checks natively, and a cost table from the step comments.
+  Rendered dark with pandoc + MathJax to work/tachyon-statements.html (work/dark.css inlined);
+  the user viewed it in Firefox. Not tracked; the user may want it tracked.
+- POSEIDON (the user asked whether the tree uses Poseidon 1.1 and what the circuit commitments
+  are): all in-circuit hashing is zakura-udon's Poseidon over Fp, width 5, rate 4, x^5, 8 full +
+  56 partial rounds, constants from hadeshash via the daira/pasta-hadeshash fork (same
+  generation as Orchard's, width 5 not 3; udon does not say "1.1"); tagged sponge, capacity =
+  16-byte domain as an LE integer, no padding (ragu_primitives Sponge). No Merkle path per
+  spend: membership via the spendable lineage and set polynomials; the evidence tree is a
+  Poseidon 4-ary tree over sealed QR buckets. Commitments: cv = [v]V + [rcv]R with Orchard's
+  z.cash:Orchard-cv generators ([-v] for outputs), rk = ak + [alpha]G (Orchard's G), fee
+  commitment with a derived trapdoor; sets = prod (X - m) committed as Pedersen vector
+  commitments under Ragu's host generators (Vesta), carried as the two online polynomials;
+  BridgeHash(C) = [x(C)]G_x + [y(C)]G_y (nested generators of the bridge stage).
+- TACHYON RUNS RAGU'S MOCK. crates/tachyon/Cargo.toml depends on the `ragu` facade crate (git
+  rev a1395401) with features ["mock"] (dev: + "test-utils"); the facade's `mock` feature
+  re-exports src/mock/ (1,675 lines), "an API-level mock of ragu_pcd ... so downstream
+  consumers can integrate against it ahead of the real implementation". Its Application::fuse
+  commits the online polynomials with real Pedersen generators and checks them, derives zeta by
+  BLAKE2b over the step index, the children's header hashes, the commitments and the staged
+  values, runs the step's `witness` with a `Simulator` driver (gadget execution, no circuit
+  synthesis), and makes a "proof" of BLAKE2b hashes (proof.rs). So: Tachyon's steps implement
+  the MOCK's `Step` trait; no real Ragu proof is produced anywhere in Tachyon today; the Ragu
+  fuse benchmark and the step counts from Stamp::prove are a projection of what Tachyon will
+  cost once ported to ragu_pcd, with the same step shapes (the mock mirrors the API: seed/fuse,
+  headers, two online polynomials, staging, bridge hash). The 2,048-gate budget is not checked
+  by the mock except for the stage. The Ragu capacity chapter's "0.2 s per fuse" and the user's
+  question whether the project has compared with Orchard: the project could not have measured
+  transaction proving on Tachyon itself yet.
+- GATE-COUNT PROBE (the user: "measure the gate counts"), BLOCKED by the above. Built:
+  worktree ~/olddaira/research/ragu-tachyon-pin (branch tachyon-pin-probe at a1395401, the rev
+  Tachyon pins) with `pub fn step_synthesis_counts<C, S: Step<C>, R, const HEADER_SIZE>(step,
+  stage_size) -> Result<(gates, constraints)>` appended to crates/ragu_pcd/src/lib.rs
+  (uncommitted; uses step::internal::adapter::Adapter::with_stage and
+  ragu_circuits::testing::synthesis_counts, which needs ragu_circuits' `test-utils` feature);
+  probe crate tachyon/work/gates (Cargo.toml: zcash_tachyon by path, ragu_pcd/core/circuits
+  by the same git rev, [patch."https://github.com/tachyon-zcash/ragu"] mapping all eight ragu
+  crates to the worktree; src/main.rs lists the 39 registered steps, stage size 5, header 9).
+  It fails to compile because Tachyon's steps implement ragu's mock `Step<Pasta>`, not
+  ragu_pcd::step::Step. Ways forward: (a) a wrapper implementing ragu_pcd's Step for a mock
+  Step, delegating witness/staged/polynomials (the Oracles types differ: the mock's
+  step/oracles.rs vs ragu_pcd's step/oracles.rs; both expose zeta/query/staged/bridge_hash, so
+  a thin adapter may work); (b) a counting Simulator-like driver inside the mock (count mul
+  gates and linear constraints as the Simulator executes `witness`) — simplest and faithful to
+  what the real Adapter would synthesize, since gadgets are the same; (c) ask the Tachyon team.
+  Not pursued further (context low).
+- STATE: pqzcash main has 7 commits after 539ccca unpushed (through 0896b50); the artifact is
+  v91; the Ragu checkout is clean on main 8109a41c with branch encoded-len-probe (1e75f342) and
+  the worktree above; the Orchard checkout is clean with scratch projects under work/; Tachyon
+  is clean on main 73031f7 with work/gates. PENDING: calibrate the Pedersen step to the measured
+  fuse (1.46 s one core; pedersen_per_coefficient ~5,630); Tachyon-transaction application
+  options on the page; refresh the circuit-budget constants from ragu's internal/tests.rs; the
+  gate-count probe via (b); the zk-fold levers; the Pallas factor at 147.
