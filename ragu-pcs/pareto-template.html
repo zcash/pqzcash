@@ -37,6 +37,8 @@ p { margin: 0 0 10px; }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
 .group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .group.wide { grid-column: 1 / -1; }
+/* The second and third measures sit side by side whatever precedes them. */
+.group.measures { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
 .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
 .group label input { margin-top: 3px; flex: none; }
@@ -125,6 +127,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
         <option value="24">24 bits</option>
       </select></label>
     </div>
+    <div class="group wide measures">
     <div class="group"><span class="eyebrow">Second measure (the 2D view's vertical axis)</span>
       <label><input type="radio" name="second" value="prover" checked id="secondprover"> prover work</label>
       <label><input type="radio" name="second" value="gates" id="secondgates"> merge gates</label>
@@ -138,6 +141,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="third" value="accumulation" id="thirdatoms"> accumulation atoms</label>
       <label><input type="radio" name="third" value="verify" id="thirdverify"> decider work</label>
       <label><input type="radio" name="third" value="transaction" id="thirdtx"> transaction prover</label>
+    </div>
     </div>
     <div class="group"><span class="eyebrow">Transaction prover: the transaction proves</span>
       <label><select id="txapp">
