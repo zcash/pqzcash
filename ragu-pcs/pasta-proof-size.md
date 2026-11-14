@@ -185,7 +185,7 @@ Online polynomials are Ragu's polynomial oracles. A step's application circuit c
 
 | commitment | per coefficient | basis |
 |---|---|---|
-| Pedersen over Pasta, rank 14 | 6,400 | Pippenger, 255/14 mixed additions of 11 field multiplications of 32 word multiplications |
+| Pedersen over Pasta, rank 14 | 5,200 | Ragu's fuse measured at rank 13, 1.46 s on one core for 96 commitments of 2^13 coefficients, scaled by Pippenger's 255/rank mixed additions per coefficient |
 | Ajtai, Pasta modulus | 14,200 | 85 digits, rows/64 + 3 multiplications per digit by NTT, 32 word multiplications each |
 | Ajtai, 128-bit field | 2,600 | 43 digits, 8 word multiplications each |
 | Ajtai, Pasta claims with 64-bit commitments | 2,000 | 85 digits, 2 word multiplications each |

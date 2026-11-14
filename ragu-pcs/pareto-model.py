@@ -135,8 +135,14 @@ def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0):
     per_digit = (rows / RING_D + math.log2(RING_D) / 2) * WORD_MULTS[variant]
     return DIGITS[variant] * per_digit
 
+PEDERSEN_FUSE_SECONDS = 1.46  # Ragu's fuse at the checked-in configuration, one core, no assembly
+PEDERSEN_FUSE_COMMITMENTS = 96  # the step's circuit, the Standard profile's 91 and four stages
+PEDERSEN_FUSE_RANK = 13
+
 def pedersen_per_coefficient(rank):
-    return 255 / rank * 11 * 32
+    per_coefficient_measured = (PEDERSEN_FUSE_SECONDS * 1000 * WORD_MULTS_PER_MS
+                                / (PEDERSEN_FUSE_COMMITMENTS * 2 ** PEDERSEN_FUSE_RANK))
+    return per_coefficient_measured * PEDERSEN_FUSE_RANK / rank
 
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
@@ -461,6 +467,12 @@ for rank in RANKS:
                         label=f"rank {rank}, {E} endoscalings/step, {binders} binder{'s' if binders != 1 else ''}, header {H}"
                             + (" (Tachyon's)" if H == 9 else "") + (", packed" if packing else ""),
                     ))
+
+# The calibration's check: the checked-in row's step and merge are the measured fuse.
+_checked_in = next(p for p in points if p["family"] == "pedersen" and p["rank"] == PEDERSEN_FUSE_RANK
+                   and p["E"] == 4 and p["binders"] == 5 and p["H"] == 4 and not p["packing"])
+assert _checked_in["circuits"] + 5 == PEDERSEN_FUSE_COMMITMENTS, _checked_in["circuits"]
+assert abs((_checked_in["step_prover"] + _checked_in["prover"]) / (1000 * WORD_MULTS_PER_MS) - PEDERSEN_FUSE_SECONDS) < 0.005
 
 # ---- Security floor ----------------------------------------------------------------
 # Akita's catalog and ARC's openings are sized at a 128-bit floor under the ADPS16 quantum
