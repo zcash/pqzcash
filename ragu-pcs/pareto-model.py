@@ -494,7 +494,9 @@ points = []
 # Header sizes for the Pedersen-IPA rows: 2 and 4 as the study priced them, and 9, Tachyon's
 # HEADER_SIZE (tachyon-zcash/tachyon, crates/tachyon/src/stamp/proof.rs). The post-quantum rows
 # are priced at 2 and 4 and the page shows them at 2.
-PEDERSEN_HEADERS = (2, 4, 9)
+TACHYON_HEADER = 9
+HEADER_ELEMENT_BYTES = 2 * 32  # the left and right child's copies of one header element
+PEDERSEN_HEADERS = (2, 4, TACHYON_HEADER)
 
 # Pedersen-IPA: the checked-in cycle design, over the configurations the circuit budget
 # allows at each rank, with the fixed circuits as today or packed into the rank's budget.
@@ -1643,7 +1645,8 @@ budget = [dict(rank=r, gates=gate_budget(r), endoscalings=max_endoscalings(r),
                fixed=fixed_counts(r, True)) for r in RANKS]
 
 # `frontier` serves the printout below; the page computes its own frontiers over the selection.
-data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, applications=APPLICATIONS, akita_table={f: dict(K=AKITA_K, **t) for f, t in AKITA.items()}, budget=budget, proxies=dict(
+data = dict(points=[{k: v for k, v in p.items() if k != "frontier"} for p in points], labels=LABEL, applications=APPLICATIONS,
+            tachyon_header=TACHYON_HEADER, header_element_bytes=HEADER_ELEMENT_BYTES, akita_table={f: dict(K=AKITA_K, **t) for f, t in AKITA.items()}, budget=budget, proxies=dict(
     prover="native 64-bit word multiplications for one step's commitments, dense polynomials assumed; see the page",
     per_coefficient={v: round(ajtai_per_coefficient(v)) for v in DIGITS} | {"pedersen_rank14": round(pedersen_per_coefficient(14))},
     accumulation="base-field atoms the merge circuit absorbs per fold: 2 per Pedersen commitment; for Akita 120 sum-check elements plus the compressed images at the variant's atom width",
