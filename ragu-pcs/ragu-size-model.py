@@ -11,7 +11,10 @@ Per curve: fold (2 points, 2 scalars), p, q, 5 openings, p(1/r), q(r); batch f +
 evaluations; IPA s_commitment + RANK rounds of 2 points + c.
 Component counts: native_NUM = Fn + binders + native_steps, nested_NUM = Fm + nested_steps,
 steps = max(1, ceil((points - 1)/E)), and each side's batched points are
-1 + 2*(other_NUM + per_child) + extra, with per_child = 4 and extra = 6 as checked in.
+1 + 2*(other_NUM + per_child) + extra, with per_child = 4 and extra = 6 as checked in
+(`nested::pcs::num_batched_points`); the nested walk also folds the step's six online
+openings (`nested::num_endoscaling_points`). At the checked-in configuration that is 48
+native and 43 nested rx polynomials, 25 and 29 of them endoscaling steps.
 
 Usage: python ragu-size-model.py            # checked-in configuration and knob sensitivity
        python ragu-size-model.py search      # broad grid search, summary near a target
@@ -31,8 +34,9 @@ def counts(Fn, Fm, binders, En, Em, per_child=4, extra=6):
     if En * Em <= 4:
         return None  # each component feeds 2/E components to the other side: divergent
     nat, nes = Fn + binders + 1, Fm + 1
+    online_queries = 3 * ONLINE_POLYS  # the nested walk folds the step's online openings too
     for _ in range(100):
-        nes_new = Fm + steps(1 + 2 * (nat + per_child) + extra, Em)
+        nes_new = Fm + steps(1 + 2 * (nat + per_child) + extra + online_queries, Em)
         nat_new = Fn + binders + steps(1 + 2 * (nes_new + per_child) + extra, En)
         if (nat_new, nes_new) == (nat, nes):
             return nat, nes
@@ -52,7 +56,9 @@ def size(Fn, Fm, binders, En, Em, rank, H, per_child=4, extra=6):
 # ---- Circuit budget ----------------------------------------------------------------
 # A step circuit at rank r has 2^(r-2) gates and four times as many constraints (2,048 and
 # 8,192 at rank 13). The figures below are the internal circuits' synthesis counts pinned
-# in ragu_pcd's internal tests at rank 13, and the capacity chapter of the book.
+# in ragu_pcd's internal tests at rank 13 (tachyon-zcash/ragu 8109a41c, with the two native
+# collapses merged into one circuit and the nested export merged into its collapse), and the
+# capacity chapter of the book.
 
 def gate_budget(rank):
     return 1 << (rank - 2)
@@ -62,22 +68,24 @@ def constraint_budget(rank):
 
 # The fixed circuits of each side (gates). The remaining components of each side are stage
 # polynomials, which the rank does not change.
-NATIVE_FIXED = dict(hashes_1=1992, hashes_2=2044, inner_collapse=1921, outer_collapse=1592,
-                    compute_v=1834, bind_beta=2029, bind_endoscalar=780)
-NESTED_FIXED = dict(export=1384, collapse=1624, compute_v=1661, loading=776)
+NATIVE_FIXED = dict(hashes_1=1793, hashes_2=1874, collapse=1455, compute_v=1948,
+                    bind_beta=1889, bind_endoscalar=940)
+NESTED_FIXED = dict(collapse=1598, compute_v=1504, loading=566)
 NATIVE_OTHER = 19 - len(NATIVE_FIXED)
 NESTED_OTHER = 14 - len(NESTED_FIXED)
-# A native endoscaling step: 2,026 gates and 3,678 constraints for four points, 1,108 and
-# 1,842 for two. The nested step is 2,043 gates for four points.
-STEP_GATES_PER_POINT, STEP_GATES_OVERHEAD = 459, 190
-STEP_CONSTRAINTS_PER_POINT, STEP_CONSTRAINTS_OVERHEAD = 918, 6
-NESTED_STEP_GATES_OVERHEAD = 207
-# A binder: about 1,985 gates for two of the ten challenges. Per challenge, a 128-bit
+# A native endoscaling step: 1,995 gates and 3,502 constraints for four points; the nested
+# step is 2,016 gates for four points. Only the four-point step is pinned, so the split into
+# a per-point cost and an overhead keeps the earlier two-point measurement's overhead of
+# about 190 gates and 6 constraints.
+STEP_GATES_PER_POINT, STEP_GATES_OVERHEAD = 451, 191
+STEP_CONSTRAINTS_PER_POINT, STEP_CONSTRAINTS_OVERHEAD = 874, 6
+NESTED_STEP_GATES_OVERHEAD = 212
+# A binder: 2,032 to 2,048 gates for two of the eight challenges. Per challenge, a 128-bit
 # decomposition (128 boolean gates), a fixed-base endoscaling (455, the chained endoscalar
 # operation of the capacity chapter) and the running sum come to about 590; the remaining
-# 805 is taken as the circuit's overhead. This split is derived, not measured.
-BINDER_GATES_PER_CHALLENGE, BINDER_GATES_OVERHEAD = 590, 805
-CHALLENGES_BOUND = 10
+# 860 is taken as the circuit's overhead. This split is derived, not measured.
+BINDER_GATES_PER_CHALLENGE, BINDER_GATES_OVERHEAD = 590, 860
+CHALLENGES_BOUND = 8
 
 def max_endoscalings(rank, nested=False):
     """The most endoscalings one step circuit holds at this rank."""
@@ -146,7 +154,7 @@ def budget_report():
             print(f"  rank {rank}, E {En}/{Em}, {b} binders, fixed {'packed' if packing else 'as today'}"
                   f" ({Fn}, {Fm}): {r2[0]} / {r4[0]} B; components {r2[1]} + {r2[2]}; {g:,} gates per merge")
 
-CHECKED_IN = dict(Fn=19, Fm=14, binders=5, En=4, Em=4, rank=13, H=4)
+CHECKED_IN = dict(Fn=19, Fm=14, binders=4, En=4, Em=4, rank=13, H=4)
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "budget":

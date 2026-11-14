@@ -509,7 +509,7 @@ for rank in RANKS:
             continue
         Emax = max_endoscalings(rank)
         for E in sorted({e for e in (4, 6, 8, 12, 16, 24, 32, Emax) if e <= Emax}):
-            for binders in range(min_binders(rank), 6):
+            for binders in range(min_binders(rank), 5):
                 for H in PEDERSEN_HEADERS:
                     r = size(Fn, Fm, binders, E, E, rank, H)
                     if r is None:
@@ -519,7 +519,7 @@ for rank in RANKS:
                     # Rank, endoscalings per step and header are constants in the code; a
                     # binder that binds more than two challenges, or merged fixed circuits,
                     # are code changes within the protocol.
-                    change = "code" if (packing or binders < 5) else "none"
+                    change = "code" if (packing or binders < 4) else "none"
                     # Shown at the 128-bit floor only: about 126 classical bits, no post-quantum
                     # security (see the security-floor section below).
                     points.append(dict(
@@ -538,7 +538,7 @@ for rank in RANKS:
 
 # The calibration's check: the checked-in row's step and merge are the measured fuse.
 _checked_in = next(p for p in points if p["family"] == "pedersen" and p["rank"] == PEDERSEN_FUSE_RANK
-                   and p["E"] == 4 and p["binders"] == 5 and p["H"] == 4 and not p["packing"])
+                   and p["E"] == 4 and p["binders"] == 4 and p["H"] == 4 and not p["packing"])
 assert _checked_in["circuits"] + 5 == PEDERSEN_FUSE_COMMITMENTS, _checked_in["circuits"]
 assert abs((_checked_in["step_prover"] + _checked_in["prover"]) / (1000 * WORD_MULTS_PER_MS) - PEDERSEN_FUSE_SECONDS) < 0.005
 
