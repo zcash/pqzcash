@@ -20,10 +20,15 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   split (`terminal_response_planner_bytes_split`) routed into the planner's suffix search and
   the catalog estimate. Build: `RUSTUP_TOOLCHAIN=1.96.0 cargo build --release -p akita-planner
   --features catalog-security --bin gen_schedule_artifacts --examples`.
-- Ragu (a local checkout of `tachyon-zcash/ragu`, branch main, UNCOMMITTED):
-  `CompressedProof::encoded_len` / `expected_encoded_len` in `crates/ragu_pcd/src/compress/mod.rs`,
-  test `encoded_len_matches_the_shape` in `crates/ragu_pcd/tests/compress.rs` (passed, pins 7,460).
-  Run with `cargo test --release -p ragu_pcd --lib encoded_len_matches_the_shape`.
+- Ragu (a local checkout of `tachyon-zcash/ragu`, branch main at 8109a41c, 2026-11-13, clean):
+  upstream's wire format (`crates/ragu_pcd/src/wire/`, PR #875) gives
+  `CompressedProof::<Pasta>::encoded_len::<R, HEADER_SIZE>()`, the exact encoded length with its
+  28-byte envelope. Our earlier uncommitted `encoded_len` (which pinned 7,460 at the fork's
+  526b0e3e) was superseded by it and dropped on 2026-11-14 (commits 1cdfcb90 and 9a2388fa, in the
+  reflog only). Measure by appending a scratch test to `tests/compress.rs` (compiled into the lib's
+  tests) that prints the values with `std::println!`, run with
+  `cargo test -p ragu_pcd --lib <name> -- --nocapture`, and revert; only ranks 7, 13 and 14 have
+  `Rank` instances.
 
 ## Data and scripts here
 
@@ -56,7 +61,10 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
 
 ## Key numbers
 
-- Pedersen-IPA compressed proof: 7,460 B (rank 13, 4 endoscalings/step, 5 binders, header 4).
+- Pedersen-IPA compressed proof: 7,908 B of payload (rank 13, 4 endoscalings/step, 5 binders,
+  header 4; 7,936 with the wire format's 28-byte envelope, measured at ragu 8109a41c on
+  2026-11-14; 7,460 before Ragu's online polynomials added six (point, value) openings and two
+  commitments, 448 B, to every compressed proof). The figures below are from before that change.
   5,892 B, the figure from the other agent's search, is exactly rank 14, 16 endoscalings/step,
   one binder, header 2, but the circuit budget (`python ragu-size-model.py budget`, from the
   gate counts pinned in ragu_pcd's internal tests) allows only 8 endoscalings and needs 2
@@ -1385,3 +1393,45 @@ the user's request. Artifact to republish.
 - PENDING: the Pallas factor at 147 (an hour's table) if wanted; BitZ reruns on mains; the
   zk-fold levers for the frontend; the 128-bit slopes' effect on older notes' figures (notes
   keep history).
+
+## 2026-11-14 13:24 UTC: Ragu upstream at 8109a41c; the online polynomials; the TSVs; BitZ scripts
+
+- The nine root TSVs (older copies of estimates/) moved to work/.
+- RAGU UPSTREAM (the checkout's main fast-forwarded 526b0e3e → 8109a41c, 2026-11-13; 268 commits;
+  udon unchanged at zakura-udon 0.1.0). Our uncommitted `encoded_len` was superseded by upstream's
+  wire format (PR #875: `crates/ragu_pcd/src/wire/`, a 28-byte versioned envelope,
+  `CompressedProof::encoded_len::<R, HEADER_SIZE>()`, fuse fixtures pinning payload bytes) and
+  dropped; the user keeps branch `encoded-len-probe` (1e75f342 over 8109a41c) with a test that
+  prints the sizes (`cargo test -p ragu_pcd --lib probe_sizes_for_the_study -- --nocapture`; the
+  crate is no_std, so `std::println!`). MEASURED: compressed r13 h4 7,936 B (7,908 payload), r13
+  h2 7,808, r14 h4 8,064, r14 h2 7,936; uncompressed Proof r13 h4 26,480,800 B; Standard profile
+  50 native + 45 nested components; Derived 5, OPENED 4, NUM_ONLINE_POLYNOMIALS 2. The +448 B over
+  7,460 is exactly the ONLINE POLYNOMIALS (PRs #944, #961 "polynomial oracles"): two unblinded
+  polynomial slots per proof, six (point, value) openings per step at ζ (left, right, output
+  slots), one opening each, Schwartz–Zippel identities between committed polynomials without
+  coefficients in the circuit; Tachyon (research/tachyon at 73031f7, 2026-11-13) uses them for
+  tachygram set polynomials (relations/enforce.rs: poly_equal, poly_product, poly_roots). This
+  is the commit-then-challenge mechanism keep/lookups-in-ragu.md assumed. Model: ragu-size-model.py
+  gained ONLINE_POLYS = 2 and the `online` term (7,908 at CHECKED_IN; minima 6,436 at rank 14
+  packed, 6,148 at rank 15; the 1,120 B and 288 B endoscaling savings unchanged); prose updated in
+  pareto-model.py, pareto-template.html (Proof bytes bullet), pasta-proof-size.md §8 and §8.1.
+  STILL STALE: the circuit-budget constants (NATIVE_FIXED, NESTED_FIXED, STEP_*): upstream's
+  internal/tests.rs pins them now: native Hashes1 1793, Hashes2 1874, Collapse 1455 (the two
+  collapses merged), ComputeV 1948, BindChallenges 2032–2048 (FOUR binders), BindBeta 1889,
+  BindEndoscalar 940, EndoscalingStep 1995; nested EndoscalingStep 2016, Collapse 1598 (Export
+  merged in), ComputeV 1504, Loading 566; stage sizes: native OuterError 186 → 20, InnerError
+  399 → 42 (quotient folding, PR #921), PointsWalk 89 → 144; nested inner_error 254 → 37,
+  outer_error 73 → 11. ProductionRank still R<13>, 4 endoscalings per step; R<14> added
+  2026-10-28 for the extension profiles (the user and Tal found 14 optimal). Refreshing the
+  constants is an hour and a separate commit; it moves the Pedersen rows' feasibility at ranks
+  14–16 by a few percent.
+- THE ACCUMULATION-PROOF PROXY (the user asked): the page prices a fold from first principles
+  (SUMCHECK_ATOMS 120 + K images + claims), not from the 4.4 KB level figure, which is a
+  cross-check within ~20%; the real uncertainty (whether Ragu's step under Akita needs exactly a
+  level's two norm sum-checks and images) is within ×1.5 on ~5 KB: ±2.5 KB per edge, ±25% on the
+  Akita rows' atoms and BLAKE3 merge gates; decider bytes and prover unaffected.
+- SPIKE OF BITZ OVER AKITA (the user asked): two stages, a Python toy (Booleanity sum-check,
+  projection norm bound, one Pasta claim; 2–3 days) then Akita's binary groups on `dev` with GKR
+  replaced by the Booleanity check (1–3 weeks; risk: the claim machinery for a custom prime).
+- BITZ RERUNS: work/bitz-rerun.sh (per profile; `build` was a no-op, the binary already has the
+  native flag and `parallel`) and work/bitz-summary.py; outputs bitz-out/rerun/. Not yet run.
