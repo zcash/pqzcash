@@ -419,6 +419,11 @@ FIELD = {"pedersen": "pasta", "fp128": "fp128", "goldilocks": "goldilocks", "pas
 
 points = []
 
+# Header sizes for the Pedersen-IPA rows: 2 and 4 as the study priced them, and 9, Tachyon's
+# HEADER_SIZE (tachyon-zcash/tachyon, crates/tachyon/src/stamp/proof.rs). The post-quantum rows
+# are priced at 2 and 4 and the page shows them at 2.
+PEDERSEN_HEADERS = (2, 4, 9)
+
 # Pedersen-IPA: the checked-in cycle design, over the configurations the circuit budget
 # allows at each rank, with the fixed circuits as today or packed into the rank's budget.
 for rank in RANKS:
@@ -431,7 +436,7 @@ for rank in RANKS:
         Emax = max_endoscalings(rank)
         for E in sorted({e for e in (4, 6, 8, 12, 16, 24, 32, Emax) if e <= Emax}):
             for binders in range(min_binders(rank), 6):
-                for H in (2, 4):
+                for H in PEDERSEN_HEADERS:
                     r = size(Fn, Fm, binders, E, E, rank, H)
                     if r is None:
                         continue
@@ -454,7 +459,7 @@ for rank in RANKS:
                         verify=pedersen_verify(rank, nat, nes),
                         folded=nat + nes + 5,
                         label=f"rank {rank}, {E} endoscalings/step, {binders} binder{'s' if binders != 1 else ''}, header {H}"
-                            + (", packed" if packing else ""),
+                            + (" (Tachyon's)" if H == 9 else "") + (", packed" if packing else ""),
                     ))
 
 # ---- Security floor ----------------------------------------------------------------
