@@ -420,9 +420,11 @@ def path_cost(field, hp):
 # `Stamp::prove`). A spend is a SpendBind and a SpendAction step, and an output an OutputBind
 # seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
 # FeeFuse and Ragu's rerandomization. So a transaction of s spends and o outputs is
-# 3s + 3o + 1 nodes. Each node is one step circuit whatever the commitment scheme. So the
-# measure takes each node as the number of the family's steps that its circuit needs: one at
-# rank 13 and above for the field arithmetizations. The circuits were measured on 2026-11-14
+# 3s + 3o + 1 nodes. The page re-packs the tree for each rank's step size: a node larger
+# than a step takes whole steps and its remainder joins the rest, which fill steps first-fit
+# decreasing, and the rerandomization, the list's last node, is its own step. At rank 13 over
+# Pasta no two action circuits share a step and the merge rides with the fee step; at rank 15
+# every circuit of two tachyactions fits one step. The circuits were measured on 2026-11-14
 # through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
 # stage of 5 values. They are Pasta gates with Poseidon, a gate being one multiplication with
 # free linear constraints, and all are within the 2,048 of rank 13. In the other
