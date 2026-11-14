@@ -1572,3 +1572,72 @@ ragu/work/bench-fuse-asm.log.
   fuse (1.46 s one core; pedersen_per_coefficient ~5,630); Tachyon-transaction application
   options on the page; refresh the circuit-budget constants from ragu's internal/tests.rs; the
   gate-count probe via (b); the zk-fold levers; the Pallas factor at 147.
+
+## 2026-11-14 17:28 UTC: gate counts measured through the mock; the Pedersen step calibrated; Tachyon transactions on the page
+
+- GATE COUNTS (the user: "measure the gate counts") DONE, through a counting adapter added to
+  Ragu's mock in the worktree ~/olddaira/research/ragu-tachyon-pin (branch tachyon-pin-probe over
+  a1395401, the rev Tachyon pins): ff0e4eba adds ragu_pcd's own check, the adapter's counts for
+  its test step (11 gates, 28 constraints: SYSTEM gate, zeta and bridge hash, the step's packed
+  pair, one query and five openings at zeta; 27 instance elements and ONE); 8ad598ed adds
+  `ragu::counting::step_synthesis_counts` (feature `test-utils`, which now also enables
+  ragu_circuits/test-utils): a `Circuit` that mirrors ragu_pcd's adapter over the mock's types
+  (stage block, staged values bound by equalities, the mock Oracles, the step's `witness`, the
+  unqueried slots opened at zeta by a new `Oracles::finish`, the instance of zeta, twelve
+  opening elements, bridge hash and three padded headers) run through ragu_circuits' Counter;
+  its test gets the same 11/28 for the same step, so the two adapters agree. The probe crate is
+  tachyon/work/gates (ragu by git rev with features mock,test-utils, every ragu crate patched to
+  the worktree; `cargo run`; run.log). The earlier ragu_pcd-side helper was dropped.
+  BUDGET at rank 13: 2,048 gates (n = 2^(rank-2)) and 8,191 constraints; Tachyon's HEADER_SIZE
+  9, stage 5. ALL 39 STEPS FIT, and all compile under the Empty counting driver, so they are
+  written against the driver abstraction as the real Ragu needs. Gates/constraints: FeeFuse
+  1934/3910 (94% of the budget), SpendAction 1649/3329, FeeSeed 1639/3316, SpendBind 1630/3270,
+  OutputBind 1467/2948, NullifierDerive 1378/2767, OutputAction 1351/2739, EvidenceTreeDescend
+  1226/2432, EvidenceTreeLeafPair 1221/2433, NoteSeed 987/1984, QrBucketSeal 656/1321,
+  EvidenceTreeOpen 616/1238, UnspentLift 454/878, QrUnspentInit 409/792, SpendableInit 366/743,
+  EvidenceTreeFuse 353/705, SummaryAdvance 326/665, EvidenceTreeCap 326/660, QrStampIntakeSeed
+  325/663, AnchorSpanSeed 325/665, SummarySeed 324/663, QrSpendableInit 126/253, UnspentFuse
+  102/212, UnspentBind 101/210, NullifierFuse 100/212, SpendableLift 81/169, QrSideDescend 81/160,
+  QrIntakeMerge 66/133, EvidenceTreePairFuse 63/129, QrSideSelect 42/86, QrIntakeSplit 41/89,
+  QrSummaryIntake 37/85, QrEmptyIntakeSeed 36/85, StampMerge 21/50, StampUnmerge 21/50,
+  StampLift 19/48, AnchorSpanFuse 18/47, ActionMerge 17/50, ActionLift 17/48. The adapter's
+  share at stage 5 and header 9 is about 13 gates and 43 constraints.
+- CALIBRATION (commit ba52493): pedersen_per_coefficient is now the measured fuse, 1.46 s x
+  3e9 / (96 commitments x 2^13) x 13/rank, about 5,570 at rank 13 (was 6,905, +24%); an
+  assertion holds the checked-in row's step and merge to 1.46 s; the knob text, the
+  Transaction paragraph and pasta-proof-size.md's prover table say so. Pedersen for the
+  recovery circuit: 406 s in 278 steps at the checked-in configuration, 151 s at rank 17 with
+  70 endoscalings. The paragraph's Goldilocks (17 s) and zero-knowledge Pasta-claims (29 s at
+  rank 15) figures no longer matched the model and were corrected: the prose figures are hand
+  maintained; a table generated from the model would stop the drift (TO DO).
+- TACHYON TRANSACTIONS (commits 3956b76 and c5807b6; artifact v93): txapp options tachyon2, 4,
+  8, 16 (half spends, half outputs; placed before the Merkle paths at the user's request).
+  APPLICATIONS["tachyonN"] is a per-node list in each arithmetization and policy: nodes
+  SpendBind + SpendAction per spend, OutputBind + OutputAction per output, ActionMerge per
+  action after the first, FeeFuse, Rerandomize (20 gates, the adapter's); the page sums
+  ceil(node / step_units) over the nodes. A node costs perms x hash(policy) + windows x (2 in
+  Ragu's Pasta gates, 4 bit monomials elsewhere) + the rest x mult(arith), the rest taken as
+  Pallas multiplications (an overstatement where a gate checks a bit). Figures at floor 128 on
+  one core: 2 tachyactions, 7 nodes: Pedersen checked-in 10.2 s (7 fuses), Akita Pasta claims
+  64-bit 0.54 s (rank 13), BitZ 0.70 s (rank 20), frontend 0.20 s (rank 19, BLAKE3), Goldilocks
+  5.2 s in 153 steps, F2 20 s in 130 steps; zk: Pasta claims 3.7 s, frontend 1.4 s, BitZ
+  unchanged. 16 tachyactions, 49 nodes: 71.5 / 3.8 / 4.9 / 1.4 / 35 s. The range of step counts
+  is the emulation of Pallas arithmetic: 27-36 Goldilocks steps of rank 17 or 23-30 Boolean
+  steps per node. HEADER RULE (c5807b6, the user's point): a Tachyon application needs header
+  9, so the page then shows the Pedersen rows at header 9 only and adds 7 x 64 bytes to the
+  post-quantum rows (every family prices a header element at 2 x 32 bytes; the model exports
+  TACHYON_HEADER and HEADER_ELEMENT_BYTES); the 2 and 4 boxes are disabled meanwhile.
+- ANSWERED IN CHAT: Qr in Tachyon's step names is quadratic residuosity (qr.rs: an epoch's
+  tachygrams partitioned by the residue side of x + R_j); Ragu's fuse samples its blindings
+  (application stage blinded, eval-stage blindings rejection-sampled) but fuse/mod.rs says the
+  construction does not yet establish zero knowledge, which `rerandomize` is meant to provide,
+  so the measured fuse is the only fuse and the rerandomization is counted as a node; the
+  Recovery Statement's primary input (ZIP 2005: rt, rk, nf, SigHash) is 5-6 field elements,
+  so its header is 6-7 with the suffix and fits Tachyon's 9, which header 2 or 4 does not.
+- STATE: pqzcash main at c5807b6 plus this entry, unpushed after f642051; the Ragu worktree
+  ragu-tachyon-pin clean at 8ad598ed; the Ragu checkout clean on main; Tachyon clean (the probe
+  under work/). PENDING: refresh the circuit-budget constants from ragu's internal/tests.rs;
+  the zk-fold levers for the frontend; the Pallas factor at 147; generate the Transaction
+  paragraph's figures from the model; a header for the recovery application as for Tachyon's;
+  keep/tachyon-statements.md's cost table now carries the measured counts (its HTML render is
+  stale).
