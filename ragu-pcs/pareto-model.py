@@ -165,6 +165,28 @@ def mask_fold(variant, K, rank, rank_scale):
     per_digit = ajtai_per_coefficient(variant, True, rank_scale) / DIGITS[variant]
     return MASK_ATTEMPTS * digits * (per_digit + MASK_SAMPLE_WORD_MULTS)
 
+# The accumulation prover: the fold's two norm and range sum-checks run over the accumulator,
+# K groups of 2^rank coefficients in digits. A sum-check pass costs about five field
+# multiplications per digit, from the draft frontend's measured Booleanity sum-check: 437.7 ms
+# for 2^27 bits on one core, 9.8 word multiplications per 64-bit digit (BOOL_CHECK below). The
+# page's accumulation prover measure adds that work to the merge's commitments for the lattice
+# rows, with the fold's own linear combination of the digit vectors, one multiplication per
+# digit. The other rows add nothing: Pedersen-IPA's fuse is measured whole and its native
+# folding, the batching of about 95 polynomials and a 100-point linear combination, is about
+# one percent of it; the hash-based rows' ARC step hashes the new accumulator already; and the
+# binary-groups row's measured opening includes its sum-checks.
+ACCUMULATION_SUMCHECKS = 2
+SUMCHECK_FIELD_MULTS_PER_DIGIT = 5
+FOLD_FIELD_MULTS_PER_DIGIT = 1
+
+def accumulation_sumchecks(variant, K, rank, digits=None):
+    """Word multiplications of the fold's sum-checks and linear combination over an
+    accumulator of K groups of 2^rank coefficients of `digits` digits each (the variant's, or
+    one per bit)."""
+    digits = DIGITS[variant] if digits is None else digits
+    per_digit = ACCUMULATION_SUMCHECKS * SUMCHECK_FIELD_MULTS_PER_DIGIT + FOLD_FIELD_MULTS_PER_DIGIT
+    return per_digit * WORD_MULTS[variant] * K * 2 ** rank * digits
+
 # Base-field atoms the merge circuit absorbs per compressed commitment (128 bytes).
 ATOMS_PER_COMMITMENT = {"fp128": 8, "goldilocks": 16, "pasta_q64": 6, "pasta_sis": 4, "pasta": 4}
 SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 elements, per merge
@@ -624,6 +646,7 @@ for variant, hp in itertools.product(("fp128", "goldilocks", "pasta_q64", "pasta
                         groups=K, packing=None, circuits=circuits, change=change, zk=zk,
                         bytes=round(opening + instance),
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
+                        accumulation_prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale) + accumulation_sumchecks(variant, K, rank)),
                         step_prover=round(2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         fold=round(mask_fold(variant, K, rank, rank_scale) + circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)) if zk else 0,
                         accumulation=atoms,
@@ -1442,6 +1465,7 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                         groups=K, packing=None, circuits=circuits, change="design", zk=zk,
                         bytes=round(opening + instance + bool_bytes),
                         prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
+                        accumulation_prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit) + accumulation_sumchecks("pasta_q64", K, rank, digits=1)),
                         step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=fold,
                         accumulation=atoms,
                         gates=round(digits),
@@ -1611,25 +1635,32 @@ for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
 
+# The rows that add no sum-check work have the merge's commitments as their accumulation
+# prover (see accumulation_sumchecks), and the sum-check rate is the measured one.
+for p in points:
+    p.setdefault("accumulation_prover", p["prover"])
+assert abs(BOOL_CHECK["sumcheck"][0] / WORD_MULTS["pasta_q64"] - SUMCHECK_FIELD_MULTS_PER_DIGIT) < 0.2
+
 # ---- Pruning ---------------------------------------------------------------------------
 # A point that another point of its family beats or equals on every measure the page can
-# plot (bytes, prover, atoms, gates, verifier, and the transaction measure at every
-# transaction size, which is monotone in the per-step prover plus the merge prover and in
-# the fold) is never on any frontier, provided the two are selectable only together: the
+# plot (bytes, prover, accumulation prover, atoms, gates, verifier, and the transaction
+# measure at every transaction size, which is monotone in the per-step prover plus the
+# accumulation prover and in the fold) is never on any frontier, provided the two are
+# selectable only together: the
 # same floor, zero-knowledge variant, hash policy, grinding, rank, packing, field design,
 # endoscalings and binders. Within such a group the rows differ by rate, and by header for
 # the post-quantum families, where the header is a constant 128 bytes with no other effect,
 # so the header-4 rows go and the header knob acts on Pedersen-IPA, whose checked-in
 # configuration has a header of 4. This keeps the page's size down without removing
 # anything that a knob could isolate.
-PRUNE_MEASURES = ("bytes", "prover", "accumulation", "gates", "verify")
+PRUNE_MEASURES = ("bytes", "prover", "accumulation_prover", "accumulation", "gates", "verify")
 
 def prune_key(p):
     return (p["family"], p["floor"], p["zk"], p.get("zkv"), p["hashes"], p.get("grind"), p["rank"],
             None if p["pq"] else p["H"], p.get("packing"), p.get("field"), p.get("E"), p.get("binders"))
 
 def prune_measures(p):
-    return tuple((p[m] or 0) for m in PRUNE_MEASURES) + ((p["step_prover"] or 0) + p["prover"], p["fold"] or 0)
+    return tuple((p[m] or 0) for m in PRUNE_MEASURES) + ((p["step_prover"] or 0) + p["accumulation_prover"], p["fold"] or 0)
 
 def dominates(q, p):
     a, b = prune_measures(q), prune_measures(p)
