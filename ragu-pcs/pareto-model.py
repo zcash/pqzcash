@@ -99,8 +99,9 @@ ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pa
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
 # lattice rows it is the folded digit vector, K groups of 2^rank coefficients in digits, each
-# digit held as an element of the commitment field for the sum-checks (packed storage at four
-# bytes, since the accumulated norm stays below 2^32, would be a quarter or less). Pedersen's
+# digit held as an element of the commitment field, the form the sum-checks compute in; stored
+# as 32-bit integers, which the accumulated norm bound of 2^27 allows, it would be half of that
+# at 64 bits, a quarter at 128 and an eighth at Pasta's modulus. Pedersen's
 # is the uncompressed proof, every committed polynomial's 2^rank Pasta coefficients (26.5 MB
 # measured at rank 13 against the 24.9 MB counted). The hash-based rows under ARC hold the
 # accumulator's codeword, the witness over the rate in the field's elements, and its Merkle
