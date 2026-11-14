@@ -1784,3 +1784,58 @@ ragu/work/bench-fuse-asm.log.
   re-render keep/tachyon-statements.md.
 - 20:15 UTC, addendum: the memory knob's "packed storage a quarter or less" was wrong for the 64-bit rows; corrected in 904d78e (32-bit integers: half at 64 bits, a quarter at 128, an eighth at Pasta's modulus; the field form made on the fly per sum-check pass), artifact v101. The Akita and frontend rows' memory is the same under either hash policy (K x 2^rank digits); WHIR + ARC at rank 16 rate 1/8 is 74 GB with BLAKE3 and 1.2 GB with Poseidon. The user pushed main through 50ddcfc.
 - 20:23 UTC, addendum: the memory measure now counts the lattice rows' accumulator at the packed width of its norm bound (65f58f7, artifact v102; the user: a known per-level bound lets each accumulator be stored at its exact width): 21 bits a digit at the handoff, the certified l2 bound of about 2^19 plus a sign, five bits fewer per level below the top, the measure being of the top level; the field form (8/16/32 B) is computation. Figures: Akita Pasta claims rank 17 175 MB (was 535), Goldilocks 45 MB, fp128 89 MB, frontend rank 21 33 MB, BitZ rank 20 32 MB, F2 29 MB, Pedersen 25 MB. Norm growth: each fold multiplies the entries by up to 40 (ternary challenges of l1 weight 20, two children), about five bits a level, so the 2^19 handoff bound is a tree of three or four levels; growing beyond costs rows as the square of the bound's bits (five more bits about +40%), decomposing costs a recommitment of the accumulator, so within a transaction growth is the design and the aggregator decomposes (answered in chat).
+
+## 2026-11-14 21:13 UTC: BitZ's prover in two phases; the family named Kishu; the review of Ulrich's and Quang's statements begun
+
+- BITZ PROVER (the user: check the GKR handling; then "price the two phases separately"; commit
+  da6d65f, artifact v103): the rows scaled Table 10's whole prover by 1.25 at rate 1/8, a ratio
+  measured at 2^27. The reruns' phase timings (work/bitz-out/rerun/summary.txt, one thread,
+  mains) show the grand-product GKR, which lifts the integer claims into the exponent of a
+  generator of F_2^128 and does not depend on the rate, at 79-85% of the prover from 2^25 to
+  2^28 (custom:1:4: 82/104, 154/194, 310/367, 566/663 ms), and the whole-prover rate-1/8 ratio
+  at 1.00, 1.09, 1.28, 1.18 by size (the Ligerito phase's jump at 2^27). BITZ_PHASES holds the
+  GKR share and the Ligerito factor by log bits; bitz_prover_scale(rate, log_bits) = share +
+  (1 - share) x factor; BITZ_RATE keeps only the Ligerito bytes. The frontier rows at 2^24.7 to
+  2^25.4 bits lose about a fifth: rank 13 rate 1/8 prover 2.1e8 (the page said 3.5e8, stale);
+  recovery 0.25 s (was 0.30), two tachyactions 0.21 s (was 0.27), sixteen 0.45 s (was 0.56).
+  Also checked: Table 10 is near-linear in bits (2.0-2.4 ns a bit), so the log-linear
+  interpolation errs under 2%; the 128-bit prover factor 1.0 holds (the GKR phase is the same at
+  100 and 128 bits); this M4 Max is 1.25-1.3x the paper's M5 on one thread; the GKR
+  parallelizes 3x (2^25) to 6.5x (2^28) on ten threads, not shown by the one-core figures.
+- KISHU (the user chose the name; "Shiba" has no prior use among proof systems but is the
+  memecoin; commit 2a7e271, artifact v104): the BitZ-over-Akita family is Kishu, a Japanese
+  breed like Akita and Hachi (the lattice PCS names are dog breeds: Greyhound, Hachi, Akita,
+  Grand Danois, Maltese, Jindo); the label, the page's prose, pasta-proof-size.md and the spike
+  README say Kishu; the key bits_q64 and the frontend_* identifiers stay.
+- THE REVIEW OF ULRICH'S AND QUANG'S STATEMENTS (the user: "check everything they've said that
+  was not already contradicted"; the session logs also hold private security-triage material,
+  which is excluded): statements collected from WORKING-NOTES, keep/ulrich-*.{md,txt} and the
+  user turns of the session logs since 2026-10-13 (the scratch extraction is not kept). Quang:
+  (1) price each hash-based scheme with its own recursion rather than ARC; (2) the grand-product
+  GKR is the expensive part of BitZ; (3) Kishu's prover is probably overestimated, the loose
+  security analysis assuming too much grinding; (4) for a fixed norm bound SIS gets harder as
+  the modulus grows, so the module rank shrinks by about the ratio of bit lengths; (5) the QROM
+  proof of Akita "in progress, not long" (2026-10-14). Ulrich: (6) 86 openings per input is
+  more than the list-decoding regime needs; (7) a field over 128 bits is needed to reach the
+  Johnson bound, then far fewer samples; (8) query-phase grinding cuts the samples; (9) a
+  stand-alone FRI-Binius at 2^25 bits, rate 1/64 is about 66 KiB; (10) packing straight into a
+  191/192-bit field would be more efficient; (11) the ARC decider's first round opens three
+  oracles; (12) for FRI-Binius the only secure randomisation is a full-entropy mask in a batching
+  step before FRI, while Ligerito takes Zook-style randomisation at negligible cost; (13) the mask
+  must be witness-size, blinders droppable, only the private witness masked. Already settled in
+  the record: his one-row mask (his own slip, corrected the same day) and (10) (a wash on the
+  model). CHECKED SO FAR: (2) holds, 79-85% of the prover measured; (5) NOT DONE as of the
+  2026-10-15 revision of ePrint 2026/1983, which says the proofs are in the ROM and the QROM is
+  future work (introduction, sections 10 and 14), and none of Quang's later ePrints (2501, 2056,
+  2424, 2157) is it; the user will ask him. FINDING on the way: Kishu's rows omit the application's
+  constraint PIOP (Zinc+'s UCS sum-checks over the digit table), which BitZ's rows charge at 1.6x
+  the PCS prover on the application's share; for the recovery circuit (4.7M application digits
+  against 2M of merge) that is roughly a third more on Kishu's figure; not yet modelled. Also
+  explained in chat: Kishu has no GKR (a prime field makes the integer recomposition linear; the
+  Booleanity certificate replaces what the binary field gave for free), and it beats BitZ on the
+  transaction measure through its merge (2.0M digits against 28M bits), not per bit (26-33
+  against 9 word multiplications). TO CHECK NEXT: (1), (3), (4), (6)-(9), (11)-(13).
+- STATE: pqzcash main at 2a7e271 plus this entry, unpushed after 50ddcfc (nine commits).
+  PENDING: the review's remaining checks and its record under keep/; Kishu's application PIOP;
+  the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
+  re-render keep/tachyon-statements.md.
