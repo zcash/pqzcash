@@ -1494,3 +1494,17 @@ user pushes.
 - PENDING: calibrate the Pedersen step cost; Tachyon transaction applications on the page; refresh
   the circuit-budget constants from ragu's internal/tests.rs table; the zk-fold levers for the
   frontend; the Pallas rank factor at 147 if wanted.
+
+2026-11-14 14:59 UTC, addendum: with assembly. Neither benchmark above used assembly: pasta_curves 0.6.1 has an `asm` feature (AArch64 and
+x86_64 backends; the user's ARMv7E-M work is separate) that orchard does not enable, and
+zakura-udon 0.1.0 has `aarch64-asm`, which ragu's workspace does not enable (features traits,
+poseidon only). Rebuilt with them on rustc 1.100.0: Orchard 0.16.0 (bench-0.16 with
+`pasta_curves = { version = "0.6.1", features = ["asm"] }`): all cores 0.34 / 0.35 / 0.62 / 1.16 /
+2.35 s at 1 / 2 / 4 / 8 / 16 actions (was 0.47 / 0.46 / 0.83 / 1.60 / 3.15), one thread 1.83 /
+1.88 / 3.75 s at 1 / 2 / 4 (was 2.55 / 2.77 / 4.89): 24–32% faster. Ragu fuse with
+`--features multicore,udon/aarch64-asm`: one worker 1.27 s (was 1.46), 16 workers 0.59 s (was
+0.63–0.70): 8–13% faster; the accelerated backend still equals the reference. So with assembly on
+both sides a Tachyon 1+1-action transaction is 9.8 s one thread / 4.6 s all cores against Halo 2's
+1.88 / 0.35 s for two actions (5.2× / 13×), and 8+8 actions 70 / 33 s against 16 actions' ~14
+(extrapolated at 0.93 s per action) / 2.35 s (5× / 14×). Logs: orchard/work/bench-0.16/bench-*-asm.log,
+ragu/work/bench-fuse-asm.log.
