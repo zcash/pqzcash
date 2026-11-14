@@ -78,9 +78,15 @@ DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "past
 # Prover work in native 64-bit word multiplications, for the commitments of one step.
 #
 # Pedersen over Pasta: a size-n multi-scalar multiplication with 255-bit scalars by Pippenger
-# costs about 255/log2(n) mixed point additions per point, each about 11 field
-# multiplications, each about 32 word multiplications (4x4 limb products plus a Montgomery
-# reduction). So per coefficient: 255/log2(n) * 11 * 32.
+# costs about 255/log2(n) mixed point additions per point, so the cost per coefficient falls
+# as 1/rank. The constant is measured (2026-11-14). Ragu's fuse of its production step at
+# rank 13 (tachyon-zcash/ragu 8109a41c) commits the step's own circuit and the Standard
+# profile's 91 circuits with their four stage polynomials: 96 commitments of 2^13
+# coefficients. It takes 1.46 s on one core of an Apple M4 Max with rustc 1.100.0 and no
+# assembly, and 1.27 s with udon's AArch64 assembly, which Ragu does not enable. At the
+# page's rate that is about 5,570 word multiplications per coefficient at rank 13. The
+# earlier estimate, 11 field multiplications of 32 word multiplications per addition, gave
+# 6,900, 24 percent more.
 #
 # Ajtai over R_q with ring dimension d and scalar_rows rows, by NTT: per digit about
 # scalar_rows/d pointwise multiplications plus log2(d)/2 for the digit's share of the NTT,
@@ -410,10 +416,70 @@ def path_cost(field, hp):
         return RECOVERY_PATH_POSEIDON[field]
     return RECOVERY_PATH_BLAKE3[unit]
 
+# A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
+# `Stamp::prove`). A spend is a SpendBind and a SpendAction step, and an output an OutputBind
+# seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
+# FeeFuse and Ragu's rerandomization. So a transaction of s spends and o outputs is
+# 3s + 3o + 1 nodes. Each node is one step circuit whatever the commitment scheme. So the
+# measure takes each node as the number of the family's steps that its circuit needs: one at
+# rank 13 and above for the field arithmetizations. The circuits were measured on 2026-11-14
+# through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
+# stage of 5 values. They are Pasta gates with Poseidon, a gate being one multiplication with
+# free linear constraints, and all are within the 2,048 of rank 13. In the other
+# arithmetizations the Poseidon permutations, two gates per S-box of degree 5 and 192 per
+# permutation, are hashed under the page's policy. The fixed-base scalar multiplications'
+# window selections, two gates per three-bit window in Ragu, cost the bits' four monomials in
+# any unit, since the limbs' selections are then linear. The remaining gates are taken as
+# Pallas base-field multiplications, which overstates them where a gate only checks a bit.
+# The windows are 85 for a 255-bit scalar
+# and 17 for a 51-bit amount (keep/tachyon-statements.md, the cost table). The
+# rerandomization's circuit is the adapter's own handful of gates. Per-note steps (NoteSeed,
+# NullifierDerive, the spendable and anchor-span steps) run in the background and are not
+# counted, as in the benchmarks.
+TACHYON_STEPS = {  # Pasta gates at header 9 and stage 5; Poseidon permutations; fixed-base windows
+    "SpendBind": (1630, 2, 102), "SpendAction": (1649, 3, 85), "OutputBind": (1467, 2, 102),
+    "OutputAction": (1351, 2, 85), "ActionMerge": (17, 0, 0), "FeeFuse": (1934, 4, 187),
+    "Rerandomize": (20, 0, 0),
+}
+POSEIDON_RAGU_GATES = 192
+WINDOW_SELECTION_GATES = 2  # Ragu's gates selecting a window's point among eight
+WINDOW_SELECTION_OFF_PASTA = 4  # the three bits' four monomials, in any other unit
+TACHYON_TRANSACTIONS = {2: (1, 1), 4: (2, 2), 8: (4, 4), 16: (8, 8)}  # tachyactions: spends, outputs
+
+def tachyon_nodes(spends, outputs):
+    return (["SpendBind", "SpendAction"] * spends + ["OutputBind", "OutputAction"] * outputs
+            + ["ActionMerge"] * (spends + outputs - 1) + ["FeeFuse", "Rerandomize"])
+
+def tachyon_node_cost(field, hp, node):
+    """One proof-tree node's circuit in the unit of `field`'s arithmetization: its Poseidon
+    permutations under policy `hp` where the field has a Poseidon, by BLAKE3 otherwise, its
+    window selections as bit monomials, and its other gates as Pallas multiplications."""
+    gates, perms, windows = TACHYON_STEPS[node]
+    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    if field == "pasta":
+        mult = 1
+    elif field == "boolean":
+        mult = (1 + BOOL_REDUCTION) * mult_ands(255)
+    else:
+        mult = RECOVERY_MULT[field]
+    if hp == "poseidon" and field == "pasta":
+        permutation = POSEIDON_RAGU_GATES
+    elif hp == "poseidon" and field in RECOVERY_PATH_POSEIDON:
+        permutation = RECOVERY_PATH_POSEIDON[field] / 33
+    else:
+        permutation = RECOVERY_PATH_BLAKE3[unit] / 33
+    selection = WINDOW_SELECTION_GATES if field == "pasta" else WINDOW_SELECTION_OFF_PASTA
+    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES
+    return perms * permutation + windows * selection + other * mult
+
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", "bits_pasta")
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
+    # A Tachyon transaction is its proof tree's nodes, each in the unit, in order.
+    **{f"tachyon{n}": {a: {hp: [round(tachyon_node_cost(a, hp, node)) for node in tachyon_nodes(s, o)]
+                           for hp in HASH_POLICIES} for a in ARITHS}
+       for n, (s, o) in TACHYON_TRANSACTIONS.items()},
 }
 
 # The arithmetization of each family's application circuit, for `step_gates`.
