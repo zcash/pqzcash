@@ -1703,3 +1703,4 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at b1a58a0 plus this entry, unpushed after aedc6a2 (seven commits).
   PENDING unchanged: the zk-fold levers for the frontend; the Pallas factor at 147; generate
   the Transaction paragraph's figures from the model; re-render keep/tachyon-statements.md.
+- 18:32 UTC, addendum: the two measure groups share one full-width group laid out in two columns (bbd7dbe), since the two-column controls grid had put them diagonally; artifact v96. Main at bbd7dbe plus this line.
