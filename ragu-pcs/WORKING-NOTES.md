@@ -1754,3 +1754,4 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at c2a9cf6 plus this entry, unpushed after aedc6a2. PENDING unchanged:
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md; maybe a memory column or note.
+- 19:44 UTC, addendum: a crosshair pointer over the plot in both views (ad78671, CSS on Plotly's drag layer and 3D canvas), since the arrow covered the hover box; artifact v98. Main at ad78671 plus this line.
