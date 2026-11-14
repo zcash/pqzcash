@@ -1313,30 +1313,52 @@ for grind in GRINDS:
 # validator wants more out-of-domain samples), so 128 bits is the unique-decoding regime with
 # fold grinding, the paper's own choice above 100 bits: the Ligerito part of the proof is 1.8
 # times the 100-bit one, the non-Ligerito part 1.05, the verifier 1.17, the prover the same.
-# Rate 1/8 at 128 bits has 0.83 of the Ligerito bytes and 1.25 times the prover of rate 1/2.
-# (Confirmed on mains, one and ten threads, 2^25 to 2^28, work/bitz-out/overnight/: this M4
-# Max is 1.3 times the paper's M5 on one thread and matches it on ten.)
+# Rate 1/8 at 128 bits has 0.83 of the Ligerito bytes. (Confirmed on mains, one and ten
+# threads, 2^25 to 2^28, work/bitz-out/overnight/ and work/bitz-out/rerun/: this M4 Max is 1.3
+# times the paper's M5 on one thread and matches it on ten.)
 # Beyond 128 bits the Ligerito bytes and the verifier scale with the floor, as queries do. The
-# prover is the grand-product GKR: 120 of the 150 ms at 2^25, with Ligerito at 10 to 30 ms
-# (Quang Dao: the prover with grand-product GKR is just really expensive). The PIOP of Zinc+
-# adds, per its Table 4, 1.6 times the PCS prover's time on the application's share, 2 ms of
-# verifier, and 36 KB of proof. The pairs are (prover ms, verifier ms, non-Ligerito KB,
-# Ligerito KB).
+# prover has two phases, priced separately (BITZ_PHASES, from the reruns' phase timings): the
+# grand-product GKR, which lifts the integer claims into the exponent of a generator of
+# F_2^128 and does not depend on the rate, is 79 to 85 percent of the prover at rate 1/2 from
+# 2^25 to 2^28 bits (Quang Dao: the prover with grand-product GKR is just really expensive);
+# the Ligerito phase, the rest, costs more at rate 1/8 by a factor that depends on the size,
+# nothing at 2^25 and 2.8 at 2^27, where its time jumps. A single factor on the whole prover
+# overstated the rate-1/8 rows at the sizes the frontier uses by about a fifth. The PIOP of
+# Zinc+ adds, per its Table 4, 1.6 times the PCS prover's time on the application's share,
+# 2 ms of verifier, and 36 KB of proof. The pairs are (prover ms, verifier ms, non-Ligerito
+# KB, Ligerito KB).
 BITZ_T10 = {20: (7.31, 0.82, 17.3, 84.1), 21: (12.0, 1.08, 18.2, 92.8), 22: (17.1, 1.46, 19.2, 103),
             23: (24.3, 1.51, 27.7, 120), 24: (47.3, 2.22, 28.7, 133), 25: (79.9, 2.42, 45.8, 144),
             26: (151, 3.38, 46.6, 162), 27: (298, 5.72, 47.6, 176), 28: (537, 6.02, 81.2, 190),
             29: (1094, 9.95, 82.0, 210), 30: (2121, 11.1, 148, 225), 31: (4271, 21.0, 150, 238)}
 
-BITZ_RATE = {"1/2": (1.0, 1.0), "1/8": (0.83, 1.25)}  # (Ligerito bytes, prover) against rate 1/2, measured at 128 bits
+BITZ_RATE = {"1/2": 1.0, "1/8": 0.83}  # Ligerito bytes against rate 1/2, measured at 128 bits
 BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
 BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
+# The prover's phases on this machine, one thread (work/bitz-out/rerun/summary.txt): the
+# grand-product share of the prover at rate 1/2 and 100 bits (Table 10's setting), and the
+# factor on the Ligerito phase at rate 1/8, both by the committed bits' logarithm; the factor
+# is what the measured whole-prover ratio at rate 1/8 (1.00, 1.09, 1.28, 1.18) leaves to the
+# Ligerito phase once the grand product is held fixed.
+BITZ_PHASES = {25: (0.787, 1.0), 26: (0.792, 1.43), 27: (0.845, 2.8), 28: (0.853, 2.2)}
+
+def _interp(table, x):
+    """Linear interpolation of a table keyed by a number, clamped to its range."""
+    keys = sorted(table)
+    x = min(max(x, keys[0]), keys[-1])
+    lo = max(k for k in keys if k <= x)
+    hi = min(k for k in keys if k >= x)
+    t = 0 if hi == lo else (x - lo) / (hi - lo)
+    return [a + t * (b - a) for a, b in zip(table[lo], table[hi])]
 
 def bitz_t10(log_bits):
-    n = min(max(log_bits, 20), 31)
-    lo = int(math.floor(n))
-    hi = min(lo + 1, 31)
-    t = n - lo
-    return [a + t * (b - a) for a, b in zip(BITZ_T10[lo], BITZ_T10[hi])]
+    return _interp(BITZ_T10, log_bits)
+
+def bitz_prover_scale(rate, log_bits):
+    """The prover at the rate against Table 10's rate 1/2: the grand-product phase as it is,
+    the Ligerito phase at the rate's measured factor for the size."""
+    gkr_share, lig_factor = _interp(BITZ_PHASES, log_bits)
+    return gkr_share + (1 - gkr_share) * (lig_factor if rate == "1/8" else 1.0)
 
 # Zero knowledge for BitZ is derived, since its paper offers succinctness only: Ligero's random
 # row per Ligerito level, whose symbol appears in every opened column, so that the columns
@@ -1379,8 +1401,8 @@ def bitz_point(mode, rate, rank, floor, H, grind=None, zk=False):
         bits = new
     log_bits = math.log2(bits)
     prover_ms, verify_ms, nonlig, lig = bitz_t10(log_bits)
-    lig_scale, prover_scale = BITZ_RATE[rate]
-    prover_ms *= prover_scale * BITZ_128["prover"] * (1 + BITZ_PIOP["prover"] * app_bits / bits)
+    lig_scale = BITZ_RATE[rate]
+    prover_ms *= bitz_prover_scale(rate, log_bits) * BITZ_128["prover"] * (1 + BITZ_PIOP["prover"] * app_bits / bits)
     # the decider's extra first-round trees, on the Ligerito part and, as a bound, on the whole verifier
     extra = (ARC_DECIDER_TREES - 1) * ligerito_first_share(log_bits) if mode == "arc" else 0
     proof = (nonlig * BITZ_128["nonlig"] + lig * lig_scale * BITZ_128["lig"] * floor / 128 * (1 + extra)) * 1000 + BITZ_PIOP["bytes"]
