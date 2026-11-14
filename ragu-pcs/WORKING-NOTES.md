@@ -1842,3 +1842,40 @@ ragu/work/bench-fuse-asm.log.
 - 21:19 UTC, addendum: Kishu's application digits now pay Zinc+'s constraint PIOP (4cfc722, artifact v105): ZINC_PIOP_PER_DIGIT = 1.6 x BitZ's Table 10 prover per bit at 2^25 = 11.4 word multiplications a digit, on the step's digits only (the merge circuit's own PIOP is not charged, as for BitZ). Effect about 5%, since the fold's sum-checks dominate Kishu's step at ranks 19-21: recovery 0.43 s (was 0.41), zk 2.6 s, two tachyactions 0.22 s, sixteen 0.88 s; the earlier "a third more" guess predated the accumulation prover. The review finding is closed; the other checks continue.
 - 21:23 UTC, addendum: the review of Ulrich's and Quang's statements is done, record keep/ulrich-quang-review.md (fourteen statements with verdicts and evidence; all hold or are judgements except the Akita QROM proof, still future work, and "86 openings is more than needed", true only up to the refuted capacity regime; the 2026-10-21 sweep had settled U1-U3). Main at fede238 plus this line, unpushed after 50ddcfc.
 - 21:49 UTC, addendum: EVIDENCE PLAN agreed with the user (pen and paper with computational checks first, Lean once the statements hold still; the decoupled modulus first). The statements are drafted in keep/kishu-soundness-note.md for review before any proof. Findings while writing them: Kishu does NOT use the decoupled modulus (its claims live in F_q = 2^64 - 59 = the commitment modulus, over E = F_q[u]/(u^2 - 2); Pasta values come from 32-bit limbs, Lemma B3), so its obligations are Akita's own 64-bit soundness, the Booleanity certificate and the limb lemma, and the page's "same open soundness obligation" is wrong; design A (pasta_q64) is the one needing the no-wrap knowledge-soundness proof, where two details may bite: the quotient k's width grows with the accumulated norm (up to 2^49 at N = 2^22, 17 digits, not the 11 of pasta-proof-size.md 6.3), and a digit-range product identity over F_p cannot lift for accumulated witnesses (magnitude 2^270), so the range check must be the l2 norm or apply to fresh digits only. Cost consequence: design A's fold sum-checks run over F_p (32 word multiplications a multiplication), so the pasta_q64 accumulation term is low by 3-4x (Kishu unaffected: E at 64 bits, measured). Not yet changed on the page.
+
+## 2026-11-14 21:54 UTC: STATE for resumption (context low); the Pasta-claims sum-check field fixed
+
+- PASTA-CLAIMS FIX (c8aa330, artifact v106): accumulation_sumchecks takes the CLAIM field's
+  multiplication cost (CLAIM_WORD_MULTS: 32 for the Pasta variants, 8 fp128, 1.5 Goldilocks);
+  Kishu passes the 64-bit rate explicitly (its claims live in F_q = 2^64 - 59, E-extension,
+  Pasta values from 32-bit limbs). pasta_q64 figures: recovery about 140 s at rank 16 (was 12),
+  zk about 170 s; two tachyactions 3.2 s at rank 12 (was 0.42), zk 5.9 s; sixteen 16 s (was
+  1.7). Page text: the Kishu paragraph no longer says Kishu shares the decoupled commitment's
+  obligation; the accumulation-prover knob says the sum-checks are in the claim field. The
+  BLAKE3 figure for the Pasta-claims recovery row was dropped from the Transaction paragraph
+  (not recomputed).
+- THE EVIDENCE PLAN (agreed): pen and paper with computational checks first; Lean (Lemma L, the
+  limb lemma, then the reduction in VCVio, CertifiedJL's tails imported) once the statements
+  hold still. The statements are in keep/kishu-soundness-note.md, AWAITING THE USER'S REVIEW:
+  Lemma L (no wrap), Lemma B3 (limbs), Theorem B (Kishu's claim reduction: Booleanity via
+  Theorem 1 + the projection certificate, the batched sum-check with limb terms, error
+  eps_proj + (2m+2)/|E| + Akita's), Theorem A (the decoupled variant's knowledge soundness, to
+  be stated once the protocol is written; the non-mechanical points: the quotient k's width per
+  level, up to 2^49 = 17 digits at N = 2^22 and the handoff norm against the note's 11; and the
+  range check, which must be the l2 norm or fresh digits only, since a digit-range product
+  identity cannot lift at 2^270). Proposed order: Theorem B first (Kishu's), with the spike
+  extended by the adversarial cases named in the note's §6; then the independent recomputation
+  of the draft's 2^-136 certificate at its parameters (four chains 43,43,43,43,40; radices
+  2^14,16,8,8,8; geometric grid 1/1024 ratio 33/32, 192-bit CDF rounding, moment order 20);
+  then Theorem A adapted from LaBinius; then Lean. Three decisions for the user: the statements
+  as written; Theorem B first; (the page fix is now done).
+- ASK QUANG (the user will): the QROM proof of Akita (future work as of the 2026-10-15
+  revision); whether the composed-chain certificate is on CertifiedJL's roadmap; whether a
+  tighter analysis of the rows term exists.
+- STATE: pqzcash main at c8aa330 plus this entry, unpushed after e822512 (two commits plus
+  this). Untracked: keep/kishu-soundness-note.md, keep/ulrich-quang-review.md (both to keep),
+  the scratch extraction of the session logs is in the session scratchpad only. Artifact v106.
+  PENDING: the review-record items above; the zk-fold levers; the Pallas factor at 147; generate
+  the prose figures from the model (they drift: this entry's figures were hand-updated again);
+  re-render keep/tachyon-statements.md; the Transaction paragraph's BLAKE3 figure for the
+  Pasta-claims row.
