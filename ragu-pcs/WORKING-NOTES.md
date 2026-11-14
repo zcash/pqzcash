@@ -1756,3 +1756,29 @@ ragu/work/bench-fuse-asm.log.
   re-render keep/tachyon-statements.md; maybe a memory column or note.
 - 19:44 UTC, addendum: a crosshair pointer over the plot in both views (ad78671, CSS on Plotly's drag layer and 3D canvas), since the arrow covered the hover box; artifact v98. Main at ad78671 plus this line.
 - 20:00 UTC, addendum: the measure radio labels are "accumulation prover" and "prover work (commitments only)" (3e2e255); artifact v99. Main at 3e2e255 plus this line.
+
+## 2026-11-14 20:07 UTC: accumulator memory as a measure
+
+- (the user) Commit 31f4a07, artifact v100: `memory` per row, bytes the prover holds between
+  fuses, a seventh measure for either axis, in the table (Accumulator bytes column) and the
+  hover, and in PRUNE_MEASURES. Lattice rows: accumulator_bytes(variant, K, rank, digits) =
+  K x 2^rank x digits x DIGIT_BYTES[variant] (the commitment field's element: 8 B at 64 bits
+  (pasta_q64, goldilocks), 16 at fp128, 32 at Pasta's modulus; packed 4-byte storage would be
+  a quarter or less since the accumulated norm is below 2^32); the frontend one digit per bit
+  at 8 B. Pedersen: commitments x 2^rank x 32 B = 24.9 MB at the checked-in rank 13 (the
+  uncompressed Proof measured 26,480,800 B). Hash-based under ARC: arc_accumulator_bytes =
+  the codeword (2^log_len x elems x 1/rate elements at ELEM_BYTES, 32 Pasta / 24 Goldilocks
+  cubic extension) plus the tree at 2 nodes of 32 B per 16-element leaf; under recursion the
+  previous proof (the setdefault to bytes). BitZ (ARC) and F2: packed codeword bits x 1/rate x
+  5/32 B (the codeword at 1/8 B per bit plus a tree of 256-byte leaves); bitz_rec the proof;
+  binary groups K x 2^bits_akita_log / 8. Figures: Pedersen rank 13 25 MB; Akita Pasta claims
+  rank 17 535 MB, Goldilocks rank 17 138 MB; frontend rank 21 101 MB; BitZ rank 20 rate 1/8
+  40 MB; F2 rate 1/8 37 MB; binary groups 2 MB; WHIR + ARC with BLAKE3 at rank 13 rate 1/8
+  92 GB (39,115 merge circuits x 2^13 x 8 x 32 B), with Poseidon at rank 16 about 3 GB: the
+  BLAKE3 merge circuits multiply the accumulator too. The knob text says a fuse holds the
+  step's witness and one or two accumulators: two with two real children, one when the other
+  child is the bootstrap proof (the fixed base case, recognised by its dummy suffix), as in a
+  chain or Tachyon's SpendAction/OutputAction (the user asked; answered in chat).
+- STATE: pqzcash main at 31f4a07 plus this entry, unpushed after aedc6a2. PENDING unchanged:
+  the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
+  re-render keep/tachyon-statements.md.
