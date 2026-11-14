@@ -1,8 +1,12 @@
 """Compressed Ragu proof size model, counted from the structs (pasta-proof-size.md §8).
 
-Instance: circuit_id (4 B), two headers (H field elements each), native commitments
-(native_NUM + 2 for AbA/AbB, + registry_xy + p), nested commitments (nested_NUM + 2,
-+ registry_xy + p + challenges_partial), 19 scalars.
+Instance: circuit_id (4 B), two headers (H field elements each), the six online openings
+(a point and a value for each of the two online polynomial slots of the left, right and
+output proofs), native commitments (native_NUM + 2 for AbA/AbB, + registry_xy + p, + the
+two online polynomial commitments), nested commitments (nested_NUM + 2, + registry_xy + p
++ challenges_partial), 19 scalars. This is the payload of Ragu's wire format
+(`CompressedProof::encoded_len`, tachyon-zcash/ragu 8109a41c), which adds a 28-byte
+versioned envelope: 7,908 + 28 = 7,936 bytes at rank 13 with four-element headers.
 Per curve: fold (2 points, 2 scalars), p, q, 5 openings, p(1/r), q(r); batch f + 11
 evaluations; IPA s_commitment + RANK rounds of 2 points + c.
 Component counts: native_NUM = Fn + binders + native_steps, nested_NUM = Fm + nested_steps,
@@ -16,6 +20,9 @@ Usage: python ragu-size-model.py            # checked-in configuration and knob 
 """
 import itertools, math, sys
 P = S = 32
+# Online polynomial slots per proof (ragu_pcd's NUM_ONLINE_POLYNOMIALS); a step opens its two
+# children's and its own, so the instance carries 3 * ONLINE_POLYS openings.
+ONLINE_POLYS = 2
 
 def steps(points, E):
     return max(1, math.ceil((points - 1) / E))
@@ -37,7 +44,8 @@ def size(Fn, Fm, binders, En, Em, rank, H, per_child=4, extra=6):
     if c is None:
         return None
     nat, nes = c
-    instance = 4 + 2 * H * S + (nat + 2 + 2) * P + (nes + 2 + 3) * P + 19 * S
+    online = 2 * 3 * ONLINE_POLYS * S + ONLINE_POLYS * P
+    instance = 4 + 2 * H * S + online + (nat + 2 + 2) * P + (nes + 2 + 3) * P + 19 * S
     per_curve = (2 * P + 2 * S) + 2 * P + 5 * S + 2 * S + (P + 11 * S) + (P + 2 * rank * P + S)
     return instance + 2 * per_curve, nat, nes
 

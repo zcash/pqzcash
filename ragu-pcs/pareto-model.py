@@ -11,8 +11,9 @@ and a third measure: the merge circuit's gates or the atoms it absorbs, the deci
 verification work, or the prover's work for a whole transaction; the `proxies` of the page's
 data define them. The numbers come from:
   - ragu-size-model.py: the compressed Pedersen-IPA proof, counted from Ragu's structs and
-    pinned by the `encoded_len_matches_the_shape` test (7,460 bytes at the checked-in
-    configuration), and the circuit budget: the internal circuits' measured gate counts,
+    checked against Ragu's wire format, `CompressedProof::encoded_len` (7,908 bytes of payload
+    at the checked-in configuration, 7,936 with the 28-byte envelope, at tachyon-zcash/ragu
+    8109a41c), and the circuit budget: the internal circuits' measured gate counts,
     which bound the endoscalings per step and the binders at each rank;
   - the Akita planner runs in estimates/ and work/akita-pasta-out/groups/: opening sizes per
     number of separately committed groups, at each width variant (pasta-proof-size.md §8);
