@@ -497,13 +497,14 @@ function render() {
   const zlog = t !== 'accumulation' && log;  // gates and decider work span orders of magnitude; atoms do not
   if (hold) {
     if (held && held.scale === scale && held.view === view && held.third === t && held.unit !== u) {
-      // A change of work unit multiplies the prover axis, and the verifier
-      // axis when it is the third measure, by a constant. Carry the held
+      // A change of work unit multiplies the prover axis, and the decider or
+      // transaction axis when it is the third measure, by a constant. Carry
       // ranges across it, so that the picture does not move: in log scale
       // the ranges are log10 values, so the constant adds.
       const f = (u === 'us' ? 1 / 3000 : 1) / (held.unit === 'us' ? 1 / 3000 : 1);
       const carry = (r, isLog) => r && (isLog ? r.map(v => v + Math.log10(f)) : r.map(v => v * f));
-      held = { ...held, unit: u, y: carry(held.y, log), z: t === 'verify' ? carry(held.z, zlog) : held.z };
+      const zInWorkUnits = t === 'verify' || t === 'transaction';
+      held = { ...held, unit: u, y: carry(held.y, log), z: zInWorkUnits ? carry(held.z, zlog) : held.z };
     }
     if (!held || held.scale !== scale || held.view !== view || held.third !== t || held.unit !== u) {
       held = { scale, view, third: t, unit: u, x: padded(DATA.points, 'bytes', log), y: padded(DATA.points, 'prover', log), z: padded(DATA.points, t, zlog) };
