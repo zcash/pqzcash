@@ -1335,6 +1335,10 @@ BITZ_T10 = {20: (7.31, 0.82, 17.3, 84.1), 21: (12.0, 1.08, 18.2, 92.8), 22: (17.
 BITZ_RATE = {"1/2": 1.0, "1/8": 0.83}  # Ligerito bytes against rate 1/2, measured at 128 bits
 BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
 BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
+# Zinc+'s constraint PIOP in absolute terms, for Kishu's application digits: 1.6 times BitZ's
+# PCS prover per bit at Table 10's 2^25 point, about 11 word multiplications a digit, since the
+# PIOP's sum-checks run over the witness whatever commits it.
+ZINC_PIOP_PER_DIGIT = BITZ_PIOP["prover"] * BITZ_T10[25][0] * WORD_MULTS_PER_MS / 2 ** 25
 # The prover's phases on this machine, one thread (work/bitz-out/rerun/summary.txt): the
 # grand-product share of the prover at rate 1/2 and 100 bits (Table 10's setting), and the
 # factor on the Ligerito phase at rate 1/8, both by the committed bits' logarithm; the factor
@@ -1521,7 +1525,9 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                         prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
                         accumulation_prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit) + accumulation_sumchecks("pasta_q64", K, rank, digits=1)),
                         memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
-                        step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=fold,
+                        # The application step also pays Zinc+'s constraint PIOP on its digits, as
+                        # BitZ's rows do on their application share.
+                        step_prover=round(2 ** rank * (per_digit + bool_per_bit + ZINC_PIOP_PER_DIGIT)), fold=fold,
                         accumulation=atoms,
                         gates=round(digits),
                         verify=akita_verify("pasta_q64", log_len, zk, rank_factor_share("pasta_q64", rank_scale)) + round(bool_verify_ms * WORD_MULTS_PER_MS),
