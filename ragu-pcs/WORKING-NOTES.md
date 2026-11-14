@@ -1320,3 +1320,68 @@ work/akita-150-out/replan/): every planner step failed at once, for two reasons.
    first map's input into two rank-one maps of width 2,048 with the same total output. Either
    doubles the compressed images at that level, so the 150-bit page figures would move by more
    than the single-digit percent expected. Not started; the worktree is as it was.
+
+## 2026-11-14 02:40 UTC: the floor is 147 bits and re-planned; Ulrich's answer; the slopes
+
+Three commits on main after 068f61b, unpushed: 02d519d (Ulrich's mask correction), 56b31d3
+(the opening slope over ten doublings), 0ba0035 (the 147-bit floor, re-planned). Separate by
+the user's request. Artifact to republish.
+
+- THE USER'S DECISION on the compression maps: neither rank 2 nor the split; "change 150 bits
+  to 147 bits", the most the rank-one maps allow (the d=16 map at width 4,096 certifies at
+  147.34 bits with the proven-pruned profile; 150.255+ at widths 3,806 and 2,048 and for rank 2
+  at 4,096; the d=8 map at width 256 above target and 128.0 at 512; 128.26 at 7,077). The
+  certified figures come from `sis_estimator_once --profile proven-pruned` in the worktree.
+  Rank 2 and splitting are equal in bytes (both double the images at both levels, since the
+  second map's input doubles too) and splitting halves the maps' arithmetic; recorded for later.
+- THE PIPELINE work/akita-147-pipeline.sh (run under `caffeinate -i`): commits the 150-bit
+  state in the worktree (branch pasta-widths-150, 81a489e), branches pasta-widths-147, renames
+  Quantum150BitADPS16 → Quantum147BitADPS16 everywhere (the generated tables' module names it
+  too, which the first run missed), sets minimum_log2_rop and the Euclidean target to 147,
+  regenerates the runtime tables (the certified infinity table took 11,164 s, three hours, not
+  the hour of 2026-10-15), re-sizes the six compression cells from the "(d, 1)" rows (q128 d=8
+  302, d=16 4,138; q64 d=16 151, d=32 2,069; q32 d=32 75, d=64 1,034), rebuilds, commits
+  (2478c43), and runs the re-plan without `--catalog-report` (work/akita-147-replan.sh,
+  outputs work/akita-147-out/replan/, 21 minutes, every step ok). Resumable with
+  SKIP_TABLES=1. The commit inside the background script waited an hour on a permission
+  prompt, which the log cannot show.
+- PAGE INPUTS: `python work/akita-150-page-inputs.py work/akita-147-out/replan` gives AKITA_147
+  (fp128 72,443 at K=0 .. 82,521 at K=12; goldilocks 65,669 .. 69,810, planned in the fp64
+  geometry; pasta_q64 77,227 .. 86,697; pasta_sis 91,755 .. 104,425; pasta 110,106 ..
+  139,881). The base and q64 runs selected the same schedule at K=0 (the q64 pricing override
+  was applied; see replan-q64.log). RANK GROWTH by work/rank-scale.py (the production rust
+  tables for each instance's own profile; the Goldilocks CSV tables for the 64-bit mapping,
+  since the production q64 table lacks the other profiles' cells; the 147 Goldilocks CSV took
+  79 minutes): own 121 → 150, 1.240, 29 move; q64 185 → 211, 1.141, 26 move; the method
+  reproduces the recorded 150-bit 1.273 and 1.162 exactly. Pallas: 1.01 carried from 150 (its
+  147 table would take an hour). WHIR_SCALE 1.16 and the verifier-hash factor 1.13 at 147 are
+  interpolated from the 150-bit measurements (1.18, 1.15).
+- MODEL: AKITA and SLOPE are keyed by floor; `akita_bytes(variant, K, log_len, floor)`; at 147
+  the opening is the plan (no rank_factor_share on bytes; it stays on verify); FLOORS = (128,
+  147); RANK_SCALE_147 = {fp128 1.24, goldilocks 1.14, pasta_q64 1.14, pasta_sis 1.01, pasta
+  1.01}. Results at rank 17 under BLAKE3: Goldilocks 76,133 B (70,145 at 128), fp128 85,538
+  (75,076), pasta_q64 95,352 (87,654), pasta_sis 112,430, pasta 146,830; the frontend 87,102
+  (81,054). The page: radio "147 quantum bits (the most Akita's rank-one compression maps
+  allow; the catalog re-planned)", the Security floor paragraph, the margin paragraph, the
+  zk and binary-groups mentions; pasta-proof-size.md §9's margin paragraph rewritten with the
+  history (150 tried, blocked by the maps, 147 planned).
+- THE SLOPES (56b31d3): the page's per-doubling opening slope was the 2^14 → 2^16 rows
+  (steepest; fp128's 563 was even half of that pair's 1,126). Now the 2^14 → 2^24 rows at
+  both floors: 128: fp128 592, goldilocks 555 (scaled), pasta_q64 953, pasta_sis 1,112,
+  pasta 1,371; 147: 584, 662 (2^14 → 2^26), 1,104, 1,118, 1,175. Rows with many circuits
+  lose a few KB (pasta_q64 rank 17 BLAKE3 94 → 88 KB; the frontend 82 → 81, 84 → 83; the
+  Hashes paragraph's per-claim growth 3 to 4 KB / 9 to 12 KB).
+- ULRICH'S ANSWER (02d519d; keep/ulrich-zk-answer-2026-11-12.txt; his commit 1187ef3c
+  "corrected zk mask size", saved as work/ulrich-scripts/frib_optimizer-1187ef3c.sage): the
+  mask must be as large as the witness (double rows in the first round; one row was a slip),
+  the full-entropy mask lets later rounds run non-zk, the leaf blinders could be dropped but
+  stay for a clean analysis, and only the private witness needs masking, not public
+  polynomials. Port: `rows = 2 if zk`, `blinder = HASH_BYTES`, leaf = rows × 2^ell × unit +
+  blinder; `mask_share = 1`. 𝔽₂ ARC mask rows: +40/+27/+20/+17/+14 KiB at rates 1/4..1/64 with
+  fold 0.50–0.93× a step (were +19..+6 KiB, 0.07–0.13×); Zook rows +35..+27 KiB, fold ≈ 0.01×,
+  kept as the derived lower estimate ("ways to be more stingy ... zk-ify also the sumcheck
+  rounds"). The ARC decider masking all three first-round oracles is an upper bound by his
+  "only the private witness" remark; said on the page.
+- PENDING: the Pallas factor at 147 (an hour's table) if wanted; BitZ reruns on mains; the
+  zk-fold levers for the frontend; the 128-bit slopes' effect on older notes' figures (notes
+  keep history).
