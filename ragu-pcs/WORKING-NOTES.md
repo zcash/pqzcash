@@ -1641,3 +1641,47 @@ ragu/work/bench-fuse-asm.log.
   paragraph's figures from the model; a header for the recovery application as for Tachyon's;
   keep/tachyon-statements.md's cost table now carries the measured counts (its HTML render is
   stale).
+
+## 2026-11-14 18:14 UTC: the recovery header; the circuit budget refreshed; the Tachyon tree re-packed per rank; a 3D unit fix
+
+- HEADER (the user): the recovery-circuit options force header 9 as the Tachyon ones do
+  (2c80e92), since the Recovery Statement's primary input (ZIP 2005: rt, rk, nf, SigHash) needs
+  six or seven elements with the suffix.
+- CIRCUIT BUDGET REFRESHED (c78874c) from ragu 8109a41c's internal/tests.rs: native fixed
+  circuits Hashes1 1793, Hashes2 1874, Collapse 1455 (the two collapses merged), ComputeV 1948,
+  BindBeta 1889, BindEndoscalar 940; nested Collapse 1598 (Export merged in), ComputeV 1504,
+  Loading 566; an endoscaling step of four points 1995 gates / 3502 constraints (nested 2016),
+  split as 451 per point + 191 (constraints 874 + 6), only the four-point step being pinned;
+  binders: NUM_BINDERS = challenges::NUM / 2 = 4, so EIGHT challenges, two per binder,
+  2032-2048 gates each (590 per challenge + 860 overhead, derived), CHECKED_IN binders 4 (was
+  5), rows up to 4 binders, "code" below 4. The model's point counts were wrong by the online
+  openings: nested::num_endoscaling_points = 1 + 2(native_rx + 4) + 6 + NUM_ONLINE_QUERIES
+  while nested::pcs::num_batched_points = 1 + 2(nested_rx + 4) + 6; with that the fixed point
+  is 48 native + 43 nested rx (25 and 29 endoscaling steps; native rx = 19 + 4 binders + 25),
+  matching upstream's 50 + 45 components (+2 each) and the measured 7,908 bytes at header 4.
+  Emax per rank unchanged (4, 8, 17, 35; 72 at rank 17); min binders 4, 2, 1, 1. Budget
+  report: rank 14 E8 2 binders 6,692 / 6,820 B (H2 / H4), packed 6,468 / 6,596; rank 15 packed
+  6,244 / 6,372; today 7,780 / 7,908. Prose updated in the page (budget paragraph, knobs) and
+  pasta-proof-size.md (§8: 50 + 45 components, 54 steps, 4 binders; 6,372 at rank 14 E16 1
+  binder H2; floor about 6.2 KB; smallest 6,468 / 6,244 against 7,780). The PEDERSEN_FUSE_
+  COMMITMENTS = 96 assertion still holds (91 circuits + 4 + the step).
+- 3D UNIT FIX (da24f36, the user's report): with the view held and transaction prover as the
+  third measure, a unit change rescaled the points but not the held z range (only the decider
+  measure carried it): now both work-unit measures carry it.
+- TACHYON TREE RE-PACKED PER RANK (166e65e, the user: "the proof tree should be automatically
+  optimized per-rank"): the page bins the nodes' circuits first-fit decreasing into the rank's
+  step capacity (a node larger than a step takes whole steps, its remainder joins the rest; the
+  rerandomization is its own step). Two tachyactions: rank 13 six steps (the 17-gate merge
+  rides with FeeFuse), rank 15 two steps; Pedersen checked-in 8.76 s (Tachyon's own 7-fuse tree
+  10.2 s), rank 15 / 16 endoscalings / 4 binders 5.4 s (2 steps), best code-change row 4.2 s;
+  Akita Pasta claims 0.18 s (rank 15, 2 steps), BitZ 0.27 s (rank 22), frontend 0.09 s (rank 21,
+  BLAKE3), Goldilocks 5.2 s / 151 steps, F2 20 s / 129; zk: Pasta claims 3.4 s, frontend 1.3 s.
+  Sixteen tachyactions: Pedersen 49.6 s / 34 steps at rank 13, 21.5 s / 8 steps at rank 15;
+  Pasta claims 0.53, BitZ 0.56, frontend 0.28, Goldilocks 35 s. The recovery and path options
+  were already packed to the capacity (ceil(units / step_units), a circuit may straddle steps).
+  Artifact v94. Both intermediate commits of the split were checked by running the model from
+  git archive (the first split put two line-for-line constants lines in the wrong commit; the
+  class regexes were widened and the split redone).
+- STATE: pqzcash main at 166e65e plus this entry, unpushed after aedc6a2. PENDING: the zk-fold
+  levers for the frontend; the Pallas factor at 147; generate the Transaction paragraph's
+  figures from the model; re-render keep/tachyon-statements.md.
