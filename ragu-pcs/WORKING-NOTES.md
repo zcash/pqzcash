@@ -1435,3 +1435,62 @@ the user's request. Artifact to republish.
   replaced by the Booleanity check (1–3 weeks; risk: the claim machinery for a custom prime).
 - BITZ RERUNS: work/bitz-rerun.sh (per profile; `build` was a no-op, the binary already has the
   native flag and `parallel`) and work/bitz-summary.py; outputs bitz-out/rerun/. Not yet run.
+
+## 2026-11-14 14:45 UTC: header 9, the spike, Ragu against Halo 2 measured, BitZ reruns
+
+Commits on main after 5747218: aed6141 (Pedersen header 9, Tachyon's HEADER_SIZE; 8,228 B at rank
+13; artifact v91), 5411a14 (spike/: the Python spike of the Booleanity-by-projection frontend,
+tracked at the user's request; README.md maps it to the page's bits_q64 row). All pushed? No: the
+user pushes.
+
+- RAGU AGAINST HALO 2, MEASURED ON THIS M4 MAX (16 cores, mains). Ragu 8109a41c, zakura-udon 0.1.0,
+  `cargo bench -p ragu_pcd --features multicore --bench criterion_fuse` (the nontrivial Merge2 step
+  at the production rank; logs ragu/work/bench-fuse*.log): one worker 1.45 s (1.46 on rustc
+  1.100.0), 16 workers 0.65 s (0.63–0.70); the accelerated backend equals the reference one. So
+  the page's 1.81 s per Pedersen step (pedersen_per_coefficient 6,905 at rank 13) is 24% high, not
+  the 3–6× the notes once guessed; a calibration would be ~5,630 word mults per coefficient (NOT
+  applied yet). Ragu's capacity chapter's 0.2 s per fuse was another machine. Orchard
+  (research/orchard at be4f6594 = 0.15.5, halo2_proofs 0.3.5, halo2_gadgets 0.5.0, pasta_curves
+  0.5.2 glv; and crates.io 0.16.0 with halo2_proofs 0.4.1, halo2_gadgets 0.6.0, pasta_curves
+  0.6.1), its benches/circuit.rs proving group with the recipients widened to 1, 2, 4, 8, 16 in
+  scratch projects orchard/work/bench-0.15 and bench-0.16 (the checkout untouched; 0.16's own bench
+  copied from the registry for its rand 0.10 `UnwrapErr<SysRng>`; rustc 1.100.0 via
+  RUSTUP_TOOLCHAIN=stable since aes 0.9.4 needs 1.89 and the checkout pins 1.88; logs bench-*.log
+  there). Seconds per bundle (a 1-recipient bundle is padded to 2 actions):
+
+  | actions | 0.15.5 all cores | 0.16.0 all cores | 0.15.5 one thread | 0.16.0 one thread |
+  |---|---|---|---|---|
+  | 2 | 0.48 | 0.46 | 3.05 | 2.77 |
+  | 4 | 0.89 | 0.83 | 5.77 | 4.89 |
+  | 8 | 1.68 | 1.60 | | |
+  | 16 | 3.31 | 3.15 | | |
+
+  The compiler (1.88 vs 1.100) made no difference to 0.15.5. TACHYON'S STEPS per transaction
+  (stamp.rs `Stamp::prove`): a spend is SpendBind + SpendAction (two fuses, plus an ActionLift per
+  anchor span when the spendable lags the plan's anchor); an output is OutputBind (a seed) +
+  OutputAction (a fuse); ActionMerge per action beyond the first; FeeFuse; a rerandomize (counted
+  as a fuse; its cost unmeasured). The capacity chapter puts a seed at 1.75 fuses. On this machine:
+  1 spend + 1 output 11 s one thread / 5.0 s all cores (6 fuses + 1 seed); 2 + 2: 21 / 9.4 s;
+  8 + 8: 79 / 35 s (41 fuses + 8 seeds). Against Halo 2's 3.0 / 0.48 s (2 actions) and 22 / 3.4 s
+  (16, the one-thread figure extrapolated at 1.4 s per action): 3.5–7× on one thread, 10–20× on
+  all cores, because the fuse parallelizes 2.2× on 16 cores against Halo 2's 6.3× (the user: scope
+  for optimization; also proving the tree's independent leaves concurrently, which Stamp::prove
+  does not). Not counted on either side: Tachyon's per-note background proofs (NoteSeed/
+  NullifierDerive, SpendableInit/UnspentFuse per epoch, AnchorSpan) and Ragu compression (left to
+  aggregation). Phones, by Geekbench-6 single-core ratios (8 Gen 3 ≈ 1.8× slower, A54's Exynos
+  1380 ≈ 4×) and multi-core gains of 1.5–2 for Ragu and ~3 for Halo 2: 1+1 actions A54 25–45 s
+  Ragu vs 4–12 s Halo 2, 8 Gen 3 11–20 vs 2–5.5 s; 8+8 actions A54 3–5 min vs 0.5–1.5 min, 8 Gen 3
+  1.3–2.4 min vs 13–40 s. Extrapolations, not measurements. The user's concern (a regression over
+  Orchard/Ironwood proving) is confirmed by the model and the measurements; whether the Tachyon
+  project has compared against Orchard is not visible in its repositories. IDEAS: calibrate the
+  Pedersen step to the measured fuse; add "Tachyon transaction" application options (1+1 and 8+8
+  actions in Tachyon's own step shapes) beside the Merkle paths.
+- BITZ RERUNS DONE (work/bitz-rerun.sh, bitz-out/rerun/{results,summary}.txt; mains; the build was a
+  no-op, the binary already had the native flag and `parallel`): the three profiles at 2^25..2^28,
+  threads 1 and 10, 5 reps, plus the 2^27 rate-1/8 cell at 10 reps. Everything within 3–5% of the
+  2026-10-15 overnight run (slightly faster): e.g. udrg:3:4:128 at 2^27 one thread prove 469–471 ms
+  (487), Ligerito 122–123 ms (133); 2^28 806 ms (840). The 2^27 rate-1/8 Ligerito rise (33 → 122 ms
+  from 2^26) is real and stable. No model change; the 2026-10-15 TO DO is closed.
+- PENDING: calibrate the Pedersen step cost; Tachyon transaction applications on the page; refresh
+  the circuit-budget constants from ragu's internal/tests.rs table; the zk-fold levers for the
+  frontend; the Pallas rank factor at 147 if wanted.
