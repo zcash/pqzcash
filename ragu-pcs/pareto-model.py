@@ -96,7 +96,21 @@ DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "past
 # 64 bits, the same bits throughout. Per coefficient: digits * that.
 RING_D = 64
 ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pasta": 143}
-WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_q64": 2, "pasta_sis": 32, "pasta": 32}
+WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
+# The accumulator memory measure: what the prover holds between fuses, in bytes. For the
+# lattice rows it is the folded digit vector, K groups of 2^rank coefficients in digits, each
+# digit held as an element of the commitment field for the sum-checks (packed storage at four
+# bytes, since the accumulated norm stays below 2^32, would be a quarter or less). Pedersen's
+# is the uncompressed proof, every committed polynomial's 2^rank Pasta coefficients (26.5 MB
+# measured at rank 13 against the 24.9 MB counted). The hash-based rows under ARC hold the
+# accumulator's codeword, the witness over the rate in the field's elements, and its Merkle
+# tree; under their own recursion only the previous proof. BitZ and the 𝔽₂ family hold the
+# packed codeword with a tree of 256-byte leaves, and the binary-groups row the packed bits.
+DIGIT_BYTES = {"fp128": 16, "goldilocks": 8, "pasta_sis": 32, "pasta_q64": 8, "pasta": 32}
+
+def accumulator_bytes(variant, K, rank, digits=None):
+    digits = DIGITS[variant] if digits is None else digits
+    return K * 2 ** rank * digits * DIGIT_BYTES[variant]
 
 # The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
 # fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is about nine
@@ -552,6 +566,7 @@ for rank in RANKS:
                         bytes=total,
                         prover=round(commitments * 2 ** rank * pedersen_per_coefficient(rank)),
                         step_prover=round(2 ** rank * pedersen_per_coefficient(rank)), fold=0,
+                        memory=commitments * 2 ** rank * 32,
                         accumulation=2 * (nat + nes + 5),         # base-field atoms absorbed per merge
                         gates=gates_per_merge(binders, E, E, nat, nes),
                         verify=pedersen_verify(rank, nat, nes),
@@ -647,6 +662,7 @@ for variant, hp in itertools.product(("fp128", "goldilocks", "pasta_q64", "pasta
                         bytes=round(opening + instance),
                         prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         accumulation_prover=round(circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale) + accumulation_sumchecks(variant, K, rank)),
+                        memory=accumulator_bytes(variant, K, rank),
                         step_prover=round(2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         fold=round(mask_fold(variant, K, rank, rank_scale) + circuits * 2 ** rank * ajtai_per_coefficient(variant, zk, rank_scale)) if zk else 0,
                         accumulation=atoms,
@@ -798,6 +814,14 @@ def arc_per_coefficient(variant, rate, log_len, hp="blake3"):
     tree = v["elems"] * inv / 16 * (v["leaf_perms"] + 1) * v["native"]
     return fft + 2 * tree
 
+def arc_accumulator_bytes(variant, rate, log_len):
+    """The accumulator's codeword, the witness over the rate in the field's elements, and its
+    Merkle tree of 16-element leaves at 32 bytes a node."""
+    v = HASH_VARIANTS[variant]
+    inv = int(rate.split("/")[1])
+    elements = 2 ** log_len * v["elems"] * inv
+    return elements * ELEM_BYTES[v["sizes"]] + elements / 16 * 2 * 32
+
 # Zero knowledge for WHIR and FRI, measured with Plonky3's HVZK-WHIR (eprint 2026/391 composed
 # into a hiding commitment: interleaved zero-knowledge encoding, masked sumchecks, HVZK code
 # switching, a masked base case), its `zk_overhead` benchmark at commit f98331687 on one core:
@@ -866,6 +890,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 # aggregator: the masks sit in the decider's proof and verification, and the
                                 # masked prover's extra work goes to the fold, not to every merge.
                                 bytes=round((whir_bytes(variant, rate, log_elems, grind) + extra_bytes) * WHIR_SCALE[floor] + zk_bytes(floor, zk) + 2 * 32 + 10 * 32 + 2 * H * 32 + 4),
+                                memory=round(arc_accumulator_bytes(variant, rate, log_len)),
                                 prover=round(2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp) + grind_prover(native, grind)),
                                 step_prover=round(2 ** rank * arc_per_coefficient(variant, rate, log_len, hp)),
                                 fold=round((zk_prover(log_elems, zk) - 1) * 2 ** log_len * arc_per_coefficient(variant, rate, log_len, hp)),
@@ -1114,6 +1139,7 @@ for grind in GRINDS:
                             # The masks sit in the decider's proof and verification; the mask's prover work
                             # is paid once per transaction, at the handoff to the public aggregator, in the fold.
                             bytes=round(f2_bytes(p, zk) + 2 * 32 + 10 * 16 + 2 * H * 32 + 4),
+                            memory=round(ands * int(rate.split("/")[1]) * 5 / 32),  # the packed codeword and its tree of 256-byte leaves
                             prover=round(f2_prover(ands, rate, floor, grind, chal, False, None)),
                             # The family has no rank: its step is a Boolean circuit of BOOL_STEP_BITS AND gates
                             # at the merge's per-bit cost, which is its capacity for the transaction measure.
@@ -1364,6 +1390,8 @@ def bitz_point(mode, rate, rank, floor, H, grind=None, zk=False):
         family="bitz_rec" if mode == "rec" else "bitz", pq=True, rank=rank, E=None, binders=None, H=H,
         floor=floor, grind=grind, groups=2, packing=None, circuits=None, change="design", zk=zk, rate=rate,
         bytes=round(proof + zk_bytes_ + 2 * 32 + (10 * 32 if mode == "arc" else 0) + 2 * H * 32 + 4),
+        # Under ARC the packed codeword and its tree of 256-byte leaves; under recursion the previous proof.
+        memory=round(bits * inv * 5 / 32) if mode == "arc" else round(proof + zk_bytes_ + 2 * 32 + 2 * H * 32 + 4),
         prover=round(prover),
         step_prover=round(app_bits * prover_ms * WORD_MULTS_PER_MS / bits), fold=fold,
         accumulation=ARC_ATOMS,
@@ -1466,6 +1494,7 @@ for (check, (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), 
                         bytes=round(opening + instance + bool_bytes),
                         prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit)),
                         accumulation_prover=round(circuits * 2 ** rank * (per_digit + bool_per_bit) + accumulation_sumchecks("pasta_q64", K, rank, digits=1)),
+                        memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
                         step_prover=round(2 ** rank * (per_digit + bool_per_bit)), fold=fold,
                         accumulation=atoms,
                         gates=round(digits),
@@ -1543,6 +1572,7 @@ for H in (2, 4):
         family="bits_akita", pq=True, rank=None, E=None, binders=None, H=H, floor=128, hashes="any",
         groups=K, packing=None, circuits=None, change="design", zk=False,
         bytes=round(binary_open_bytes(bits_akita_log, K) + K * 128 + 2 * K * 32 + 2 * H * 32 + 4 + CLAIM_BYTES["fp128"]),
+        memory=round(K * 2 ** bits_akita_log / 8),  # the groups' bits, packed
         prover=round(bits_akita_prover),
         step_prover=round(BOOL_STEP_BITS * bits_akita_prover / bits_akita_ands), fold=0,
         accumulation=akita_atoms("fp128", K, 1, False),
@@ -1639,6 +1669,7 @@ for (cls, zk, floor), hp in itertools.product(((True, False, 128), (True, True, 
 # prover (see accumulation_sumchecks), and the sum-check rate is the measured one.
 for p in points:
     p.setdefault("accumulation_prover", p["prover"])
+    p.setdefault("memory", p["bytes"])  # the rows under their own recursion hold only the previous proof
 assert abs(BOOL_CHECK["sumcheck"][0] / WORD_MULTS["pasta_q64"] - SUMCHECK_FIELD_MULTS_PER_DIGIT) < 0.2
 
 # ---- Pruning ---------------------------------------------------------------------------
@@ -1653,7 +1684,7 @@ assert abs(BOOL_CHECK["sumcheck"][0] / WORD_MULTS["pasta_q64"] - SUMCHECK_FIELD_
 # so the header-4 rows go and the header knob acts on Pedersen-IPA, whose checked-in
 # configuration has a header of 4. This keeps the page's size down without removing
 # anything that a knob could isolate.
-PRUNE_MEASURES = ("bytes", "prover", "accumulation_prover", "accumulation", "gates", "verify")
+PRUNE_MEASURES = ("bytes", "prover", "accumulation_prover", "accumulation", "gates", "verify", "memory")
 
 def prune_key(p):
     return (p["family"], p["floor"], p["zk"], p.get("zkv"), p["hashes"], p.get("grind"), p["rank"],
