@@ -2057,3 +2057,29 @@ ragu/work/bench-fuse-asm.log.
   figures below a second, whole ms from a second up; the hold carry uses the same factor); the
   model's secs()/minutes()/decider ms figures are three significant figures; the BitZ "unchanged
   with zk" claims allow 1% (3456ff3). Artifact v128.
+
+## 2026-11-15 12:41 UTC: STATE for resumption (context low)
+
+- DONE TODAY, all committed: the prose figures generated from the model with markers and claims
+  (REGENERATING.md documents the regeneration; scripts/ holds the scripts and patches); sizes
+  in kbytes/Mbytes; the Pallas factor at 147 computed (1.01 stands); WHIR measured at 147 (16%,
+  hashes 12%); the width shrink recovered, reviewed and recomputed at 147; one family per
+  paragraph; headings with ids and section links, "section" not "paragraph"; the page's
+  defaults (transaction prover as the third measure with the recovery circuit, milliseconds, zk
+  on, hold off, WHIR-type and Plonky3 unticked, axes from the plotted points); the controls
+  reordered and regrouped after headless-Chrome renders (Google Chrome --headless=new
+  --screenshot; crop with sips; work/layout-*.png, table-test*.png); the frontier table's
+  references linked, its natural width with Family 26-30ch and Configuration 40-46ch (rows up
+  to four lines); milliseconds with three significant figures below a second and whole ms
+  above, prose times at three significant figures.
+- STATE: pqzcash main at the notes commit after 3456ff3; the user pushed everything through
+  3456ff3, so only this entry is unpushed. Artifact v128. Tree clean. Shannon's memory-seed has uncommitted edits
+  to feedback_durable_prose, feedback_git_safety, feedback_external_reports and
+  feedback_readable_prose (the generated-figures rule, the bare-rebase rule, machine details
+  out of tracked files, one subject per paragraph).
+- PENDING: the user's review of the soundness statements (ragu-pcs/kishu-soundness-note.md),
+  then Theorem B with the spike's adversarial cases, the certificate recomputation, Theorem A,
+  Lean; the zk-fold levers; re-render keep/tachyon-statements.md; the Pasta-claims recovery
+  row's BLAKE3 figure (one more fig()); the user to ask Quang about the QROM proof and
+  CertifiedJL's roadmap. Open question from the user: whether the prose seconds should be at
+  millisecond resolution too (they are at three significant figures).
