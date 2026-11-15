@@ -83,7 +83,6 @@ th { white-space: normal; }
 #table td:nth-child(9) { max-width: 14ch; }
 #table td:nth-child(10) { max-width: 12ch; }
 th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; user-select: none; }
-th .unit { text-transform: none; }  /* units keep their case */
 th.sorted-asc::after { content: " \25B2"; }
 th.sorted-desc::after { content: " \25BC"; }
 td.num { font-family: var(--mono); text-align: right; }
@@ -244,7 +243,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>Ligerito's verifier, under BitZ, opens <!--fig:ligerito_columns-->491<!--/fig--> columns over its <!--fig:ligerito_levels-->5<!--/fig--> levels at 100 bits, against ARC's <!--fig:arc_openings_1_8-->86<!--/fig--> openings at rate 1/8, so its recursion is <!--fig:bitz_rec_over_arc_hashing-->7<!--/fig--> times ARC's hashing (<!--fig:bitz_rec13_merge_bits-->200<!--/fig--> against <!--fig:bitz13_merge_bits_m-->28<!--/fig--> million witness bits at rate 1/8) and <!--fig:bitz_rec_over_arc_prover-->7.4<!--/fig--> times the prover, for a proof <!--fig:bitz_rec_less_pct-->22<!--/fig--> percent smaller. The ARC row is the better one for BitZ on the prover and the merge.</p>
   <p>The 𝔽₂ family's recursion verifies its own FRI-Binius proof, whose ring-switching verifier costs 2ℓ′·2<sup>κ</sup> field multiplications. So its merge is <!--fig:f2_rec_1_8_192_bits-->85<!--/fig--> million witness bits in the 192‑bit design, <!--fig:f2_rec_1_8_191_bits-->134<!--/fig--> million in the 191‑bit one, whose one-step ring switching costs the verifier 191 field multiplications per variable rather than 64, and <!--fig:f2_rec_1_8_256_bits-->224<!--/fig--> million in the 256‑bit one, against <!--fig:f2_1_8_gates-->25<!--/fig--> million under ARC, at <!--fig:f2_rec_over_arc_prover_min-->2.7<!--/fig--> to <!--fig:f2_rec_over_arc_prover_max-->6.9<!--/fig--> times the prover, with the verifier's paths pruned as a multiproof. Its proof is a quarter smaller (<!--fig:f2_rec_1_8_192_kb-->126 kbytes<!--/fig--> against <!--fig:f2_1_8_192_kb-->173 kbytes<!--/fig--> at rate 1/8).</p>
   <div class="tablewrap" id="frontier-table"><table id="table"><thead><tr>
-    <th>Family</th><th>Configuration</th><th class="num">Proof<br>bytes</th><th class="num" id="th-prover">Prover<br>64‑bit muls</th><th class="num" id="th-acc">Accumulation prover<br>64‑bit muls</th><th class="num" id="th-verify">Decider<br>64‑bit muls</th><th class="num" id="th-tx">Transaction<br>64‑bit muls</th><th class="num">Accumulator<br>bytes</th><th class="num">Accumulation<br>atoms</th><th class="num">Merge<br>gates</th><th class="num">Commitments<br>folded</th><th>Pasta<br>field</th><th>Assumption</th><th>Changes<br>needed</th><th>Frontier</th>
+    <th>Family</th><th>Configuration</th><th class="num">Proof size</th><th class="num">Prover</th><th class="num">Accumulation prover</th><th class="num">Decider</th><th class="num">Transaction</th><th class="num">Accumulator memory</th><th class="num">Accumulation</th><th class="num">Merge circuit</th><th class="num">Commitments<br>folded</th><th>Pasta<br>field</th><th>Assumption</th><th>Changes<br>needed</th><th>Frontier</th>
   </tr></thead><tbody></tbody></table></div>
 
   <h2 id="axes">What the axes mean</h2>
@@ -774,14 +773,10 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${color(p.family)}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)}</td><td class="num">${fmtWork(val(p, 'prover'))}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))}</td><td class="num">${fmtWork(val(p, 'verify'))}</td><td class="num">${p.transaction === null ? '' : fmtWork(val(p, 'transaction'))}</td><td class="num">${fmt(p.memory)}</td><td class="num">${p.accumulation}</td><td class="num">${fmt(p.gates)}</td><td class="num">${p.folded}</td><td>${p.pasta ? 'native' : 'no'}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${onOverall.has(p) ? 'overall' : front.has(p) ? 'parameter-only' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${color(p.family)}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.transaction === null ? '' : `${fmtWork(val(p, 'transaction'))} ${uname}`}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta ? 'native' : 'no'}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${onOverall.has(p) ? 'overall' : front.has(p) ? 'parameter-only' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="15">No family selected.</td></tr>';
-  document.getElementById('th-prover').innerHTML = `Prover<br><span class="unit">${uname}</span>`;
-  document.getElementById('th-acc').innerHTML = `Accumulation prover<br><span class="unit">${uname}</span>`;
-  document.getElementById('th-verify').innerHTML = `Decider<br><span class="unit">${uname}</span>`;
-  document.getElementById('th-tx').innerHTML = `Transaction<br><span class="unit">${uname}</span>`;
   const table = document.getElementById('table');
   if (table.dataset.sortCol !== undefined) sortTable(table, +table.dataset.sortCol, table.dataset.sortDir);
 }
