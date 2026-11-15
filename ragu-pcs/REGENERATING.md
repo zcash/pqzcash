@@ -61,7 +61,7 @@ for long-running jobs to run under `caffeinate -i` to stop the machine from slee
   checkout (its manifest points at `../../crates/tachyon` and at the worktree beside the
   checkout), and `cargo run` there. It prints each step's gates and constraints at header 9.
 - **Halo 2** (`HALO2_SECONDS`): Orchard 0.16.0's `benches/circuit.rs` proving group with the
-  recipient counts widened, built with rustc 1.100.0 and `pasta_curves` with `asm`; the
+  recipient counts widened, built with rustc 1.100.0 and `pasta_curves` 0.6.1 with `asm`; the
   two-action and sixteen-action times on one thread.
 
 ## Akita
@@ -70,9 +70,10 @@ for long-running jobs to run under `caffeinate -i` to stop the machine from slee
   `estimates/`): `scripts/akita-pasta-estimates.sh` builds the patched Akita and runs the rank
   ladder (`pasta-rank.csv`), the catalog re-pricing, the re-plans under each pricing override,
   and the 128-bit width tables for Pallas and Goldilocks. It writes the TSVs and CSVs that
-  `estimates/` holds. The catalog security report there is `gen_schedule_artifacts --catalog-report` over the
-shipped families, built with the `catalog-security` feature, as the re-plan scripts run it. The per-K group runs behind the opening tables are not kept under
-  `estimates/`; the re-plan scripts reproduce them.
+  `estimates/` holds. The catalog security report there is `gen_schedule_artifacts --catalog-report`
+  over the shipped families, built with the `catalog-security` feature, as the re-plan scripts run
+  it. The per-K group runs behind the opening tables are not kept under `estimates/`; the re-plan
+  scripts reproduce them.
 - **The 147-bit floor** (`AKITA_147`, `SLOPE[147]`): `scripts/akita-147-pipeline.sh` retargets
   the worktree's policy, regenerates its width tables (hours; `SKIP_TABLES=1` resumes), re-sizes
   the compression cells, rebuilds and runs `scripts/akita-147-replan.sh`; then
