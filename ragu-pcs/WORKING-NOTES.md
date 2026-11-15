@@ -2043,3 +2043,5 @@ ragu/work/bench-fuse-asm.log.
 - 10:49 UTC, addendum: the grinding select full width below the headers row with "best per row
   (smallest prover)" (the row's prover, which for the hash-based rows is also the accumulation
   prover) (1e2a9a9). Artifact v122.
+- 10:52 UTC, addendum: thin rules between the controls sharing a group (View: projection, scale,
+  hold; Security: floor, zk; Allowed changes: hashes, parameter filter) (9f530ce). Artifact v123.
