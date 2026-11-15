@@ -1896,3 +1896,58 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at 6f030d0 plus this entry, unpushed after c8aa330 (e1f8fd1, 2644176,
   6f030d0 and this). Untracked and kept: keep/ulrich-quang-review.md. Artifact v106. PENDING:
   unchanged from the 21:54 entry, less the note.
+
+## 2026-11-15 02:17 UTC: the prose figures generated from the model; claims guard the wording; sizes in kbytes
+
+- PROSE FIGURES (the user: "please do the generation of figures from the model"; commits
+  7588e3a, 58f2f77, 95da46e, 09d379d; artifact v108): every model-derived figure in
+  pareto-template.html and pasta-proof-size.md sits between markers,
+  <!--fig:NAME-->value<!--/fig-->, invisible when rendered. The model fills them when it writes
+  pareto.html; `python pareto-model.py --fill` writes the values back into the tracked files;
+  the default run (and so the book build) FAILS when a tracked value is stale or a claim no
+  longer holds, printing the stale markers as old -> new. `--figures` lists every figure.
+  The definitions are in define_figures() at the end of the model: shown(family, policy, zk,
+  floor, **where) selects rows as the page does (grind "auto" only, the Poseidon option adding
+  rows), pick() one row, best_for(family, app, policy) the least-transaction row with tx_steps
+  and tx_work, a Python copy of the page's txStepsFor; the page checks the two copies against
+  each other on the quoted rows (DATA.tx_checks, a red line at the top if they differ). Names:
+  _s seconds, _ms milliseconds, _minutes, _kb kbytes, _pct percent, _min/_max a range's ends.
+  Formatting: sig() two significant figures, three from 100 up for sizes and millions.
+- CLAIMS (the user: "for wording that is too difficult to generate, you can write assertions
+  that will be broken if the wording goes stale"): claim(text, holds) entries fail the run;
+  e.g. rank 14 packed beats rank 13 on bytes, prover and atoms; Kishu dominates the 64-bit
+  variant under BLAKE3 on every measure but the merge's count; BitZ's zk prover unchanged.
+- WHAT THE FIRST FILL CORRECTED: the budget table (binders 4 not 5 at rank 13; 3, 1 fixed
+  circuits packed at rank 14, not 4, 2; 72 endoscalings at rank 17, not 70); Pedersen's best
+  recovery row 1.9 minutes at rank 17 (was "two and a half"); rank-15 Tachyon 4.2 s and 17 s
+  (were 5.4 and 22); Kishu zk 2.5 s (was 2.6); the hash-based ranges widened (WHIR with
+  Poseidon 171 to 1,280 kbytes, 27 to 1,900 times Pedersen's prover). Claims that FAILED and
+  the wording fixed: BitZ's recursion row has a SMALLER proof than its ARC row (381 against
+  489 kbytes) at 7.4 times the prover, so "the proof grows with the merge" was wrong; the limb
+  hybrid's prover FALLS 2.2 times under BLAKE3 (its Poseidon over limbs is dear natively), so
+  "the prover 1.3 to 2 times" holds for the other three WHIR-type rows only; the F2 family's
+  rate-1/2 row is no longer pruned (its accumulator memory is smaller); the 256-bit design is
+  up to 7 percent dearer, not a tenth; rank 17 under BLAKE3 saves 0.6 kbytes at the small
+  fields, not "a few kilobytes"; BitZ at rank 13 is no longer unbeaten among Pasta-claims rows
+  (Kishu beats it on bytes and prover), so the claim is restricted to the hash-based families;
+  "the 192- and 191-bit proofs equal" (173 against 174 kbytes) dropped. pasta-proof-size.md:
+  the BitZ row (489 kbytes, 2.1e8, 28 million bits, 7.4 ms; was 302, 3.8e8, 31, 5), the WHIR
+  measured sizes in kbytes, Goldilocks WHIR 273 to 658 kbytes (was 115 to 228), the F2 row 173
+  kbytes and 4.4e8 (was 194 and 1.3e8), the smallest Pedersen proofs with six and three fixed
+  circuits packed into three and one (was seven and four into four and two; 6,468 and 6,244
+  bytes, 6,372 for the infeasible rank-14 E16 one-binder configuration), the eight challenges
+  (was ten), and the Kishu passage rewritten (it said the 64-bit variant dominates Kishu and
+  that costing the recovery circuit was the open step). Also fixed: the lede, the frontier
+  chapter and the note said "a third measure".
+- UNITS (the user: KB is ambiguous; "use kbytes for units of 1000 bytes"): kb() writes
+  kbytes, mb() Mbytes; every KB/KiB/MB in the template and the three notes is now kbytes or
+  Mbytes (KiB figures converted: 307 KiB -> 314 kbytes, 73 to 86 KiB -> 75 to 88 kbytes, Flock
+  200 to 386 KiB -> 205 to 395 kbytes, LaBinius under 100 KiB -> under 103 kbytes, 8 KiB ->
+  8192 bytes). The user's other wording fixes: "between BLAKE3 which is the default, and
+  Poseidon 1.1"; "Japanese dog breed"; the transaction-prover description in short sentences.
+- STATE: pqzcash main at 09d379d plus this entry, unpushed after c8aa330 (e1f8fd1, 2644176,
+  6f030d0, a763ce7, 95da46e, 7588e3a, 7f08ab5, 58f2f77, 09d379d and this). Each commit was
+  checked by running the model from its archive. Artifact v108. PENDING: the user's review of
+  the soundness statements (ragu-pcs/kishu-soundness-note.md), then Theorem B; the zk-fold
+  levers; the Pallas factor at 147; re-render keep/tachyon-statements.md; the Transaction
+  paragraph's BLAKE3 figure for the Pasta-claims recovery row (now easy as a figure).
