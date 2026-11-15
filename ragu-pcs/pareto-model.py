@@ -1934,7 +1934,8 @@ def define_figures():
     p, w = best_for("bitz", "recovery")
     fig("tx_recovery_bitz_s", secs(w)); fig("tx_recovery_bitz_rank", p["rank"])
     bitz_recovery_work = w
-    claim("BitZ's best recovery row holds the circuit in one step", tx_steps(p, "recovery", "blake3") == 1)
+    claim("BitZ's best recovery row holds the circuit in one step",
+          tx_steps(p, "recovery", "blake3") == 1)
     bitz_recovery_bytes = p["bytes"]
     p, w = best_for("pasta_q64", "recovery", "poseidon", hashes="poseidon")
     fig("tx_recovery_q64_s", secs(w)); fig("tx_recovery_q64_rank", p["rank"])
@@ -1955,7 +1956,8 @@ def define_figures():
     fig("tx_recovery_q64_zk_s", secs(w)); fig("tx_recovery_q64_zk_rank", p["rank"])
     p, w = best_for("bitz", "recovery", zk=True)
     fig("tx_recovery_bitz_zk_s", secs(w)); fig("tx_recovery_bitz_zk_more_kb", kb(p["bytes"] - bitz_recovery_bytes))
-    claim("BitZ's recovery prover is unchanged with zero knowledge", abs(w / bitz_recovery_work - 1) < 0.01)
+    claim("BitZ's recovery prover is unchanged with zero knowledge",
+          abs(w / bitz_recovery_work - 1) < 0.01)
 
     # Tachyon transactions (the Tachyon transactions paragraph). Over Pasta the nodes are the
     # measured circuits; over Goldilocks and in a Boolean circuit a node is many steps.
@@ -1963,7 +1965,8 @@ def define_figures():
         if node != "Rerandomize":
             fig(f"tachyon_{node}_gates", fmt(gates))
     fig("tachyon_rank13_gates", fmt(gate_budget(13)))
-    claim("every Tachyon node fits rank 13's circuit", all(g <= gate_budget(13) for g, _, _ in TACHYON_STEPS.values()))
+    claim("every Tachyon node fits rank 13's circuit",
+          all(g <= gate_budget(13) for g, _, _ in TACHYON_STEPS.values()))
     action_nodes = ("SpendBind", "SpendAction", "OutputBind", "OutputAction", "FeeFuse")
     gold_steps = [math.ceil(tachyon_node_cost("goldilocks", "poseidon", n) / gate_budget(17)) for n in action_nodes]
     bool_steps = [math.ceil(tachyon_node_cost("boolean", "blake3", n) / BOOL_STEP_BITS) for n in action_nodes]
@@ -1974,7 +1977,8 @@ def define_figures():
     claim("at rank 13 no two action circuits of two tachyactions share a step and the merge rides with the fee step",
           tx_steps(checked_in, "tachyon2", "poseidon") == len(tachyon_nodes(*TACHYON_TRANSACTIONS[2])) - 1)
     rank15 = best_for("pedersen", "tachyon2", "poseidon", rank=15)[0]
-    claim("at rank 15 every circuit of two tachyactions fits one step", tx_steps(rank15, "tachyon2", "poseidon") == 2)
+    claim("at rank 15 every circuit of two tachyactions fits one step",
+          tx_steps(rank15, "tachyon2", "poseidon") == 2)
     w = tx_work(checked_in, "tachyon2", "poseidon")
     tx_checks.append(dict(family="pedersen", label=checked_in["label"], app="tachyon2", policy="poseidon", count=1, transaction=w))
     fig("tx_tachyon2_pedersen_s", secs(w))
@@ -1997,7 +2001,8 @@ def define_figures():
     p, w = best_for("bits_q64", "tachyon2", "poseidon", zk=True)
     fig("tx_tachyon2_kishu_zk_s", secs(w))
     p, w = best_for("bitz", "tachyon2", zk=True)
-    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge", abs(w / bitz_tachyon2_work - 1) < 0.01)
+    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge",
+          abs(w / bitz_tachyon2_work - 1) < 0.01)
     w = tx_work(checked_in, "tachyon16", "poseidon")
     tx_checks.append(dict(family="pedersen", label=checked_in["label"], app="tachyon16", policy="poseidon", count=1, transaction=w))
     fig("tx_tachyon16_pedersen_s", secs(w)); fig("tx_tachyon16_pedersen_steps", tx_steps(checked_in, "tachyon16", "poseidon"))
@@ -2055,7 +2060,8 @@ def define_figures():
     fig("pedersen_least14_bytes", fmt(least[14]["bytes"])); fig("pedersen_least15_bytes", fmt(least[15]["bytes"])); fig("pedersen_least15_E", least[15]["E"])
     claim("the smallest rank-14 proof has the fixed circuits packed, and the smallest rank-15 proof one binder and the fixed circuits packed",
           least[14]["packing"] and least[15]["packing"] and least[15]["binders"] == 1)
-    claim("rank 16 gains no bytes over rank 15", least[16]["bytes"] >= least[15]["bytes"])
+    claim("rank 16 gains no bytes over rank 15",
+          least[16]["bytes"] >= least[15]["bytes"])
     claim("rank 14 with the fixed circuits packed beats rank 13 on bytes, prover work and atoms",
           any(p["bytes"] < ch4["bytes"] and p["prover"] < ch4["prover"] and p["accumulation"] < ch4["accumulation"]
               for p in shown("pedersen", "poseidon", rank=14, packing=True, H=4)))
@@ -2093,7 +2099,8 @@ def define_figures():
           and len({a16[(v, "blake3")]["circuits"] for v in PASTA_VARIANTS}) == 1)
     fig("fp128_16_blake3_circuits", a16[("fp128", "blake3")]["circuits"]); fig("q64_16_blake3_circuits", a16[("pasta_q64", "blake3")]["circuits"])
     fig("fp128_16_poseidon_circuits", a16[("fp128", "poseidon")]["circuits"])
-    claim("Akita's merge takes two circuits with Poseidon at rank 16", all(a16[(v, "poseidon")]["circuits"] == 2 for v in VARIANTS))
+    claim("Akita's merge takes two circuits with Poseidon at rank 16",
+          all(a16[(v, "poseidon")]["circuits"] == 2 for v in VARIANTS))
     for v in ("fp128", "goldilocks"):
         fig(f"{v}_16_blake3_prover", sci(a16[(v, "blake3")]["prover"])); fig(f"{v}_16_poseidon_prover", sci(a16[(v, "poseidon")]["prover"]))
     for v in ("fp128", "pasta_q64"):
@@ -2133,7 +2140,8 @@ def define_figures():
     fig("shrink_outlier", round(statistics.mean(outliers)))
     claim("the 32-bit modulus shrinks least at every ring dimension from 64 up",
           all(WIDTH_SHRINK_147["q32"][d][0] <= min(s[d][0] for s in WIDTH_SHRINK_147.values() if d in s) for d in (64, 128, 256, 512, 1024)))
-    claim("the 36-fold cells are at ring dimension 512 and above only", all(d >= 512 for s in WIDTH_SHRINK_147.values() for d, (m, _) in s.items() if m >= 30))
+    claim("the 36-fold cells are at ring dimension 512 and above only",
+          all(d >= 512 for s in WIDTH_SHRINK_147.values() for d, (m, _) in s.items() if m >= 30))
     fig("rank_instances", RANK_INSTANCES)
     for m, (low, high, moves) in RANK_SUMS_147.items():
         fig(f"rank_sum_{m}_128", low); fig(f"rank_sum_{m}_147", high); fig(f"rank_moves_{m}", moves)
@@ -2159,10 +2167,12 @@ def define_figures():
           0.6 <= whir32["bytes"] / whir8["bytes"] <= 0.75 and 0.6 <= whir32["gates"] / whir8["gates"] <= 0.75)
     gold8 = w13[("whir_gold", "poseidon")]
     fig("whir_gold_prover_cut", sig(whir8["prover"] / gold8["prover"], 1))
-    claim("Goldilocks cuts WHIR's proof by about a sixth and grows its merge", 0.78 <= gold8["bytes"] / whir8["bytes"] <= 0.9 and gold8["gates"] > whir8["gates"])
+    claim("Goldilocks cuts WHIR's proof by about a sixth and grows its merge",
+          0.78 <= gold8["bytes"] / whir8["bytes"] <= 0.9 and gold8["gates"] > whir8["gates"])
     rec8 = pick("whir_rec", rate="1/8", rank=13, hashes="poseidon", H=2)
     fig("whir_rec13_kb", kb(rec8["bytes"]))
-    claim("the recursive rows' proofs are a little over half the ARC rows'", 0.5 < rec8["bytes"] / whir8["bytes"] < 0.62)
+    claim("the recursive rows' proofs are a little over half the ARC rows'",
+          0.5 < rec8["bytes"] / whir8["bytes"] < 0.62)
     fig("arc_openings_1_8", round(arc_openings("1/8", 128, 0)))
     for rate in ("1/2", "1/4"):
         fig(f"arc_openings_{rate.replace('/', '_')}", round(arc_openings(rate, 128, 0)))
@@ -2181,7 +2191,8 @@ def define_figures():
           not any(dominated(a, shown(f + "_rec", "poseidon", hashes="blake3")) for f in WHIR_TYPES for a in shown(f, "poseidon", hashes="blake3"))
           and not any(dominated(a, shown(f + "_rec", "poseidon")) for f in ("flock", "bitz") for a in shown(f, "poseidon")))
     fri_rec8 = pick("plonky3_rec", rate="1/8", rank=13, hashes="poseidon", H=2)
-    claim("FRI's recursion costs about twice ARC", 1.7 <= fri_rec8["prover"] / w13[("plonky3", "poseidon")]["prover"] <= 2.4)
+    claim("FRI's recursion costs about twice ARC",
+          1.7 <= fri_rec8["prover"] / w13[("plonky3", "poseidon")]["prover"] <= 2.4)
     for hp in HASH_POLICIES:
         fig(f"whir13_{hp}_gates", mil(w13[("whir", hp)]["gates"])); fig(f"whir13_{hp}_circuits", fmt(w13[("whir", hp)]["circuits"]))
     g_ratio = sorted(w13[(f, "blake3")]["gates"] / w13[(f, "poseidon")]["gates"] for f in WHIR_TYPES)
@@ -2226,13 +2237,15 @@ def define_figures():
         fig(f"f2_1_8_{fld}_kb", kb(pick("flock", rate="1/8", field=fld, zkv=None, H=2)["bytes"]))
     less = [1 - pick("flock", rate="1/8", field=fld, zkv=None, H=2)["bytes"] / pick("flock", rate="1/8", field=256, zkv=None, H=2)["bytes"] for fld in (192, 191)]
     fig("f2_192_191_less_pct", sig(100 * sum(less) / 2, 1))
-    claim("the 192- and 191-bit designs' proofs are within a percent of each other at rate 1/8", abs(less[0] - less[1]) < 0.01)
+    claim("the 192- and 191-bit designs' proofs are within a percent of each other at rate 1/8",
+          abs(less[0] - less[1]) < 0.01)
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
     f256 = {p["rate"]: p for p in shown("flock", field=256, zkv=None, H=2)}
     f191 = {p["rate"]: p for p in shown("flock", field=191, zkv=None, H=2)}
     r256 = [f256[r]["prover"] / f192[r]["prover"] for r in f192 if r in f256]
     fig("f2_256_more_pct_max", sig(100 * (max(r256) - 1), 1))
-    claim("the 256-bit design's prover is never less than the 192-bit one's by more than a percent", min(r256) >= 0.99)
+    claim("the 256-bit design's prover is never less than the 192-bit one's by more than a percent",
+          min(r256) >= 0.99)
     pct191 = sorted(100 * (f191[r]["prover"] / f192[r]["prover"] - 1) for r in f192 if r in f191)
     fig("f2_191_less_pct", sig(-pct191[0], 1)); fig("f2_191_more_pct", sig(pct191[-1], 1))
     claim("the 191-bit design's prover is less than the 192-bit one's at the highest rate and more at the lowest",
@@ -2243,9 +2256,11 @@ def define_figures():
     fig("f2_rec_192_kb_min", kb(min(p["bytes"] for p in frec.values()))); fig("f2_rec_192_kb_max", kb(max(p["bytes"] for p in frec.values())))
     f_least = min(f192.values(), key=lambda p: p["prover"])
     fig("f2_192_prover_least", mil(f_least["prover"]))
-    claim("the 𝔽₂ family's prover is least at rates 1/4 to 1/8, within 5%", all(f192[r]["prover"] <= 1.05 * f_least["prover"] for r in ("1/4", "1/8")))
+    claim("the 𝔽₂ family's prover is least at rates 1/4 to 1/8, within 5%",
+          all(f192[r]["prover"] <= 1.05 * f_least["prover"] for r in ("1/4", "1/8")))
     fig("f2_over_gold_poseidon", sig(f_least["prover"] / a16[("goldilocks", "poseidon")]["prover"], 1))
-    claim("the 𝔽₂ family's least prover is about a third of Akita over Goldilocks's with BLAKE3", 0.28 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.4)
+    claim("the 𝔽₂ family's least prover is about a third of Akita over Goldilocks's with BLAKE3",
+          0.28 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.4)
     fig("f2_1_8_prover", sci(f8["prover"])); fig("f2_1_8_kb", kb(f8["bytes"])); fig("f2_1_8_gates", mil(f8["gates"]))
     fig("goldilocks_16_blake3_kb", kb(a16[("goldilocks", "blake3")]["bytes"])); fig("goldilocks_16_poseidon_kb", kb(a16[("goldilocks", "poseidon")]["bytes"]))
     claim("Akita over Goldilocks with Poseidon dominates the 𝔽₂ family's rate-1/8 row on bytes and prover",
@@ -2256,7 +2271,8 @@ def define_figures():
     rr = sorted(p["prover"] / f8["prover"] for p in frec8.values())
     fig("f2_rec_over_arc_prover_min", sig(rr[0])); fig("f2_rec_over_arc_prover_max", sig(rr[-1]))
     fig("f2_rec_1_8_192_kb", kb(frec8[192]["bytes"]))
-    claim("the 𝔽₂ family's recursive proof is about a quarter smaller than its ARC one at rate 1/8", 0.68 <= frec8[192]["bytes"] / f8["bytes"] <= 0.8)
+    claim("the 𝔽₂ family's recursive proof is about a quarter smaller than its ARC one at rate 1/8",
+          0.68 <= frec8[192]["bytes"] / f8["bytes"] <= 0.8)
     fm = pick("flock", rate="1/8", field=192, zkv="mask", zk=True, H=2)
     fz = pick("flock", rate="1/8", field=192, zkv="zook", zk=True, H=2)
     fig("f2_mask_more_kb", kb(fm["bytes"] - f8["bytes"])); fig("f2_mask_kb", kb(fm["bytes"])); fig("f2_zook_more_kb", kb(fz["bytes"] - f8["bytes"]))
@@ -2275,9 +2291,11 @@ def define_figures():
     fig("bitz_rate_1_8_lig", BITZ_RATE["1/8"]); fig("bitz_27_rate_penalty", sig(bitz_prover_scale("1/8", 27), 3))
     fig("bitz_t10_25_ms", sig(BITZ_T10[25][0])); fig("bitz_gkr_25_ms", sig(BITZ_T10[25][0] * BITZ_PHASES[25][0])); fig("bitz_t10_25_verify_ms", sig(BITZ_T10[25][1], 3))
     fig("bitz_gkr_share_pct", round(100 * BITZ_PHASES[25][0]))
-    claim("the grand-product GKR is four fifths of BitZ's prover", all(0.75 <= s <= 0.87 for s, _ in BITZ_PHASES.values()))
+    claim("the grand-product GKR is four fifths of BitZ's prover",
+          all(0.75 <= s <= 0.87 for s, _ in BITZ_PHASES.values()))
     b12 = pick("bitz", rank=12, rate="1/8", H=2)
-    claim("rank 12 gives BitZ a slightly smaller proof and merge prover", b12["bytes"] < b13["bytes"] and b12["prover"] < b13["prover"])
+    claim("rank 12 gives BitZ a slightly smaller proof and merge prover",
+          b12["bytes"] < b13["bytes"] and b12["prover"] < b13["prover"])
     bz_rec13 = pick("bitz_rec", rank=13, rate="1/8", H=2)
     fig("bitz_rec13_merge_bits", mil(bz_rec13["gates"])); fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / b13["gates"], 1))
     fig("bitz_rec_over_arc_prover", sig(bz_rec13["prover"] / b13["prover"])); fig("bitz_rec_less_pct", round(100 * (1 - bz_rec13["bytes"] / b13["bytes"])))
@@ -2289,7 +2307,8 @@ def define_figures():
     ba = pick("bits_akita", H=2)
     fig("bits_akita_decider_ms", sig(ba["verify"] / WORD_MULTS_PER_MS, 3))
     fig("bits_akita_gates", millions(ba["gates"])); fig("bits_akita_kb", kb(ba["bytes"])); fig("bits_akita_prover", sci(ba["prover"]))
-    claim("the binary-groups merge is about a ninth of the 𝔽₂ family's ARC merge at rate 1/8", 8 <= f8["gates"] / ba["gates"] <= 11)
+    claim("the binary-groups merge is about a ninth of the 𝔽₂ family's ARC merge at rate 1/8",
+          8 <= f8["gates"] / ba["gates"] <= 11)
     fig("bits_akita_mults_per_pasta_gate", sig(ba["step_prover"] / BOOL_STEP_BITS * APP["recovery"]["boolean"]["blake3"] / APP["recovery"]["pasta"]["blake3"]))
     fig("q64_mults_per_pasta_gate", sig(4 * ajtai_per_coefficient("pasta_q64")))
     k_b = pick("bits_q64", rank=17, hashes="blake3", check="sumcheck", H=2)
@@ -2305,7 +2324,8 @@ def define_figures():
     claim("Kishu has no rows at rank 13, none at rank 14 under Poseidon, and rows at rank 14 under BLAKE3",
           not shown("bits_q64", "poseidon", rank=13) and not shown("bits_q64", "poseidon", rank=14, hashes="poseidon") and shown("bits_q64", rank=14))
     fig("q64_17_blake3_prover", sci(q_b["prover"])); fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
-    claim("under Poseidon Kishu's merge prover at rank 17 is about half the 64-bit variant's", 1.6 <= q_p["prover"] / k_p["prover"] <= 2.4)
+    claim("under Poseidon Kishu's merge prover at rank 17 is about half the 64-bit variant's",
+          1.6 <= q_p["prover"] / k_p["prover"] <= 2.4)
     fig("q64_17_blake3_kb", kb(q_b["bytes"]))
     claim("under BLAKE3 Kishu at rank 17 dominates the 64-bit variant on bytes, prover, accumulation prover, atoms, decider and memory",
           all(k_b[m] <= q_b[m] for m in ("bytes", "prover", "accumulation_prover", "accumulation", "verify", "memory")))
@@ -2321,7 +2341,8 @@ def define_figures():
     fig("bool_projection_per_bit", sig(proj[0])); fig("bool_sumcheck_per_bit", sig(sumc[0])); fig("bool_projection_scan", millions(proj[4]))
     fig("bool_sumcheck_merge_mults", fmt(sumc[3])); fig("zinc_piop_per_digit", sig(ZINC_PIOP_PER_DIGIT))
     fig("blake3_bits", sig(BLAKE3_BITS)); fig("hash_gates_per_atom", HASH_GATES_PER_ATOM); fig("sumcheck_gates", SUMCHECK_GATES); fig("claim_gates", CLAIM_GATES)
-    claim("Kishu at rank 17 under BLAKE3 beats BitZ at rank 13 on bytes and prover", k_b["bytes"] < b13["bytes"] and k_b["prover"] < b13["prover"])
+    claim("Kishu at rank 17 under BLAKE3 beats BitZ at rank 13 on bytes and prover",
+          k_b["bytes"] < b13["bytes"] and k_b["prover"] < b13["prover"])
 
     # The page's negative statements: rows that do not exist, and measures that do not move.
     claim("under BLAKE3 there are no Akita rows at rank 13, and none at rank 14 for the Pasta variants",
@@ -2340,14 +2361,17 @@ def define_figures():
           all(p["hashes"] == "poseidon" for p in points if p["family"] == "pedersen"))
     claim("the 𝔽₂ family, BitZ and the binary-groups family are the same rows under either hash policy",
           all(p["hashes"] == "any" for p in points if p["family"] in ("flock", "flock_rec", "bitz", "bitz_rec", "bits_akita")))
-    claim("Kishu's projection form has no zero-knowledge rows", not shown("bits_q64", "poseidon", zk=True, check="projection"))
+    claim("Kishu's projection form has no zero-knowledge rows",
+          not shown("bits_q64", "poseidon", zk=True, check="projection"))
     claim("Pedersen-IPA and the binary-groups row drop out at the 147-bit floor",
           not shown("pedersen", "poseidon", floor=147) and not shown("bits_akita", floor=147))
-    claim("Pedersen-IPA's points do not change with zero knowledge", all(p["zk"] is None for p in points if p["family"] == "pedersen"))
+    claim("Pedersen-IPA's points do not change with zero knowledge",
+          all(p["zk"] is None for p in points if p["family"] == "pedersen"))
     claim("zero knowledge moves Akita's decider by under a tenth, one more circuit's claim at most",
           all(abs(z["verify"] / a["verify"] - 1) < 0.1 for v in VARIANTS for hp in HASH_POLICIES
               for a in shown(v, "poseidon", hashes=hp) for z in shown(v, "poseidon", zk=True, hashes=hp) if z["rank"] == a["rank"]))
-    claim("the 𝔽₂ family and the binary-groups row do not support the Pasta base field", not PASTA["flock"] and not PASTA["bits_akita"])
+    claim("the 𝔽₂ family and the binary-groups row do not support the Pasta base field",
+          not PASTA["flock"] and not PASTA["bits_akita"])
 
     # The zero-knowledge mask's parameters (the zero-knowledge paragraph).
     fig("mask_length", MASK_LENGTH); fig("mask_rank", sig(MASK_RANK)); fig("mask_sumcheck_atoms", MASK_SUMCHECK_ATOMS)
@@ -2376,13 +2400,15 @@ def define_figures():
     attempts_alpha6 = math.exp(12 / 6 + 1 / (2 * 36))
     fig("zk_note_fold_alpha6_s", secs(sum(note_attempt(6, 32, 128)) * attempts_alpha6))
     fig("zk_note_attempt_alpha6_w20_s", secs(sum(note_attempt(6, 20, 512)), 2))
-    claim("the masking fold takes seconds on a fast core (the note's §5.8)", 1 <= fold / RATE_PER_S < 10)
+    claim("the masking fold takes seconds on a fast core (the note's §5.8)",
+          1 <= fold / RATE_PER_S < 10)
     # The user proof it is compared with: two to four dozen rank-13 steps over Pasta at the page's
     # step and accumulation prover.
     step = pick("pasta_sis", rank=13)
     per_step = step["step_prover"] + step["accumulation_prover"]
     fig("zk_note_proof24_s", secs(24 * per_step)); fig("zk_note_proof48_s", secs(48 * per_step))
-    claim("the masking fold is a noticeable fraction of a two-dozen-step user proof", 0.05 <= fold / (24 * per_step) <= 0.5)
+    claim("the masking fold is a noticeable fraction of a two-dozen-step user proof",
+          0.05 <= fold / (24 * per_step) <= 0.5)
     for r in (13, 14, 15, 16):
         fig(f"endoscalings_{r}", max_endoscalings(r))
         if r < 16:
