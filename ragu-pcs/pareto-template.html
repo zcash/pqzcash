@@ -183,7 +183,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="view" value="3d" id="view3d"> 3D: bytes, second measure, third measure</label>
       <label><input type="radio" name="scale" value="log" checked id="scalelog"> logarithmic axes</label>
       <label><input type="radio" name="scale" value="linear" id="scalelinear"> linear axes</label>
-      <label><input type="checkbox" id="holdcamera" checked> hold the view (axes, camera, zoom) when options change</label>
+      <label><input type="checkbox" id="holdcamera"> hold the view (axes, camera, zoom) when options change</label>
     </div>
     <div class="group"><span class="eyebrow">Frontier</span>
       <label><input type="checkbox" id="collapse-pre"> collapse pre-quantum to its frontier</label>
@@ -559,7 +559,7 @@ document.getElementById('holdcamera').addEventListener('change', e => {
   const sc = fl.scene || {};
   const s = second(), t = third(), u = unit();
   held = view === '2d'
-    ? { scale, view, second: s, third: t, unit: u, x: r(fl.xaxis), y: r(fl.yaxis), z: padded(DATA.points, t, t !== 'accumulation' && scale === 'log') }
+    ? { scale, view, second: s, third: t, unit: u, x: r(fl.xaxis), y: r(fl.yaxis), z: padded(selected(), t, t !== 'accumulation' && scale === 'log') }
     : { scale, view, second: s, third: t, unit: u, x: r(sc.xaxis), y: r(sc.yaxis), z: r(sc.zaxis) };
 });
 function wrapLabel(label, width = 60) {
@@ -691,7 +691,7 @@ function render() {
   // or removes points, and a constant uirevision keeps the camera and any
   // zoom across re-renders. The ranges are captured when the box is ticked
   // (see below), so ticking it moves nothing; a change of scale or of view
-  // needs new ranges, taken from the whole dataset. Without the hold, the
+  // needs new ranges, taken from the plotted points. Without the hold, the
   // ranges follow the plotted points and a fresh uirevision resets the
   // camera. The 3D scene cannot autorange a single point, or equal values on
   // a log axis, so its ranges are always set explicitly, with padding.
@@ -716,7 +716,7 @@ function render() {
       held = { ...held, unit: u, y: WORK_MEASURES.includes(s) ? carry(held.y, ylog) : held.y, z: WORK_MEASURES.includes(t) ? carry(held.z, zlog) : held.z };
     }
     if (!held || held.scale !== scale || held.view !== view || held.second !== s || held.third !== t || held.unit !== u) {
-      held = { scale, view, second: s, third: t, unit: u, x: padded(DATA.points, 'bytes', log), y: padded(DATA.points, s, ylog), z: padded(DATA.points, t, zlog) };
+      held = { scale, view, second: s, third: t, unit: u, x: padded(pts, 'bytes', log), y: padded(pts, s, ylog), z: padded(pts, t, zlog) };
     }
   } else {
     held = null;
