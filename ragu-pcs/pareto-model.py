@@ -635,6 +635,20 @@ WHIR_SCALE = {128: 1.0, 147: round(statistics.mean(b / a for a, b, _, _ in WHIR_
 WHIR_HASHES_SCALE = {128: 1.0, 147: round(statistics.mean(d / c for _, _, c, d in WHIR_147.values()), 2)}
 assert WHIR_SCALE[147] == 1.16 and WHIR_HASHES_SCALE[147] == 1.12
 ARC_FLOOR_PCT = round(100 * (147 / 128 - 1))  # ARC's openings per input grow with the floor
+# How far the maximum secure widths shrink from 128 to 147 bits, per modulus and ring
+# dimension: the median of width_128 / width_147 over the cells the floor binds (neither width
+# at the estimator's search cap, the 147-bit width strictly smaller), with the cell count, from
+# the production table's policy audit at 128 bits and the regenerated audit at 147 for the
+# shipped moduli, and the estimator's CSV tables for Pallas and Goldilocks (work/width-shrink.py,
+# 2026-11-15). The 32-bit modulus shrinks least; the few cells at the largest dimensions, where
+# the 147-bit width is still finite, shrink about 36-fold.
+WIDTH_SHRINK_147 = {
+    "q128":       {8: (2.7, 18), 16: (2.8, 9), 32: (3.0, 5), 64: (10.0, 465), 128: (12.3, 209), 256: (12.9, 150), 512: (14.0, 78), 1024: (36.2, 36)},
+    "q64":        {16: (2.8, 19), 32: (2.9, 10), 64: (4.9, 560), 128: (11.6, 412), 256: (13.3, 294), 512: (15.3, 173), 1024: (14.7, 91), 2048: (36.1, 44)},
+    "q32":        {32: (2.8, 20), 64: (4.4, 421), 128: (4.5, 140), 256: (5.3, 98), 512: (6.1, 41), 1024: (6.3, 33)},
+    "pallas":     {8: (2.8, 9), 16: (3.0, 5), 32: (3.0, 2), 64: (9.7, 236), 128: (12.5, 102), 256: (13.1, 65), 512: (35.8, 29)},
+    "goldilocks": {8: (2.1, 20), 16: (2.8, 19), 32: (2.9, 10), 64: (5.3, 605), 128: (11.5, 414), 256: (13.1, 306), 512: (14.7, 177), 1024: (14.7, 91), 2048: (36.1, 44)},
+}
 FLOORS = (128, 147)
 # The share of the opening, and of the verifier's work, that scales with the commitment rank:
 # the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
@@ -2105,6 +2119,19 @@ def define_figures():
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
     fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1))); fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
     fig("arc_floor_pct", ARC_FLOOR_PCT)
+    # The width shrink by ring-dimension group, across the moduli; the medians of 30 and more are
+    # the few cells at the largest dimensions, reported apart.
+    GROUPS = {"small": (8, 16, 32), "64": (64,), "mid": (128, 256), "large": (512, 1024, 2048)}
+    outliers = []
+    for group, ds in GROUPS.items():
+        meds = [m for shrink in WIDTH_SHRINK_147.values() for d, (m, _) in shrink.items() if d in ds]
+        typical = [m for m in meds if m < 30]
+        outliers += [m for m in meds if m >= 30]
+        fig(f"shrink_{group}_min", round(min(typical))); fig(f"shrink_{group}_max", round(max(typical)))
+    fig("shrink_outlier", round(statistics.mean(outliers)))
+    claim("the 32-bit modulus shrinks least at every ring dimension from 64 up",
+          all(WIDTH_SHRINK_147["q32"][d][0] <= min(s[d][0] for s in WIDTH_SHRINK_147.values() if d in s) for d in (64, 128, 256, 512, 1024)))
+    claim("the 36-fold cells are at ring dimension 512 and above only", all(d >= 512 for s in WIDTH_SHRINK_147.values() for d, (m, _) in s.items() if m >= 30))
     fig("rank_instances", RANK_INSTANCES)
     for m, (low, high, moves) in RANK_SUMS_147.items():
         fig(f"rank_sum_{m}_128", low); fig(f"rank_sum_{m}_147", high); fig(f"rank_moves_{m}", moves)
