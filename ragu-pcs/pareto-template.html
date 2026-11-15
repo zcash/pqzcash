@@ -189,15 +189,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> as today, one circuit each</label>
       <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the rank's budget</label>
     </div>
-    <div class="group"><span class="eyebrow">Hash-based families' grinding (proof of work in the query phase; best per row takes the setting with the smallest prover)</span>
+    </div>
+    <div class="group wide"><span class="eyebrow">Hash-based families' grinding (proof of work in the query phase)</span>
       <label><select id="grind">
-        <option value="auto" selected>best per row</option>
+        <option value="auto" selected>best per row (smallest prover)</option>
         <option value="0">none</option>
         <option value="16">16 bits</option>
         <option value="20">20 bits</option>
         <option value="24">24 bits</option>
       </select></label>
-    </div>
     </div>
     </div>
   </div>
