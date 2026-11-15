@@ -2049,3 +2049,7 @@ ragu/work/bench-fuse-asm.log.
   "section" (the user: the former paragraphs are sections now); links in the accent colour;
   the Rank section's Pedersen-IPA sentences in their own paragraph (852af0a, 1a84ce4).
   Artifact v125.
+- 11:15 UTC, addendum: the table references link to #frontier-table; the table takes its natural
+  width (it was squeezed to the column, wrapping the Assumption and Changes cells and setting
+  every row's height), the short text columns nowrap, Family 26-30ch and Configuration 40-46ch,
+  so rows take up to four lines (checked in the headless render) (6ccd8c9). Artifact v127.
