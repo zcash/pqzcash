@@ -2022,3 +2022,8 @@ ragu/work/bench-fuse-asm.log.
   hold box now starts unticked, and ranges taken under the hold come from the plotted points
   (32e212c). Zero knowledge is on by default (e47747c). Artifact v115. STATE: main at e47747c plus
   this line, unpushed after 3ab8793.
+- 09:56 UTC, addendum: DEFAULTS and CONTROLS (the user): third measure = transaction prover (recovery
+  circuit), unit = microseconds (ae592ea); controls reordered: families; measures with the
+  transaction selector (now full width); view, unit, frontier; floor, zk, hashes, changes; rank,
+  "PCD headers" (was labelled Pedersen-IPA; it sets every family's headers), Pedersen-IPA's fixed
+  circuits, grinding (936d7d0). Artifact v116.
