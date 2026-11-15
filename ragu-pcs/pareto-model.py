@@ -2120,6 +2120,15 @@ def define_figures():
     rec2, arc2 = pick("whir_rec", rate="1/2", rank=13, hashes="poseidon", H=2), pick("whir", rate="1/2", rank=13, hashes="poseidon", H=2)
     claim("at rate 1/2 recursion saves about a third of WHIR's prover and a twentieth of its merge",
           0.6 <= rec2["prover"] / arc2["prover"] <= 0.72 and 0.9 <= rec2["gates"] / arc2["gates"] <= 0.98)
+    ALL_MEASURES = ("bytes", "prover", "accumulation_prover", "accumulation", "gates", "verify", "memory")
+    def dominated(p, qs):
+        return any(all(q[m] <= p[m] for m in ALL_MEASURES) and any(q[m] < p[m] for m in ALL_MEASURES) for q in qs)
+    claim("with Poseidon trees every rate-1/2 ARC row of WHIR over Pasta, WHIR over Goldilocks and the limb hybrid is dominated on every measure by a recursive row of its family",
+          all(dominated(a, shown(f + "_rec", "poseidon", hashes="poseidon"))
+              for f in ("whir", "whir_gold", "whir_hybrid") for a in shown(f, "poseidon", rate="1/2", hashes="poseidon")))
+    claim("under BLAKE3 trees no ARC row is dominated by its family's recursive row, nor the 𝔽₂ family's or BitZ's under either hash",
+          not any(dominated(a, shown(f + "_rec", "poseidon", hashes="blake3")) for f in WHIR_TYPES for a in shown(f, "poseidon", hashes="blake3"))
+          and not any(dominated(a, shown(f + "_rec", "poseidon")) for f in ("flock", "bitz") for a in shown(f, "poseidon")))
     fri_rec8 = pick("plonky3_rec", rate="1/8", rank=13, hashes="poseidon", H=2)
     claim("FRI's recursion costs about twice ARC", 1.7 <= fri_rec8["prover"] / w13[("plonky3", "poseidon")]["prover"] <= 2.4)
     for hp in HASH_POLICIES:
@@ -2262,6 +2271,32 @@ def define_figures():
     fig("bool_sumcheck_merge_mults", fmt(sumc[3])); fig("zinc_piop_per_digit", sig(ZINC_PIOP_PER_DIGIT))
     fig("blake3_bits", sig(BLAKE3_BITS)); fig("hash_gates_per_atom", HASH_GATES_PER_ATOM); fig("sumcheck_gates", SUMCHECK_GATES); fig("claim_gates", CLAIM_GATES)
     claim("Kishu at rank 17 under BLAKE3 beats BitZ at rank 13 on bytes and prover", k_b["bytes"] < b13["bytes"] and k_b["prover"] < b13["prover"])
+
+    # The page's negative statements: rows that do not exist, and measures that do not move.
+    claim("under BLAKE3 there are no Akita rows at rank 13, and none at rank 14 for the Pasta variants",
+          not any(shown(v, rank=13, hashes="blake3") for v in VARIANTS)
+          and not any(shown(v, rank=14, hashes="blake3") for v in PASTA_VARIANTS)
+          and all(shown(v, rank=14, hashes="blake3") for v in ("fp128", "goldilocks"))
+          and all(shown(v, rank=15, hashes="blake3") for v in PASTA_VARIANTS))
+    fig("akita14_blake3_circuits", fmt(pick("fp128", rank=14, hashes="blake3", H=2)["circuits"]))
+    fig("pasta15_blake3_circuits", fmt(pick("pasta_q64", rank=15, hashes="blake3", H=2)["circuits"]))
+    claim("Goldilocks has the 128-bit field's circuit count at rank 14 under BLAKE3, and the three Pasta variants share theirs at rank 15",
+          pick("goldilocks", rank=14, hashes="blake3", H=2)["circuits"] == pick("fp128", rank=14, hashes="blake3", H=2)["circuits"]
+          and len({pick(v, rank=15, hashes="blake3", H=2)["circuits"] for v in PASTA_VARIANTS}) == 1)
+    for v, width in (("fp128", 16), ("pasta_q64", 32)):
+        fig(f"claim_gates_blake3_{width}", sig(akita_merge_gates(v, Kg, 2, False, "blake3") - akita_merge_gates(v, Kg, 1, False, "blake3")))
+    claim("the Pedersen-IPA rows exist only under the arithmetic-hash option",
+          all(p["hashes"] == "poseidon" for p in points if p["family"] == "pedersen"))
+    claim("the 𝔽₂ family, BitZ and the binary-groups family are the same rows under either hash policy",
+          all(p["hashes"] == "any" for p in points if p["family"] in ("flock", "flock_rec", "bitz", "bitz_rec", "bits_akita")))
+    claim("Kishu's projection form has no zero-knowledge rows", not shown("bits_q64", "poseidon", zk=True, check="projection"))
+    claim("Pedersen-IPA and the binary-groups row drop out at the 147-bit floor",
+          not shown("pedersen", "poseidon", floor=147) and not shown("bits_akita", floor=147))
+    claim("Pedersen-IPA's points do not change with zero knowledge", all(p["zk"] is None for p in points if p["family"] == "pedersen"))
+    claim("zero knowledge moves Akita's decider by under a tenth, one more circuit's claim at most",
+          all(abs(z["verify"] / a["verify"] - 1) < 0.1 for v in VARIANTS for hp in HASH_POLICIES
+              for a in shown(v, "poseidon", hashes=hp) for z in shown(v, "poseidon", zk=True, hashes=hp) if z["rank"] == a["rank"]))
+    claim("the 𝔽₂ family and the binary-groups row do not support the Pasta base field", not PASTA["flock"] and not PASTA["bits_akita"])
 
     # The zero-knowledge mask's parameters (the zero-knowledge paragraph).
     fig("mask_length", MASK_LENGTH); fig("mask_rank", sig(MASK_RANK)); fig("mask_sumcheck_atoms", MASK_SUMCHECK_ATOMS)
