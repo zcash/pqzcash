@@ -1951,3 +1951,18 @@ ragu/work/bench-fuse-asm.log.
   the soundness statements (ragu-pcs/kishu-soundness-note.md), then Theorem B; the zk-fold
   levers; the Pallas factor at 147; re-render keep/tachyon-statements.md; the Transaction
   paragraph's BLAKE3 figure for the Pasta-claims recovery row (now easy as a figure).
+- 02:37 UTC, addendum: CLAIMS for ARC against recursion (the user asked whether ARC rows are now
+  dominated by recursive ones: not under BLAKE3, nor BitZ's or the F2 family's under either hash;
+  with Poseidon trees the rate-1/2 recursive rows of WHIR over either field and the limb hybrid
+  dominate their ARC rows on all seven measures; both sentences are on the page and claimed), and
+  for the page's NEGATIVE statements (rows that do not exist, measures that do not move; the
+  user: "the negative claims also need to be guarded"). Two caught stale text: under BLAKE3 the
+  small fields have Akita rows from rank 14 (1,740 circuits) and the Pasta variants from 15
+  (1,471), not 15 and 16; zero knowledge moves Akita's decider by up to 7% where the 18 atoms
+  need one more circuit (edb7659). LAYOUT (the user: walls of text; narrow margins; 70-80
+  characters too narrow; tables full width, the budget table may stay in the column; the
+  Configuration column wider): bold lead-ins -> h3, the axes list -> headed paragraphs, long
+  paragraphs split at topic changes (27 headings, 137 paragraphs), text in a centred column of
+  64em at 16px (about 120 characters); the tables sit in the column too, the frontier table
+  scrolling sideways, and only the plot keeps the full width (04320b3). Artifact v111.
+  STATE: main at 04320b3 plus this line, unpushed after c8aa330.
