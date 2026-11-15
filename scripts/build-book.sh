@@ -10,7 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# The model prints its summary line first, then every point; only the summary is shown.
+# The model prints its summary line first, then every point; only the summary is shown. It
+# fails when a figure quoted in the tracked prose is stale against the model, or a claim the
+# prose makes no longer holds; `python ragu-pcs/pareto-model.py --fill` refreshes the figures.
 "${PYTHON:-python3}" ragu-pcs/pareto-model.py | sed -n 1p
 cp ragu-pcs/pareto.html book/src/proof-systems/pareto.html
 
