@@ -49,6 +49,8 @@ p { margin: 0 0 10px; }
 .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
 .group.grid .eyebrow { grid-column: 1 / -1; }
 .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+/* A thin rule between the controls that share a group, such as the view's projection, scale and hold. */
+.group hr.sep { width: 100%; border: 0; border-top: 1px solid var(--rule); margin: 3px 0; }
 .group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
 .group label input { margin-top: 3px; flex: none; }
 .group label .swatch { margin-top: 5px; flex: none; }
@@ -137,8 +139,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="group"><span class="eyebrow">View</span>
       <label><input type="radio" name="view" value="2d" checked id="view2d"> 2D: bytes against the second measure, the third as marker size (log scale over the plotted points, 5 to 22 px)</label>
       <label><input type="radio" name="view" value="3d" id="view3d"> 3D: bytes, second measure, third measure</label>
+      <hr class="sep">
       <label><input type="radio" name="scale" value="log" checked id="scalelog"> logarithmic axes</label>
       <label><input type="radio" name="scale" value="linear" id="scalelinear"> linear axes</label>
+      <hr class="sep">
       <label><input type="checkbox" id="holdcamera"> hold the view (axes, camera, zoom) when options change</label>
     </div>
     <div class="stack">
@@ -156,11 +160,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="group"><span class="eyebrow">Security floor and zero knowledge</span>
       <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits (ADPS16 core-SVP)</label>
       <label><input type="radio" name="floor" value="147" id="floor147"> 147 quantum bits (the most Akita's compression maps allow; Pedersen‑IPA and the binary groups drop out)</label>
+      <hr class="sep">
       <label><input type="checkbox" id="zk" checked> zero knowledge (see text)</label>
     </div>
     <div class="group"><span class="eyebrow">Allowed changes</span>
       <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional hashes only (BLAKE3)</label>
       <label><input type="radio" name="hashes" value="poseidon" id="hashesposeidon"> arithmetic hashes allowed (Poseidon 1.1)</label>
+      <hr class="sep">
       <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
     </div>
     <div class="group wide grid"><span class="eyebrow">Rank (see the Rank paragraph)</span>
