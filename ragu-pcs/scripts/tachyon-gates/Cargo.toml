@@ -1,0 +1,28 @@
+[package]
+name = "tachyon-gates"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Prints the synthesized gate and constraint counts of every Tachyon step at the
+# production rank, through a counting adapter added to ragu's mock in a Ragu
+# worktree at the revision Tachyon pins (a1395401). Every Ragu crate is
+# redirected to that worktree so that the types match Tachyon's.
+
+[dependencies]
+tachyon = { path = "../../crates/tachyon", package = "zcash_tachyon" }
+ragu = { git = "https://github.com/tachyon-zcash/ragu", rev = "a1395401ae978a95a1423614e299dd48d550cdf5", default-features = false, features = ["mock", "test-utils"] }
+ragu_core = { git = "https://github.com/tachyon-zcash/ragu", rev = "a1395401ae978a95a1423614e299dd48d550cdf5", package = "ragu_core", default-features = false, features = ["std"] }
+ragu_circuits = { git = "https://github.com/tachyon-zcash/ragu", rev = "a1395401ae978a95a1423614e299dd48d550cdf5", package = "ragu_circuits", default-features = false, features = ["std", "test-utils"] }
+
+[patch."https://github.com/tachyon-zcash/ragu"]
+ragu = { path = "../../../ragu-tachyon-pin" }
+ragu_acceleration = { path = "../../../ragu-tachyon-pin/crates/ragu_acceleration" }
+ragu_backend = { path = "../../../ragu-tachyon-pin/crates/ragu_backend" }
+ragu_circuits = { path = "../../../ragu-tachyon-pin/crates/ragu_circuits" }
+ragu_core = { path = "../../../ragu-tachyon-pin/crates/ragu_core" }
+ragu_macros = { path = "../../../ragu-tachyon-pin/crates/ragu_macros" }
+ragu_pcd = { path = "../../../ragu-tachyon-pin/crates/ragu_pcd" }
+ragu_primitives = { path = "../../../ragu-tachyon-pin/crates/ragu_primitives" }
+
+[workspace]

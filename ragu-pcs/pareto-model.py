@@ -606,7 +606,7 @@ assert abs((_checked_in["step_prover"] + _checked_in["prover"]) / (1000 * WORD_M
 # instance of each schedule in the shipped catalog's security report (115 schedules: 79 fp128,
 # 17 fp64, 19 fp32), the smallest module rank whose maximum secure width covers the instance's
 # width, at both floors, with the instance mapped through the modulus that the variant commits
-# over; the ratio of the summed ranks is the factor (work/rank-scale.py, from the width tables
+# over; the ratio of the summed ranks is the factor (scripts/rank-scale.py, from the width tables
 # regenerated at 147 bits: the catalog's own moduli and the Goldilocks table on 2026-11-12,
 # the Pallas table on 2026-11-15). RANK_SUMS_147 holds, per mapping, the summed ranks at 128
 # and 147 bits and the instances that move up a rank: the catalog's own mix of q128, q64 and
@@ -624,7 +624,7 @@ assert RANK_SCALE_147 == {"fp128": 1.24, "goldilocks": 1.14, "pasta_q64": 1.14, 
 RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
 # WHIR at the higher floor: the reference implementation (WizardOfMenlo/whir at afec1fa) at
 # 2^17 variables over both fields and rates 1/2 to 1/8, 20 bits of proof of work, the Johnson
-# regime, at 128 and 147 bits (2026-11-15; work/whir-sweep-147.sh): proof KiB and verifier
+# regime, at 128 and 147 bits (2026-11-15; scripts/whir-sweep-147.sh): proof KiB and verifier
 # hashes in thousands at each floor. The proofs grow with the floor through the query count,
 # independently of any lattice instance; the mean ratios are the page's factors.
 WHIR_147 = {  # (field, rate): (KiB at 128, KiB at 147, khashes at 128, khashes at 147)
@@ -639,7 +639,7 @@ ARC_FLOOR_PCT = round(100 * (147 / 128 - 1))  # ARC's openings per input grow wi
 # dimension: the median of width_128 / width_147 over the cells the floor binds (neither width
 # at the estimator's search cap, the 147-bit width strictly smaller), with the cell count, from
 # the production table's policy audit at 128 bits and the regenerated audit at 147 for the
-# shipped moduli, and the estimator's CSV tables for Pallas and Goldilocks (work/width-shrink.py,
+# shipped moduli, and the estimator's CSV tables for Pallas and Goldilocks (scripts/width-shrink.py,
 # 2026-11-15). The 32-bit modulus shrinks least; the few cells at the largest dimensions, where
 # the 147-bit width is still finite, shrink about 36-fold.
 WIDTH_SHRINK_147 = {

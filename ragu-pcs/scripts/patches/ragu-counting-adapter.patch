@@ -1,0 +1,405 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 72c15442..5d16e5fa 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -34,7 +34,7 @@ mock = [
+ ]
+ # Exposes `Application::verify_uncompressed` and `verify_differential`, as
+ # `ragu_pcd` does. Production verification goes through `verify_compressed`.
+-test-utils = []
++test-utils = ["ragu_circuits?/test-utils"]
+ # Kept for compatibility: the mock has no parallel stage of its own.
+ multicore = []
+ std = []
+diff --git a/crates/ragu_pcd/src/step/internal/adapter.rs b/crates/ragu_pcd/src/step/internal/adapter.rs
+index 73d7fc3f..06c7fca6 100644
+--- a/crates/ragu_pcd/src/step/internal/adapter.rs
++++ b/crates/ragu_pcd/src/step/internal/adapter.rs
+@@ -379,6 +379,18 @@ mod tests {
+         }
+     }
+ 
++    /// The adapter's fixed cost around a step: the SYSTEM gate, no stage,
++    /// ζ and the bridge hash (3 gates), the step's two packed allocations
++    /// (1 gate), its one query and the five openings at ζ (6 gates); the
++    /// 27 instance elements and the ONE constraint. The mock's counting
++    /// adapter asserts the same counts for the same step.
++    #[test]
++    fn synthesis_counts_of_the_test_step() {
++        let adapter = Adapter::<Pasta, TestStep, TestR, HEADER_SIZE>::new(TestStep);
++        let counts = ragu_circuits::testing::synthesis_counts(&adapter).unwrap();
++        assert_eq!((counts.num_gates, counts.num_constraints), (11, 28));
++    }
++
+     #[test]
+     fn a_slot_is_queried_at_most_once() {
+         let mut dr = Emulator::execute();
+diff --git a/src/lib.rs b/src/lib.rs
+index d44094b5..96597f98 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -38,9 +38,9 @@ extern crate std;
+ #[cfg(feature = "mock")]
+ extern crate alloc;
+ 
+-#[cfg(all(feature = "mock", test))]
++#[cfg(all(feature = "mock", any(test, feature = "test-utils")))]
+ extern crate self as ragu;
+-#[cfg(all(feature = "mock", test))]
++#[cfg(all(feature = "mock", any(test, feature = "test-utils")))]
+ use ragu_core::gadgets;
+ 
+ #[cfg(feature = "mock")]
+diff --git a/src/mock/counting.rs b/src/mock/counting.rs
+new file mode 100644
+index 00000000..4e7f8652
+--- /dev/null
++++ b/src/mock/counting.rs
+@@ -0,0 +1,258 @@
++//! Gate and constraint counts of a mock [`Step`]'s circuit.
++//!
++//! `ragu_pcd` synthesizes a step through an adapter that reserves the
++//! application stage, binds the staged values to it, allocates the oracles,
++//! runs the step's `witness`, opens the slots the step did not query at ζ and
++//! writes the instance: ζ, the six openings, the bridge hash's coordinates and
++//! the three padded headers. [`StepCircuit`] does the same with the mock's
++//! types, so that `ragu_circuits`' synthesis analysis counts for a mock step
++//! what the real adapter's circuit would contain.
++
++use alloc::vec::Vec;
++use core::marker::PhantomData;
++
++use ragu_circuits::{Circuit, WithAux, staging, testing::SynthesisCounts};
++use ragu_core::{
++    Coeff, Cycle, Error, Result,
++    drivers::{Driver, DriverValue},
++    gadgets::{Bound, Kind},
++    maybe::MaybeKind,
++};
++use ragu_primitives::{
++    Element, GadgetExt as _,
++    allocator::{Allocator, Standard},
++    vec::{FixedVec, Len},
++};
++use udon::field::Field;
++
++use super::{
++    header::{HEADER_POLYNOMIALS, Header},
++    step::{Encoded, Oracles, Step},
++};
++
++/// The instance's length: ζ, the openings as `(x, y)` pairs, the bridge
++/// hash's two coordinates and the three padded headers.
++pub struct InstanceLen<const HEADER_SIZE: usize>;
++
++impl<const HEADER_SIZE: usize> Len for InstanceLen<HEADER_SIZE> {
++    fn len() -> usize {
++        1 + 2 * 3 * HEADER_POLYNOMIALS + 2 + 3 * HEADER_SIZE
++    }
++}
++
++/// A mock step as the circuit that `ragu_pcd`'s adapter makes of a step.
++struct StepCircuit<C, S, const HEADER_SIZE: usize> {
++    step: S,
++    /// The application stage's size, in values.
++    stage_size: usize,
++    _marker: PhantomData<C>,
++}
++
++impl<C: Cycle, S: Step<C>, const HEADER_SIZE: usize> Circuit<C::CircuitField>
++    for StepCircuit<C, S, HEADER_SIZE>
++{
++    type Instance<'source> = ();
++    type Witness<'source> = ();
++    type Output = Kind![C::CircuitField; FixedVec<Element<'_, _>, InstanceLen<HEADER_SIZE>>];
++    type Aux<'source> = ();
++
++    fn instance<'dr, 'source: 'dr, D: Driver<'dr, F = C::CircuitField>>(
++        &self,
++        _: &mut D,
++        _: DriverValue<D, Self::Instance<'source>>,
++    ) -> Result<Bound<'dr, D, Self::Output>> {
++        unreachable!("the synthesis analysis runs only the witness")
++    }
++
++    fn witness<'dr, 'source: 'dr, D: Driver<'dr, F = C::CircuitField>>(
++        &self,
++        dr: &mut D,
++        _: DriverValue<D, Self::Witness<'source>>,
++    ) -> Result<WithAux<Bound<'dr, D, Self::Output>, DriverValue<D, Self::Aux<'source>>>>
++    where
++        Self: 'dr,
++    {
++        // The application stage's block: whole gates of two wires each, so
++        // the step's own gates start after it.
++        let allocator = &mut Standard::new();
++        let mut stage_wires = Vec::with_capacity(self.stage_size);
++        for i in 0..2 * staging::stage_gates(self.stage_size) {
++            let wire = allocator.alloc(dr, || Ok(Coeff::Zero))?;
++            if i < self.stage_size {
++                stage_wires.push(wire);
++            }
++        }
++
++        // ζ, the bridge hash and the staged values, allocated as the adapter
++        // and `ragu_pcd`'s oracles allocate them. The analysis carries no
++        // values, so these are immaterial.
++        let empty: [Vec<C::CircuitField>; HEADER_POLYNOMIALS] =
++            core::array::from_fn(|_| Vec::new());
++        let mut oracles = Oracles::alloc(
++            dr,
++            C::CircuitField::ZERO,
++            [C::CircuitField::ZERO; 2],
++            alloc::vec![C::CircuitField::ZERO; S::NUM_STAGED],
++            [&empty, &empty, &empty],
++        )?;
++        // Each staged value is bound to its stage wire by one equality.
++        for (value, stage_wire) in oracles.staged().iter().zip(&stage_wires) {
++            dr.enforce_equal(value.wire(), stage_wire)?;
++        }
++
++        let ((left, right, output), _, _) = self.step.witness::<_, HEADER_SIZE>(
++            dr,
++            &mut oracles,
++            <D::MaybeKind as MaybeKind>::empty(),
++            <D::MaybeKind as MaybeKind>::empty(),
++            <D::MaybeKind as MaybeKind>::empty(),
++        )?;
++        let (zeta, queries, bridge_hash) = oracles.finish(dr)?;
++
++        let mut elements = Vec::with_capacity(InstanceLen::<HEADER_SIZE>::len());
++        elements.push(zeta);
++        for (x, y) in queries {
++            elements.push(x);
++            elements.push(y);
++        }
++        elements.extend(bridge_hash);
++        write_padded::<S::Left, HEADER_SIZE, D>(dr, &left, &mut elements)?;
++        write_padded::<S::Right, HEADER_SIZE, D>(dr, &right, &mut elements)?;
++        write_padded::<S::Output, HEADER_SIZE, D>(dr, &output, &mut elements)?;
++
++        Ok(WithAux::new(FixedVec::try_from(elements)?, D::unit()))
++    }
++}
++
++/// Writes `header` as `ragu_pcd`'s padded encoding: its gadget's elements,
++/// zeros up to `HEADER_SIZE - 1` elements, then the suffix as a constant.
++fn write_padded<'dr, H: Header<D::F>, const HEADER_SIZE: usize, D: Driver<'dr>>(
++    dr: &mut D,
++    header: &Encoded<'dr, D, H, HEADER_SIZE>,
++    buf: &mut Vec<Element<'dr, D>>,
++) -> Result<()> {
++    let start = buf.len();
++    header.as_gadget().write(dr, buf)?;
++    let written = buf.len() - start;
++    if written > HEADER_SIZE - 1 {
++        return Err(Error::MalformedEncoding(
++            "header encoding exceeds HEADER_SIZE - 1".into(),
++        ));
++    }
++    for _ in written..HEADER_SIZE - 1 {
++        buf.push(Element::zero(dr));
++    }
++    buf.push(Element::constant(dr, D::F::from(H::SUFFIX.get())));
++    Ok(())
++}
++
++/// The gate and constraint counts of `step`'s circuit over an application
++/// stage of `stage_size` values, as `ragu_pcd` would synthesize it: the
++/// counts include the reserved SYSTEM gate, the stage block, the oracles,
++/// the instance's public-output constraints and the final ONE constraint.
++///
++/// # Errors
++///
++/// Returns an initialization error if the step stages more values than the
++/// stage holds, and propagates the step's own errors.
++pub fn step_synthesis_counts<C: Cycle, S: Step<C>, const HEADER_SIZE: usize>(
++    step: S,
++    stage_size: usize,
++) -> Result<SynthesisCounts> {
++    if S::NUM_STAGED > stage_size {
++        return Err(Error::Initialization(
++            "the step stages more values than the application stage holds".into(),
++        ));
++    }
++    ragu_circuits::testing::synthesis_counts(&StepCircuit::<C, S, HEADER_SIZE> {
++        step,
++        stage_size,
++        _marker: PhantomData,
++    })
++}
++
++#[cfg(test)]
++mod tests {
++    use ragu_core::{
++        gadgets::Kind,
++        maybe::Maybe as _,
++        pasta::{Fp, Pasta},
++    };
++    use ragu_primitives::allocator::Standard;
++
++    use super::*;
++    use crate::{
++        header::Suffix,
++        step::{Index, Slot},
++    };
++
++    struct TestHeader;
++
++    impl Header<Fp> for TestHeader {
++        const SUFFIX: Suffix = Suffix::new(50);
++        type Data = Fp;
++        type Output = Kind![Fp; Element<'_, _>];
++
++        fn encode<'dr, D: Driver<'dr, F = Fp>, A: Allocator<'dr, D>>(
++            dr: &mut D,
++            allocator: &mut A,
++            witness: DriverValue<D, Self::Data>,
++        ) -> Result<Bound<'dr, D, Self::Output>> {
++            Element::alloc(dr, allocator, witness)
++        }
++    }
++
++    /// The step of `ragu_pcd`'s adapter tests: two packed allocations, a
++    /// free addition and one query.
++    struct TestStep;
++
++    impl Step<Pasta> for TestStep {
++        const INDEX: Index = Index::new(0);
++        type Witness<'source> = ();
++        type Aux<'source> = ();
++        type Left = TestHeader;
++        type Right = TestHeader;
++        type Output = TestHeader;
++
++        fn witness<'dr, 'source: 'dr, D: Driver<'dr, F = Fp>, const HS: usize>(
++            &self,
++            dr: &mut D,
++            oracles: &mut Oracles<'_, 'dr, D>,
++            _: DriverValue<D, ()>,
++            left: DriverValue<D, Fp>,
++            right: DriverValue<D, Fp>,
++        ) -> Result<(
++            (
++                Encoded<'dr, D, Self::Left, HS>,
++                Encoded<'dr, D, Self::Right, HS>,
++                Encoded<'dr, D, Self::Output, HS>,
++            ),
++            DriverValue<D, Fp>,
++            DriverValue<D, ()>,
++        )> {
++            let allocator = &mut Standard::new();
++            let left_elem = Element::alloc(dr, allocator, left)?;
++            let right_elem = Element::alloc(dr, allocator, right)?;
++            let output_elem = left_elem.add(dr, &right_elem);
++            let output_val = output_elem.value().map(|v| *v);
++            oracles.query(dr, Slot::left(0), &left_elem)?;
++            Ok((
++                (
++                    Encoded::from_gadget(left_elem),
++                    Encoded::from_gadget(right_elem),
++                    Encoded::from_gadget(output_elem),
++                ),
++                output_val,
++                D::unit(),
++            ))
++        }
++    }
++
++    /// The counts `ragu_pcd`'s adapter test asserts for the same step at
++    /// header size 4 over an empty stage.
++    #[test]
++    fn counts_match_the_real_adapter() {
++        let counts = step_synthesis_counts::<Pasta, TestStep, 4>(TestStep, 0).unwrap();
++        assert_eq!((counts.num_gates, counts.num_constraints), (11, 28));
++    }
++}
+diff --git a/src/mock/mod.rs b/src/mock/mod.rs
+index 1b527be5..25d6f709 100644
+--- a/src/mock/mod.rs
++++ b/src/mock/mod.rs
+@@ -9,6 +9,8 @@ pub use proof::{CompressedPcd, CompressedProof, Pcd, Proof};
+ pub use ragu_pcd::{RegistryTags, SelectableBackend, ipa, profile};
+ 
+ mod application;
++#[cfg(feature = "test-utils")]
++pub mod counting;
+ pub mod header;
+ mod proof;
+ pub mod step;
+diff --git a/src/mock/step/oracles.rs b/src/mock/step/oracles.rs
+index 9b7b18e5..7c183a60 100644
+--- a/src/mock/step/oracles.rs
++++ b/src/mock/step/oracles.rs
+@@ -72,7 +72,8 @@ pub struct Oracles<'a, 'dr, D: Driver<'dr>> {
+     bridge_hash: [Element<'dr, D>; 2],
+     staged: Vec<Element<'dr, D>>,
+     slots: DriverValue<D, [&'a [Vec<D::F>; HEADER_POLYNOMIALS]; 3]>,
+-    queries: [bool; 3 * HEADER_POLYNOMIALS],
++    /// Each slot's opening, `(x, y)`, once the step has queried it.
++    queries: [Option<(Element<'dr, D>, Element<'dr, D>)>; 3 * HEADER_POLYNOMIALS],
+ }
+ 
+ impl<'a, 'dr, D: Driver<'dr>> Oracles<'a, 'dr, D> {
+@@ -89,7 +90,7 @@ impl<'a, 'dr, D: Driver<'dr>> Oracles<'a, 'dr, D> {
+             bridge_hash: [alloc(bridge_hash[0])?, alloc(bridge_hash[1])?],
+             staged: staged.into_iter().map(alloc).collect::<Result<_>>()?,
+             slots: D::just(|| slots),
+-            queries: [false; 3 * HEADER_POLYNOMIALS],
++            queries: core::array::from_fn(|_| None),
+         })
+     }
+ 
+@@ -114,15 +115,15 @@ impl<'a, 'dr, D: Driver<'dr>> Oracles<'a, 'dr, D> {
+         x: &Element<'dr, D>,
+     ) -> Result<Element<'dr, D>> {
+         let i = slot.offset();
+-        if self.queries[i] {
++        if self.queries[i].is_some() {
+             return Err(Error::Initialization(
+                 "an online slot may be queried once per step".into(),
+             ));
+         }
+-        let x = x.value();
++        let x_value = x.value();
+         let slots = self.slots.as_ref();
+         let y = D::just(|| {
+-            let x = *x.take();
++            let x = *x_value.take();
+             let slots = slots.take();
+             let header = slots[slot.offset() / HEADER_POLYNOMIALS];
+             header[slot.index]
+@@ -131,7 +132,32 @@ impl<'a, 'dr, D: Driver<'dr>> Oracles<'a, 'dr, D> {
+                 .fold(D::F::ZERO, |acc, coefficient| acc * x + *coefficient)
+         });
+         let y = Element::alloc(dr, &mut (), y)?;
+-        self.queries[i] = true;
++        self.queries[i] = Some((x.clone(), y.clone()));
+         Ok(y)
+     }
++
++    /// Opens every slot the step did not query at ζ, as `ragu_pcd`'s adapter
++    /// does, and returns ζ, the six openings in slot order and the bridge
++    /// hash's coordinates.
++    #[cfg(feature = "test-utils")]
++    #[allow(clippy::type_complexity)]
++    pub(crate) fn finish(
++        mut self,
++        dr: &mut D,
++    ) -> Result<(
++        Element<'dr, D>,
++        [(Element<'dr, D>, Element<'dr, D>); 3 * HEADER_POLYNOMIALS],
++        [Element<'dr, D>; 2],
++    )> {
++        let zeta = self.zeta.clone();
++        for slot in Slot::all() {
++            if self.queries[slot.offset()].is_none() {
++                self.query(dr, slot, &zeta)?;
++            }
++        }
++        let queries = self
++            .queries
++            .map(|query| query.expect("every slot was queried"));
++        Ok((self.zeta, queries, self.bridge_hash))
++    }
+ }
