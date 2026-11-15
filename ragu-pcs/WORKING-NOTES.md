@@ -2119,3 +2119,4 @@ ragu/work/bench-fuse-asm.log.
   statements, then Theorem B; the zk-fold levers; re-render keep/tachyon-statements.md; the
   Pasta-claims recovery row's BLAKE3 figure; the user to ask Quang about the QROM proof and
   CertifiedJL's roadmap; whether the prose seconds should be at millisecond resolution.
+- 14:59 UTC, addendum: the page's fmtMs drops trailing zeros (8.9 ms for 8.90: `Number(v.toPrecision(3))` before `toLocaleString`); the model's sig() is right. Fix next session: keep toPrecision's digits, separators only for the whole-millisecond branch.
