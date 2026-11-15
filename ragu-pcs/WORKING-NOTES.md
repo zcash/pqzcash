@@ -1879,3 +1879,20 @@ ragu/work/bench-fuse-asm.log.
   the prose figures from the model (they drift: this entry's figures were hand-updated again);
   re-render keep/tachyon-statements.md; the Transaction paragraph's BLAKE3 figure for the
   Pasta-claims row.
+
+## 2026-11-15 01:00 UTC: the soundness note tracked
+
+- THE SOUNDNESS NOTE is tracked as ragu-pcs/kishu-soundness-note.md (2644176), updated to
+  record that the PCS frontier page's Kishu paragraph and the sum-check pricing were corrected
+  in c8aa330, with the draft cited by title and date in place of its local path. The statements
+  themselves are unchanged and still await the user's review (Lemma L, Lemma B3, Theorem B,
+  Theorem A; Theorem B first). The review of Ulrich's and Quang's statements stays under keep/
+  (the user's decision): keep/ulrich-quang-review.md.
+- PASTA-PROOF-SIZE.MD's BitZ paragraph said Kishu's Pasta claims go "through the decoupled
+  commitment"; corrected to the limb recomposition in the 64-bit field. The rest of that
+  paragraph's Kishu figures (88 KB at rank 15, 6.6e8 or 8.4e8, "the 64-bit Akita variant
+  dominates it") predate the accumulation prover measure and the Pasta-field sum-check fix, so
+  they belong to the pending "generate the prose figures from the model" item.
+- STATE: pqzcash main at 6f030d0 plus this entry, unpushed after c8aa330 (e1f8fd1, 2644176,
+  6f030d0 and this). Untracked and kept: keep/ulrich-quang-review.md. Artifact v106. PENDING:
+  unchanged from the 21:54 entry, less the note.
