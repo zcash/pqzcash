@@ -2045,3 +2045,7 @@ ragu/work/bench-fuse-asm.log.
   prover) (1e2a9a9). Artifact v122.
 - 10:52 UTC, addendum: thin rules between the controls sharing a group (View: projection, scale,
   hold; Security: floor, zk; Allowed changes: hashes, parameter filter) (9f530ce). Artifact v123.
+- 11:02 UTC, addendum: every heading has an id and the cross-references are fragment links that say
+  "section" (the user: the former paragraphs are sections now); links in the accent colour;
+  the Rank section's Pedersen-IPA sentences in their own paragraph (852af0a, 1a84ce4).
+  Artifact v125.
