@@ -2030,3 +2030,9 @@ ragu/work/bench-fuse-asm.log.
 - 10:22 UTC, addendum: the WHIR-type families and Plonky3 start unticked (the user; Akita dominates
   them and their rows crowd the picture), said in the hash-based families paragraph (8afe39b). Artifact
   v117.
+- 10:41 UTC, addendum: WHIR-type and Plonky3 unticked by default (8afe39b); the Orchard all-cores
+  sentence reworded (0a0f478); the controls REGROUPED after a headless-Chrome render (the user:
+  look first; `Google Chrome --headless=new --screenshot --window-size=1920,2300` on a copy with the
+  panel's max-height removed, cropped with sips; work/layout-controls*.png): View | unit and
+  frontier; Security (floor, zk) | Allowed changes (hashes, parameter filter); rank boxes wrapped
+  full width; PCD headers | Family knobs (fixed circuits, grinding) (215ddbb). Artifact v120.
