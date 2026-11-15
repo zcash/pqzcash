@@ -2053,3 +2053,7 @@ ragu/work/bench-fuse-asm.log.
   width (it was squeezed to the column, wrapping the Assumption and Changes cells and setting
   every row's height), the short text columns nowrap, Family 26-30ch and Configuration 40-46ch,
   so rows take up to four lines (checked in the headless render) (6ccd8c9). Artifact v127.
+- 12:38 UTC, addendum: the unit option is MILLISECONDS (unitFactor 1/3e6; fmtWork: three significant
+  figures below a second, whole ms from a second up; the hold carry uses the same factor); the
+  model's secs()/minutes()/decider ms figures are three significant figures; the BitZ "unchanged
+  with zk" claims allow 1% (3456ff3). Artifact v128.
