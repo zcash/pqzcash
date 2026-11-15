@@ -2027,3 +2027,6 @@ ragu/work/bench-fuse-asm.log.
   transaction selector (now full width); view, unit, frontier; floor, zk, hashes, changes; rank,
   "PCD headers" (was labelled Pedersen-IPA; it sets every family's headers), Pedersen-IPA's fixed
   circuits, grinding (936d7d0). Artifact v116.
+- 10:22 UTC, addendum: the WHIR-type families and Plonky3 start unticked (the user; Akita dominates
+  them and their rows crowd the picture), said in the hash-based families paragraph (8afe39b). Artifact
+  v117.
