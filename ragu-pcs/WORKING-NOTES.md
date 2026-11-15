@@ -2040,3 +2040,6 @@ ragu/work/bench-fuse-asm.log.
   and fixed circuits and grinding, are separate groups stacked beside View and PCD headers;
   eyebrows simplified and item labels clarified ("conventional hashes only (BLAKE3)" etc.); the
   ranks a 7-column grid of bare numbers, their meaning in the Rank paragraph (073a408). Artifact v121.
+- 10:49 UTC, addendum: the grinding select full width below the headers row with "best per row
+  (smallest prover)" (the row's prover, which for the hash-based rows is also the accumulation
+  prover) (1e2a9a9). Artifact v122.
