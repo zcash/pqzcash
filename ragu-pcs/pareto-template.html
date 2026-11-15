@@ -42,11 +42,12 @@ p { margin: 0 0 10px; }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
 .group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .group.wide { grid-column: 1 / -1; }
-/* Two groups side by side, whatever precedes them: the measures; the view with the unit and frontier. */
+/* Two cells side by side, whatever precedes them: the two measures; a group beside a stack of short groups. */
 .group.measures, .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
-/* The rank boxes wrap across the panel's width, so that the list does not tower over its neighbour. */
-.group.row { flex-direction: row; flex-wrap: wrap; gap: 4px 14px; }
-.group.row .eyebrow { flex-basis: 100%; }
+.stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* The rank boxes in a regular grid across the panel's width. */
+.group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
+.group.grid .eyebrow { grid-column: 1 / -1; }
 .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
 .group label input { margin-top: 3px; flex: none; }
@@ -140,54 +141,64 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="scale" value="linear" id="scalelinear"> linear axes</label>
       <label><input type="checkbox" id="holdcamera"> hold the view (axes, camera, zoom) when options change</label>
     </div>
-    <div class="group"><span class="eyebrow">Work unit, and the frontier</span>
+    <div class="stack">
+    <div class="group"><span class="eyebrow">Work unit</span>
       <label><input type="radio" name="unit" value="muls" id="unitmuls"> 64‑bit multiplications</label>
       <label><input type="radio" name="unit" value="us" checked id="unitus"> microseconds on one core, at 3e9 multiplications per second</label>
+    </div>
+    <div class="group"><span class="eyebrow">Frontier</span>
       <label><input type="checkbox" id="collapse-pre"> collapse pre-quantum to its frontier</label>
       <label><input type="checkbox" id="collapse-post"> collapse post‑quantum to its frontier</label>
       <label><input type="checkbox" id="perfamily"> within each family separately</label>
     </div>
     </div>
-    <div class="group"><span class="eyebrow">Security (Pedersen‑IPA and the binary-groups row are at the 128-bit floor only)</span>
-      <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits, ADPS16 core-SVP</label>
-      <label><input type="radio" name="floor" value="147" id="floor147"> 147 quantum bits (the most Akita's rank-one compression maps allow; the catalog re-planned)</label>
+    </div>
+    <div class="group"><span class="eyebrow">Security floor and zero knowledge</span>
+      <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits (ADPS16 core-SVP)</label>
+      <label><input type="radio" name="floor" value="147" id="floor147"> 147 quantum bits (the most Akita's compression maps allow; Pedersen‑IPA and the binary groups drop out)</label>
       <label><input type="checkbox" id="zk" checked> zero knowledge (see text)</label>
     </div>
-    <div class="group"><span class="eyebrow">Allowed changes (hashes in circuits, see text; the configurations shown)</span>
-      <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional only (BLAKE3)</label>
-      <label><input type="radio" name="hashes" value="poseidon" id="hashesposeidon"> arithmetic allowed (Poseidon 1.1)</label>
+    <div class="group"><span class="eyebrow">Allowed changes</span>
+      <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional hashes only (BLAKE3)</label>
+      <label><input type="radio" name="hashes" value="poseidon" id="hashesposeidon"> arithmetic hashes allowed (Poseidon 1.1)</label>
       <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
     </div>
-    <div class="group wide row"><span class="eyebrow">Rank (2<sup>rank</sup> coefficients per step; 18 to 24 for the bit arithmetizations only)</span>
-      <label><input type="checkbox" class="rank" value="12" checked id="rank12"> <span>12 (2<sup>10</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="13" checked id="rank13"> <span>13 (2<sup>11</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="14" checked id="rank14"> <span>14 (2<sup>12</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="15" checked id="rank15"> <span>15 (2<sup>13</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="16" checked id="rank16"> <span>16 (2<sup>14</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="17" checked id="rank17"> <span>17 (2<sup>15</sup> gates)</span></label>
-      <label><input type="checkbox" class="rank" value="18" checked id="rank18"> <span>18 (2<sup>18</sup> bits or digits)</span></label>
-      <label><input type="checkbox" class="rank" value="19" checked id="rank19"> <span>19 (2<sup>19</sup>)</span></label>
-      <label><input type="checkbox" class="rank" value="20" checked id="rank20"> <span>20 (2<sup>20</sup>)</span></label>
-      <label><input type="checkbox" class="rank" value="21" checked id="rank21"> <span>21 (2<sup>21</sup>)</span></label>
-      <label><input type="checkbox" class="rank" value="22" checked id="rank22"> <span>22 (2<sup>22</sup>)</span></label>
-      <label><input type="checkbox" class="rank" value="23" checked id="rank23"> <span>23 (2<sup>23</sup>; Kishu's last)</span></label>
-      <label><input type="checkbox" class="rank" value="24" checked id="rank24"> <span>24 (2<sup>24</sup>; BitZ's last)</span></label>
+    <div class="group wide grid"><span class="eyebrow">Rank (see the Rank paragraph)</span>
+      <label><input type="checkbox" class="rank" value="12" checked id="rank12"> <span>12</span></label>
+      <label><input type="checkbox" class="rank" value="13" checked id="rank13"> <span>13</span></label>
+      <label><input type="checkbox" class="rank" value="14" checked id="rank14"> <span>14</span></label>
+      <label><input type="checkbox" class="rank" value="15" checked id="rank15"> <span>15</span></label>
+      <label><input type="checkbox" class="rank" value="16" checked id="rank16"> <span>16</span></label>
+      <label><input type="checkbox" class="rank" value="17" checked id="rank17"> <span>17</span></label>
+      <label><input type="checkbox" class="rank" value="18" checked id="rank18"> <span>18</span></label>
+      <label><input type="checkbox" class="rank" value="19" checked id="rank19"> <span>19</span></label>
+      <label><input type="checkbox" class="rank" value="20" checked id="rank20"> <span>20</span></label>
+      <label><input type="checkbox" class="rank" value="21" checked id="rank21"> <span>21</span></label>
+      <label><input type="checkbox" class="rank" value="22" checked id="rank22"> <span>22</span></label>
+      <label><input type="checkbox" class="rank" value="23" checked id="rank23"> <span>23</span></label>
+      <label><input type="checkbox" class="rank" value="24" checked id="rank24"> <span>24</span></label>
     </div>
-    <div class="group"><span class="eyebrow">PCD headers (post‑quantum rows at 2; a Tachyon or recovery transaction forces 9)</span>
-      <label><input type="checkbox" class="header" value="2" checked id="header2"> <span>header of 2 elements</span></label>
-      <label><input type="checkbox" class="header" value="4" checked id="header4"> <span>header of 4 elements</span></label>
-      <label><input type="checkbox" class="header" value="9" checked id="header9"> <span>header of 9 elements (Tachyon's)</span></label>
+    <div class="group wide two">
+    <div class="group"><span class="eyebrow">PCD headers (the post‑quantum rows are at 2)</span>
+      <label><input type="checkbox" class="header" value="2" checked id="header2"> <span>2 elements</span></label>
+      <label><input type="checkbox" class="header" value="4" checked id="header4"> <span>4 elements</span></label>
+      <label><input type="checkbox" class="header" value="9" checked id="header9"> <span>9 elements (Tachyon's; a Tachyon or recovery transaction forces it)</span></label>
     </div>
-    <div class="group"><span class="eyebrow">Family knobs: Pedersen‑IPA's fixed circuits; the hash-based families' grinding</span>
-      <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> fixed circuits as today, one circuit each</label>
-      <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> fixed circuits packed into the rank's budget</label>
+    <div class="stack">
+    <div class="group"><span class="eyebrow">Pedersen‑IPA's fixed circuits</span>
+      <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> as today, one circuit each</label>
+      <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the rank's budget</label>
+    </div>
+    <div class="group"><span class="eyebrow">Hash-based families' grinding (proof of work in the query phase; best per row takes the setting with the smallest prover)</span>
       <label><select id="grind">
-        <option value="auto" selected>best per row (smallest prover)</option>
+        <option value="auto" selected>best per row</option>
         <option value="0">none</option>
         <option value="16">16 bits</option>
         <option value="20">20 bits</option>
         <option value="24">24 bits</option>
       </select></label>
+    </div>
+    </div>
     </div>
   </div>
   </div>
@@ -204,7 +215,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <h3>Parameter changes against design changes</h3>
   <p>When configurations that need code or design changes are included, each class's frontier is the union of its frontier over all of them and its frontier over the parameter-only ones, so that what the changes buy stays visible. The table's last column says which frontier a row is on. The per-family box collapses each family to its own frontier instead, so that a dominated family still shows its best configurations.</p>
   <h3>Rank</h3>
-  <p>The circuit budget below limits the endoscalings per step and the binders at each rank, which makes rank a real trade-off for Pedersen-IPA. A larger circuit holds more endoscalings and fewer binders, which removes committed components and with them bytes and atoms, while the IPA grows by 128 bytes per rank and every remaining polynomial doubles. Rank 14 with the fixed circuits packed beats rank 13 on bytes, prover work and atoms; ranks 15 and 16 buy bytes and atoms with prover work.</p>
+  <p>A step at rank <i>r</i> commits 2<sup><i>r</i></sup> coefficients: 2<sup><i>r</i>−2</sup> gates of four wires for the field arithmetizations, and 2<sup><i>r</i></sup> bits or digits for BitZ and Kishu, which alone go past rank 17. The circuit budget below limits the endoscalings per step and the binders at each rank, which makes rank a real trade-off for Pedersen-IPA. A larger circuit holds more endoscalings and fewer binders, which removes committed components and with them bytes and atoms, while the IPA grows by 128 bytes per rank and every remaining polynomial doubles. Rank 14 with the fixed circuits packed beats rank 13 on bytes, prover work and atoms; ranks 15 and 16 buy bytes and atoms with prover work.</p>
   <p>For Akita the step circuits' witnesses open as one batch, so with Poseidon the rank moves bytes and atoms only through each circuit's own evaluation claim and the last circuit's unused capacity, a few hundred bytes across the range; with BLAKE3 the claims' absorption makes the rank decisive, as the Hashes paragraph says. Mostly the field choice trades: smaller fields buy bytes and prover work at the cost of atoms absorbed per merge.</p>
   <p>Rank 12 has no Pedersen-IPA rows, since a 1,024-gate circuit holds no binder challenge, and no Akita rows under BLAKE3. Rank 17 helps Akita under BLAKE3, where fewer circuits absorb fewer claims: <!--fig:akita17_blake3_cut_pct_min-->14<!--/fig--> to <!--fig:akita17_blake3_cut_pct_max-->30<!--/fig--> percent off the merge prover, and <!--fig:akita17_blake3_less_kb_small-->0.6 kbytes<!--/fig--> off the proof at the small fields, <!--fig:akita17_blake3_less_kb_pasta-->3 kbytes<!--/fig--> for the Pasta variants.</p>
   <p>The WHIR-type rows depend on the rank only through their circuit count, so they are shown at ranks 13 to 16.</p>
