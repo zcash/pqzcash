@@ -2019,6 +2019,24 @@ def define_figures():
     ratios = sorted(tx_work(checked_in, f"tachyon{n}", "poseidon") / RATE_PER_S / HALO2_SECONDS[n] for n in HALO2_SECONDS)
     fig("tachyon_over_halo2_min", sig(ratios[0])); fig("tachyon_over_halo2_max", sig(ratios[-1]))
 
+    # The decider's ranges by family group (the axes list), in milliseconds over the rows shown
+    # under either hash policy at the default floor.
+    def decider_ms(families, hashes=None):
+        return sorted(p["verify"] / WORD_MULTS_PER_MS for f in families for p in shown(f, "poseidon")
+                      if hashes is None or p["hashes"] == hashes)
+
+    fast = (decider_ms(("fp128", "goldilocks", "flock", "flock_rec", "bits_akita"))
+            + decider_ms(("whir", "whir_gold", "whir_hybrid", "whir_rec", "whir_gold_rec", "whir_hybrid_rec", "plonky3", "plonky3_rec"), "blake3"))
+    claim("the 64-bit and 128-bit lattice rows, the binary-field families and the BLAKE3 hash-based deciders take under ten milliseconds",
+          max(fast) < 10)
+
+    for name, families, hashes in (("pasta", ("pasta", "pasta_q64", "pasta_sis", "bits_q64", "bitz", "bitz_rec"), None),
+                                   ("pedersen", ("pedersen",), None),
+                                   ("whir_gold", ("whir_gold", "whir_gold_rec"), "poseidon"),
+                                   ("whir_pasta", ("whir", "whir_rec"), "poseidon")):
+        ms = decider_ms(families, hashes)
+        fig(f"decider_{name}_ms_min", sig(ms[0], 3)); fig(f"decider_{name}_ms_max", sig(ms[-1], 3))
+
     # Accumulator memory (the axes list).
     fig("memory_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["memory"], 3))
     fig("memory_kishu_rank21", mb(pick("bits_q64", rank=21, hashes="blake3", check="sumcheck")["memory"]))
@@ -2392,6 +2410,7 @@ def define_figures():
         rows = ROWS["pasta_sis"] * (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
         commit = 2 ** MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
         return commit, 2 ** MASK_LOG_N * MASK_SAMPLE_WORD_MULTS
+
     commit, sampling = note_attempt(MASK_ALPHA, 32, 128)
     fold = (commit + sampling) * MASK_ATTEMPTS
     fig("zk_note_commit_s", secs(commit)); fig("zk_note_sampling_s", secs(sampling))
@@ -2409,6 +2428,7 @@ def define_figures():
     fig("zk_note_proof24_s", secs(24 * per_step)); fig("zk_note_proof48_s", secs(48 * per_step))
     claim("the masking fold is a noticeable fraction of a two-dozen-step user proof",
           0.05 <= fold / (24 * per_step) <= 0.5)
+
     for r in (13, 14, 15, 16):
         fig(f"endoscalings_{r}", max_endoscalings(r))
         if r < 16:
