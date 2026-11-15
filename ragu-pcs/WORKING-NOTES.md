@@ -2083,3 +2083,39 @@ ragu/work/bench-fuse-asm.log.
   row's BLAKE3 figure (one more fig()); the user to ask Quang about the QROM proof and
   CertifiedJL's roadmap. Open question from the user: whether the prose seconds should be at
   millisecond resolution too (they are at three significant figures).
+
+## 2026-11-15 14:55 UTC: the zero-knowledge note joins the prose files; the decider ranges; the claims' layout; table units
+
+- The user edited REGENERATING.md (pasta_curves 0.6.1 for the Halo 2 benchmark; e8fa64e). The
+  bench crate's Cargo.lock confirms 0.6.1 (orchard 0.16.0, halo2_proofs 0.4.1); its compiled
+  artifacts are gone, so the lock file is the record. The table row now says a crate over the
+  orchard release, not an Orchard checkout (0817985).
+- The BitZ "unchanged with zero knowledge" claims lost their `secs(w) == figure or` branch
+  (d5056ce). The user's point: an `or` in a check makes it only as strong as its weaker branch,
+  and nothing had established which that was. A failing assertion is replaced by the intended
+  test, never widened.
+- zk-fiat-shamir-with-aborts.md is a PROSE_FILE (5154b04): §5.4's commitment 0.275 s, sampling
+  1.26 s at 300 ns a coordinate (4.6 times the commitment), attempt 1.53 s, fold 4.18 s at
+  α = 12 and 11.4 s at α = 6 at the note's own parameters (the §5.3 rows in dimension 128,
+  N = 2^22); the user proof it is compared with is two to four dozen rank-13 steps over Pasta,
+  23.9 to 47.8 s at the page's step plus accumulation prover (0.957 s a step); §5.6's attempt
+  about 1.5 s. The old "about a second / three seconds / eight to ten / about ten seconds" had
+  assumed ~200 ns sampling and no accumulation prover. Claims guard §5.8's "seconds" and §5.4's
+  "noticeable fraction" (4.18 s is a sixth of 23.9 s). pasta-proof-size.md's "about five seconds
+  a row" is the planner's runtime, no model figure, left as is.
+- Every claim's predicate on its own line aligned under the text (30217a7). Python layout rule
+  from the user: blank lines between functions and around compound statements inside one, none
+  at the start of a block; ruff format next session.
+- The decider sentence (c907d44): the Pasta variants, Kishu and BitZ 7.09 to 26.7 ms, Pedersen-IPA
+  41.9 to 384, WHIR over Goldilocks with Poseidon 4.76 to 30.8, WHIR over Pasta 22.4 to 158, as
+  figures; a claim holds the 64/128-bit lattice, binary-field and BLAKE3 hash-based deciders
+  under 10 ms. The "a few milliseconds" at the hashes section was already claimed.
+- The frontier table's units are in each cell (816a30a): headings Proof size, Prover,
+  Accumulation prover, Decider, Transaction, Accumulator memory, Accumulation, Merge circuit;
+  cells "x bytes", "x ms" or "x 64‑bit muls", "x atoms", "x gates"; the JS heading update and
+  the `.unit` rule removed. NOT yet looked at in a render.
+- STATE: main at 0817985 plus this entry; unpushed from 0151e0a on. Artifact v129. PENDING: ruff
+  format over pareto-model.py; a look at the table's render; the user's review of the soundness
+  statements, then Theorem B; the zk-fold levers; re-render keep/tachyon-statements.md; the
+  Pasta-claims recovery row's BLAKE3 figure; the user to ask Quang about the QROM proof and
+  CertifiedJL's roadmap; whether the prose seconds should be at millisecond resolution.
