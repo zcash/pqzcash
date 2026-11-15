@@ -1849,11 +1849,11 @@ def sig(x, n=2):
     d = n - 1 - math.floor(math.log10(abs(x)))
     return f"{round(x, d):,.{max(d, 0)}f}"
 
-def secs(work, n=2):
+def secs(work, n=3):
     return sig(work / RATE_PER_S, n)
 
 def minutes(work):
-    return sig(work / RATE_PER_S / 60)
+    return sig(work / RATE_PER_S / 60, 3)
 
 def sci(x):
     """`x` as the text writes word multiplications: 7.5e7."""
@@ -1933,6 +1933,7 @@ def define_figures():
     fig("tx_recovery_kishu_s", secs(w)); fig("tx_recovery_kishu_rank", p["rank"]); fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
     p, w = best_for("bitz", "recovery")
     fig("tx_recovery_bitz_s", secs(w)); fig("tx_recovery_bitz_rank", p["rank"])
+    bitz_recovery_work = w
     claim("BitZ's best recovery row holds the circuit in one step", tx_steps(p, "recovery", "blake3") == 1)
     bitz_recovery_bytes = p["bytes"]
     p, w = best_for("pasta_q64", "recovery", "poseidon", hashes="poseidon")
@@ -1954,7 +1955,7 @@ def define_figures():
     fig("tx_recovery_q64_zk_s", secs(w)); fig("tx_recovery_q64_zk_rank", p["rank"])
     p, w = best_for("bitz", "recovery", zk=True)
     fig("tx_recovery_bitz_zk_s", secs(w)); fig("tx_recovery_bitz_zk_more_kb", kb(p["bytes"] - bitz_recovery_bytes))
-    claim("BitZ's recovery prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_recovery_bitz_s"])
+    claim("BitZ's recovery prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_recovery_bitz_s"] or abs(w / bitz_recovery_work - 1) < 0.01)
 
     # Tachyon transactions (the Tachyon transactions paragraph). Over Pasta the nodes are the
     # measured circuits; over Goldilocks and in a Boolean circuit a node is many steps.
@@ -1984,6 +1985,7 @@ def define_figures():
     fig("tx_tachyon2_q64_s", secs(w)); fig("tx_tachyon2_q64_rank", p["rank"])
     p, w = best_for("bitz", "tachyon2")
     fig("tx_tachyon2_bitz_s", secs(w)); fig("tx_tachyon2_bitz_rank", p["rank"])
+    bitz_tachyon2_work = w
     p, w = best_for("bits_q64", "tachyon2", "poseidon")
     fig("tx_tachyon2_kishu_s", secs(w)); fig("tx_tachyon2_kishu_rank", p["rank"]); fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
     p, w = best_for("goldilocks", "tachyon2", "poseidon", hashes="poseidon")
@@ -1995,7 +1997,7 @@ def define_figures():
     p, w = best_for("bits_q64", "tachyon2", "poseidon", zk=True)
     fig("tx_tachyon2_kishu_zk_s", secs(w))
     p, w = best_for("bitz", "tachyon2", zk=True)
-    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_tachyon2_bitz_s"])
+    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_tachyon2_bitz_s"] or abs(w / bitz_tachyon2_work - 1) < 0.01)
     w = tx_work(checked_in, "tachyon16", "poseidon")
     tx_checks.append(dict(family="pedersen", label=checked_in["label"], app="tachyon16", policy="poseidon", count=1, transaction=w))
     fig("tx_tachyon16_pedersen_s", secs(w)); fig("tx_tachyon16_pedersen_steps", tx_steps(checked_in, "tachyon16", "poseidon"))
@@ -2061,7 +2063,7 @@ def define_figures():
           all(least[r]["bytes"] < least[14]["bytes"] and least[r]["accumulation"] < least[14]["accumulation"]
               and least[r]["prover"] > least[14]["prover"] for r in (15, 16)))
     fig("pedersen_rank14_E16_b1_bytes", fmt(size(19, 14, 1, 16, 16, 14, 2)[0]))
-    fig("pedersen13_decider_ms", sig(ch4["verify"] / WORD_MULTS_PER_MS))
+    fig("pedersen13_decider_ms", sig(ch4["verify"] / WORD_MULTS_PER_MS, 3))
     fig("pedersen_per_coeff_13", sig(pedersen_per_coefficient(13))); fig("pedersen_per_coeff_14", sig(pedersen_per_coefficient(14)))
     for v in ("pasta", "pasta_q64", "fp128", "goldilocks"):
         fig(f"ajtai_per_coeff_{v}", sig(ajtai_per_coefficient(v)))
@@ -2112,9 +2114,9 @@ def define_figures():
     fig("akita17_blake3_less_kb_small", kb(max(less[v] for v in ("fp128", "goldilocks")), 1))
     fig("akita17_blake3_less_kb_pasta", kb(max(less[v] for v in PASTA_VARIANTS), 1))
     akita_ms = sorted(p["verify"] / WORD_MULTS_PER_MS for v in ("fp128", "goldilocks") for p in shown(v, "poseidon", hashes="poseidon"))
-    fig("akita_decider_ms_min", sig(akita_ms[0])); fig("akita_decider_ms_max", sig(akita_ms[-1]))
+    fig("akita_decider_ms_min", sig(akita_ms[0], 3)); fig("akita_decider_ms_max", sig(akita_ms[-1], 3))
     pasta_ms = sorted(p["verify"] / WORD_MULTS_PER_MS for v in PASTA_VARIANTS for p in shown(v, "poseidon", hashes="poseidon"))
-    fig("akita_pasta_decider_ms_max", sig(pasta_ms[-1]))
+    fig("akita_pasta_decider_ms_max", sig(pasta_ms[-1], 3))
     for v in VARIANTS:
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
     fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1))); fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
@@ -2194,7 +2196,7 @@ def define_figures():
     claim("with BLAKE3 trees the WHIR-type rows take 24 bits of grinding at rate 1/8 and rank 13",
           all(w13[(f, "blake3")]["grind_bits"] == 24 for f in WHIR_TYPES))
     for f in ("whir", "whir_gold", "whir_rec", "whir_gold_rec"):
-        fig(f"{f}13_poseidon_decider_ms", sig(pick(f, rate="1/8", rank=13, hashes="poseidon", H=2)["verify"] / WORD_MULTS_PER_MS))
+        fig(f"{f}13_poseidon_decider_ms", sig(pick(f, rate="1/8", rank=13, hashes="poseidon", H=2)["verify"] / WORD_MULTS_PER_MS, 3))
     claim("the WHIR-type deciders take about a millisecond with BLAKE3 trees",
           all(0.5 <= pick(f, rate="1/8", rank=13, hashes="blake3", H=2)["verify"] / WORD_MULTS_PER_MS <= 2 for f in WHIR_TYPES + ("whir_rec", "whir_gold_rec")))
     log_len = 13 + math.log2(whir8["circuits"])
@@ -2235,7 +2237,7 @@ def define_figures():
     fig("f2_191_less_pct", sig(-pct191[0], 1)); fig("f2_191_more_pct", sig(pct191[-1], 1))
     claim("the 191-bit design's prover is less than the 192-bit one's at the highest rate and more at the lowest",
           f191["1/2"]["prover"] < f192["1/2"]["prover"] and f191["1/64"]["prover"] > f192["1/64"]["prover"])
-    fig("f2_decider_ms_min", sig(min(p["verify"] for p in f192.values()) / WORD_MULTS_PER_MS, 1)); fig("f2_decider_ms_max", sig(max(p["verify"] for p in f192.values()) / WORD_MULTS_PER_MS, 1))
+    fig("f2_decider_ms_min", sig(min(p["verify"] for p in f192.values()) / WORD_MULTS_PER_MS, 3)); fig("f2_decider_ms_max", sig(max(p["verify"] for p in f192.values()) / WORD_MULTS_PER_MS, 3))
     fig("f2_192_kb_min", kb(min(p["bytes"] for p in f192.values()))); fig("f2_192_kb_max", kb(max(p["bytes"] for p in f192.values())))
     frec = {p["rate"]: p for p in shown("flock_rec", field=192, zkv=None, H=2)}
     fig("f2_rec_192_kb_min", kb(min(p["bytes"] for p in frec.values()))); fig("f2_rec_192_kb_max", kb(max(p["bytes"] for p in frec.values())))
@@ -2264,14 +2266,14 @@ def define_figures():
     # BitZ (the BitZ paragraph, ARC against recursion, zero knowledge) and Kishu (its paragraph).
     b13 = pick("bitz", rank=13, rate="1/8", H=2)
     fig("bitz13_kb", kb(b13["bytes"])); fig("bitz13_prover", sci(b13["prover"])); fig("bitz13_merge_bits", millions(b13["gates"])); fig("bitz13_merge_bits_m", mil(b13["gates"]))
-    fig("bitz13_decider_ms", sig(b13["verify"] / WORD_MULTS_PER_MS))
+    fig("bitz13_decider_ms", sig(b13["verify"] / WORD_MULTS_PER_MS, 3))
     HASH_FAMILIES = ("whir", "whir_gold", "whir_hybrid", "plonky3", "flock", "bitz", "whir_rec", "whir_gold_rec", "whir_hybrid_rec", "plonky3_rec", "flock_rec", "bitz_rec")
     claim("no other hash-based family's row with Pasta claims has both a smaller proof and a cheaper prover than BitZ at rank 13, rate 1/8",
           not any(q["pasta"] and q["bytes"] <= b13["bytes"] and q["prover"] <= b13["prover"]
                   for f in HASH_FAMILIES if f != "bitz" for q in shown(f, "poseidon")))
-    fig("bitz_piop_prover_factor", BITZ_PIOP["prover"]); fig("bitz_piop_verify_ms", sig(BITZ_PIOP["verify_ms"], 1)); fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
+    fig("bitz_piop_prover_factor", BITZ_PIOP["prover"]); fig("bitz_piop_verify_ms", sig(BITZ_PIOP["verify_ms"], 3)); fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
     fig("bitz_rate_1_8_lig", BITZ_RATE["1/8"]); fig("bitz_27_rate_penalty", sig(bitz_prover_scale("1/8", 27), 3))
-    fig("bitz_t10_25_ms", sig(BITZ_T10[25][0])); fig("bitz_gkr_25_ms", sig(BITZ_T10[25][0] * BITZ_PHASES[25][0])); fig("bitz_t10_25_verify_ms", sig(BITZ_T10[25][1]))
+    fig("bitz_t10_25_ms", sig(BITZ_T10[25][0])); fig("bitz_gkr_25_ms", sig(BITZ_T10[25][0] * BITZ_PHASES[25][0])); fig("bitz_t10_25_verify_ms", sig(BITZ_T10[25][1], 3))
     fig("bitz_gkr_share_pct", round(100 * BITZ_PHASES[25][0]))
     claim("the grand-product GKR is four fifths of BitZ's prover", all(0.75 <= s <= 0.87 for s, _ in BITZ_PHASES.values()))
     b12 = pick("bitz", rank=12, rate="1/8", H=2)
@@ -2285,7 +2287,7 @@ def define_figures():
     b13z = pick("bitz", rank=13, rate="1/8", zk=True, H=2)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"])); fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))
     ba = pick("bits_akita", H=2)
-    fig("bits_akita_decider_ms", sig(ba["verify"] / WORD_MULTS_PER_MS, 1))
+    fig("bits_akita_decider_ms", sig(ba["verify"] / WORD_MULTS_PER_MS, 3))
     fig("bits_akita_gates", millions(ba["gates"])); fig("bits_akita_kb", kb(ba["bytes"])); fig("bits_akita_prover", sci(ba["prover"]))
     claim("the binary-groups merge is about a ninth of the 𝔽₂ family's ARC merge at rate 1/8", 8 <= f8["gates"] / ba["gates"] <= 11)
     fig("bits_akita_mults_per_pasta_gate", sig(ba["step_prover"] / BOOL_STEP_BITS * APP["recovery"]["boolean"]["blake3"] / APP["recovery"]["pasta"]["blake3"]))
@@ -2295,7 +2297,7 @@ def define_figures():
     q_b = pick("pasta_q64", rank=17, hashes="blake3", H=2)
     q_p = pick("pasta_q64", rank=17, hashes="poseidon", H=2)
     fig("kishu17_blake3_digits", millions(k_b["gates"])); fig("kishu17_blake3_circuits", k_b["circuits"])
-    fig("kishu17_blake3_kb", kb(k_b["bytes"])); fig("kishu17_blake3_prover", sci(k_b["prover"])); fig("kishu17_blake3_decider_ms", sig(k_b["verify"] / WORD_MULTS_PER_MS, 1))
+    fig("kishu17_blake3_kb", kb(k_b["bytes"])); fig("kishu17_blake3_prover", sci(k_b["prover"])); fig("kishu17_blake3_decider_ms", sig(k_b["verify"] / WORD_MULTS_PER_MS, 3))
     fig("kishu17_poseidon_digits", millions(k_p["gates"])); fig("kishu17_poseidon_kb", kb(k_p["bytes"])); fig("kishu17_poseidon_prover", sci(k_p["prover"]))
     sum_mults, sum_bits = BOOL_CHECK["sumcheck"][3], BOOL_CHECK["sumcheck"][4]
     for hp in HASH_POLICIES:
