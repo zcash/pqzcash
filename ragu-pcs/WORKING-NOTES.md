@@ -2036,3 +2036,7 @@ ragu/work/bench-fuse-asm.log.
   panel's max-height removed, cropped with sips; work/layout-controls*.png): View | unit and
   frontier; Security (floor, zk) | Allowed changes (hashes, parameter filter); rank boxes wrapped
   full width; PCD headers | Family knobs (fixed circuits, grinding) (215ddbb). Artifact v120.
+- 10:45 UTC, addendum: the regrouping revised after the user's look at the render: unit and frontier,
+  and fixed circuits and grinding, are separate groups stacked beside View and PCD headers;
+  eyebrows simplified and item labels clarified ("conventional hashes only (BLAKE3)" etc.); the
+  ranks a 7-column grid of bare numbers, their meaning in the Rank paragraph (073a408). Artifact v121.
