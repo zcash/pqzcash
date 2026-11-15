@@ -1955,7 +1955,7 @@ def define_figures():
     fig("tx_recovery_q64_zk_s", secs(w)); fig("tx_recovery_q64_zk_rank", p["rank"])
     p, w = best_for("bitz", "recovery", zk=True)
     fig("tx_recovery_bitz_zk_s", secs(w)); fig("tx_recovery_bitz_zk_more_kb", kb(p["bytes"] - bitz_recovery_bytes))
-    claim("BitZ's recovery prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_recovery_bitz_s"] or abs(w / bitz_recovery_work - 1) < 0.01)
+    claim("BitZ's recovery prover is unchanged with zero knowledge", abs(w / bitz_recovery_work - 1) < 0.01)
 
     # Tachyon transactions (the Tachyon transactions paragraph). Over Pasta the nodes are the
     # measured circuits; over Goldilocks and in a Boolean circuit a node is many steps.
@@ -1997,7 +1997,7 @@ def define_figures():
     p, w = best_for("bits_q64", "tachyon2", "poseidon", zk=True)
     fig("tx_tachyon2_kishu_zk_s", secs(w))
     p, w = best_for("bitz", "tachyon2", zk=True)
-    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge", secs(w) == FIGURES["tx_tachyon2_bitz_s"] or abs(w / bitz_tachyon2_work - 1) < 0.01)
+    claim("BitZ's two-tachyaction prover is unchanged with zero knowledge", abs(w / bitz_tachyon2_work - 1) < 0.01)
     w = tx_work(checked_in, "tachyon16", "poseidon")
     tx_checks.append(dict(family="pedersen", label=checked_in["label"], app="tachyon16", policy="poseidon", count=1, transaction=w))
     fig("tx_tachyon16_pedersen_s", secs(w)); fig("tx_tachyon16_pedersen_steps", tx_steps(checked_in, "tachyon16", "poseidon"))
