@@ -2017,3 +2017,8 @@ ragu/work/bench-fuse-asm.log.
   it). Artifact v114. PENDING: the user's review of the soundness statements, then Theorem B; the
   zk-fold levers; re-render keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3
   figure. The Pallas factor at 147 is done.
+- 09:38 UTC, addendum: the 2D view opened scaled to the whole dataset (the hold box was on from the
+  start and its first ranges came from DATA.points), so Pedersen-IPA's hidden rows set the axes; the
+  hold box now starts unticked, and ranges taken under the hold come from the plotted points
+  (32e212c). Zero knowledge is on by default (e47747c). Artifact v115. STATE: main at e47747c plus
+  this line, unpushed after 3ab8793.
