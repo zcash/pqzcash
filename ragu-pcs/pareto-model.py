@@ -23,7 +23,7 @@ data define them. The numbers come from:
 
 Writes pareto.html next to this script: a self-contained page with the data inlined.
 """
-import functools, itertools, json, math, pathlib, re, sys
+import functools, itertools, json, math, pathlib, re, statistics, sys
 import frib_optimizer as frib
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -602,22 +602,39 @@ assert abs((_checked_in["step_prover"] + _checked_in["prover"]) / (1000 * WORD_M
 # Akita's catalog is re-planned by its own planner in a checkout whose single policy, runtime
 # width tables and compression cells are retargeted to that floor (2026-11-12), so the
 # openings in AKITA[147] are planned. What the planner does not give, the prover's rows term
-# and the verifier's inner-image share, takes the rank growth: for each of the 115 weakest
-# Module-SIS instances in the shipped catalog's security report, the smallest module rank
-# whose maximum secure width covers the instance's width, at both floors, with the instance
-# mapped through the modulus that the variant commits over; the ratio of the summed ranks is
-# the factor (work/rank-scale.py). With the catalog's own mix of q128, q64 and q32 cells the
-# ranks sum to 121 at 128 bits and 150 at 147 bits, factor 1.24, 29 instances moving up a
-# rank; over a 64-bit modulus (the Goldilocks table, identical to q64's for these cells) 185
-# and 211, factor 1.14, 26 moving; over Pallas the instances sit at the width cap at both
-# floors but one, factor 1.01 at 150 bits, carried as a bound. WHIR's proofs measure 18%
+# and the verifier's inner-image share, takes the rank growth: for the weakest Module-SIS
+# instance of each schedule in the shipped catalog's security report (115 schedules: 79 fp128,
+# 17 fp64, 19 fp32), the smallest module rank whose maximum secure width covers the instance's
+# width, at both floors, with the instance mapped through the modulus that the variant commits
+# over; the ratio of the summed ranks is the factor (work/rank-scale.py, from the width tables
+# regenerated at 147 bits: the catalog's own moduli and the Goldilocks table on 2026-11-12,
+# the Pallas table on 2026-11-15). RANK_SUMS_147 holds, per mapping, the summed ranks at 128
+# and 147 bits and the instances that move up a rank: the catalog's own mix of q128, q64 and
+# q32 cells; the 64-bit modulus (the Goldilocks table, identical to q64's for these cells);
+# and Pallas, where the instances sit at the width cap at both floors but one. WHIR's proofs measure 18%
 # larger at 150 bits over both fields, taken as 16% at 147; ARC's openings scale with the
 # floor. Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order
 # near 2^254) and no post-quantum security, so it is shown at the 128-bit floor only, as the
 # conventional pre-quantum baseline, and drops out at 147 bits.
-RANK_SCALE_147 = {"fp128": 1.24, "goldilocks": 1.14, "pasta_q64": 1.14, "pasta_sis": 1.01, "pasta": 1.01}
+RANK_INSTANCES = 115
+RANK_SUMS_147 = {"own": (121, 150, 29), "q64": (185, 211, 26), "pallas": (117, 118, 1)}
+RANK_MAPPING = {"fp128": "own", "goldilocks": "q64", "pasta_q64": "q64", "pasta_sis": "pallas", "pasta": "pallas"}
+RANK_SCALE_147 = {v: round(RANK_SUMS_147[m][1] / RANK_SUMS_147[m][0], 2) for v, m in RANK_MAPPING.items()}
+assert RANK_SCALE_147 == {"fp128": 1.24, "goldilocks": 1.14, "pasta_q64": 1.14, "pasta_sis": 1.01, "pasta": 1.01}
 RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
-WHIR_SCALE = {128: 1.0, 147: 1.16}
+# WHIR at the higher floor: the reference implementation (WizardOfMenlo/whir at afec1fa) at
+# 2^17 variables over both fields and rates 1/2 to 1/8, 20 bits of proof of work, the Johnson
+# regime, at 128 and 147 bits (2026-11-15; work/whir-sweep-147.sh): proof KiB and verifier
+# hashes in thousands at each floor. The proofs grow with the floor through the query count,
+# independently of any lattice instance; the mean ratios are the page's factors.
+WHIR_147 = {  # (field, rate): (KiB at 128, KiB at 147, khashes at 128, khashes at 147)
+    ("Field256", "1/2"): (244.3, 284.3, 2.7, 3.1), ("Field256", "1/4"): (154.6, 178.7, 2.0, 2.2), ("Field256", "1/8"): (122.7, 142.4, 1.7, 1.9),
+    ("Goldilocks3", "1/2"): (134.9, 155.7, 2.7, 3.0), ("Goldilocks3", "1/4"): (99.4, 114.4, 2.0, 2.2), ("Goldilocks3", "1/8"): (84.0, 96.8, 1.7, 1.9),
+}
+WHIR_SCALE = {128: 1.0, 147: round(statistics.mean(b / a for a, b, _, _ in WHIR_147.values()), 2)}
+WHIR_HASHES_SCALE = {128: 1.0, 147: round(statistics.mean(d / c for _, _, c, d in WHIR_147.values()), 2)}
+assert WHIR_SCALE[147] == 1.16 and WHIR_HASHES_SCALE[147] == 1.12
+ARC_FLOOR_PCT = round(100 * (147 / 128 - 1))  # ARC's openings per input grow with the floor
 FLOORS = (128, 147)
 # The share of the opening, and of the verifier's work, that scales with the commitment rank:
 # the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
@@ -863,7 +880,7 @@ def zk_prover(log_elems, zk):
 def whir_verify_hashes(variant, rate, log_elems, floor, grind=GRIND_DEFAULT):
     _, _, hashes, queries = whir_meas(HASH_VARIANTS[variant]["sizes"], grind, rate)
     return ((hashes + queries * (log_elems - 17))
-            * (1.13 if floor == 147 else 1) * (2.07 if variant == "plonky3" else 1))  # the 150-bit sweep's 1.15, interpolated
+            * WHIR_HASHES_SCALE[floor] * (2.07 if variant == "plonky3" else 1))
 
 ARC_DECIDER_TREES = 3  # the decider's first round opens the two child accumulators and the root's witness
 WHIR_FOLD = 16  # the reference implementation's folding factor: elements per first-round leaf
@@ -2086,7 +2103,12 @@ def define_figures():
     fig("akita_pasta_decider_ms_max", sig(pasta_ms[-1]))
     for v in VARIANTS:
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
-    fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1)))
+    fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1))); fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
+    fig("arc_floor_pct", ARC_FLOOR_PCT)
+    fig("rank_instances", RANK_INSTANCES)
+    for m, (low, high, moves) in RANK_SUMS_147.items():
+        fig(f"rank_sum_{m}_128", low); fig(f"rank_sum_{m}_147", high); fig(f"rank_moves_{m}", moves)
+        fig(f"rank_scale_{m}", f"{high / low:.2f}")
 
     # The WHIR-type rows at rate 1/8 and rank 13 (the hash-based families, ARC against
     # recursion, Hashes and Decider work paragraphs).
