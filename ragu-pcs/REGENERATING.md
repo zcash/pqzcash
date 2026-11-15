@@ -39,7 +39,7 @@ directory that `RAGU_PCS_WORK` names. The tracked outputs are under `estimates/`
 | `work/plonky3-src` | Plonky3/Plonky3 at f98331687e47106a64ab82a77e2e1d0d66c9161b | none |
 | a Ragu checkout | tachyon-zcash/ragu at 8109a41c, and a worktree at a1395401, the revision Tachyon pins | `scripts/patches/ragu-counting-adapter.patch` on a1395401: a counting driver for the mock's steps |
 | a Tachyon checkout | tachyon-zcash/tachyon at 73031f7 | `scripts/tachyon-gates/`, copied to `work/gates/` there |
-| an Orchard checkout | zcash/orchard, with the 0.16.0 release's benchmark | the proving benchmark's recipient counts widened to 1, 2, 4, 8, 16, and `pasta_curves` with its `asm` feature |
+| an Orchard benchmark crate | a crate depending on the orchard 0.16.0 release from crates.io, running its `benches/circuit.rs` | the profiler removed, the recipient counts widened to 1, 2, 4, 8, 16, and `pasta_curves` 0.6.1 with its `asm` feature |
 
 Akita's crates build with `RUSTUP_TOOLCHAIN=1.96.0`, which the scripts set. The Akita runs take
 hours, and the benchmarks need an otherwise idle machine. Note: on a MacBook, it may be helpful
