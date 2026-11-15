@@ -2358,6 +2358,31 @@ def define_figures():
     fig("accumulator_mb", mb(unmasked_bytes)); fig("masked_accumulator_mb", mb(MASK_LENGTH * unmasked_bytes))
     length_alpha6 = math.ceil((math.log2(14) + math.log2(6) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S) / 3)
     fig("masked_accumulator_mb_alpha6", mb(length_alpha6 * unmasked_bytes, 3))
+
+    # The zero-knowledge note's masking fold over Pasta (its §5.4), at the note's own parameters:
+    # the §5.3 rows (weight-32 challenges in dimension 128, about 340), N = 2^22 digits, and 32
+    # word multiplications per Pasta multiplication. An attempt commits the mask, N/d NTTs of size
+    # d and rows · N/d pointwise products, and draws N Karney samples; §5.6's α = 6 row keeps
+    # weight 32, and its weight-20 row is in dimension 512.
+    def note_attempt(alpha, c_l1, d):
+        rows = ROWS["pasta_sis"] * (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
+        commit = 2 ** MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
+        return commit, 2 ** MASK_LOG_N * MASK_SAMPLE_WORD_MULTS
+    commit, sampling = note_attempt(MASK_ALPHA, 32, 128)
+    fold = (commit + sampling) * MASK_ATTEMPTS
+    fig("zk_note_commit_s", secs(commit)); fig("zk_note_sampling_s", secs(sampling))
+    fig("zk_note_sampling_over_commit", sig(sampling / commit))
+    fig("zk_note_attempt_s", secs(commit + sampling)); fig("zk_note_fold_s", secs(fold))
+    attempts_alpha6 = math.exp(12 / 6 + 1 / (2 * 36))
+    fig("zk_note_fold_alpha6_s", secs(sum(note_attempt(6, 32, 128)) * attempts_alpha6))
+    fig("zk_note_attempt_alpha6_w20_s", secs(sum(note_attempt(6, 20, 512)), 2))
+    claim("the masking fold takes seconds on a fast core (the note's §5.8)", 1 <= fold / RATE_PER_S < 10)
+    # The user proof it is compared with: two to four dozen rank-13 steps over Pasta at the page's
+    # step and accumulation prover.
+    step = pick("pasta_sis", rank=13)
+    per_step = step["step_prover"] + step["accumulation_prover"]
+    fig("zk_note_proof24_s", secs(24 * per_step)); fig("zk_note_proof48_s", secs(48 * per_step))
+    claim("the masking fold is a noticeable fraction of a two-dozen-step user proof", 0.05 <= fold / (24 * per_step) <= 0.5)
     for r in (13, 14, 15, 16):
         fig(f"endoscalings_{r}", max_endoscalings(r))
         if r < 16:
@@ -2367,7 +2392,7 @@ def define_figures():
 define_figures()
 
 # ---- Filling the markers --------------------------------------------------------------
-PROSE_FILES = ("pareto-template.html", "pasta-proof-size.md")
+PROSE_FILES = ("pareto-template.html", "pasta-proof-size.md", "zk-fiat-shamir-with-aborts.md")
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 
 def filled(text, used):

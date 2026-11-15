@@ -8,8 +8,9 @@ how to redo the first two kinds. Paths are relative to `ragu-pcs/`.
 ## The page's figures and claims
 
 `python pareto-model.py` writes `pareto.html`. Every figure that the text quotes sits between
-markers in `pareto-template.html` and in `pasta-proof-size.md`, `<!--fig:NAME-->value<!--/fig-->`,
-and the model fills them when it writes the page. The run fails when a marker's value in a
+markers in `pareto-template.html` and in the two notes, `pasta-proof-size.md` and
+`zk-fiat-shamir-with-aborts.md`, as `<!--fig:NAME-->value<!--/fig-->`, and the model fills them
+when it writes the page. The run fails when a marker's value in a
 tracked file differs from the model's, or when one of the claims in `define_figures()` no longer
 holds; so does the book build, which runs the model. Commands:
 
