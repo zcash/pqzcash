@@ -2177,3 +2177,4 @@ ragu/work/bench-fuse-asm.log.
   re-render keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; the user
   to ask Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should
   be at millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
+- 20:13 UTC, addendum: the Booleanity draft ("Efficient Booleanity Checking via Structured Modular Projections", 2026-09-23) and its extracted text moved from work/ to keep/bool-checking-private-main3.pdf and .txt, at the user's request; the 2026-10-15 entry names the old paths.
