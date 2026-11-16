@@ -2178,3 +2178,28 @@ ragu/work/bench-fuse-asm.log.
   to ask Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should
   be at millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
 - 20:13 UTC, addendum: the Booleanity draft ("Efficient Booleanity Checking via Structured Modular Projections", 2026-09-23) and its extracted text moved from work/ to keep/bool-checking-private-main3.pdf and .txt, at the user's request; the 2026-10-15 entry names the old paths.
+
+## 2026-11-16 20:53 UTC: the Booleanity exposition, on a private branch
+
+- The user: the Booleanity-by-projection technique "sounds plausible but it's exactly the kind of
+  thing I would want a Lean proof of", and the draft PDF is obviously AI-written (Quang said it
+  needed a lot of cleanup); so an expository book chapter that teaches how it works, for
+  cryptographic engineers without a lattice background, with the background results
+  referenced (Cauchy–Schwarz, Johnson–Lindenstrauss, Markov, Schwartz–Zippel, Thaler's book
+  for sum-check and multilinear extensions; Fiat–Shamir assumed known). The draft is
+  unpublished and the user will not scoop or preempt Quang and his colleagues, so the chapter
+  lives on the branch `booleanity-exposition` (3225356: book/src/proof-systems/
+  booleanity-by-projection.md and its SUMMARY.md line), kept in the private repository even
+  when the rest is published, until they agree. Its last section lists the proof obligations
+  in dependency order as the Lean targets. CertifiedJL's repository is private (404), so the
+  chapter names it without a link; VCVio is linked.
+- Rendering gotcha: with mdbook-katex, `\tilde` renders a literal `~` inside KaTeX's spans, and
+  mdbook's Markdown pass then pairs the tildes as strikethrough ("unclosed HTML tag `<span>`
+  while exiting Strikethrough"); `\widetilde{...}` renders as an SVG and is safe. The included
+  notes use no `\tilde`.
+- The user cut a paragraph naming "a multiple of q in [0, q) is zero" as Lemma L from the
+  chapter as trivial ("AIs often have difficulty deciding which things humans will consider
+  trivial"); the soundness note still has Lemma L as its own shared lemma.
+- STATE: main at this entry; unpushed: the Booleanity draft's move (1e4cf45) and this entry;
+  the branch booleanity-exposition at 3225356 is unpushed too (the user decides where it goes).
+  Artifact v133. PENDING as before.
