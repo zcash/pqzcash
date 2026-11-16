@@ -3784,6 +3784,11 @@ def define_figures():
         all(p["zk"] is None for p in points if p["family"] == "pedersen"),
     )
     claim(
+        "the post-quantum rows sit at header 2 and the header boxes act on Pedersen-IPA's rows, at 2, 4 and 9",
+        all(p["H"] == 2 for p in points if p["pq"])
+        and {p["H"] for p in points if p["family"] == "pedersen"} == set(PEDERSEN_HEADERS),
+    )
+    claim(
         "zero knowledge moves Akita's decider by under a tenth, one more circuit's claim at most",
         all(
             abs(z["verify"] / a["verify"] - 1) < 0.1
