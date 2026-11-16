@@ -2151,3 +2151,29 @@ ragu/work/bench-fuse-asm.log.
   keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; the user to ask
   Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should be at
   millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
+
+## 2026-11-16 19:59 UTC: the PCD header is one application-level setting
+
+- The user: the PCD header is an application-level choice set by its circuit tree, so a row at
+  one header is not an alternative to the same row at another and cannot be dominated by it;
+  each header entry is a packed Pasta field element for every scheme alike (the native field
+  would not be a fair comparison). Done (77680dd): the rows carry no header and are priced
+  without one (every byte formula lost its 2 · H · 32 term; Pedersen-IPA's size() is called with
+  H = 0, so it has one row per configuration, 178 instead of 534); the control is a radio of
+  PCD_HEADERS = (2, 4, 9), default 2; the page adds the chosen header's bytes to every row
+  (HEADER_ELEMENT_BYTES = 64: one packed Pasta element in each of the left and right child's
+  copies, the two headers that a merge's instance carries in ragu-size-model.py); a Tachyon or
+  recovery transaction forces 9, greys the radio out, and the user's choice returns afterwards
+  (userHeader / lastForced in the page). The new rows were checked against the old page: each
+  of the 9,784 rows is its old header-2 twin less 128 bytes, and the recursive rows' memory,
+  which is their proof, is also 128 less and is left without the header on the page (at most
+  576 bytes). The eyebrow refers to the Knobs section, whose new first paragraph explains the
+  header; the per-family "header size" knobs are gone; the figures in the text are without a
+  header unless they say otherwise, which the note's two least-proof figures do (kept at header
+  2, as their sentence says). Three kbytes figures fell by one. PEDERSEN_FUSE_RANK stays (the
+  user: fine as is).
+- STATE: main at 77680dd plus this entry; unpushed from 7934d2a on. Artifact v133. PENDING as
+  before: the user's review of the soundness statements, then Theorem B; the zk-fold levers;
+  re-render keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; the user
+  to ask Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should
+  be at millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
