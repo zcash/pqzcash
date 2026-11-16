@@ -2120,3 +2120,34 @@ ragu/work/bench-fuse-asm.log.
   Pasta-claims recovery row's BLAKE3 figure; the user to ask Quang about the QROM proof and
   CertifiedJL's roadmap; whether the prose seconds should be at millisecond resolution.
 - 14:59 UTC, addendum: the page's fmtMs drops trailing zeros (8.9 ms for 8.90: `Number(v.toPrecision(3))` before `toLocaleString`); the model's sig() is right. Fix next session: keep toPrecision's digits, separators only for the whole-millisecond branch.
+
+## 2026-11-16 19:27 UTC: ruff at 100; the millisecond formatter; the table render; the PCD-headers eyebrow
+
+- The user pushed through d22b90f.
+- fmtMs keeps a trailing zero (7934d2a): `v.toPrecision(3)` alone below a second. The frontier
+  table's render checked in headless Chrome: units in each cell, rows at most four lines.
+- pareto-model.py is formatted with ruff at line length 100 (ragu-pcs/ruff.toml; 719f51b), the
+  user's choice from 88/100/120/150 with 3,136/2,598/1,984/1,607 changed lines; the page is
+  byte-identical before and after. Ruff's choices stand even where odd (a subscript split as
+  `CLAIM_BYTES[` / `variant` / `] + K * 128`): the user wants no hand-edits of the formatter's
+  output. No format option affects such splits (the options are exclude, preview, indent-style,
+  quote-style, nested-string-quote-style, skip-magic-trailing-comma, line-ending,
+  docstring-code-format, docstring-code-line-length; preview and skip-magic-trailing-comma were
+  tried, same result); only the line length does. After editing the model run
+  `ruff format pareto-model.py`; `ruff format --check` passes. The other Python files under
+  ragu-pcs/ are not formatted yet, though ruff.toml covers them.
+- The PCD-headers eyebrow (61d2681): the post-quantum rows sit at header 2, since the header
+  boxes select Pedersen-IPA's rows only, so the header-4 post-quantum rows are dominated within
+  their families and pruned (9,606 post-quantum rows, all at 2; Pedersen-IPA 178 at each of 2, 4
+  and 9), and a Tachyon or recovery transaction reprices them at 9 with 448 bytes more. The
+  eyebrow had explained the first half; it now refers to the Proof bytes section, which says
+  both, and a claim guards the headers. Control eyebrows refer to the text rather than explain
+  (the user).
+- The width question: at 120 ruff would avoid the CLAIM_BYTES split but not a `math.log2(` /
+  `circuits` / `)` split caused by a long trailing comment; at 150 neither. The user: leave it
+  at 100.
+- STATE: main at 61d2681 plus this entry; unpushed from 7934d2a on. Artifact v132. PENDING: the
+  user's review of the soundness statements, then Theorem B; the zk-fold levers; re-render
+  keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; the user to ask
+  Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should be at
+  millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
