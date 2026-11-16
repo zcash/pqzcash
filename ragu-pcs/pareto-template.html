@@ -523,7 +523,7 @@ const WORK_MEASURES = ['prover', 'accumulation_prover', 'verify', 'transaction']
 const unit = () => document.querySelector('input[name=unit]:checked').value;
 const unitFactor = () => unit() === 'ms' ? 1 / 3e6 : 1;
 const unitName = () => unit() === 'ms' ? 'ms' : '64‑bit muls';
-const fmtMs = v => v >= 1000 ? fmt(Math.round(v)) : Number(v.toPrecision(3)).toLocaleString('en-GB', { maximumFractionDigits: 6 });
+const fmtMs = v => v >= 1000 ? fmt(Math.round(v)) : v.toPrecision(3);  // keeps a trailing zero: 8.90
 const fmtWork = v => unit() === 'ms' ? fmtMs(v) : fmt(Math.round(v));
 const val = (p, key) => WORK_MEASURES.includes(key) ? p[key] * unitFactor() : p[key];
 const measureTitle = m => ({ prover: `prover ${unitName()} per step, the merge's commitments only`, accumulation_prover: `accumulation prover ${unitName()} per step: the merge's commitments and the fold's sum-checks`, gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `decider ${unitName()}`, transaction: `transaction prover ${unitName()}`, memory: 'accumulator bytes' })[m];
