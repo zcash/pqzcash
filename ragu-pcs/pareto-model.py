@@ -2114,7 +2114,20 @@ for mode in ("arc", "rec"):
 # claim four; the Booleanity sum-check's verifier is about 3,000 multiplications, and the
 # projection verifier scans 3.1 million sampled coefficients, a digit each, so under
 # recursion the sum-check form is the usable one and the projection form is shown for its
-# prover. With a conventional hash the merge is cheaper here than with Poseidon, the reverse
+# prover. Each coefficient the merge scans is a committed digit, about 26 word
+# multiplications for the accumulation prover. The projection saves the prover 7.3 word
+# multiplications per bit. It is therefore ahead only where a step commits about 3.6 bits per
+# coefficient: 2^rank ≳ 3.6 V − 4.6 V_s − H, with V_s the sum-check verifier's digits and H
+# the rest of the merge. That is rank 23 at the draft's geometry. Separately, ranks of 21 and
+# up are too slow for a Zcash transaction, which puts the frontier's Kishu rows at 19 and 20,
+# where the sum-check form wins. The geometry cannot move this much. The widths are set by
+# the error target, and the first layer's coefficients times its retained prefix entries is
+# the invariant (g c_1)^2 n, which makes a smaller description cost prover memory. One digit
+# per coefficient is generous besides: the circuit must also regenerate each coefficient and
+# apply it to an extension-field accumulator, of the order of a hundred digits. The
+# frontier's Kishu rows thus take the sum-check form, whose soundness is the ordinary
+# sum-check's; the projection's certificate is not on Kishu's path.
+# With a conventional hash the merge is cheaper here than with Poseidon, the reverse
 # of the field arithmetizations, since its hashing is bit operations. Revealing the
 # projection gives no zero knowledge, and the draft's certificates are conditional and not
 # yet formalized.
