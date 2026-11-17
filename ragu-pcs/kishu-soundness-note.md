@@ -31,9 +31,20 @@ eight 32-bit limbs $v_j = \langle c_j, s\rangle$, proved as linear claims in the
 and the verifier recomposes $V = \sum_j 2^{32j} v_j$ over the integers and reduces modulo $p$.
 
 So Kishu's obligations are: (B1) Akita's knowledge soundness at its 64-bit profile with claims
-in $E$, which the paper proves in the classical ROM; (B2) the draft's Booleanity certificate;
-(B3) an elementary limb lemma. Design A's obligation, Theorem A in §4, is Kishu's fallback's,
-not Kishu's.
+in $E$, which the paper proves in the classical ROM; (B2) the soundness of the Booleanity
+check; (B3) an elementary limb lemma. Design A's obligation, Theorem A in §4, is Kishu's
+fallback's, not Kishu's.
+
+Which Booleanity check (B2) is about. The frontier's Kishu rows use the conventional weighted
+sum-check, the draft's §3 baseline, not its projection. In recursion the projection's verifier
+is the merge circuit's work, a committed digit per sampled coefficient at the least. The
+projection is therefore ahead only from rank 23 at the draft's geometry. Separately, ranks of
+21 and up are too slow for a Zcash transaction, which puts the frontier's Kishu rows at 19
+and 20, where the sum-check form wins. (B2) is then the ordinary sum-check's soundness, with
+no integer lift. The draft's projection certificate, with its CertifiedJL estimates and its
+numerical check, is not on Kishu's path, so formally verifying the projection is not a
+blocker for Zcash's use of Kishu (the user's decision, 2026-11-17). The projection form's
+statement is kept as Theorem B′ below, for a verifier that runs natively.
 
 ## 2. The shared lemma
 
@@ -58,10 +69,29 @@ $2^{32} < q$; Lemma L is not even needed, the integer is below $q$ outright. The
 $n \le 2^{31}$ is only what makes the general linear claims of equation 6 (the projection rows,
 entries in $\{-1,0,1\}$) have integer magnitude below $q/2$ as well.
 
-**Theorem B (Kishu's claim reduction).** Fix $s \in \mathbb{F}_q^n$ authenticated by an Akita
-commitment at the 64-bit profile, before the projection randomness. Suppose the verifier
-accepts the protocol of the draft's equation 6 extended by the limb terms (the spike's steps 6
-and 7): the batched quadratic sum-check over $E$ of
+**Theorem B (Kishu's claim reduction, sum-check form).** Fix $s \in \mathbb{F}_q^n$
+authenticated by an Akita commitment at the 64-bit profile. Suppose the verifier accepts the
+sum-check over $E$, with uniform $r \in E^m$ and $\mu \in E^8$ drawn after the commitment, of
+$$\sum_a \mathrm{eq}(r, a)\,\tilde s(a)(\tilde s(a)-1) + \tilde s(a)\,\tilde w(a) = \sum_j \mu_j v_j,
+\qquad w = \sum_j \mu_j c_j,$$
+with the terminal evaluation $v = \tilde s(\rho)$ authenticated by the commitment. Then, except
+with probability at most $(4m+1)/\lvert E \rvert$ over the verifier's randomness, plus Akita's
+knowledge error for the opening: $s \in \{0,1\}^n$, every $v_j$ is the integer limb of Lemma
+B3, and $V \bmod p$ is the Pasta value whose bits $s$ carries.
+
+Where each term comes from: $m/\lvert E \rvert$ is the weighted defect
+$\sum_a \mathrm{eq}(r, a)\, s_a (s_a - 1)$, a nonzero multilinear polynomial in $r$ when some
+$s_a \notin \{0, 1\}$, vanishing at a uniform $r$ (Schwartz–Zippel); $1/\lvert E \rvert$ is the
+affine batching of the limb claims by independent $\mu_j$ (if some $v_j \ne \langle c_j, s
+\rangle$, the batched equation holds with probability exactly $1/\lvert E \rvert$ over $\mu$,
+whatever $r$ is); $3m/\lvert E \rvert$ is the degree-three sum-check; and the opening's
+authentication is Akita's. No integer lift is needed, since $x(x-1) = 0$ in a prime field only
+at $0$ and $1$.
+
+**Theorem B′ (the projection form; not on Kishu's path).** Fix $s \in \mathbb{F}_q^n$
+authenticated by an Akita commitment at the 64-bit profile, before the projection randomness.
+Suppose the verifier accepts the protocol of the draft's equation 6 extended by the limb terms
+(the spike's steps 6 and 7): the batched quadratic sum-check over $E$ of
 $$\sum_a \tilde s(a)(\tilde s(a)-1) + \tilde s(a)\,\tilde w(a) = \langle \lambda, y\rangle + \sum_j \mu_j v_j,
 \qquad w = T^\top \lambda + \sum_j \mu_j c_j,$$
 with the terminal evaluation $v = \tilde s(\rho)$ authenticated by the commitment, and the
@@ -79,13 +109,17 @@ $\lambda$ (if $y \ne Ts$ or some $v_j \ne \langle c_j, s\rangle$, the batched eq
 with probability exactly $1/\lvert E\rvert$ over the batching vector); Booleanity is Theorem 1
 from $E_x < Q_0$ and the zero defect; and the opening's authentication is Akita's.
 
-What is NOT in Theorem B: the Fiat–Shamir transform (inherited from Akita's ROM proof; the
-draft's AES-derived cores are a computational assumption on top), zero knowledge (none; the
-revealed $y$ forgoes it, as the draft says), and the accumulation (the fold's sum-checks are
-Akita's, over $E$ at the 64-bit profile, unchanged by Kishu).
+Neither Theorem B nor B′ covers:
 
-So Kishu's soundness reduces to Akita's at its native profile plus the draft's certificate.
-The decoupling of §6.3 is not involved.
+- the Fiat–Shamir transform, inherited from Akita's ROM proof; the draft's AES-derived cores
+  are a computational assumption on top of B′;
+- zero knowledge: B′ has none, since the revealed $y$ forgoes it, as the draft says, and B's
+  rows take Akita's mask;
+- the accumulation: the fold's sum-checks are Akita's, over $E$ at the 64-bit profile,
+  unchanged by Kishu.
+
+So Kishu's soundness reduces to Akita's at its native profile plus a standard sum-check
+argument. The decoupling of §6.3 is not involved, and neither is the draft's certificate.
 
 ## 4. Design A's statement
 
@@ -139,13 +173,16 @@ sum-checks are over $E$ at 64 bits, which is what the draft measured.
 
 ## 6. What to do next, once the statements are reviewed
 
-1. Theorem B first, since it is Kishu's: write the proof, which is short given the draft's
-   §4 argument, and extend the spike with the adversarial cases the statement names (a
-   non-Boolean $s$ with wrapped limbs; a $v_j$ off by a multiple of $q$; batching with a
-   dependent $\mu$) and an exhaustive check of Lemma B3's bound at small $n$ and small $q$.
-2. The independent recomputation of the draft's certificate at its parameters, which is what
-   $\varepsilon_{\mathrm{proj}} = 2^{-136}$ rests on beyond CertifiedJL's estimates.
+1. Theorem B first, since it is Kishu's. Its proof is the standard one: Schwartz–Zippel on
+   the weighted defect, the affine batching, and the sum-check's soundness. Add the sum-check
+   form to the spike beside the projection form. Its adversarial cases are the ones the
+   statement names: a non-Boolean $s$; a $v_j$ off by a multiple of $q$; and batching with a
+   dependent $\mu$. Add an exhaustive check of Lemma B3's bound at small $n$ and small $q$.
+2. Not a blocker: the independent recomputation of the draft's certificate at its parameters,
+   which is what $\varepsilon_{\mathrm{proj}} = 2^{-136}$ in Theorem B′ rests on beyond
+   CertifiedJL's estimates. It is needed only if the projection form is adopted for a native
+   verifier.
 3. Theorem A's protocol written in full with the quotient widths and the range-check form
    settled per level, then its proof adapted from LaBinius.
-4. Lean: Lemma L and Lemma B3 first, then Theorem B's reduction in VCVio, with the projection
-   certificate imported from CertifiedJL when it lands.
+4. Lean: Lemma B3 first, then Theorem B's reduction in VCVio. Lemma L is needed only by
+   Theorem A and Theorem B′, and the projection certificate only by B′.
