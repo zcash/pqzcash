@@ -2248,10 +2248,12 @@ for (
                     K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk
                 )
                 atoms = akita_atoms("kishu", K, circuits, zk)
-                log_len = (
-                    rank + math.log2(circuits) - math.log2(DIGITS["pasta_q64"])
-                )  # in the 64-bit variant's coefficients of 85 digits
-                rank_scale = RANK_SCALE[floor]["pasta_q64"]
+                # Kishu's claims are at the 64-bit profile in a small extension, as the Goldilocks
+                # variant's are, so its opening and decider follow that variant's plan and
+                # measurement at Kishu's digit count; the Pasta-claims plan's extra bytes are
+                # Pasta-width elements that Kishu does not have.
+                log_len = rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
+                rank_scale = RANK_SCALE[floor]["goldilocks"]
                 per_digit = ajtai_per_coefficient("pasta_q64", zk, rank_scale) / DIGITS["pasta_q64"]
                 masked_digit = (
                     ajtai_per_coefficient("pasta_q64", True, rank_scale) / DIGITS["pasta_q64"]
@@ -2264,7 +2266,7 @@ for (
                     if zk
                     else 0
                 )
-                opening = akita_bytes("pasta_q64", K - 1, log_len, floor)
+                opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
                 points.append(
                     dict(
@@ -2303,7 +2305,7 @@ for (
                         accumulation=atoms,
                         gates=round(digits),
                         verify=akita_verify(
-                            "pasta_q64", log_len, zk, rank_factor_share("pasta_q64", rank_scale)
+                            "goldilocks", log_len, zk, rank_factor_share("goldilocks", rank_scale)
                         )
                         + round(bool_verify_ms * WORD_MULTS_PER_MS),
                         folded=K,
@@ -3798,6 +3800,11 @@ def define_figures():
         ),
     )
     fig("kishu_vs_q64_poseidon_kb", kb(abs(k_p["bytes"] - q_p["bytes"]), 1))
+    claim(
+        "kishu_poseidon_proof_smaller",
+        "under Poseidon Kishu's proof at rank 17 is smaller than the 64-bit variant's",
+        k_p["bytes"] < q_p["bytes"],
+    )
     bz17 = pick("bitz", rank=17, rate="1/8")
     fig("kishu_vs_bitz_bytes", sig(bz17["bytes"] / k_b["bytes"]))
     rk = sorted(bz17["prover"] / k["prover"] for k in (k_b, k_p))
