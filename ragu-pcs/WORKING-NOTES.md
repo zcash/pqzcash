@@ -2211,3 +2211,32 @@ ragu/work/bench-fuse-asm.log.
 - 03:38 UTC, addendum: the user asked whether q = 2^64 − 59 can be exploited, e.g. a 64-bit value as i + j with i any field element and 0 <= j < 59. Answered: j needs 60 values (0 <= j <= 59) to reach 2^64 − 1, since i <= q − 1 = 2^64 − 60; any field element is already an integer in [0, q), so the range of i costs nothing and only j (6 bits, excluding 60..63) and carries need Booleanity; and 2^64 ≡ 59 (mod q) turns 64-bit carries into a + b = c + 59·carry in F_q and 128-bit limb products into a·b = lo + 59·hi, both with free-range field elements lo, hi. So a word-level arithmetization over F_q (non-native Pasta arithmetic in four 64-bit limbs, each a field element plus a 6-bit correction) would confine Booleanity to corrections, carries and genuinely bitwise values, commit about 112 Akita digits per Pasta value (4 × (22 base-8 digits + 6 bits)) against Kishu's 255 bits, cut the constraint work for field arithmetic from bit circuits to a few quadratic constraints per limb product, and give four limb claims instead of eight; its soundness is elementary lifts with explicit bounds, with no decoupling (it sidesteps Theorem A). Canonical form: j > 0 only with i = q − 1, enforced by j·(i − (q−1)) = 0. A new frontend to price, not a change to Kishu as modelled.
 - 03:49 UTC, addendum: the 64-bit-word frontend was NOT built: checked before pricing, the representation is unsound for arithmetic over F_q. The field identity a + b = c + 59·carry for a 64-bit addition also accepts (c − 59, carry + 1) and (c + q, carry), since the identity only fixes the integer relation modulo q and q is the word size; a 64 × 64 -> 128-bit split a·b = lo + 59·hi has one passing lo for every hi, so it fixes nothing. Disambiguation needs sub-word information, i.e. range-checked decompositions, which the free range of a field element does not compose with (i = low + 64·high is not unique without bounding high). So the only sound word-level route is the standard small-limb emulation already on the page as the Goldilocks variant (a 64-bit field is a 64-bit field; 1,100 gates a Pasta multiplication without lookups), dominated by Kishu. Verified numerically. FOUND MEANWHILE, to raise with the user: Kishu's recovery cost still charges 255 digits per Pasta multiplication "no quotient", the 2026-11-12 accounting for the DECOUPLED design (claims native over Pasta); since 2026-11-14 Kishu is design B (F_q claims, limbs, Zinc+'s integer PIOP), under which a·b = k·p + r needs the committed quotient as BitZ's 510 bits do. With 510 digits a multiplication the recovery circuit is 8.4M digits instead of 4.7M (see the chat for the transaction figures).
 - 03:56 UTC, addendum: the user's refinement, a free-range 64-bit word plus 32 Booleanity checks implicitly checking the other 32 bits, for 32 × 32 -> 64-bit products: also not sound. W = L + 2^32·H with L the checked low half leaves H free: a fake L + 1 has a passing H = (W − L − 1)·2^−32 mod q, a 64-bit field element; and a·b = W with a 32-bit and W free pins b only modulo q, so any b passes. A field identity pins an integer relation only when every term is bounded within one modulus; the free range of one element never bounds a term scaled by 2^32 or by an unbounded factor. The one sound use is a product of two already bounded 32-bit values, which is below q (margin 2^33) and so needs no range check on its output; but in a limb multiplication the products are single constraints anyway, and the cost is the carries' and limbs' bounds (about 1,000 bits a Pasta multiplication, the Goldilocks-style 1,100), worse than the integer PIOP's 510 bits. Numerically checked. No frontend built.
+
+## 2026-11-19 02:37 UTC: Kishu's Pasta multiplication carries its quotient; the Flock zk rows' history
+
+- The user agreed: Kishu's claims are in the 64-bit field, so a Pasta multiplication is BitZ's
+  integer relation with the value and the quotient committed, 510 digits, not the 255 of the
+  decoupled design (f419f57). The recovery circuit is 8.4 million digits as in BitZ; per note
+  on one core Kishu takes 0.736 s at rank 21 (was 0.426 s at rank 20), 3.40 s with zero
+  knowledge (was 2.55 s); two tachyactions 0.326 s (was 0.217 s; BitZ 0.214 s), sixteen
+  1.47 s. The page's arithmetization paragraph says so; the model's comment likewise. Checked
+  from the archive: figures and claims pass, the page identical. Artifact v134.
+- OPEN, the same origin: the merge's arithmetic is still priced at 255 digits a multiplication
+  (the Poseidon permutations, which are Pasta arithmetic, so 510 by the same argument; and the
+  sum-check, claim and Booleanity-verifier multiplications, which are over E = F_q[u]/(u^2 - 2),
+  where an F_q product is a 64-bit value and a 64-bit quotient, 128 digits, and an E product
+  three of them, about 384). A scratch run with those (Poseidon at 510, E at 384) moves the
+  Kishu rows a little further: recovery 0.853 s, two tachyactions 0.361 s, rank-17 merge
+  2.6 million digits under BLAKE3 and 10.0 million under Poseidon, and the claim that Kishu's
+  Poseidon merge prover is about half the 64-bit variant's fails (0.65 to 2.5 of BitZ's). For
+  the user's decision.
+- The Flock/Binius proof sizes the user remembered were the 2026-11-11 rows (d3c6211): the
+  recursion rows' zero-knowledge variants then priced the full mask into the final proof
+  (124,480 B at rate 1/64, floor 128, no grinding, against 92,720 plain). Commit 58e60ae
+  (2026-11-12, zero knowledge paid once per transaction at the handoff) made the recursion
+  rows' zk proofs equal the plain rows, since the public merges and the decider's proof are of
+  public data and only the user's handoff is masked, so that row became 89,023 B (now 88,895,
+  the header removed). The ARC rows keep the mask in the decider's proof: at rate 1/8 the
+  surcharge is 32 kbytes after Ulrich's witness-size mask (6ef6bea). Otherwise the family's
+  minima have moved by at most 4% since 2026-11-11 (list size 2^7 -> 2^8 from his updated
+  optimizer; the header).
