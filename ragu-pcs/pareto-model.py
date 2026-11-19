@@ -2462,35 +2462,40 @@ for p in points:
 
 points = deduped
 
-# Whether a family supports the Pasta base field natively, which the Ironwood recovery circuit
-# needs. It enters the dominance test as a requirement: a configuration that supports Pasta is
-# dominated only by one that also does, while one over another field can be dominated by any.
-PASTA = {
-    "pedersen": True,
-    "fp128": False,
-    "goldilocks": False,
-    "pasta_q64": True,
-    "pasta_sis": True,
-    "pasta": True,
-    "whir": True,
-    "whir_gold": False,
-    "whir_hybrid": True,
-    "plonky3": False,
-    "flock": False,
-    "whir_rec": True,
-    "whir_gold_rec": False,
-    "whir_hybrid_rec": True,
-    "plonky3_rec": False,
-    "flock_rec": False,
-    "bitz": True,
-    "bitz_rec": True,
-    "bits_q64": True,
-    "bits_q64_poseidon": True,
-    "bits_akita": False,
+# How a family realises the Pasta arithmetic that the Ironwood recovery circuit needs: native,
+# a gate over Pasta's field; relation, integer relations over committed bits with the result,
+# the quotient and any carries committed and no committed intermediate wires (BitZ, Kishu);
+# limbs, limb products as committed wires in another field; bits, a Boolean circuit. The first
+# two enter the dominance test as a requirement: such a configuration is dominated only by
+# another such, while a limbs or bits configuration can be dominated by any.
+PASTA_ARITH = {
+    "pedersen": "native",
+    "fp128": "limbs",
+    "goldilocks": "limbs",
+    "pasta_q64": "native",
+    "pasta_sis": "native",
+    "pasta": "native",
+    "whir": "native",
+    "whir_gold": "limbs",
+    "whir_hybrid": "native",
+    "plonky3": "limbs",
+    "flock": "bits",
+    "whir_rec": "native",
+    "whir_gold_rec": "limbs",
+    "whir_hybrid_rec": "native",
+    "plonky3_rec": "limbs",
+    "flock_rec": "bits",
+    "bitz": "relation",
+    "bitz_rec": "relation",
+    "bits_q64": "relation",
+    "bits_q64_poseidon": "relation",
+    "bits_akita": "bits",
 }
+PASTA_COUNTS = ("native", "relation")
 
 for p in points:
-    p["pasta"] = PASTA[p["family"]]
+    p["pasta_arith"] = PASTA_ARITH[p["family"]]
+    p["pasta"] = p["pasta_arith"] in PASTA_COUNTS
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS).
@@ -3919,8 +3924,14 @@ def define_figures():
     )
     claim(
         "pasta_native_list",
-        "the 𝔽₂ family and the binary-groups row do not support the Pasta base field",
-        not PASTA["flock"] and not PASTA["bits_akita"],
+        "the 𝔽₂ family and the binary-groups row realise Pasta arithmetic in bits, the 128-bit, Goldilocks and Plonky3 rows in limbs, BitZ and Kishu as relations, and the dominance rule counts native and relation",
+        all(PASTA_ARITH[f] == "bits" for f in ("flock", "flock_rec", "bits_akita"))
+        and all(
+            PASTA_ARITH[f] == "limbs"
+            for f in ("fp128", "goldilocks", "whir_gold", "whir_gold_rec", "plonky3", "plonky3_rec")
+        )
+        and all(PASTA_ARITH[f] == "relation" for f in ("bitz", "bitz_rec", *KISHU))
+        and PASTA_COUNTS == ("native", "relation"),
     )
 
     # The zero-knowledge mask's parameters (the zero-knowledge paragraph).
