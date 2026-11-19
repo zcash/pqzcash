@@ -2095,25 +2095,43 @@ for mode in ("arc", "rec"):
                     for rank in BITZ_RANKS:
                         points.append(bitz_point(mode, rate, rank, floor, grind, zk))
 
-# A bit-decomposed witness over Akita (an internal research draft of 2026-09-23 on Booleanity
-# checking via structured modular projections, provisional): the application's values are
-# committed one bit per digit over Akita's 64-bit modulus, with Pasta claims through the
-# decoupled commitment as the page's 64-bit Akita variant has them, so the same open soundness
-# obligation. BitZ's exponent-lift GKR is not needed: Booleanity of the committed table is
-# certified over the prime field by one unweighted quadratic identity plus an integer norm
-# bound, which a structured random projection supplies by revealing 160 coordinates. The
+# Kishu, a bit-decomposed witness over Akita (an internal research draft of 2026-09-23 on
+# Booleanity checking via structured modular projections, provisional): the application's
+# values are committed one bit per digit over Akita's 64-bit modulus. The claims are in the
+# 64-bit field itself, Akita's native profile, and each Pasta value is recomposed from 32-bit
+# limbs proved as linear claims in the same sum-check. So there is no decoupled commitment, and
+# the soundness obligations are Akita's own plus the Booleanity check's (the soundness note).
+# BitZ's exponent-lift GKR is not needed: Booleanity of the committed table is certified over
+# the prime field by the conventional weighted sum-check, or by one unweighted quadratic
+# identity plus an integer norm bound, which a structured random projection supplies by
+# revealing 160 coordinates. The
 # draft's single-thread measurements at 2^27 bits over 2^64 - 59 on an M4 Max: the projection
 # prover 113 ms, the optimized conventional Booleanity sumcheck 438 ms; verifiers 0.85 and
 # 0.023 ms; reduction payloads 2,592 and 1,744 bytes; no commitment opening or hiding. Per
 # bit that is 2.5 and 9.8 word multiplications, beside Akita's own 23.7 per digit at the 64-bit
 # modulus. A step commits 2^rank digits, one bit each. The merge is Akita's, costed in digits
-# as the recovery circuit is in recovery_cost: a bit gate is one digit, so a BLAKE3
-# compression of the transcript is 15,072 digits and the images' reductions one per bit,
-# while a Pasta multiplication is the 255 digits of its result, so a Poseidon permutation is
-# 72 × 255 per absorbed atom, the sum-check's arithmetic 400 of them, and each circuit's
-# claim four; the Booleanity sum-check's verifier is about 3,000 multiplications, and the
-# projection verifier scans 3.1 million sampled coefficients, a digit each, so under
-# recursion the sum-check form is the usable one and the projection form is shown for its
+# as the recovery circuit is in recovery_cost. Its arithmetic is over the 64-bit field F_q and
+# its quadratic extension E, the PIOP's own field. As in BitZ, the constraint PIOP runs over
+# the ring itself, and only the final linear claim is proved on the bits. So a multiplication
+# there is one constraint, with no bit decomposition and no quotient. But every wire of the
+# constraint system is committed as its bits, 64 digits for an F_q value and 128 for an E
+# value. So a bit
+# gate is one digit, a BLAKE3 compression of the transcript is 15,072 digits and the images'
+# reductions one per bit; the sum-check's arithmetic is 400 multiplications in E, each
+# circuit's claim four and the Booleanity sum-check's verifier about 3,000, at 128 digits each.
+# Under the Poseidon option the transcript is hashed by Poseidon over F_q at width 12 and rate
+# 8, eight 8-byte words a permutation, with the x^3 S-box, a permutation of F_q since 3 does
+# not divide q - 1. Its round numbers are R_F = 8 and R_P = 42 at 128 bits with the security
+# margin, from the official round-number script (calc_round_numbers.py, as for the study's
+# Goldilocks and 65-bit rows): 138 S-boxes of two multiplications, 276 a permutation, each a
+# 64-digit wire. On
+# committed digits that is about a sixth more than BLAKE3 per absorbed byte. But a permutation
+# is 276 constraints where a BLAKE3 compression is 7,904 (BLAKE3_CONSTRAINTS), and the digit
+# measure charges no constraints. Too close to call: both policies stay as variants of Kishu,
+# the BLAKE3 rows under either option and the Poseidon rows under the arithmetic-hash option,
+# and the frontier decides. The projection verifier scans 3.1 million sampled coefficients, a
+# digit each, so
+# under recursion the sum-check form is the usable one and the projection form is shown for its
 # prover. Each coefficient the merge scans is a committed digit, about 26 word
 # multiplications for the accumulation prover. The projection saves the prover 7.3 word
 # multiplications per bit. It is therefore ahead only where a step commits about 3.6 bits per
@@ -2126,29 +2144,35 @@ for mode in ("arc", "rec"):
 # per coefficient is generous besides: the circuit must also regenerate each coefficient and
 # apply it to an extension-field accumulator, of the order of a hundred digits. The
 # frontier's Kishu rows thus take the sum-check form, whose soundness is the ordinary
-# sum-check's; the projection's certificate is not on Kishu's path.
-# With a conventional hash the merge is cheaper here than with Poseidon, the reverse
-# of the field arithmetizations, since its hashing is bit operations. Revealing the
+# sum-check's; the projection's certificate is not on Kishu's path. Revealing the
 # projection gives no zero knowledge, and the draft's certificates are conditional and not
 # yet formalized.
 BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, merge multiplications, merge bit gates)
     "projection": (113 / 2**27 * WORD_MULTS_PER_MS, 2592, 0.85, 0, 3_109_760),
     "sumcheck": (437.7 / 2**27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
 }
+Q64_DIGITS = 64  # an F_q value as one-bit digits
+E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
+Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
+Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
+BLAKE3_CONSTRAINTS = (
+    7 * 8 * (4 + 4 * 32) + 16 * 32
+)  # one relation per 32-bit addition, one per XOR bit
 
 
 def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk=False):
     """Kishu's merge in one-bit digits: the transcript hashing, the images'
     reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier; with
     zero knowledge the zk-layer merge's 18 more sum-check elements, as for the lattice rows."""
+    absorbed = akita_absorbed_bytes("pasta_q64", K, circuits, zk)
     if hp == "poseidon":
-        hashing = akita_atoms("pasta_q64", K, circuits, zk) * HASH_GATES_PER_ATOM * BITS_PER_VALUE
+        hashing = absorbed / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
     else:
-        hashing = akita_absorbed_bytes("pasta_q64", K, circuits, zk) / BLAKE3_BLOCK * BLAKE3_BITS
+        hashing = absorbed / BLAKE3_BLOCK * BLAKE3_BITS
     return (
         hashing
         + 2 * K * FOLD_GATES_PER_IMAGE
-        + (SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults) * BITS_PER_VALUE
+        + (SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults) * E_MULT_DIGITS
         + bool_bits
     )
 
@@ -3646,17 +3670,23 @@ def define_figures():
                 - frontend_merge_digits(Kg, 1, hp, sum_mults, sum_bits)
             ),
         )
+    fig(
+        "kishu13_blake3_circuits",
+        fmt(pick("bits_q64", rank=13, hashes="blake3", check="sumcheck")["circuits"]),
+    )
     claim(
-        "Kishu has no rows at rank 13, none at rank 14 under Poseidon, and rows at rank 14 under BLAKE3",
-        not shown("bits_q64", "poseidon", rank=13)
-        and not shown("bits_q64", "poseidon", rank=14, hashes="poseidon")
-        and shown("bits_q64", rank=14),
+        "Kishu has rows at rank 13 under BLAKE3, none at rank 13 under Poseidon, and rows at rank 14 under both",
+        shown("bits_q64", rank=13, hashes="blake3")
+        and not shown("bits_q64", "poseidon", rank=13, hashes="poseidon")
+        and shown("bits_q64", rank=14, hashes="blake3")
+        and shown("bits_q64", "poseidon", rank=14, hashes="poseidon"),
     )
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
+    fig("kishu_vs_q64_poseidon_prover", sig(q_p["prover"] / k_p["prover"]))
     claim(
-        "under Poseidon Kishu's merge prover at rank 17 is about half the 64-bit variant's",
-        1.6 <= q_p["prover"] / k_p["prover"] <= 2.4,
+        "under Poseidon too Kishu's merge prover at rank 17 is smaller than the 64-bit variant's",
+        k_p["prover"] < q_p["prover"],
     )
     fig("q64_17_blake3_kb", kb(q_b["bytes"]))
     claim(
@@ -3685,7 +3715,23 @@ def define_figures():
     fig("bool_sumcheck_merge_mults", fmt(sumc[3]))
     fig("zinc_piop_per_digit", sig(ZINC_PIOP_PER_DIGIT))
     fig("blake3_bits", sig(BLAKE3_BITS))
-    fig("hash_gates_per_atom", HASH_GATES_PER_ATOM)
+    fig("q64_digits", Q64_DIGITS)
+    fig("e_mult_digits", E_MULT_DIGITS)
+    fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
+    fig("blake3_constraints", fmt(BLAKE3_CONSTRAINTS))
+    fig(
+        "q64_poseidon_over_blake3_pct",
+        round(
+            100
+            * (
+                Q64_POSEIDON_MULTS
+                * Q64_DIGITS
+                / Q64_POSEIDON_RATE_BYTES
+                / (BLAKE3_BITS / BLAKE3_BLOCK)
+                - 1
+            )
+        ),
+    )
     fig("sumcheck_gates", SUMCHECK_GATES)
     fig("claim_gates", CLAIM_GATES)
     claim(
