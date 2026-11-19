@@ -507,6 +507,93 @@ BLAKE2B_BITS = (
     12 * 8 * (4 * 65 + 4 * 64) + 16 * 64
 )  # the additions' sums and carries, the XORs' outputs, the finalisation
 BLAKE3_BITS = 7 * 8 * (4 * 33 + 4 * 32) + 16 * 32
+BLAKE2B_BITS_KISHU = (
+    12 * 8 * (4 * 66 + 4 * 64) + 16 * 64
+)  # as BLAKE2B_BITS, each 64-bit addition in two halves with two carries, since a 64-bit sum can wrap modulo q
+# Constraint counts for Kishu's PIOP, a sum-check over a constraint system on the committed
+# table (Zinc+'s UCS, R1CS or CCS alike), beside the digit counts, as (product terms, nonzeros
+# of small constants, nonzeros of field constants). A product term costs the prover the
+# measured rate of the Booleanity sum-check, which is a degree-2 relation per entry under eq
+# weights, and a linear-only constraint counts as one term; a nonzero of a linear form costs
+# one multiplication of an extension element by the constant in the matrix-evaluation phase,
+# two word multiplications for a power of two or a small constant and four for a field
+# constant. Linear forms are over word entries: the table is laid out by bit position, so a
+# word's evaluation is a batch of column claims, which Akita opens at the cost of one, and a
+# bit is a one-bit word. An XOR bit is z = x + y - 2xy; a 32-bit addition a + b = s + 2^32 c
+# over word entries with 33 committed bits; a 64-bit one two halves; a Sinsemilla chunk its
+# 1,013 products, and its two selected coordinates materialized as committed bits, each one
+# linear constraint over the products, since a linear form of 1,024 bits would otherwise
+# enter every limb product; the reductions and linking one term each.
+CONSTRAINT_TERM_WORD_MULTS = 437.7 / 2**27 * WORD_MULTS_PER_MS  # BOOL_CHECK's rate, asserted there
+NONZERO_SMALL_WORD_MULTS = WORD_MULTS["pasta_q64"]
+NONZERO_FIELD_WORD_MULTS = 2 * WORD_MULTS["pasta_q64"]
+XOR_BIT_PIOP = (1, 4, 0)
+ADD32_PIOP = (1, 4, 0)
+ADD64_PIOP = (2, 8, 0)
+
+
+def piop_sum(*parts):
+    """The constraint counts of `count` copies of each (count, counts) part, summed."""
+    return tuple(sum(count * part[i] for count, part in parts) for i in range(3))
+
+
+def piop_word_mults(piop):
+    terms, small, field = piop
+    return (
+        terms * CONSTRAINT_TERM_WORD_MULTS
+        + small * NONZERO_SMALL_WORD_MULTS
+        + field * NONZERO_FIELD_WORD_MULTS
+    )
+
+
+BLAKE3_PIOP = piop_sum((7 * 8 * 4, ADD32_PIOP), (7 * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP))
+BLAKE2B_PIOP = piop_sum((12 * 8 * 4, ADD64_PIOP), (12 * 8 * 4 * 64 + 16 * 64, XOR_BIT_PIOP))
+SINSEMILLA_CHUNK_PIOP = piop_sum((1013, (1, 3, 0)), (2, (1, 1024 + BITS_PER_VALUE, 0)))
+SINSEMILLA_CHUNK_DIGITS_KISHU = 1013 + 2 * BITS_PER_VALUE
+REDUCTIONS_PIOP = (4000, 12000, 0)
+# Two routes for Kishu's Pasta multiplication a b = k p + r over committed bits, since Akita's
+# claims are in one fixed field and the relation cannot be checked modulo it alone: the prover
+# could choose r. Limbs: the relation is checked coefficient by coefficient over 29-bit limbs,
+# which are linear in the bits and cost nothing to commit; each of the 17 coefficients is one
+# constraint of up to 9 product terms, bounded below q/2 so that it holds over the integers,
+# with a committed carry of about 34 bits; the result, the quotient and the carries are
+# committed. Fingerprint: as BitZ, the relation is one constraint in each of three PIOP
+# instances over random 52-bit primes, each of which a nonzero 510-bit integer satisfies with
+# probability about 2^-43; each instance's evaluation claim becomes about sqrt(2^rank) integer
+# column sums by BitZ's tensor split, each exact as one claim in the 64-bit field, and the
+# sums are committed as digits of 61 bits, the route's cost per step.
+MULT_LIMBS = 9  # 29-bit limbs of a 255-bit value
+MULT_CARRY_BITS = 34
+MULT_COEFFICIENTS = 2 * MULT_LIMBS - 1
+FINGERPRINT_INSTANCES = 3
+FINGERPRINT_PRIME_BYTES = 8
+COLUMN_SUM_BITS = 61
+MULT_ROUTES = {  # digits, and constraint counts, per multiplication
+    "limbs": (
+        2 * BITS_PER_VALUE + MULT_COEFFICIENTS * MULT_CARRY_BITS,
+        (
+            MULT_LIMBS**2 + MULT_COEFFICIENTS,
+            2 * MULT_LIMBS**2 + MULT_COEFFICIENTS * (MULT_LIMBS + 3),
+            0,
+        ),
+    ),
+    "fingerprint": (BITZ_GATE_BITS, (FINGERPRINT_INSTANCES, 4 * FINGERPRINT_INSTANCES, 0)),
+}
+KISHU_ARITHS = tuple(f"bits_pasta_{route}" for route in MULT_ROUTES)
+
+
+def kishu_route(arith):
+    return arith.removeprefix("bits_pasta_")
+
+
+def fingerprint_step_digits(rank):
+    return FINGERPRINT_INSTANCES * math.ceil(2 ** (rank / 2)) * COLUMN_SUM_BITS
+
+
+def bits_unit(field):
+    return "bits" if field == "bitz" or field.startswith("bits_pasta") else field
+
+
 RECOVERY_MULTS = 14_500
 RECOVERY_CURVE_PASTA = (
     16_100  # the multiplications as native gates, with the selectors and identity cases
@@ -517,12 +604,16 @@ RECOVERY_BITS = {  # the hashes, the selections, the reductions and linking, in 
     "fp128": 542_000,  # a 64-bit addition over Goldilocks is two halves
     "boolean": 7 * BLAKE2B_ANDS + BLAKE3_ANDS + 162_000 + 4_000,
     "bits": 7 * BLAKE2B_BITS + BLAKE3_BITS + 162_000 + 4_000,
+    "bits_kishu": 7 * BLAKE2B_BITS_KISHU
+    + BLAKE3_BITS
+    + 160 * SINSEMILLA_CHUNK_DIGITS_KISHU
+    + 4_000,
 }
 RECOVERY_MULT = {
     "goldilocks": 1_100,
     "fp128": 700,
     "bitz": BITZ_GATE_BITS,
-    "bits_pasta": BITZ_GATE_BITS,  # the value and the quotient, as in BitZ
+    **{a: MULT_ROUTES[kishu_route(a)][0] for a in KISHU_ARITHS},
 }
 RECOVERY_PATH_POSEIDON = {"pasta": 9_500, "goldilocks": 15_600, "fp128": 15_600}
 RECOVERY_PATH_BLAKE3 = {
@@ -540,7 +631,7 @@ def recovery_cost(field, hp):
     """The reference circuit in the unit of `field`'s arithmetization, its Merkle path under
     policy `hp` where the field has a Poseidon; the bit arithmetizations hash it with BLAKE3
     under either."""
-    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    unit = bits_unit(field)
     if field == "pasta":
         mult = RECOVERY_CURVE_PASTA / RECOVERY_MULTS
     elif field == "boolean":
@@ -552,14 +643,15 @@ def recovery_cost(field, hp):
         if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON
         else RECOVERY_PATH_BLAKE3[unit]
     )
-    return RECOVERY_BITS[unit] + RECOVERY_MULTS * mult + path
+    bits = RECOVERY_BITS["bits_kishu" if field.startswith("bits_pasta") else unit]
+    return bits + RECOVERY_MULTS * mult + path
 
 
 def path_cost(field, hp):
     """One Merkle path check, 32 levels and the leaf, in the unit of `field`'s
     arithmetization: hashed under policy `hp` where the field has a Poseidon, by BLAKE3 in
     the bit arithmetizations under either."""
-    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    unit = bits_unit(field)
     if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON:
         return RECOVERY_PATH_POSEIDON[field]
     return RECOVERY_PATH_BLAKE3[unit]
@@ -621,7 +713,7 @@ def tachyon_node_cost(field, hp, node):
     permutations under policy `hp` where the field has a Poseidon, by BLAKE3 otherwise, its
     window selections as bit monomials, and its other gates as Pallas multiplications."""
     gates, perms, windows = TACHYON_STEPS[node]
-    unit = "bits" if field in ("bitz", "bits_pasta") else field
+    unit = bits_unit(field)
     if field == "pasta":
         mult = 1
     elif field == "boolean":
@@ -639,7 +731,28 @@ def tachyon_node_cost(field, hp, node):
     return perms * permutation + windows * selection + other * mult
 
 
-ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", "bits_pasta")
+def recovery_piop(route):
+    """The recovery circuit's constraint counts in Kishu's PIOP, by multiplication route."""
+    return piop_sum(
+        (7, BLAKE2B_PIOP),
+        (1 + 33, BLAKE3_PIOP),
+        (160, SINSEMILLA_CHUNK_PIOP),
+        (1, REDUCTIONS_PIOP),
+        (RECOVERY_MULTS, MULT_ROUTES[route][1]),
+    )
+
+
+def path_piop():
+    return piop_sum((33, BLAKE3_PIOP))
+
+
+def tachyon_node_piop(route, node):
+    gates, perms, windows = TACHYON_STEPS[node]
+    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES
+    return piop_sum((perms, BLAKE3_PIOP), (windows, (4, 12, 0)), (other, MULT_ROUTES[route][1]))
+
+
+ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
@@ -655,8 +768,28 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
         for n, (s, o) in TACHYON_TRANSACTIONS.items()
     },
 }
+# The work of Kishu's constraint PIOP per application, by multiplication route, which the
+# transaction measure adds to its rows (DATA.piop); the other families' PIOPs are inside their
+# measured or modelled provers.
+PIOP_WORK = {
+    "recovery": {a: round(piop_word_mults(recovery_piop(kishu_route(a)))) for a in KISHU_ARITHS},
+    "path": {a: round(piop_word_mults(path_piop())) for a in KISHU_ARITHS},
+    **{
+        f"tachyon{n}": {
+            a: round(
+                sum(
+                    piop_word_mults(tachyon_node_piop(kishu_route(a), node))
+                    for node in tachyon_nodes(s, o)
+                )
+            )
+            for a in KISHU_ARITHS
+        }
+        for n, (s, o) in TACHYON_TRANSACTIONS.items()
+    },
+}
 
-# The arithmetization of each family's application circuit, for `step_gates`.
+# The arithmetization of each family's application circuit, for `step_gates`; Kishu's rows
+# set theirs by multiplication route.
 FIELD = {
     "pedersen": "pasta",
     "fp128": "fp128",
@@ -676,8 +809,8 @@ FIELD = {
     "flock_rec": "boolean",
     "bitz": "bitz",
     "bitz_rec": "bitz",
-    "bits_q64": "bits_pasta",
-    "bits_q64_poseidon": "bits_pasta",
+    "bits_q64": "bits_pasta_limbs",
+    "bits_q64_poseidon": "bits_pasta_limbs",
 }
 
 points = []
@@ -1968,10 +2101,6 @@ BITZ_T10 = {
 BITZ_RATE = {"1/2": 1.0, "1/8": 0.83}  # Ligerito bytes against rate 1/2, measured at 128 bits
 BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
 BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
-# Zinc+'s constraint PIOP in absolute terms, for Kishu's application digits: 1.6 times BitZ's
-# PCS prover per bit at Table 10's 2^25 point, about 11 word multiplications a digit, since the
-# PIOP's sum-checks run over the witness whatever commits it.
-ZINC_PIOP_PER_DIGIT = BITZ_PIOP["prover"] * BITZ_T10[25][0] * WORD_MULTS_PER_MS / 2**25
 # The prover's phases on this machine, one thread (work/bitz-out/rerun/summary.txt): the
 # grand-product share of the prover at rate 1/2 and 100 bits (Table 10's setting), and the
 # factor on the Ligerito phase at rate 1/8, both by the committed bits' logarithm; the factor
@@ -2147,7 +2276,7 @@ for mode in ("arc", "rec"):
 # Goldilocks and 65-bit rows): 138 S-boxes of two multiplications, 276 a permutation, each a
 # 64-digit wire. On
 # committed digits that is about a sixth more than BLAKE3 per absorbed byte. But a permutation
-# is 276 constraints where a BLAKE3 compression is 7,904 (BLAKE3_CONSTRAINTS), and the digit
+# is 276 constraints where a BLAKE3 compression is 7,904 (BLAKE3_PIOP), and the digit
 # measure charges no constraints. Too close to call: both policies stay as variants of Kishu,
 # the BLAKE3 rows under either option and the Poseidon rows under the arithmetic-hash option,
 # and the frontier decides. The projection verifier scans 3.1 million sampled coefficients, a
@@ -2172,6 +2301,7 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
     "projection": (113 / 2**27 * WORD_MULTS_PER_MS, 2592, 0.85, 0, 3_109_760),
     "sumcheck": (437.7 / 2**27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
 }
+assert abs(CONSTRAINT_TERM_WORD_MULTS - BOOL_CHECK["sumcheck"][0]) < 1e-9
 Q64_DIGITS = 64  # an F_q value as one-bit digits
 E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
@@ -2183,28 +2313,91 @@ Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_
 # constraint forbidding both, about 63 committed bits and as many constraints. Poseidon absorbs
 # the field elements themselves and needs none.
 RANGE_CHECK_DIGITS = 57 + 5 + 1
-BLAKE3_CONSTRAINTS = (
-    7 * 8 * (4 + 4 * 32) + 16 * 32
-)  # one relation per 32-bit addition, one per XOR bit
 
 
-def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """Kishu's merge in one-bit digits: the transcript hashing, the images' reductions, the
-    sum-check and claim arithmetic, and the Booleanity check's verifier and transcript; with
-    zero knowledge the zk-layer merge's 18 more sum-check elements, as for the lattice rows."""
-    absorbed = akita_absorbed_bytes("kishu", K, circuits, zk) + bool_bytes
+POSEIDON_Q64_PIOP = (
+    Q64_POSEIDON_MULTS,
+    0,
+    138 * 100,
+)  # two constraints per S-box, their linear forms over about fifty state words after the partial rounds' layers
+RANGE_CHECK_PIOP = (RANGE_CHECK_DIGITS, 3 * RANGE_CHECK_DIGITS, 0)
+E_MULT_PIOP = (3, 12, 0)  # three field products by Karatsuba
+BIT_GATE_PIOP = (1, 3, 0)
+PIOP_ROUND_ELEMENTS = 4  # degree three with the eq weights
+PIOP_ROUND_MULTS = 4
+
+
+def piop_rounds(entries):
+    return math.ceil(math.log2(entries)) + 1
+
+
+def absorb_digits(bytes_, hp, checked_words=0):
+    """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
+    prover-supplied words range-checked before BLAKE3 hashes them."""
     if hp == "poseidon":
-        hashing = absorbed / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
-    else:
-        # Every prover-supplied word is range-checked before BLAKE3 hashes its bytes; the K
-        # images are instance data.
-        words = (absorbed - K * 128) / 8
-        hashing = absorbed / BLAKE3_BLOCK * BLAKE3_BITS + words * RANGE_CHECK_DIGITS
-    return (
-        hashing
+        return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
+    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * RANGE_CHECK_DIGITS
+
+
+def absorb_piop(bytes_, hp, checked_words=0):
+    if hp == "poseidon":
+        return piop_sum((bytes_ / Q64_POSEIDON_RATE_BYTES, POSEIDON_Q64_PIOP))
+    return piop_sum((bytes_ / BLAKE3_BLOCK, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP))
+
+
+def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    """Kishu's merge: its digits (the transcript hashing, the images' reductions, the sum-check
+    and claim arithmetic, the Booleanity check's verifier and transcript, the verifier of the
+    child's constraint PIOP, and its own PIOP transcript, which the merge above absorbs) and
+    the word multiplications of its own constraint PIOP; with zero knowledge the zk-layer
+    merge's 18 more sum-check elements, as for the lattice rows."""
+    rounds = piop_rounds(circuits * 2**rank)
+    absorbed = (
+        akita_absorbed_bytes("kishu", K, circuits, zk)
+        + bool_bytes
+        + rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
+    )
+    checked = 0 if hp == "poseidon" else (absorbed - K * 128) / 8
+    mults = SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults + rounds * PIOP_ROUND_MULTS
+    digits = (
+        absorb_digits(absorbed, hp, checked)
         + 2 * K * FOLD_GATES_PER_IMAGE
-        + (SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults) * E_MULT_DIGITS
+        + mults * E_MULT_DIGITS
         + bool_bits
+    )
+    piop = piop_sum(
+        (1, absorb_piop(absorbed, hp, checked)),
+        (2 * K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
+        (mults, E_MULT_PIOP),
+        (bool_bits, BIT_GATE_PIOP),
+    )
+    return digits, piop_word_mults(piop)
+
+
+def frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    return frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)[0]
+
+
+def kishu_step_overhead_digits(rank, route, hp):
+    """Digits an application step adds to its 2^rank: by the fingerprint route the column sums
+    of its three instances; and for either route its PIOP transcripts, absorbed and verified
+    in the merge above (one over the 64-bit field; by the fingerprint route three more over
+    the primes)."""
+    rounds = piop_rounds(2**rank)
+    transcripts = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
+    instances = 1
+    extra = 0
+    if route == "fingerprint":
+        transcripts += (
+            FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
+        )
+        instances += FINGERPRINT_INSTANCES
+        extra = fingerprint_step_digits(rank)
+    checked = 0 if hp == "poseidon" else transcripts / 8
+    return (
+        extra
+        + absorb_digits(transcripts, hp, checked)
+        + instances * rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
     )
 
 
@@ -2212,15 +2405,18 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
     """The step circuits of 2^rank digits that the merge needs, at its fixed point; None
     where each circuit's claim costs more digits than the circuit holds, as for the lattice
     rows under BLAKE3."""
+    # The marginal circuit, measured where one more does not add a round to the merge's own
+    # sum-check transcript (six circuits against five; two against one would).
     per_circuit = frontend_merge_digits(
-        K, 2, hp, bool_mults, bool_bits, bool_bytes, zk
-    ) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits, bool_bytes, zk)
+        K, 6, rank, hp, bool_mults, bool_bits, bool_bytes, zk
+    ) - frontend_merge_digits(K, 5, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
     if per_circuit >= 2**rank:
         return None
     circuits = 1
     for _ in range(200):
         new = math.ceil(
-            frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk) / 2**rank
+            frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+            / 2**rank
         )
         if new == circuits:
             return circuits
@@ -2244,8 +2440,8 @@ for (
                 circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
                 if circuits is None:
                     continue  # the per-circuit claim's digits exceed this rank's circuit
-                digits = frontend_merge_digits(
-                    K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk
+                digits, merge_piop = frontend_merge(
+                    K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
                 )
                 atoms = akita_atoms("kishu", K, circuits, zk)
                 # Kishu's claims are at the 64-bit profile in a small extension, as the Goldilocks
@@ -2268,53 +2464,59 @@ for (
                 )
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
-                points.append(
-                    dict(
-                        family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
-                        pq=True,
-                        rank=rank,
-                        E=None,
-                        binders=None,
-                        floor=floor,
-                        hashes=hp,
-                        groups=K,
-                        packing=None,
-                        circuits=circuits,
-                        change="design",
-                        zk=zk,
-                        check=check,
-                        bytes=round(opening + instance + bool_bytes),
-                        prover=round(circuits * 2**rank * (per_digit + bool_per_bit)),
-                        accumulation_prover=round(
-                            circuits * 2**rank * (per_digit + bool_per_bit)
-                            + accumulation_sumchecks(
-                                "pasta_q64",
-                                K,
-                                rank,
-                                digits=1,
-                                word_mults=WORD_MULTS["pasta_q64"],
+                merge_prover = circuits * 2**rank * (per_digit + bool_per_bit) + merge_piop
+                # The step pays its digits and its overheads in the merge above (the
+                # application's constraint PIOP itself is per application, DATA.piop).
+                for route in MULT_ROUTES:
+                    step_digits = 2**rank + kishu_step_overhead_digits(rank, route, hp)
+                    points.append(
+                        dict(
+                            family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
+                            pq=True,
+                            rank=rank,
+                            E=None,
+                            binders=None,
+                            floor=floor,
+                            hashes=hp,
+                            groups=K,
+                            packing=None,
+                            circuits=circuits,
+                            change="design",
+                            zk=zk,
+                            check=check,
+                            route=route,
+                            arith=f"bits_pasta_{route}",
+                            bytes=round(opening + instance + bool_bytes),
+                            prover=round(merge_prover),
+                            accumulation_prover=round(
+                                merge_prover
+                                + accumulation_sumchecks(
+                                    "pasta_q64",
+                                    K,
+                                    rank,
+                                    digits=1,
+                                    word_mults=WORD_MULTS["pasta_q64"],
+                                )
+                            ),
+                            memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
+                            step_prover=round(step_digits * (per_digit + bool_per_bit)),
+                            fold=fold,
+                            accumulation=atoms,
+                            gates=round(digits),
+                            verify=akita_verify(
+                                "goldilocks",
+                                log_len,
+                                zk,
+                                rank_factor_share("goldilocks", rank_scale),
                             )
-                        ),
-                        memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
-                        # The application step also pays Zinc+'s constraint PIOP on its digits, as
-                        # BitZ's rows do on their application share.
-                        step_prover=round(
-                            2**rank * (per_digit + bool_per_bit + ZINC_PIOP_PER_DIGIT)
-                        ),
-                        fold=fold,
-                        accumulation=atoms,
-                        gates=round(digits),
-                        verify=akita_verify(
-                            "goldilocks", log_len, zk, rank_factor_share("goldilocks", rank_scale)
+                            + round(bool_verify_ms * WORD_MULTS_PER_MS),
+                            folded=K,
+                            label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, Booleanity by {check}, multiplication by {route}"
+                            + HASH_LABEL[hp]
+                            + (", ZK" if zk else "")
+                            + floor_label(floor),
                         )
-                        + round(bool_verify_ms * WORD_MULTS_PER_MS),
-                        folded=K,
-                        label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, Booleanity by {check}"
-                        + HASH_LABEL[hp]
-                        + (", ZK" if zk else "")
-                        + floor_label(floor),
                     )
-                )
 
 # ---- Flock-style Boolean circuits over Akita's binary groups (experimental) ----------------
 # Akita's development branch commits a dense binary source as a group kind inside one
@@ -2451,6 +2653,7 @@ for p in points:
         p.get("grind"),
         p.get("rate"),
         p.get("field"),
+        p.get("route"),
         p["bytes"],
         p["prover"],
         p["accumulation"],
@@ -2485,8 +2688,8 @@ PASTA_ARITH = {
     "whir_hybrid_rec": "native",
     "plonky3_rec": "limbs",
     "flock_rec": "bits",
-    "bitz": "relation",
-    "bitz_rec": "relation",
+    "bitz": "relation, fingerprint",
+    "bitz_rec": "relation, fingerprint",
     "bits_q64": "relation",
     "bits_q64_poseidon": "relation",
     "bits_akita": "bits",
@@ -2494,16 +2697,16 @@ PASTA_ARITH = {
 PASTA_COUNTS = ("native", "relation")
 
 for p in points:
-    p["pasta_arith"] = PASTA_ARITH[p["family"]]
-    p["pasta"] = p["pasta_arith"] in PASTA_COUNTS
+    p["pasta_arith"] = PASTA_ARITH[p["family"]] + (f", {p['route']}" if p.get("route") else "")
+    p["pasta"] = p["pasta_arith"].split(",")[0] in PASTA_COUNTS
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS).
 for p in points:
-    p["arith"] = FIELD[p["family"]]
+    p["arith"] = p.get("arith") or FIELD[p["family"]]
     if p["rank"] is None:
         p["step_units"] = BOOL_STEP_BITS  # a Boolean step, in AND gates
-    elif p["arith"] in ("bitz", "bits_pasta"):
+    elif p["arith"] == "bitz" or p["arith"].startswith("bits_pasta"):
         p["step_units"] = 2 ** p["rank"]  # bits or digits, one per committed coefficient
     else:
         p["step_units"] = gate_budget(p["rank"])  # gates of four coefficients
@@ -2632,6 +2835,7 @@ def prune_key(p):
         p["rank"],
         p.get("packing"),
         p.get("field"),
+        p.get("route"),
         p.get("E"),
         p.get("binders"),
     )
@@ -2711,7 +2915,9 @@ def tx_steps(p, app, policy, count=1):
 
 def tx_work(p, app, policy, count=1):
     return (
-        tx_steps(p, app, policy, count) * (p["step_prover"] + p["accumulation_prover"]) + p["fold"]
+        tx_steps(p, app, policy, count) * (p["step_prover"] + p["accumulation_prover"])
+        + p["fold"]
+        + PIOP_WORK.get(app, {}).get(p["arith"], 0) * count
     )
 
 
@@ -2855,7 +3061,41 @@ def define_figures():
     fig("mask_sample_word_mults", MASK_SAMPLE_WORD_MULTS)
     fig("app_recovery_boolean", f"{sig(APP['recovery']['boolean']['blake3'] / 1e9, 3)} billion")
     fig("app_recovery_bitz", millions(APP["recovery"]["bitz"]["blake3"]))
-    fig("app_recovery_kishu", millions(APP["recovery"]["bits_pasta"]["blake3"]))
+    for a in KISHU_ARITHS:
+        fig(f"app_recovery_kishu_{kishu_route(a)}", millions(APP["recovery"][a]["blake3"]))
+        fig(f"piop_recovery_kishu_{kishu_route(a)}_s", secs(PIOP_WORK["recovery"][a]))
+    fig("mult_limbs_digits", fmt(MULT_ROUTES["limbs"][0]))
+    fig("mult_limbs_terms", MULT_ROUTES["limbs"][1][0])
+    fig("mult_coefficients", MULT_COEFFICIENTS)
+    fig("mult_carry_bits", MULT_CARRY_BITS)
+    fig("fingerprint_instances", FINGERPRINT_INSTANCES)
+    fig("column_sum_bits", COLUMN_SUM_BITS)
+    fig("fingerprint_step_digits_21", sig(fingerprint_step_digits(21), 3))
+    fig("blake2b_bits_kishu", fmt(BLAKE2B_BITS_KISHU))
+    fig("blake2b_piop_terms", fmt(BLAKE2B_PIOP[0]))
+    fig("constraint_term_mults", sig(CONSTRAINT_TERM_WORD_MULTS))
+    fig("nonzero_small_mults", NONZERO_SMALL_WORD_MULTS)
+    fig("nonzero_field_mults", NONZERO_FIELD_WORD_MULTS)
+    per_digit_default = (
+        ajtai_per_coefficient("pasta_q64") / DIGITS["pasta_q64"] + BOOL_CHECK["sumcheck"][0]
+    )
+    blake3_64b = (BLAKE3_BITS + 8 * RANGE_CHECK_DIGITS) * per_digit_default + piop_word_mults(
+        piop_sum((1, BLAKE3_PIOP), (8, RANGE_CHECK_PIOP))
+    )
+    poseidon_64b = Q64_POSEIDON_MULTS * Q64_DIGITS * per_digit_default + piop_word_mults(
+        POSEIDON_Q64_PIOP
+    )
+    fig("blake3_64b_mults", sig(blake3_64b))
+    fig("poseidon_64b_mults", sig(poseidon_64b))
+    fig("hash_64b_within_pct", round(100 * abs(blake3_64b / poseidon_64b - 1)))
+    claim(
+        "hash_within_quarter",
+        "with commitments and constraints charged, BLAKE3 and Poseidon over the 64-bit field are within a quarter of each other per 64 bytes absorbed in Kishu's merge",
+        abs(blake3_64b / poseidon_64b - 1) < 0.25,
+    )
+    fig("blake3_piop_terms", fmt(BLAKE3_PIOP[0]))
+    fig("blake3_piop_nonzeros", fmt(BLAKE3_PIOP[1]))
+    fig("poseidon_q64_piop_nonzeros", fmt(POSEIDON_Q64_PIOP[2]))
     fig("app_path_pasta_poseidon", sig(APP["path"]["pasta"]["poseidon"]))
     fig("app_path_goldilocks_poseidon", sig(APP["path"]["goldilocks"]["poseidon"], 3))
     fig("app_path_pasta_blake3", sig(APP["path"]["pasta"]["blake3"], 3))
@@ -2871,7 +3111,7 @@ def define_figures():
     claim(
         "path_bits_digits_equal",
         "a Merkle path costs the same in bits for BitZ and in digits for Kishu",
-        APP["path"]["bitz"]["blake3"] == APP["path"]["bits_pasta"]["blake3"],
+        all(APP["path"]["bitz"]["blake3"] == APP["path"][a]["blake3"] for a in KISHU_ARITHS),
     )
     claim(
         "path_gold_fp128_equal",
@@ -2888,6 +3128,7 @@ def define_figures():
     # the page's frontier shows it (the Transaction prover paragraph).
     checked_in = pick("pedersen", rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
     p, w = kishu_best("recovery")
+    fig("tx_recovery_kishu_route", p["route"])
     fig("tx_recovery_kishu_s", secs(w))
     fig("tx_recovery_kishu_rank", p["rank"])
     fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
@@ -2929,6 +3170,7 @@ def define_figures():
     fig("tx_recovery_pedersen_best_rank", p["rank"])
     fig("tx_recovery_pedersen_best_E", p["E"])
     p, w = kishu_best("recovery", zk=True)
+    fig("tx_recovery_kishu_zk_route", p["route"])
     fig("tx_recovery_kishu_zk_s", secs(w))
     fig("tx_recovery_kishu_zk_rank", p["rank"])
     fig(
@@ -3017,6 +3259,7 @@ def define_figures():
     fig("tx_tachyon2_bitz_rank", p["rank"])
     bitz_tachyon2_work = w
     p, w = kishu_best("tachyon2")
+    fig("tx_tachyon2_kishu_route", p["route"])
     fig("tx_tachyon2_kishu_s", secs(w))
     fig("tx_tachyon2_kishu_rank", p["rank"])
     fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
@@ -3117,7 +3360,7 @@ def define_figures():
     fig("memory_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["memory"], 3))
     fig(
         "memory_kishu_rank21",
-        mb(pick("bits_q64", rank=21, hashes="blake3", check="sumcheck")["memory"]),
+        mb(pick("bits_q64", rank=21, hashes="blake3", check="sumcheck", route="limbs")["memory"]),
     )
     fig(
         "memory_pedersen_rank13",
@@ -3755,8 +3998,8 @@ def define_figures():
         ),
     )
     fig("q64_mults_per_pasta_gate", sig(4 * ajtai_per_coefficient("pasta_q64")))
-    k_b = pick("bits_q64", rank=17, hashes="blake3", check="sumcheck")
-    k_p = pick("bits_q64_poseidon", rank=17, check="sumcheck")
+    k_b = pick("bits_q64", rank=17, hashes="blake3", check="sumcheck", route="limbs")
+    k_p = pick("bits_q64_poseidon", rank=17, check="sumcheck", route="limbs")
     q_b = pick("pasta_q64", rank=17, hashes="blake3")
     q_p = pick("pasta_q64", rank=17, hashes="poseidon")
     fig("kishu17_blake3_digits", millions(k_b["gates"]))
@@ -3772,13 +4015,15 @@ def define_figures():
         fig(
             f"kishu_claim_digits_{hp}",
             sig(
-                frontend_merge_digits(Kg, 2, hp, sum_mults, sum_bits, sum_bytes)
-                - frontend_merge_digits(Kg, 1, hp, sum_mults, sum_bits, sum_bytes)
+                frontend_merge_digits(Kg, 6, 17, hp, sum_mults, sum_bits, sum_bytes)
+                - frontend_merge_digits(Kg, 5, 17, hp, sum_mults, sum_bits, sum_bytes)
             ),
         )
     fig(
         "kishu13_blake3_circuits",
-        fmt(pick("bits_q64", rank=13, hashes="blake3", check="sumcheck")["circuits"]),
+        fmt(
+            pick("bits_q64", rank=13, hashes="blake3", check="sumcheck", route="limbs")["circuits"]
+        ),
     )
     claim(
         "kishu_rows_from_rank13",
@@ -3826,14 +4071,12 @@ def define_figures():
     fig("bool_sumcheck_per_bit", sig(sumc[0]))
     fig("bool_projection_scan", millions(proj[4]))
     fig("bool_sumcheck_merge_mults", fmt(sumc[3]))
-    fig("zinc_piop_per_digit", sig(ZINC_PIOP_PER_DIGIT))
     fig("blake3_bits", sig(BLAKE3_BITS))
     fig("q64_digits", Q64_DIGITS)
     fig("e_mult_digits", E_MULT_DIGITS)
     fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
     fig("kishu_claim_bytes", CLAIM_BYTES["kishu"])
     fig("range_check_digits", RANGE_CHECK_DIGITS)
-    fig("blake3_constraints", fmt(BLAKE3_CONSTRAINTS))
     fig(
         "q64_poseidon_over_blake3_pct",
         round(
@@ -3930,7 +4173,7 @@ def define_figures():
             PASTA_ARITH[f] == "limbs"
             for f in ("fp128", "goldilocks", "whir_gold", "whir_gold_rec", "plonky3", "plonky3_rec")
         )
-        and all(PASTA_ARITH[f] == "relation" for f in ("bitz", "bitz_rec", *KISHU))
+        and all(PASTA_ARITH[f].startswith("relation") for f in ("bitz", "bitz_rec", *KISHU))
         and PASTA_COUNTS == ("native", "relation"),
     )
 
@@ -4040,6 +4283,7 @@ data = dict(
     points=[{k: v for k, v in p.items() if k != "frontier"} for p in points],
     labels=LABEL,
     applications=APPLICATIONS,
+    piop=PIOP_WORK,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,
