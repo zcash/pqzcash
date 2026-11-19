@@ -788,6 +788,12 @@ PIOP_WORK = {
     },
 }
 
+# Whether an application has Pasta multiplications, which is when Kishu's fingerprint route
+# pays its per-step cost (DATA.has_mults).
+APPLICATION_MULTS = {"recovery": True, "path": False} | {
+    f"tachyon{n}": True for n in TACHYON_TRANSACTIONS
+}
+
 # The arithmetization of each family's application circuit, for `step_gates`; Kishu's rows
 # set theirs by multiplication route.
 FIELD = {
@@ -2378,26 +2384,26 @@ def frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_byt
     return frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)[0]
 
 
-def kishu_step_overhead_digits(rank, route, hp):
-    """Digits an application step adds to its 2^rank: by the fingerprint route the column sums
-    of its three instances; and for either route its PIOP transcripts, absorbed and verified
-    in the merge above (one over the 64-bit field; by the fingerprint route three more over
-    the primes)."""
+def kishu_step_overhead_digits(rank, hp):
+    """Digits an application step adds to its 2^rank by either route: its PIOP transcript over
+    the 64-bit field, absorbed and verified in the merge above."""
     rounds = piop_rounds(2**rank)
-    transcripts = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
-    instances = 1
-    extra = 0
-    if route == "fingerprint":
-        transcripts += (
-            FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
-        )
-        instances += FINGERPRINT_INSTANCES
-        extra = fingerprint_step_digits(rank)
+    transcript = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
+    checked = 0 if hp == "poseidon" else transcript / 8
+    return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
+
+
+def fingerprint_step_extra_digits(rank, hp):
+    """The fingerprint route's digits on a step that has multiplications: the column sums of
+    its three instances, and their transcripts absorbed and verified in the merge above. A
+    step of hashes alone runs no instance and pays nothing, so the routes tie there."""
+    rounds = piop_rounds(2**rank)
+    transcripts = FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
     checked = 0 if hp == "poseidon" else transcripts / 8
     return (
-        extra
+        fingerprint_step_digits(rank)
         + absorb_digits(transcripts, hp, checked)
-        + instances * rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
+        + FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
     )
 
 
@@ -2468,8 +2474,14 @@ for (
                 # accumulation prover. The step pays its digits and its overheads in the merge
                 # above (the application's constraint PIOP itself is per application, DATA.piop).
                 commitments = circuits * 2**rank * (per_digit + bool_per_bit)
+                step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
+                per_step_digit = per_digit + bool_per_bit
                 for route in MULT_ROUTES:
-                    step_digits = 2**rank + kishu_step_overhead_digits(rank, route, hp)
+                    route_step = (
+                        round(fingerprint_step_extra_digits(rank, hp) * per_step_digit)
+                        if route == "fingerprint"
+                        else 0
+                    )
                     points.append(
                         dict(
                             family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
@@ -2501,7 +2513,8 @@ for (
                                 )
                             ),
                             memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
-                            step_prover=round(step_digits * (per_digit + bool_per_bit)),
+                            step_prover=round(step_digits * per_step_digit),
+                            route_step=route_step,
                             fold=fold,
                             accumulation=atoms,
                             gates=round(digits),
@@ -2916,8 +2929,10 @@ def tx_steps(p, app, policy, count=1):
 
 
 def tx_work(p, app, policy, count=1):
+    steps = tx_steps(p, app, policy, count)
     return (
-        tx_steps(p, app, policy, count) * (p["step_prover"] + p["accumulation_prover"])
+        steps * (p["step_prover"] + p["accumulation_prover"])
+        + (steps * p.get("route_step", 0) if APPLICATION_MULTS[app] else 0)
         + p["fold"]
         + PIOP_WORK.get(app, {}).get(p["arith"], 0) * count
     )
@@ -4286,6 +4301,7 @@ data = dict(
     labels=LABEL,
     applications=APPLICATIONS,
     piop=PIOP_WORK,
+    has_mults=APPLICATION_MULTS,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,
