@@ -239,7 +239,16 @@ def accumulation_sumchecks(variant, K, rank, digits=None, word_mults=None):
 
 
 # Base-field atoms the merge circuit absorbs per compressed commitment (128 bytes).
-ATOMS_PER_COMMITMENT = {"fp128": 8, "goldilocks": 16, "pasta_q64": 6, "pasta_sis": 4, "pasta": 4}
+# Kishu is not an Akita variant (VARIANTS lists those) but shares the tables where its claim
+# field, the quadratic extension of the 64-bit field at 16 bytes an element, sets the figure.
+ATOMS_PER_COMMITMENT = {
+    "fp128": 8,
+    "goldilocks": 16,
+    "pasta_q64": 6,
+    "pasta_sis": 4,
+    "pasta": 4,
+    "kishu": 8,
+}
 SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 elements, per merge
 
 # ---- Hashes in circuits --------------------------------------------------------------
@@ -276,7 +285,14 @@ SUMCHECK_GATES = 400
 # about 3,700 gates for a 16-byte claim and 7,500 for a 32-byte one, can exceed what a small
 # rank's budget holds per circuit, and then no number of circuits suffices: the merge needs a
 # larger rank, or the claims aggregated before absorption, which is a design change.
-CLAIM_BYTES = {"fp128": 16, "goldilocks": 16, "pasta_q64": 32, "pasta_sis": 32, "pasta": 32}
+CLAIM_BYTES = {
+    "fp128": 16,
+    "goldilocks": 16,
+    "pasta_q64": 32,
+    "pasta_sis": 32,
+    "pasta": 32,
+    "kishu": 16,
+}
 CLAIM_GATES = 4
 
 
@@ -2121,6 +2137,9 @@ for mode in ("arc", "rec"):
 # gate is one digit, a BLAKE3 compression of the transcript is 15,072 digits and the images'
 # reductions one per bit; the sum-check's arithmetic is 400 multiplications in E, each
 # circuit's claim four and the Booleanity sum-check's verifier about 3,000, at 128 digits each.
+# The transcript's elements and the claims are E values of 16 bytes (CLAIM_BYTES["kishu"]),
+# the Booleanity sum-check's own transcript is absorbed with them, and under BLAKE3 every
+# prover-supplied word is range-checked before hashing (RANGE_CHECK_DIGITS).
 # Under the Poseidon option the transcript is hashed by Poseidon over F_q at width 12 and rate
 # 8, eight 8-byte words a permutation, with the x^3 S-box, a permutation of F_q since 3 does
 # not divide q - 1. Its round numbers are R_F = 8 and R_P = 42 at 128 bits with the security
@@ -2157,20 +2176,30 @@ Q64_DIGITS = 64  # an F_q value as one-bit digits
 E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
 Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
+# A 64-bit decomposition of an F_q value is canonical only below q = 2^64 - 59, so a
+# prover-supplied word whose bytes BLAKE3 hashes is first checked to be below q: it is at or
+# above q exactly when bits 63 to 6 are all one and the low six bits are at least 5, so the
+# conjunction of 58 bits (57 products), the test on the low six (about five) and one
+# constraint forbidding both, about 63 committed bits and as many constraints. Poseidon absorbs
+# the field elements themselves and needs none.
+RANGE_CHECK_DIGITS = 57 + 5 + 1
 BLAKE3_CONSTRAINTS = (
     7 * 8 * (4 + 4 * 32) + 16 * 32
 )  # one relation per 32-bit addition, one per XOR bit
 
 
-def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk=False):
-    """Kishu's merge in one-bit digits: the transcript hashing, the images'
-    reductions, the sum-check and claim arithmetic, and the Booleanity check's verifier; with
+def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    """Kishu's merge in one-bit digits: the transcript hashing, the images' reductions, the
+    sum-check and claim arithmetic, and the Booleanity check's verifier and transcript; with
     zero knowledge the zk-layer merge's 18 more sum-check elements, as for the lattice rows."""
-    absorbed = akita_absorbed_bytes("pasta_q64", K, circuits, zk)
+    absorbed = akita_absorbed_bytes("kishu", K, circuits, zk) + bool_bytes
     if hp == "poseidon":
         hashing = absorbed / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
     else:
-        hashing = absorbed / BLAKE3_BLOCK * BLAKE3_BITS
+        # Every prover-supplied word is range-checked before BLAKE3 hashes its bytes; the K
+        # images are instance data.
+        words = (absorbed - K * 128) / 8
+        hashing = absorbed / BLAKE3_BLOCK * BLAKE3_BITS + words * RANGE_CHECK_DIGITS
     return (
         hashing
         + 2 * K * FOLD_GATES_PER_IMAGE
@@ -2179,18 +2208,20 @@ def frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk=False):
     )
 
 
-def frontend_circuits(K, rank, hp, bool_mults, bool_bits, zk=False):
+def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
     """The step circuits of 2^rank digits that the merge needs, at its fixed point; None
     where each circuit's claim costs more digits than the circuit holds, as for the lattice
     rows under BLAKE3."""
     per_circuit = frontend_merge_digits(
-        K, 2, hp, bool_mults, bool_bits, zk
-    ) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits, zk)
+        K, 2, hp, bool_mults, bool_bits, bool_bytes, zk
+    ) - frontend_merge_digits(K, 1, hp, bool_mults, bool_bits, bool_bytes, zk)
     if per_circuit >= 2**rank:
         return None
     circuits = 1
     for _ in range(200):
-        new = math.ceil(frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk) / 2**rank)
+        new = math.ceil(
+            frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk) / 2**rank
+        )
         if new == circuits:
             return circuits
         circuits = new
@@ -2210,11 +2241,13 @@ for (
     for floor in FLOORS:
         for zk in (False,) if check == "projection" else (False, True):
             for rank in FRONTEND_RANKS:
-                circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, zk)
+                circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
                 if circuits is None:
                     continue  # the per-circuit claim's digits exceed this rank's circuit
-                digits = frontend_merge_digits(K, circuits, hp, bool_mults, bool_bits, zk)
-                atoms = akita_atoms("pasta_q64", K, circuits, zk)
+                digits = frontend_merge_digits(
+                    K, circuits, hp, bool_mults, bool_bits, bool_bytes, zk
+                )
+                atoms = akita_atoms("kishu", K, circuits, zk)
                 log_len = (
                     rank + math.log2(circuits) - math.log2(DIGITS["pasta_q64"])
                 )  # in the 64-bit variant's coefficients of 85 digits
@@ -2232,7 +2265,7 @@ for (
                     else 0
                 )
                 opening = akita_bytes("pasta_q64", K - 1, log_len, floor)
-                instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
+                instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
                 points.append(
                     dict(
                         family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
@@ -3672,13 +3705,13 @@ def define_figures():
     fig("kishu17_poseidon_digits", millions(k_p["gates"]))
     fig("kishu17_poseidon_kb", kb(k_p["bytes"]))
     fig("kishu17_poseidon_prover", sci(k_p["prover"]))
-    sum_mults, sum_bits = BOOL_CHECK["sumcheck"][3], BOOL_CHECK["sumcheck"][4]
+    sum_bytes, sum_mults, sum_bits = (BOOL_CHECK["sumcheck"][i] for i in (1, 3, 4))
     for hp in HASH_POLICIES:
         fig(
             f"kishu_claim_digits_{hp}",
             sig(
-                frontend_merge_digits(Kg, 2, hp, sum_mults, sum_bits)
-                - frontend_merge_digits(Kg, 1, hp, sum_mults, sum_bits)
+                frontend_merge_digits(Kg, 2, hp, sum_mults, sum_bits, sum_bytes)
+                - frontend_merge_digits(Kg, 1, hp, sum_mults, sum_bits, sum_bytes)
             ),
         )
     fig(
@@ -3686,11 +3719,10 @@ def define_figures():
         fmt(pick("bits_q64", rank=13, hashes="blake3", check="sumcheck")["circuits"]),
     )
     claim(
-        "Kishu has rows at rank 13 under BLAKE3, none at rank 13 under Poseidon, and rows at rank 14 under both",
+        "Kishu has rows from rank 13 under both hashes, where the lattice rows under BLAKE3 start at 14",
         shown("bits_q64", rank=13)
-        and not shown("bits_q64_poseidon", "poseidon", rank=13)
-        and shown("bits_q64", rank=14)
-        and shown("bits_q64_poseidon", "poseidon", rank=14),
+        and shown("bits_q64_poseidon", "poseidon", rank=13)
+        and not any(shown(v, rank=13, hashes="blake3") for v in VARIANTS),
     )
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
@@ -3729,6 +3761,8 @@ def define_figures():
     fig("q64_digits", Q64_DIGITS)
     fig("e_mult_digits", E_MULT_DIGITS)
     fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
+    fig("kishu_claim_bytes", CLAIM_BYTES["kishu"])
+    fig("range_check_digits", RANGE_CHECK_DIGITS)
     fig("blake3_constraints", fmt(BLAKE3_CONSTRAINTS))
     fig(
         "q64_poseidon_over_blake3_pct",
