@@ -800,12 +800,13 @@ function render() {
   const table = document.getElementById('table');
   if (table.dataset.sortCol !== undefined) sortTable(table, +table.dataset.sortCol, table.dataset.sortDir);
 }
-// Every table sorts by a clicked column, numerically where the cells parse as
-// numbers; a second click on the same column reverses the order.
+// Every table sorts by a clicked column, numerically where the cells start with a
+// number (the unit that follows it, such as "bytes" or "ms", is ignored); a second click on the
+// same column reverses the order.
 function sortTable(table, col, dir) {
   const tbody = table.tBodies[0];
   const text = r => (r.cells[col] ? r.cells[col].textContent : '').trim();
-  const num = s => { const n = Number(s.replace(/,/g, '')); return s !== '' && !isNaN(n) ? n : null; };
+  const num = s => { const m = s.match(/^-?(?:\d[\d,]*)?(?:\.\d+)?(?:e[+-]?\d+)?/i); const n = m && m[0] !== '' && m[0] !== '-' ? Number(m[0].replace(/,/g, '')) : NaN; return isNaN(n) ? null : n; };
   const rows = [...tbody.rows];
   rows.sort((a, b) => {
     const sa = text(a), sb = text(b), na = num(sa), nb = num(sb);
