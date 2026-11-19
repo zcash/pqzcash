@@ -548,6 +548,10 @@ document.getElementById('swapmeasures').addEventListener('click', () => {
 // to the left, so that the best configurations are nearest the viewer; a constant uirevision
 // keeps whatever the viewer turns it to.
 const DEFAULT_CAMERA = { eye: { x: -1.25, y: -1.25, z: 1.0 }, up: { x: 0, y: 0, z: 1 } };
+// Toggling the projection carries the live camera into the next render, so that only the
+// projection changes and not the view direction.
+let carryCamera = false;
+document.getElementById('ortho').addEventListener('change', () => { carryCamera = true; });
 const third = () => document.querySelector('input[name=third]:checked').value;
 // The measures in work units, which the unit option converts.
 const WORK_MEASURES = ['prover', 'accumulation_prover', 'verify', 'transaction'];
@@ -768,7 +772,8 @@ function render() {
   // explicitly, so that it stays put whatever Plotly's own persistence decides
   // when the traces change under it.
   const live = document.getElementById('plot')._fullLayout || {};
-  const camera = hold && live.scene && live.scene.camera ? JSON.parse(JSON.stringify(live.scene.camera)) : undefined;
+  const camera = (hold || carryCamera) && live.scene && live.scene.camera ? JSON.parse(JSON.stringify(live.scene.camera)) : undefined;
+  carryCamera = false;
   const log = scale === 'log';
   // Prover work, gates and decider work span orders of magnitude; atoms do not.
   const logFor = m => m !== 'accumulation' && log;
