@@ -5,7 +5,7 @@
   --bg: #f6f5f2; --surface: #ffffff; --ink: #1f2430; --muted: #5f6675; --rule: #d9d6cf;
   --accent: #b8731a; --accent-ink: #7a4a0c;
   --c-pedersen: #8a8f9a; --c-fp128: #3b6ea5; --c-gold: #6a9f3a; --c-q64: #b8731a; --c-sis: #1b8a7a; --c-pasta: #8b2f6f; --c-whir: #c0392b; --c-whirgold: #6f42c1; --c-whirhybrid: #a89400; --c-plonky3: #1f1f1f; --c-flock: #0288d1;
-  --c-whirrec: #e8846f; --c-whirgoldrec: #c71585; --c-whirhybridrec: #ff7f0e; --c-plonky3rec: #6b6b6b; --c-flockrec: #6cc1ea; --c-bitz: #2e7d32; --c-bitzrec: #7cc47f; --c-bitsq64: #d35400; --c-bitsakita: #795548;
+  --c-whirrec: #e8846f; --c-whirgoldrec: #c71585; --c-whirhybridrec: #ff7f0e; --c-plonky3rec: #6b6b6b; --c-flockrec: #6cc1ea; --c-bitz: #2e7d32; --c-bitzrec: #7cc47f; --c-bitsq64: #d35400; --c-bitsq64pos: #c9a000; --c-bitsakita: #795548;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -16,7 +16,7 @@
     --bg: #15171c; --surface: #1d2027; --ink: #e8e6e1; --muted: #a2a8b4; --rule: #343843;
     --accent: #e0a24a; --accent-ink: #f0c88a;
     --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7;
-    --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsakita: #c8a48e;
+    --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsq64pos: #ffd740; --c-bitsakita: #c8a48e;
   }
 }
 :root[data-theme="dark"] {
@@ -24,7 +24,7 @@
   --bg: #15171c; --surface: #1d2027; --ink: #e8e6e1; --muted: #a2a8b4; --rule: #343843;
   --accent: #e0a24a; --accent-ink: #f0c88a;
   --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7;
-  --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsakita: #c8a48e;
+  --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsq64pos: #ffd740; --c-bitsakita: #c8a48e;
 }
 body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; margin: 0; }
 .wrap { max-width: none; margin: 0; padding-block: 28px 48px; padding-inline: 16px; }
@@ -323,7 +323,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The draft measures the reduction alone, single-threaded at 2<sup>27</sup> bits over 2<sup>64</sup> − 59. The projection prover takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional Booleanity sumcheck, with verifiers of <!--fig:bool_projection_verify_ms-->0.85<!--/fig--> and <!--fig:bool_sumcheck_verify_ms-->0.023<!--/fig--> ms and payloads of <!--fig:bool_projection_kb-->2.6 kbytes<!--/fig--> and <!--fig:bool_sumcheck_kb-->1.7 kbytes<!--/fig-->. Neither includes the commitment opening or hiding.</p>
   <p>The family commits one bit per digit over Akita's 64‑bit modulus, plus the check at <!--fig:bool_projection_per_bit-->2.5<!--/fig--> or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications per bit, and a step commits 2<sup>rank</sup> digits. Its application digits also pay Zinc+'s constraint PIOP, the sum-checks over the witness that prove the application's own constraints, at the rate BitZ's rows pay on their application share, about <!--fig:zinc_piop_per_digit-->11<!--/fig--> word multiplications a digit.</p>
   <p>Its claims live in the 64‑bit field itself, Akita's commitment modulus, and the verifier recomposes each Pasta value from 32‑bit limbs proved as linear claims in the same sum-check, so Kishu does not use the decoupled commitment: its soundness rests on Akita's own at the 64‑bit profile and on the draft's Booleanity certificate.</p>
-  <p>Its merge is Akita's, costed in digits. A bit gate is one digit, so a BLAKE3 compression of the transcript is <!--fig:blake3_bits-->15,000<!--/fig--> digits and the images' reductions one per bit. The merge's arithmetic is over the 64‑bit field and its quadratic extension, which is the PIOP's own field. As in BitZ, the constraint PIOP runs over the ring itself, and only the final linear claim is proved on the bits. So a multiplication there is one constraint, with no bit decomposition and no quotient. But every wire is committed as its bits:<!--fig:q64_digits-->64<!--/fig--> digits for a field element and <!--fig:e_mult_digits-->128<!--/fig--> for a product in the extension. So the sum-check's arithmetic is <!--fig:sumcheck_gates-->400<!--/fig--> such products, each circuit's claim <!--fig:claim_gates-->4<!--/fig--> and the Booleanity sum-check's verifier about <!--fig:bool_sumcheck_merge_mults-->3,000<!--/fig-->; the projection verifier scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> sampled coefficients, a digit each. Under the Poseidon option the transcript is hashed by Poseidon over the 64‑bit field at width 12 and rate 8 with the x<sup>3</sup> S-box: <!--fig:q64_poseidon_mults-->276<!--/fig--> multiplications a permutation at <!--fig:q64_digits-->64<!--/fig--> digits each, <!--fig:q64_poseidon_over_blake3_pct-->17<!--/fig-->% more committed digits than BLAKE3 per absorbed byte. But a permutation is <!--fig:q64_poseidon_mults-->276<!--/fig--> constraints where a BLAKE3 compression is <!--fig:blake3_constraints-->7,904<!--/fig-->, one relation per addition and one per XOR bit, and the digit measure charges no constraints. That is too close to call, since many modelling choices could sway it either way, so both hashes are kept as variants of Kishu: the BLAKE3 rows under either option, the Poseidon rows under the arithmetic-hash option, and the frontier decides between them.</p>
+  <p>Its merge is Akita's, costed in digits. A bit gate is one digit, so a BLAKE3 compression of the transcript is <!--fig:blake3_bits-->15,000<!--/fig--> digits and the images' reductions one per bit. The merge's arithmetic is over the 64‑bit field and its quadratic extension, which is the PIOP's own field. As in BitZ, the constraint PIOP runs over the ring itself, and only the final linear claim is proved on the bits. So a multiplication there is one constraint, with no bit decomposition and no quotient. But every wire is committed as its bits:<!--fig:q64_digits-->64<!--/fig--> digits for a field element and <!--fig:e_mult_digits-->128<!--/fig--> for a product in the extension. So the sum-check's arithmetic is <!--fig:sumcheck_gates-->400<!--/fig--> such products, each circuit's claim <!--fig:claim_gates-->4<!--/fig--> and the Booleanity sum-check's verifier about <!--fig:bool_sumcheck_merge_mults-->3,000<!--/fig-->; the projection verifier scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> sampled coefficients, a digit each. Under the Poseidon option the transcript is hashed by Poseidon over the 64‑bit field at width 12 and rate 8 with the x<sup>3</sup> S-box: <!--fig:q64_poseidon_mults-->276<!--/fig--> multiplications a permutation at <!--fig:q64_digits-->64<!--/fig--> digits each, <!--fig:q64_poseidon_over_blake3_pct-->17<!--/fig-->% more committed digits than BLAKE3 per absorbed byte. But a permutation is <!--fig:q64_poseidon_mults-->276<!--/fig--> constraints where a BLAKE3 compression is <!--fig:blake3_constraints-->7,904<!--/fig-->, one relation per addition and one per XOR bit, and the digit measure charges no constraints. That is too close to call, since many modelling choices could sway it either way, so both hashes are kept as variants of Kishu, each a family of its own in the list and the plot: the BLAKE3 rows under either option, the Poseidon rows under the arithmetic-hash option, and the frontier decides between them.</p>
   <p>At rank 17 with BLAKE3 that is <!--fig:kishu17_blake3_digits-->1.6 million<!--/fig--> digits in <!--fig:kishu17_blake3_circuits-->13<!--/fig--> circuits, a proof of <!--fig:kishu17_blake3_kb-->81 kbytes<!--/fig-->, a merge prover of <!--fig:kishu17_blake3_prover-->5.7e7<!--/fig--> word multiplications and a <!--fig:kishu17_blake3_decider_ms-->6.55<!--/fig--> ms decider in the sum-check form; with Poseidon <!--fig:kishu17_poseidon_digits-->1.9 million<!--/fig--> digits, <!--fig:kishu17_poseidon_kb-->81 kbytes<!--/fig--> and <!--fig:kishu17_poseidon_prover-->6.6e7<!--/fig-->. Each circuit's claim costs <!--fig:kishu_claim_digits_blake3-->8,000<!--/fig--> digits to absorb under BLAKE3 and <!--fig:kishu_claim_digits_poseidon-->9,300<!--/fig--> under Poseidon, so a rank‑13 circuit of 8,192 digits holds little but its claim under BLAKE3 (<!--fig:kishu13_blake3_circuits-->10,365<!--/fig--> circuits) and nothing under Poseidon, as for the lattice rows under BLAKE3.</p>
   <p>Against the 64‑bit Akita variant, which commits every wire of a hash gate as a 255‑bit value, the merge prover is <!--fig:kishu_vs_q64_blake3_prover-->200<!--/fig--> times smaller under BLAKE3 (<!--fig:q64_17_blake3_prover-->1.1e10<!--/fig--> at rank 17) and <!--fig:kishu_vs_q64_poseidon_prover-->4.0<!--/fig--> times under Poseidon, and under BLAKE3 the proof is smaller too (<!--fig:kishu17_blake3_kb-->81 kbytes<!--/fig--> against <!--fig:q64_17_blake3_kb-->88 kbytes<!--/fig-->), so under conventional hashes Kishu dominates that variant on every measure but the merge's count, whose units differ, while under Poseidon the proofs are within <!--fig:kishu_vs_q64_poseidon_kb-->0.2 kbytes<!--/fig-->. Against BitZ at rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->6.1<!--/fig--> times smaller and the merge prover <!--fig:kishu_vs_bitz_prover_min-->3.3<!--/fig--> to <!--fig:kishu_vs_bitz_prover_max-->3.8<!--/fig--> times.</p>
   <p>Quang Dao thinks the prover here is likely overestimated: the commitment is priced at rows sized by the loose security analysis, with its grinding, and a tighter analysis would cut them, so the family's prover should be read as an upper bound. The plot's measures are the recursion's: the step's commitments, the accumulator's opening and the merge circuit, which every design pays and which can be estimated, whereas which application circuit to benchmark is hard to agree on, since it depends on the application; so the application enters the plot through the rank and the transaction measure through its cost in digits.</p>
@@ -462,25 +462,35 @@ code { font-family: var(--mono); font-size: 0.92em; }
 <script>
 const DATA = /*DATA*/;
 const COLORS = { pedersen: 'var(--c-pedersen)', fp128: 'var(--c-fp128)', goldilocks: 'var(--c-gold)', pasta_q64: 'var(--c-q64)', pasta_sis: 'var(--c-sis)', pasta: 'var(--c-pasta)', whir: 'var(--c-whir)', whir_gold: 'var(--c-whirgold)', whir_hybrid: 'var(--c-whirhybrid)', plonky3: 'var(--c-plonky3)', flock: 'var(--c-flock)',
-  whir_rec: 'var(--c-whirrec)', whir_gold_rec: 'var(--c-whirgoldrec)', whir_hybrid_rec: 'var(--c-whirhybridrec)', plonky3_rec: 'var(--c-plonky3rec)', flock_rec: 'var(--c-flockrec)', bitz: 'var(--c-bitz)', bitz_rec: 'var(--c-bitzrec)', bits_q64: 'var(--c-bitsq64)', bits_akita: 'var(--c-bitsakita)' };
+  whir_rec: 'var(--c-whirrec)', whir_gold_rec: 'var(--c-whirgoldrec)', whir_hybrid_rec: 'var(--c-whirhybridrec)', plonky3_rec: 'var(--c-plonky3rec)', flock_rec: 'var(--c-flockrec)', bitz: 'var(--c-bitz)', bitz_rec: 'var(--c-bitzrec)', bits_q64: 'var(--c-bitsq64)', bits_q64_poseidon: 'var(--c-bitsq64pos)', bits_akita: 'var(--c-bitsakita)' };
 const css = getComputedStyle(document.documentElement);
 const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
 const OFF_BY_DEFAULT = ['whir', 'whir_gold', 'whir_hybrid', 'plonky3', 'whir_rec', 'whir_gold_rec', 'whir_hybrid_rec', 'plonky3_rec'];
-const order = ['pedersen', 'fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec', 'flock', 'flock_rec', 'bitz', 'bitz_rec', 'bits_q64', 'bits_akita'];
+// The family list's sections, separated by rules: Pedersen-IPA; the lattice-based schemes;
+// the hash-based ones.
+const GROUPS = [
+  ['pedersen'],
+  ['fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'bits_q64', 'bits_q64_poseidon', 'bits_akita'],
+  ['whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec', 'flock', 'flock_rec', 'bitz', 'bitz_rec'],
+];
+const order = GROUPS.flat();
 const famBox = document.getElementById('families');
 // Each family's swatch uses the marker shapes its points have in the plot: a
 // circle for configurations needing parameter changes only, a square for the
 // rest, both where a family has both.
-for (const f of order) {
-  const l = document.createElement('label');
-  const shapes = [...new Set(DATA.points.filter(p => p.family === f).map(p => p.change === 'none' ? 'circle' : 'square'))].sort();
-  const swatches = shapes.map(s => `<span class="swatch ${s}" style="background:${color(f)}"></span>`).join('');
-  // The WHIR-type families and Plonky3 start unticked: Akita dominates them on every measure,
-  // and their many rows crowd the picture; the families list turns them on.
-  const on = OFF_BY_DEFAULT.includes(f) ? '' : 'checked';
-  l.innerHTML = `<input type="checkbox" class="fam" value="${f}" id="fam-${f}" ${on}><span class="swatches">${swatches}</span>${DATA.labels[f]}`;
-  famBox.appendChild(l);
-}
+GROUPS.forEach((group, i) => {
+  if (i) { const hr = document.createElement('hr'); hr.className = 'sep'; famBox.appendChild(hr); }
+  for (const f of group) {
+    const l = document.createElement('label');
+    const shapes = [...new Set(DATA.points.filter(p => p.family === f).map(p => p.change === 'none' ? 'circle' : 'square'))].sort();
+    const swatches = shapes.map(s => `<span class="swatch ${s}" style="background:${color(f)}"></span>`).join('');
+    // The WHIR-type families and Plonky3 start unticked: Akita dominates them on every measure,
+    // and their many rows crowd the picture; the families list turns them on.
+    const on = OFF_BY_DEFAULT.includes(f) ? '' : 'checked';
+    l.innerHTML = `<input type="checkbox" class="fam" value="${f}" id="fam-${f}" ${on}><span class="swatches">${swatches}</span>${DATA.labels[f]}`;
+    famBox.appendChild(l);
+  }
+});
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
 // does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash.
 let userHeader = 2, lastForced = false;  // the header chosen on the control, kept through a forced spell
@@ -502,7 +512,7 @@ function selected() {
     && (p.hashes === 'any' || p.hashes === 'blake3' || hashes === 'poseidon')  // the option adds the Poseidon-priced rows to the BLAKE3 ones
     && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
 }
-const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', bits_q64: 'Module-SIS, random oracle', bits_akita: 'Module-SIS, random oracle; security ledger open',
+const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', bits_q64: 'Module-SIS, random oracle', bits_q64_poseidon: 'Module-SIS, random oracle', bits_akita: 'Module-SIS, random oracle; security ledger open',
   whir: 'random oracle', whir_gold: 'random oracle', whir_hybrid: 'random oracle', plonky3: 'random oracle', flock: 'random oracle', bitz: 'random oracle',
   whir_rec: 'random oracle', whir_gold_rec: 'random oracle', whir_hybrid_rec: 'random oracle', plonky3_rec: 'random oracle', flock_rec: 'random oracle', bitz_rec: 'random oracle' };
 const SYMBOL = { none: 'circle', code: 'square', design: 'square' };

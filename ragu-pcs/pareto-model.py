@@ -350,7 +350,8 @@ LABEL = {
     "flock_rec": "Flock/Binius-style over 𝔽₂, recursive, hash-based",
     "bitz": "BitZ with ARC, Pasta claims over committed bits, hash-based",
     "bitz_rec": "BitZ, recursive, Pasta claims over committed bits, hash-based",
-    "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims (draft)",
+    "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims, BLAKE3 (draft)",
+    "bits_q64_poseidon": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims, Poseidon (draft)",
     "bits_akita": "Flock/Binius-style over Akita's binary groups, lattice (experimental)",
 }
 
@@ -660,6 +661,7 @@ FIELD = {
     "bitz": "bitz",
     "bitz_rec": "bitz",
     "bits_q64": "bits_pasta",
+    "bits_q64_poseidon": "bits_pasta",
 }
 
 points = []
@@ -2233,7 +2235,7 @@ for (
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["pasta_q64"]
                 points.append(
                     dict(
-                        family="bits_q64",
+                        family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
                         pq=True,
                         rank=rank,
                         E=None,
@@ -2448,6 +2450,7 @@ PASTA = {
     "bitz": True,
     "bitz_rec": True,
     "bits_q64": True,
+    "bits_q64_poseidon": True,
     "bits_akita": False,
 }
 
@@ -2713,6 +2716,14 @@ def best_for(family, app, policy="blake3", count=1, **kw):
     return p, work
 
 
+KISHU = ("bits_q64", "bits_q64_poseidon")  # Kishu's two hash variants, a family each on the page
+
+
+def kishu_best(app, **kw):
+    """Kishu's least-transaction row over both variants under the arithmetic-hash option."""
+    return min((best_for(f, app, "poseidon", **kw) for f in KISHU), key=lambda pw: pw[1])
+
+
 def sig(x, n=2):
     """`x` to `n` significant figures, with thousands separators."""
     if x == 0:
@@ -2829,7 +2840,7 @@ def define_figures():
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
     checked_in = pick("pedersen", rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
-    p, w = best_for("bits_q64", "recovery", "poseidon")
+    p, w = kishu_best("recovery")
     fig("tx_recovery_kishu_s", secs(w))
     fig("tx_recovery_kishu_rank", p["rank"])
     fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
@@ -2868,7 +2879,7 @@ def define_figures():
     fig("tx_recovery_pedersen_best_minutes", minutes(w))
     fig("tx_recovery_pedersen_best_rank", p["rank"])
     fig("tx_recovery_pedersen_best_E", p["E"])
-    p, w = best_for("bits_q64", "recovery", "poseidon", zk=True)
+    p, w = kishu_best("recovery", zk=True)
     fig("tx_recovery_kishu_zk_s", secs(w))
     fig("tx_recovery_kishu_zk_rank", p["rank"])
     fig(
@@ -2952,7 +2963,7 @@ def define_figures():
     fig("tx_tachyon2_bitz_s", secs(w))
     fig("tx_tachyon2_bitz_rank", p["rank"])
     bitz_tachyon2_work = w
-    p, w = best_for("bits_q64", "tachyon2", "poseidon")
+    p, w = kishu_best("tachyon2")
     fig("tx_tachyon2_kishu_s", secs(w))
     fig("tx_tachyon2_kishu_rank", p["rank"])
     fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
@@ -2964,7 +2975,7 @@ def define_figures():
     fig("tx_tachyon2_f2_steps", tx_steps(p, "tachyon2", "blake3"))
     p, w = best_for("pasta_q64", "tachyon2", "poseidon", zk=True, hashes="poseidon")
     fig("tx_tachyon2_q64_zk_s", secs(w))
-    p, w = best_for("bits_q64", "tachyon2", "poseidon", zk=True)
+    p, w = kishu_best("tachyon2", zk=True)
     fig("tx_tachyon2_kishu_zk_s", secs(w))
     p, w = best_for("bitz", "tachyon2", zk=True)
     claim(
@@ -2992,7 +3003,7 @@ def define_figures():
         secs(best_for("pasta_q64", "tachyon16", "poseidon", hashes="poseidon")[1]),
     )
     fig("tx_tachyon16_bitz_s", secs(best_for("bitz", "tachyon16")[1]))
-    fig("tx_tachyon16_kishu_s", secs(best_for("bits_q64", "tachyon16", "poseidon")[1]))
+    fig("tx_tachyon16_kishu_s", secs(kishu_best("tachyon16")[1]))
     fig(
         "tx_tachyon16_goldilocks_s",
         secs(best_for("goldilocks", "tachyon16", "poseidon", hashes="poseidon")[1]),
@@ -3038,7 +3049,7 @@ def define_figures():
     )
 
     for name, families, hashes in (
-        ("pasta", ("pasta", "pasta_q64", "pasta_sis", "bits_q64", "bitz", "bitz_rec"), None),
+        ("pasta", ("pasta", "pasta_q64", "pasta_sis", *KISHU, "bitz", "bitz_rec"), None),
         ("pedersen", ("pedersen",), None),
         ("whir_gold", ("whir_gold", "whir_gold_rec"), "poseidon"),
         ("whir_pasta", ("whir", "whir_rec"), "poseidon"),
@@ -3650,7 +3661,7 @@ def define_figures():
     )
     fig("q64_mults_per_pasta_gate", sig(4 * ajtai_per_coefficient("pasta_q64")))
     k_b = pick("bits_q64", rank=17, hashes="blake3", check="sumcheck")
-    k_p = pick("bits_q64", rank=17, hashes="poseidon", check="sumcheck")
+    k_p = pick("bits_q64_poseidon", rank=17, check="sumcheck")
     q_b = pick("pasta_q64", rank=17, hashes="blake3")
     q_p = pick("pasta_q64", rank=17, hashes="poseidon")
     fig("kishu17_blake3_digits", millions(k_b["gates"]))
@@ -3676,10 +3687,10 @@ def define_figures():
     )
     claim(
         "Kishu has rows at rank 13 under BLAKE3, none at rank 13 under Poseidon, and rows at rank 14 under both",
-        shown("bits_q64", rank=13, hashes="blake3")
-        and not shown("bits_q64", "poseidon", rank=13, hashes="poseidon")
-        and shown("bits_q64", rank=14, hashes="blake3")
-        and shown("bits_q64", "poseidon", rank=14, hashes="poseidon"),
+        shown("bits_q64", rank=13)
+        and not shown("bits_q64_poseidon", "poseidon", rank=13)
+        and shown("bits_q64", rank=14)
+        and shown("bits_q64_poseidon", "poseidon", rank=14),
     )
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
@@ -3777,7 +3788,7 @@ def define_figures():
     )
     claim(
         "Kishu's projection form has no zero-knowledge rows",
-        not shown("bits_q64", "poseidon", zk=True, check="projection"),
+        not any(shown(f, "poseidon", zk=True, check="projection") for f in KISHU),
     )
     claim(
         "Pedersen-IPA and the binary-groups row drop out at the 147-bit floor",
