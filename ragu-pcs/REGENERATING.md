@@ -10,20 +10,32 @@ how to redo the first two kinds. Paths are relative to `ragu-pcs/`.
 `python pareto-model.py` writes `pareto.html`. Every figure that the text quotes sits between
 markers in `pareto-template.html` and in the two notes, `pasta-proof-size.md` and
 `zk-fiat-shamir-with-aborts.md`, as `<!--fig:NAME-->value<!--/fig-->`, and the model fills them
-when it writes the page. The run fails when a marker's value in a
-tracked file differs from the model's, or when one of the claims in `define_figures()` no longer
-holds; so does the book build, which runs the model. Commands:
+when it writes the page. A qualitative statement that the model can check is a named
+`claim(name, text, holds)` in `define_figures()`, and the sentence it guards sits between
+`<!--claim:NAME:HASH-->` and `<!--/claim-->`, the hash the first six hex digits of SHA-256 over
+the claim's text; a sentence that carries several claims names them with commas. The run fails,
+and so does the book build, which runs the model, when any of these holds:
+
+- a figure's value in a tracked file differs from the model's;
+- a claim no longer holds;
+- a claim's hash in a marker differs from its text's, which means the claim was reworded and the
+  sentence must be read again;
+- a claim has no marker in any file, or a marker names no claim.
+
+Commands:
 
 ```
-python pareto-model.py            # write pareto.html; fail on a stale figure or a failed claim
-python pareto-model.py --fill     # also write the current values back into the tracked files
-python pareto-model.py --figures  # list every figure
+python pareto-model.py            # write pareto.html; fail on a stale figure or marker, or a failed claim
+python pareto-model.py --fill     # also write the current values and hashes back into the tracked files
+python pareto-model.py --figures  # list every figure and every claim
 ```
 
 A new number in the text gets a `fig()` in `define_figures()` and a marker where it is quoted; a
-qualitative statement that the model can check gets a `claim()`. A constant that a script
-computes goes in the model with a comment naming the script and its inputs, as `RANK_SUMS_147`,
-`WIDTH_SHRINK_147` and `WHIR_147` do.
+qualitative statement that the model can check gets a `claim()` and a marker around its sentence.
+`--fill` prints each changed figure as old → new and each changed claim with its new text, which
+is the list of sentences to read before committing. A constant that a script computes goes in the
+model with a comment naming the script and its inputs, as `RANK_SUMS_147`, `WIDTH_SHRINK_147` and
+`WHIR_147` do.
 
 ## External checkouts
 
