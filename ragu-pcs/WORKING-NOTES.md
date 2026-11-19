@@ -2240,3 +2240,71 @@ ragu/work/bench-fuse-asm.log.
   surcharge is 32 kbytes after Ulrich's witness-size mask (6ef6bea). Otherwise the family's
   minima have moved by at most 4% since 2026-11-11 (list size 2^7 -> 2^8 from his updated
   optimizer; the header).
+
+## 2026-11-19 04:43 UTC: Kishu's merge arithmetic native over the 64-bit field; both hashes as variants, each a family
+
+- BITZ'S ARITHMETIZATION, read from the paper (§1.2, §2.1, §2.4, §5, §7.4) for the user's
+  question whether it can express 64-bit-field constraints or is purely bit-oriented. BitZ is a
+  PCS, bit-oriented only in how it commits (every witness element as its bits, pay per bit) and
+  in how it proves the one final linear claim (bits in the exponent of F_2^128). Constraints
+  live in a separate PIOP over the ring itself (R1CS, CCS, AIR or Zinc+'s UCS), native, one
+  constraint per multiplication, no bits; for a finite field the fingerprinting step is skipped
+  (§5 step 2). Every witness element of that PIOP is committed, so native F_q arithmetic costs
+  64 committed bits per wire and 128 per E wire, with no quotient ("both schemes commit to all
+  the bits of witness elements separately", §7.4). The 510 for a Pasta multiplication comes from
+  writing Pasta arithmetic as an integer relation with a committed quotient so that the PIOP can
+  run over a small random prime (Zinc+'s v - u^2 + n mu in (X - 2)); §5 also allows a PIOP
+  natively over F_p at 255 bits a wire with a 255-bit sum-check field. For Kishu the quotient is
+  forced, since its PIOP field is F_q. The user's R1CS analogy (bits only at the inputs and
+  outputs) holds for constraints and fails for the commitment, which would hold only for a
+  layered, GKR-style PIOP that Kishu does not have.
+- THE MERGE RE-PRICED (f4abfe8; artifact v135): `frontend_merge_digits` charges the sum-check,
+  claim and Booleanity-verifier multiplications at E_MULT_DIGITS = 128 (was BITS_PER_VALUE =
+  255), and the Poseidon option as Poseidon over F_q at width 12, rate 8, with the x^3 S-box (3
+  does not divide q - 1): R_F 8, R_P 42 at 128 bits with the margin from the user's fork of
+  calc_round_numbers.py, which reproduces the Goldilocks 8/22 and the 65-bit prime's 8/43 rows
+  exactly; 138 S-boxes, 276 multiplications a permutation at 64 digits each (was Pasta's
+  Poseidon, 72 x 255 per atom). At rank 17: BLAKE3 1.6M digits in 13 circuits, prover 5.7e7 (was
+  2.1M, 17, 7.5e7); Poseidon 1.9M digits, 6.6e7 (was 4.4M, 1.5e8); Kishu's merge prover against
+  the 64-bit variant's 200x under BLAKE3 (was 150x) and 4.0x under Poseidon (was about 2x);
+  against BitZ 3.3 to 3.8x (was 1.4 to 2.9x); recovery with zk 3.07 s (was 3.40), two
+  tachyactions 0.291 s (was 0.326), with zk 1.56 s (was 1.76); the recovery figure 0.736 s at
+  rank 21 unchanged. Rows now exist at rank 13 under BLAKE3 (the per-circuit claim 8,000 digits
+  of 8,192; 10,365 circuits) and at rank 14 under Poseidon (9,300). Claims restated: the ranks;
+  "Poseidon merge prover about half the 64-bit variant's" became a figure (4.0) with a claim
+  that it is smaller. The recovery paragraph's hand-written "4.7 million digits", missed by
+  f419f57, is now the generated 8.4 million. The comment introducing the family no longer says
+  the claims go through the decoupled commitment.
+- BLAKE3 AGAINST POSEIDON FOR KISHU'S MERGE (the user's point): the digit measure charges no
+  constraints, and the merge circuit's own PIOP is not charged (as for BitZ), while a BLAKE3
+  compression is 7,904 constraints (one relation per 32-bit addition, one per XOR bit;
+  BLAKE3_CONSTRAINTS) against a Poseidon permutation's 276, so constraints favour Poseidon. On
+  digits Poseidon is 17% more per absorbed byte; the break-even is a constraint at about a third
+  of a committed digit (a digit about 56 word multiplications: Ajtai 24, Booleanity 10, the
+  fold's sum-checks 22; a degree-2 sum-check row 18 to 24), right where a plausible estimate
+  sits. The user: too close to call, many modelling choices could sway it either way, so both
+  hashes are kept as variants of Kishu, and the arithmetic-hash option must show both; the
+  dominance checking and the frontier collapse then do the right thing. The former sentence
+  "with a conventional hash the merge is cheaper here" is gone from the page and the comment.
+- EACH VARIANT A FAMILY (8e85e06; artifact v136): the Poseidon rows are the family
+  `bits_q64_poseidon` ("Kishu ..., Poseidon (draft)", gold: #c9a000 light, #ffd740 dark), the
+  BLAKE3 rows stay `bits_q64` ("..., BLAKE3 (draft)"), so each has its own colour, checkbox and
+  per-family frontier; the page's filter shows the BLAKE3 family under either option and adds
+  the Poseidon one under the arithmetic-hash option, the prune key already included the policy,
+  and `kishu_best` takes the better of the two for the figures that quote Kishu's best row.
+  The family list is in three sections separated by rules (`GROUPS` in the template):
+  Pedersen-IPA; the lattice-based schemes (the five Akita variants, the two Kishu variants, the
+  binary groups); the hash-based ones. Checked in a headless-Chrome render
+  (work/shot-families.png).
+- FOUND, NOT CHANGED: Kishu's transcript and instance bytes use pasta_q64's 32-byte claim width
+  (`akita_absorbed_bytes("pasta_q64")`, `CLAIM_BYTES["pasta_q64"]`), whereas Kishu's sum-check
+  messages and evaluation claims are E values of 16 bytes (plus 32 bytes of limb values per
+  circuit's Pasta claim), so its absorbed bytes and claim bytes are overstated by up to 2x. Also:
+  a 64-bit decomposition of an F_q element is not canonical for values in [q, 2^64), harmless
+  inside field arithmetic, needing a cheap range check where a wire's bits are hashed. For the
+  user's decision.
+- STATE: main at 8e85e06 plus this entry, unpushed from 1e4cf45 on (the user pushes); the
+  branch booleanity-exposition at 87aecbc, unpushed. Artifact v136. PENDING as before: the
+  user's review of the soundness statements, then Theorem B; the zk-fold levers; re-render
+  keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; ask Quang about
+  the QROM proof and CertifiedJL's roadmap; the other Python files through ruff, if wanted.
