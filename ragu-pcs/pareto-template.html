@@ -45,6 +45,10 @@ a { color: var(--accent-ink); }
 .group.wide { grid-column: 1 / -1; }
 /* Two cells side by side, whatever precedes them: the two measures; a group beside a stack of short groups. */
 .group.measures, .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+/* The two measure groups with the swap button between them. */
+.group.measures { grid-template-columns: 1fr auto 1fr; gap: 12px 10px; }
+.measures .swap { display: flex; align-items: center; }
+.measures .swap button { padding: 2px 7px; font-size: 16px; line-height: 1; }
 .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 /* The rank boxes in a regular grid across the panel's width. */
 .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
@@ -114,6 +118,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="second" value="transaction" id="secondtx"> transaction prover</label>
       <label><input type="radio" name="second" value="memory" id="secondmem"> accumulator memory</label>
     </div>
+    <div class="swap"><button type="button" id="swapmeasures" title="swap the second and third measures" aria-label="swap the second and third measures">&#x21C4;</button></div>
     <div class="group"><span class="eyebrow">Third measure (marker size in 2D, the vertical axis in 3D)</span>
       <label><input type="radio" name="third" value="accumulation_prover" id="thirdacc"> accumulation prover</label>
       <label><input type="radio" name="third" value="prover" id="thirdprover"> prover work (commitments only)</label>
@@ -142,8 +147,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
     </div>
     <div class="group wide two">
     <div class="group"><span class="eyebrow">View</span>
-      <label><input type="radio" name="view" value="2d" checked id="view2d"> 2D: bytes against the second measure, the third as marker size (log scale over the plotted points, 5 to 22 px)</label>
-      <label><input type="radio" name="view" value="3d" id="view3d"> 3D: bytes, second measure, third measure</label>
+      <label><input type="radio" name="view" value="2d" id="view2d"> 2D: bytes against the second measure, the third as marker size (log scale over the plotted points, 5 to 22 px)</label>
+      <label><input type="radio" name="view" value="3d" checked id="view3d"> 3D: bytes, second measure, third measure</label>
       <hr class="sep">
       <label><input type="radio" name="scale" value="log" checked id="scalelog"> logarithmic axes</label>
       <label><input type="radio" name="scale" value="linear" id="scalelinear"> linear axes</label>
@@ -530,6 +535,18 @@ function frontierAmong(pts, second, third) {
   return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q[second] <= p[second] && q[third] <= p[third] && q.pasta >= p.pasta && (q.bytes !== p.bytes || q[second] !== p[second] || q[third] !== p[third])));
 }
 const second = () => document.querySelector('input[name=second]:checked').value;
+// The swap button exchanges the second and third measures; render() then greys out the
+// mirrored choice on each side again.
+document.getElementById('swapmeasures').addEventListener('click', () => {
+  const s = second(), t = third();
+  for (const box of document.querySelectorAll('input[name=second]')) { box.disabled = false; box.checked = box.value === t; }
+  for (const box of document.querySelectorAll('input[name=third]')) { box.disabled = false; box.checked = box.value === s; }
+  render();
+});
+// The 3D view opens from the low corner, bytes receding to the right and the second measure
+// to the left, so that the best configurations are nearest the viewer; a constant uirevision
+// keeps whatever the viewer turns it to.
+const DEFAULT_CAMERA = { eye: { x: -1.25, y: -1.25, z: 1.0 }, up: { x: 0, y: 0, z: 1 } };
 const third = () => document.querySelector('input[name=third]:checked').value;
 // The measures in work units, which the unit option converts.
 const WORK_MEASURES = ['prover', 'accumulation_prover', 'verify', 'transaction'];
@@ -785,7 +802,7 @@ function render() {
     layout.xaxis = { ...axis('compressed proof bytes'), type: scale, range: rx, autorange: false };
     layout.yaxis = { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry, autorange: false };
   } else {
-    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry }, zaxis: { ...axis(measureTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface, ...(camera ? { camera } : {}) };
+    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry }, zaxis: { ...axis(measureTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface, camera: camera || DEFAULT_CAMERA };
     layout.margin = { l: 0, r: 0, t: 0, b: 0 };
   }
   keepCameraOnce = false;
