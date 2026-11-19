@@ -2464,9 +2464,10 @@ for (
                 )
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
-                merge_prover = circuits * 2**rank * (per_digit + bool_per_bit) + merge_piop
-                # The step pays its digits and its overheads in the merge above (the
-                # application's constraint PIOP itself is per application, DATA.piop).
+                # The merge's commitments are the prover measure; its constraint PIOP joins the
+                # accumulation prover. The step pays its digits and its overheads in the merge
+                # above (the application's constraint PIOP itself is per application, DATA.piop).
+                commitments = circuits * 2**rank * (per_digit + bool_per_bit)
                 for route in MULT_ROUTES:
                     step_digits = 2**rank + kishu_step_overhead_digits(rank, route, hp)
                     points.append(
@@ -2487,9 +2488,10 @@ for (
                             route=route,
                             arith=f"bits_pasta_{route}",
                             bytes=round(opening + instance + bool_bytes),
-                            prover=round(merge_prover),
+                            prover=round(commitments),
                             accumulation_prover=round(
-                                merge_prover
+                                commitments
+                                + merge_piop
                                 + accumulation_sumchecks(
                                     "pasta_q64",
                                     K,
