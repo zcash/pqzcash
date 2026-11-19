@@ -6,7 +6,7 @@ arithmetization over Akita, and Flock-style Boolean circuits over Akita's binary
 each priced with a conventional hash (BLAKE3) in its circuits and, as an option, with
 Poseidon 1.1 (HASH_POLICIES).
 
-Every point is one configuration. Its coordinates are compressed proof bytes, prover work,
+Every point is one configuration. Its coordinates are compressed proof bytes, prover commitment work,
 and a third measure: the merge circuit's gates or the atoms it absorbs, the decider's
 verification work, or the prover's work for a whole transaction; the `proxies` of the page's
 data define them. The numbers come from:
@@ -83,7 +83,7 @@ SLOPE = {
 }
 DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "pasta": 85}
 
-# Prover work in native 64-bit word multiplications, for the commitments of one step.
+# Prover commitment work in native 64-bit word multiplications, for the commitments of one step.
 #
 # Pedersen over Pasta: a size-n multi-scalar multiplication with 255-bit scalars by Pippenger
 # costs about 255/log2(n) mixed point additions per point, so the cost per coefficient falls
@@ -3441,7 +3441,7 @@ def define_figures():
     )
     claim(
         "rank14_packed_beats_13",
-        "rank 14 with the fixed circuits packed beats rank 13 on bytes, prover work and atoms",
+        "rank 14 with the fixed circuits packed beats rank 13 on bytes, prover commitment work and atoms",
         any(
             p["bytes"] < ch["bytes"]
             and p["prover"] < ch["prover"]
@@ -3451,7 +3451,7 @@ def define_figures():
     )
     claim(
         "ranks_15_16_trade_prover",
-        "ranks 15 and 16 buy bytes and atoms with prover work",
+        "ranks 15 and 16 buy bytes and atoms with prover commitment work",
         all(
             least[r]["bytes"] < least[14]["bytes"]
             and least[r]["accumulation"] < least[14]["accumulation"]
