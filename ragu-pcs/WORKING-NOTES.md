@@ -2312,3 +2312,84 @@ ragu/work/bench-fuse-asm.log.
 - 05:27 UTC, addendum: CLAIMS TIED TO THEIR SENTENCES (7fc1cf4; the user: "tie claims to a short name in the same way we do for figures"). `claim(name, text, holds)`; the guarded sentence sits between `<!--claim:NAME:HASH-->` and `<!--/claim-->` in the page or a note, HASH the first six hex digits of SHA-256 over the claim's text (several claims on one sentence: names comma-separated, the hash over their texts joined); the run fails on a stale hash, a failed claim, a claim with no marker in any file, a marker naming no claim, or unbalanced markers; `--fill` writes the hashes and prints each reworded claim's text; `--figures` lists the claims too. Sixty-three claims (one was a single-line call the first pass missed), fifty-eight sentences: 41 in the template, 7 in pasta-proof-size.md, 2 in the zk note. The mapping from claim to sentence was made by a scratch keyword-and-neighbouring-figure matcher over the prose, then reviewed by hand; the scratch scripts are not kept. REGENERATING.md describes the markers. FOUND BY THE MAPPING: pasta-proof-size.md's BitZ sentence still said "nothing with Pasta claims has both a smaller proof and a cheaper prover", which Kishu falsified on 2026-11-15 when the page's copy was restricted to the hash-based families; it now matches the page. Then (d2ef4f5; artifact v139): the family list under the headings Pre-quantum, Lattice-based and Hash-based in place of the group's eyebrow and the two rules, and the labels shorn of "(not post-quantum)", ", hash-based" and ", lattice" (the user). Checked in a render.
 - 05:30 UTC, addendum: KISHU ON THE GOLDILOCKS PLAN (9f77d80; artifact v140): its opening bytes and decider follow the Goldilocks variant (`akita_bytes("goldilocks")`, `akita_verify("goldilocks")`, log_len in that variant's 22-digit coefficients, its rank scale and image share), since Kishu's claims are at the 64-bit profile in a small extension as that variant's are; the Pasta-claims plan had Pasta-width elements and the decider the Pasta factor of four. Rank 17: proof 69 kbytes (was 80), decider 2.26 ms (was 6.55), 7.1 times smaller than BitZ's proof (was 6.1), the Pasta-group decider range from 2.22 ms; under Poseidon Kishu's proof is 10 kbytes smaller than the 64-bit variant's (new claim kishu_poseidon_proof_smaller on that sentence's marker). The two items found and not changed earlier today are thereby closed. STATE: main at this entry, unpushed from 1e4cf45 on; artifact v140. PENDING: constraint costs for the bit arithmetizations (not charged anywhere); the 2026-11-14 open modelling questions; the Pasta-claims recovery row's BLAKE3 figure; the zk-fold levers; the user's review of the soundness statements.
 - 05:38 UTC, addendum: the frontier table sorted every column as text since the units moved into the cells (816a30a): the sort now takes the leading number and ignores the unit (bf12dd4; artifact v141; the user's report).
+
+## 2026-11-19 13:06 UTC: constraint costs charged; Kishu's multiplication by two routes; the Pasta arithmetic column; the 3D default view
+
+- THE PASTA COLUMN (ad3a842; the user: "native" conflated support for Pasta claims with the
+  efficiency of Pasta arithmetic, and "claims are over Pasta" overstated it too). Setting
+  efficiency aside, every scheme can prove statements about Pasta values, so the dominance
+  requirement is a threshold on cost. The table's column is now "Pasta arithmetic", per row:
+  native (a gate over Pasta's field), relation (integer relations over committed bits with the
+  result, quotient and carries committed and no committed intermediate wires), limbs (limb
+  products as committed wires in another field), bits (a Boolean circuit); PASTA_ARITH in the
+  model sets it per family, the Kishu and BitZ rows add their route; the dominance rule counts
+  native and relation (PASTA_COUNTS); the page's "Pasta as a requirement" section says so, and
+  that how efficiently each realisation performs is what the transaction measure's application
+  costs show. The claim pasta_native_list was restated, and its marker's hash went stale and
+  was refilled, as designed.
+- KISHU'S PASTA MULTIPLICATION IS NOT ONE RELATION (found while counting constraints): BitZ
+  checks a b = k p + r over the integers by projecting it to a random prime, which needs
+  evaluation claims modulo that prime; Akita gives claims in one fixed field, and modulo a
+  fixed q the relation is unsound (the prover chooses r). Two sound routes, BOTH modelled as
+  rows of each Kishu family (the user: "both ... the point of the comparison matrix is to
+  compare"), a `route` attribute in the label, the prune and dedup keys and the Pasta column:
+  limbs, the relation checked coefficient by coefficient over 29-bit limbs that are linear in
+  the bits (virtual), 17 coefficient constraints of up to 9 product terms each bounded below
+  q/2, a committed carry of 34 bits per coefficient, so 1,088 digits and 98 product terms a
+  multiplication; fingerprint, BitZ's check in three PIOP instances over random 52-bit primes
+  (a nonzero 510-bit integer vanishes modulo one with probability about 2^-43; three
+  independent instances for 128 bits), 510 digits a multiplication, and per step about
+  sqrt(2^rank) integer column sums per instance from BitZ's tensor split, each exact as one
+  claim in F_q (below q/2), committed as 61-bit digits (265,000 digits a step at rank 21) with
+  three more transcripts for the merge above. The fingerprint route is about half the limb
+  route's prover on arithmetic-heavy circuits and heavier in design and verifier; the user had
+  guessed the opposite. BitZ keeps its single relation (its commitment proves integer claims
+  exactly). The soundness note does not yet state either route's lemmas: the limb route's
+  coefficient identities (Lemma L at each coefficient, the carry ranges) and the fingerprint
+  route's exactness of the column sums; to add when the user reviews it.
+- CONSTRAINT COSTS CHARGED (0dd5f71; the user: "let's charge the constraint costs"). For Kishu:
+  a product term of a constraint costs CONSTRAINT_TERM_WORD_MULTS = 9.8 word multiplications
+  (the measured Booleanity sum-check's per-entry rate, a degree-2 relation under eq weights;
+  asserted equal to BOOL_CHECK), a nonzero of a linear form 2 (small or power-of-two constant)
+  or 4 (field constant) as one extension-element multiplication in the matrix-evaluation
+  phase, linear forms over word entries (the table laid out by bit position, a word's
+  evaluation a batch of column claims). Per component (terms, nonzeros): an XOR bit (1, 4), a
+  32-bit addition (1, 4) with 33 bits, a 64-bit addition two halves (2, 8) with 66 bits since
+  a 64-bit sum can wrap modulo q (BLAKE2B_BITS_KISHU 50,944), BLAKE3 (7,904, 31,616), BLAKE2b
+  (26,368, 105,472), a Sinsemilla chunk its 1,013 products plus two selected coordinates
+  materialized as 510 committed bits with one 1,279-nonzero linear constraint each (otherwise
+  a 1,024-bit linear form enters every limb product), the reductions (4,000, 12,000), Poseidon
+  over F_q (276, 13,800 field nonzeros: about fifty state words per form after the partial
+  rounds' layers), range checks (63, 189), an E multiplication (3, 12), a bit gate (1, 3).
+  The application's PIOP work per application and route is PIOP_WORK, exported as DATA.piop
+  and added by the page's txWork and the model's tx_work (recovery: 0.0120 s by limbs,
+  0.00409 s by fingerprint on one core); ZINC_PIOP_PER_DIGIT is gone. The merge: its own
+  constraints' PIOP (now in the accumulation prover, 88aa22a, after the user's question what
+  "prover work" means: the merge's commitments alone), its own sum-check transcript absorbed
+  by the merge above (four E elements a round, log2(digits) + 1 rounds) and the child's
+  transcript verified (four multiplications a round); an application step pays its
+  transcripts' absorption and verification in the merge above and, by the fingerprint route,
+  its column sums (kishu_step_overhead_digits). The circuits-per-merge fixed point measures
+  the marginal circuit at six against five, since at two against one the merge's own
+  transcript gains a round. With commitments and constraints charged, per 64 bytes absorbed,
+  BLAKE3 costs 670,000 word multiplications and Poseidon over F_q 650,000, within 3% (claim
+  hash_within_quarter); both stay as variants. The page documents the BLAKE3 accounting (the
+  user asked). Results at rank 17 under BLAKE3: merge 1.9M digits in 15 circuits (was 1.6M,
+  13), prover 6.6e7, proof 69 kbytes, decider 2.33 ms; the recovery circuit 17 million digits
+  by limbs and 8.5 million by fingerprint; best rows: recovery 0.781 s at rank 21 by
+  fingerprint (was 0.736 by the single relation), with zero knowledge 3.90 s, two tachyactions
+  0.385 s at rank 20 with Poseidon by fingerprint, sixteen 1.56 s; Kishu's merge prover 170x
+  the 64-bit variant's under BLAKE3 and 3.5x under Poseidon; 2.9 to 3.3x BitZ's.
+- THE PAGE (5730da6, 0f55a46): the 3D view is the default, camera eye (-1.25, -1.25, 1.0) at
+  the corner where bytes and both measures are smallest, bytes receding to the right and the
+  second measure to the left, perspective (the user: orthographic looked wrong as the default),
+  with an "orthographic projection in 3D" checkbox in the View group; a swap button between
+  the measure groups exchanges the second and third measures. The default axes stay
+  accumulation prover and transaction prover with the recovery circuit, log, milliseconds.
+- STATE: main at the commits above plus this entry, unpushed from ad3a842 on (the user pushes).
+  Artifact v145. PENDING: the soundness note's lemmas for the two routes and the user's review
+  of it; the 2026-11-14 open modelling questions (the Pasta-claims rows' claim-field sum-check,
+  witness generation, the aggregator's opening, phone parallelism); the Pasta-claims recovery
+  row's BLAKE3 figure; the zk-fold levers; constraint costs for the other families' merges
+  (Ragu's PIOP is evaluation-based and in the claims already, but the hash-based rows' PIOP
+  verifiers in their merges are not counted, as the BitZ paragraph says).
