@@ -2394,3 +2394,4 @@ ragu/work/bench-fuse-asm.log.
   (Ragu's PIOP is evaluation-based and in the claims already, but the hash-based rows' PIOP
   verifiers in their merges are not counted, as the BitZ paragraph says).
 - 13:10 UTC, addendum: toggling the orthographic projection carries the live camera, so only the projection changes (0d5b4a4); the measure eyebrows shortened to "2D vertical axis" and "2D marker size, 3D vertical axis" with two lines reserved, since the swap column had made them wrap unequally (the user's report). Artifact v146.
+- 13:20 UTC, addendum: the commitments-only measure is "prover commitment work" everywhere it is named (4bceec6; the user), the two rank claims restated with it and their marker refilled; artifact v147; unpushed from 4bceec6.
