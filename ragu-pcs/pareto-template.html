@@ -103,7 +103,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <div class="top">
   <div id="plot"></div>
   <div class="controls">
-    <div class="group wide"><span class="eyebrow">Families</span><div id="families"></div></div>
+    <div class="group wide"><div id="families"></div></div>
     <div class="group wide measures">
     <div class="group"><span class="eyebrow">Second measure (the 2D view's vertical axis)</span>
       <label><input type="radio" name="second" value="accumulation_prover" checked id="secondacc"> accumulation prover</label>
@@ -467,20 +467,24 @@ const COLORS = { pedersen: 'var(--c-pedersen)', fp128: 'var(--c-fp128)', goldilo
 const css = getComputedStyle(document.documentElement);
 const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
 const OFF_BY_DEFAULT = ['whir', 'whir_gold', 'whir_hybrid', 'plonky3', 'whir_rec', 'whir_gold_rec', 'whir_hybrid_rec', 'plonky3_rec'];
-// The family list's sections, separated by rules: Pedersen-IPA; the lattice-based schemes;
-// the hash-based ones.
+// The family list's sections, each under its heading: the pre-quantum scheme; the lattice-based
+// schemes; the hash-based ones.
 const GROUPS = [
-  ['pedersen'],
-  ['fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'bits_q64', 'bits_q64_poseidon', 'bits_akita'],
-  ['bitz', 'bitz_rec', 'flock', 'flock_rec', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec'],
+  ['Pre-quantum', ['pedersen']],
+  ['Lattice-based', ['fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'bits_q64', 'bits_q64_poseidon', 'bits_akita']],
+  ['Hash-based', ['bitz', 'bitz_rec', 'flock', 'flock_rec', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec']],
 ];
-const order = GROUPS.flat();
+const order = GROUPS.flatMap(([, fams]) => fams);
 const famBox = document.getElementById('families');
 // Each family's swatch uses the marker shapes its points have in the plot: a
 // circle for configurations needing parameter changes only, a square for the
 // rest, both where a family has both.
-GROUPS.forEach((group, i) => {
-  if (i) { const hr = document.createElement('hr'); hr.className = 'sep'; famBox.appendChild(hr); }
+GROUPS.forEach(([heading, group], i) => {
+  const h = document.createElement('div');
+  h.className = 'eyebrow';
+  h.textContent = heading;
+  if (i) h.style.marginTop = '6px';
+  famBox.appendChild(h);
   for (const f of group) {
     const l = document.createElement('label');
     const shapes = [...new Set(DATA.points.filter(p => p.family === f).map(p => p.change === 'none' ? 'circle' : 'square'))].sort();
