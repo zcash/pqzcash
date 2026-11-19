@@ -466,16 +466,16 @@ def mult_ands(n):
 #     multiplication is the 255-bit product by mult_ands and a Montgomery reduction by a
 #     prime of no special form, whose two multiplications by constants are about three
 #     quarters of a product each: about 120,000 ANDs. In BitZ's integer arithmetization it
-#     is 510 committed bits, the value and the quotient of a b = q p + r, checked as one
-#     integer relation; in Kishu, whose claims are native over Pasta, 255
-#     digits, the value alone.
+#     is 510 committed bits: the value and the quotient of a b = q p + r, checked as one
+#     integer relation. Kishu's claims are in the 64-bit field, so its Pasta arithmetic is
+#     the same integer relation, and a multiplication is 510 digits there too.
 #   - The Merkle path is 33 BLAKE3 compressions in the bit arithmetizations under either
 #     policy, since Poseidon over Pallas's field would cost them 240 multiplications a node.
 # So the recovery circuit is about 16.5 million Goldilocks gates, 10.7 million at a 128-bit
 # field, 1.73 billion AND gates (the multiplications are all of it), 8.4 million committed
-# bits in BitZ's arithmetization and 4.7 million digits in Kishu's, against the
-# reference with a Poseidon path; per Pasta gate 29, 19, 3,100, 15 and 8, or 16, 11, 1,700, 8
-# and 4.5 with a BLAKE3 path, which raises the reference to 1.05 million gates. The hashes
+# bits in BitZ's arithmetization and as many digits in Kishu's, against the
+# reference with a Poseidon path; per Pasta gate 29, 19, 3,100 and 15, or 16, 11, 1,700 and 8
+# with a BLAKE3 path, which raises the reference to 1.05 million gates. The hashes
 # are what makes the bit arithmetizations cheap: a field multiplication alone would put a
 # Pasta gate at 510 bits. The page's transaction measure takes an application, the recovery
 # circuit or a number of Merkle path checks (APPLICATIONS, in each arithmetization's unit
@@ -505,7 +505,7 @@ RECOVERY_MULT = {
     "goldilocks": 1_100,
     "fp128": 700,
     "bitz": BITZ_GATE_BITS,
-    "bits_pasta": BITS_PER_VALUE,
+    "bits_pasta": BITZ_GATE_BITS,  # the value and the quotient, as in BitZ
 }
 RECOVERY_PATH_POSEIDON = {"pasta": 9_500, "goldilocks": 15_600, "fp128": 15_600}
 RECOVERY_PATH_BLAKE3 = {
