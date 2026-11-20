@@ -4668,6 +4668,7 @@ BOOK_DROPPED_DECLARATIONS = (
 BOOK_EXTRA_CSS = """\
 #pareto.wrap { padding: 0; }
 #pareto a.header { color: inherit; }
+#pareto th { color: var(--fg); }
 #pareto table tbody tr { background: var(--table-alternate-bg); }
 #pareto table tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%); }
 #pareto table th, #pareto table td { border: 0; border-bottom: 1px solid var(--rule); }
