@@ -699,28 +699,36 @@ def path_cost(field, hp):
 # through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
 # stage of 5 values. They are Pasta gates with Poseidon, a gate being one multiplication with
 # free linear constraints, and all are within the 2,048 of rank 13. In the other
-# arithmetizations the Poseidon permutations, two gates per S-box of degree 5 and 192 per
-# permutation, are hashed under the page's policy. The fixed-base scalar multiplications'
-# window selections, two gates per three-bit window in Ragu, cost the bits' four monomials in
-# any unit, since the limbs' selections are then linear. The remaining gates are taken as
-# Pallas base-field multiplications, which overstates them where a gate only checks a bit.
-# The windows are 85 for a 255-bit scalar
-# and 17 for a 51-bit amount (keep/tachyon-statements.md, the cost table). The
-# rerandomization's circuit is the adapter's own handful of gates. Per-note steps (NoteSeed,
-# NullifierDerive, the spendable and anchor-span steps) run in the background and are not
-# counted, as in the benchmarks.
-TACHYON_STEPS = {  # Pasta gates at header 9 and stage 5; Poseidon permutations; fixed-base windows
-    "SpendBind": (1630, 2, 102),
-    "SpendAction": (1649, 3, 85),
-    "OutputBind": (1467, 2, 102),
-    "OutputAction": (1351, 2, 85),
-    "ActionMerge": (17, 0, 0),
-    "FeeFuse": (1934, 4, 187),
-    "Rerandomize": (20, 0, 0),
+# arithmetizations the transaction is a post-quantum variant of Tachyon in a new shielded pool,
+# so the Poseidon permutations, two gates per S-box of degree 5 and 192 per permutation, are
+# hashed under the page's policy. The fixed-base scalar multiplications' window selections, two
+# gates per three-bit window in Ragu, cost the bits' four monomials in any unit, since the
+# limbs' selections are then linear; each window's point addition, two gates, and each opening
+# of a staged value at zeta, two gates by the action merge's 17 for six, are Pallas base-field
+# multiplications. The remaining gates are the scalars' bit checks, the canonicity and range
+# comparisons and the step's glue (the statements note), priced as bit operations, one gate,
+# AND gate or committed bit each, which understates any among them that multiply field
+# elements; `bits_as_mults` prices them as multiplications instead, for the prose's bound. The
+# windows are 85 for a 255-bit scalar and 17 for a 51-bit amount (keep/tachyon-statements.md,
+# the cost table). The rerandomization's circuit is the adapter's own handful of gates.
+# Per-note steps (NoteSeed, NullifierDerive, the spendable and anchor-span steps) run in the
+# background and are not counted, as in the benchmarks.
+TACHYON_STEPS = {  # Pasta gates at header 9 and stage 5; Poseidon permutations; windows; openings
+    "SpendBind": (1630, 2, 102, 0),
+    "SpendAction": (1649, 3, 85, 2),
+    "OutputBind": (1467, 2, 102, 0),
+    "OutputAction": (1351, 2, 85, 2),
+    "ActionMerge": (17, 0, 0, 6),
+    "FeeFuse": (1934, 4, 187, 4),
+    "Rerandomize": (20, 0, 0, 0),
 }
 POSEIDON_RAGU_GATES = 192
 WINDOW_SELECTION_GATES = 2  # Ragu's gates selecting a window's point among eight
 WINDOW_SELECTION_OFF_PASTA = 4  # the three bits' four monomials, in any other unit
+WINDOW_ADDITION_GATES = 2  # Ragu's gates adding a window's point, field multiplications
+OPENING_GATES = 2  # Ragu's gates evaluating a staged value at zeta, field multiplications
+BIT_GATE_OFF_PASTA = 1  # a bit check or a comparison's bit: one gate, AND gate or committed bit
+BIT_CHECK_PIOP = (1, 2, 0)  # b² = b in Kishu's PIOP: one product term, two small nonzeros
 TACHYON_TRANSACTIONS = {
     2: (1, 1),
     4: (2, 2),
@@ -738,11 +746,13 @@ def tachyon_nodes(spends, outputs):
     )
 
 
-def tachyon_node_cost(field, hp, node):
+def tachyon_node_cost(field, hp, node, bits_as_mults=False):
     """One proof-tree node's circuit in the unit of `field`'s arithmetization: its Poseidon
     permutations under policy `hp` where the field has a Poseidon, by BLAKE3 otherwise, its
-    window selections as bit monomials, and its other gates as Pallas multiplications."""
-    gates, perms, windows = TACHYON_STEPS[node]
+    window selections as bit monomials, its window additions and openings as Pallas
+    multiplications, and its other gates as bit operations, or as multiplications too under
+    `bits_as_mults`."""
+    gates, perms, windows, openings = TACHYON_STEPS[node]
     unit = bits_unit(field)
     if field == "pasta":
         mult = 1
@@ -757,8 +767,11 @@ def tachyon_node_cost(field, hp, node):
     else:
         permutation = RECOVERY_PATH_BLAKE3[unit] / 33
     selection = WINDOW_SELECTION_GATES if field == "pasta" else WINDOW_SELECTION_OFF_PASTA
-    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES
-    return perms * permutation + windows * selection + other * mult
+    mults = windows * WINDOW_ADDITION_GATES + openings * OPENING_GATES
+    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES - mults
+    assert other >= 0, node
+    bit = mult if bits_as_mults else BIT_GATE_OFF_PASTA
+    return perms * permutation + windows * selection + mults * mult + other * bit
 
 
 def recovery_piop(route):
@@ -777,9 +790,15 @@ def path_piop():
 
 
 def tachyon_node_piop(route, node):
-    gates, perms, windows = TACHYON_STEPS[node]
-    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES
-    return piop_sum((perms, BLAKE3_PIOP), (windows, (4, 12, 0)), (other, MULT_ROUTES[route][1]))
+    gates, perms, windows, openings = TACHYON_STEPS[node]
+    mults = windows * WINDOW_ADDITION_GATES + openings * OPENING_GATES
+    other = gates - perms * POSEIDON_RAGU_GATES - windows * WINDOW_SELECTION_GATES - mults
+    return piop_sum(
+        (perms, BLAKE3_PIOP),
+        (windows, (4, 12, 0)),
+        (mults, MULT_ROUTES[route][1]),
+        (other, BIT_CHECK_PIOP),
+    )
 
 
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
@@ -3461,16 +3480,24 @@ def define_figures():
 
     # Tachyon transactions (the Tachyon transactions paragraph). Over Pasta the nodes are the
     # measured circuits; over Goldilocks and in a Boolean circuit a node is many steps.
-    for node, (gates, perms, windows) in TACHYON_STEPS.items():
+    for node, (gates, *_) in TACHYON_STEPS.items():
         if node != "Rerandomize":
             fig(f"tachyon_{node}_gates", fmt(gates))
     fig("tachyon_rank13_gates", fmt(gate_budget(13)))
     claim(
         "tachyon_nodes_fit_rank13",
         "every Tachyon node fits rank 13's circuit",
-        all(g <= gate_budget(13) for g, _, _ in TACHYON_STEPS.values()),
+        all(g <= gate_budget(13) for g, *_ in TACHYON_STEPS.values()),
     )
     action_nodes = ("SpendBind", "SpendAction", "OutputBind", "OutputAction", "FeeFuse")
+    gold_upper = [
+        math.ceil(
+            tachyon_node_cost("goldilocks", "poseidon", n, bits_as_mults=True) / gate_budget(17)
+        )
+        for n in action_nodes
+    ]
+    fig("tachyon_node_gold17_upper_min", min(gold_upper))
+    fig("tachyon_node_gold17_upper_max", max(gold_upper))
     gold_steps = [
         math.ceil(tachyon_node_cost("goldilocks", "poseidon", n) / gate_budget(17))
         for n in action_nodes
@@ -3482,6 +3509,11 @@ def define_figures():
     fig("tachyon_node_gold17_max", max(gold_steps))
     fig("tachyon_node_bool_min", min(bool_steps))
     fig("tachyon_node_bool_max", max(bool_steps))
+    claim(
+        "tachyon_bits_as_mults_more_steps",
+        "pricing a Tachyon node's remaining gates as multiplications gives more Goldilocks steps than pricing them as bits, for every action node",
+        all(u > s for u, s in zip(gold_upper, gold_steps)),
+    )
     fig("tachyon2_nodes", len(tachyon_nodes(*TACHYON_TRANSACTIONS[2])))
     fig("tachyon2_pedersen13_steps", tx_steps(checked_in, "tachyon2", "poseidon"))
     claim(
