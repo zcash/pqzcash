@@ -240,7 +240,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The Pasta arithmetic that the Ironwood recovery circuit needs enters the dominance test as a requirement rather than a cost. <a href="#frontier-table">The table's Pasta arithmetic column</a> says how each scheme realises it:</p>
   <!--claim:pasta_native_list:c0267b--><ul>
     <li><b>native</b>: a gate over Pasta's field (Pedersen-IPA, the Pasta variants of Akita, WHIR over Pasta and the limb hybrid, whose witness and merge circuit are over Pasta);</li>
-    <li><b>relation</b>: integer relations over committed bits with the result, the quotient and any carries committed and no committed intermediate wires (BitZ and Kishu);</li>
+    <li><b>relation, limbs</b>: the multiplication as an integer relation over committed bits, with the result and the quotient committed and no committed intermediate wires, checked coefficient by coefficient over 29‑bit limbs with their carries committed (Kishu's limb route);</li>
+    <li><b>relation, fingerprint</b>: the same relation checked in a few PIOP instances over random primes, as BitZ does it, without the limbs and carries (BitZ, and Kishu's fingerprint route);</li>
     <li><b>limbs</b>: limb products as committed wires in another field (the 128‑bit and Goldilocks rows and Plonky3); or</li>
     <li><b>bits</b>: a Boolean circuit (the $\mathbb{F}_2$ family and the binary groups).</li>
   </ul>
