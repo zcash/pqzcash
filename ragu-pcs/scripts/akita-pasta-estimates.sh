@@ -55,7 +55,7 @@ est=target/release/examples
 
 # 2. Fast checks: Euclidean rank ladder at every modulus, and the re-pricing
 #    of every shipped schedule at Pallas and Goldilocks widths.
-run_step pasta-rank      "$est/pasta_rank" 128 4194304 20 22 24 27 32 36 41.6 44 48
+run_step pasta-rank      "$est/pasta_rank" 128 4194304 20 22 24 27 32 36 41.6 42.2 42.6 43.2 44 48
 cp -f "$out/pasta-rank.log" "$out/pasta-rank.csv" 2>/dev/null || true
 
 run_step catalog-reprice "$est/catalog_reprice"

@@ -3073,6 +3073,10 @@ SAMPLER_RATES = {  # word multiplications a coordinate, for the sweeps of the ma
     "free": 0,
 }
 KARNEY_MSAMPLES_PER_S = (2.109, 3.502)  # Karney's RandomLib sampler, million a second (Table 1)
+# The least Pasta rows at the masked bound 2^42.2 from Akita's Euclidean estimator, 128 quantum
+# bits at 2^22 columns: `pasta_rank 128 4194304 42.2` in the estimator checkout (the zero-knowledge
+# note's §5.5); 356 at 2^42.6 and 366 at 2^43.2.
+NOTE_MASKED_ROWS = 349
 HLS18_CYCLES_PER_SAMPLE = (27672 / 1024, 47576 / 1024)  # without and with randomness, at 3.5 GHz
 HLS18_GHZ = 3.5
 MASK_TAIL = 14  # the masked coordinates are at most 14σ (the slices above)
@@ -4450,19 +4454,20 @@ def define_figures():
 
     # The zero-knowledge note's worked example over Pasta (its §5.3 and §5.4), at the page's
     # parameters: weight-20 challenges in dimension 512, α = 48, N = 2^22 digits, the page's
-    # sampler, and 32 word multiplications per Pasta multiplication. The masked rank is the
-    # unmasked 143 rows by the (log β)² rule, which Akita's estimator confirms at the §5.5
-    # bounds. An attempt commits the mask, N/d NTTs of size d and rows · N/d pointwise products,
-    # and draws N samples; the alternatives are α = 12 and 6 at the same challenges, and
-    # Karney's sampler.
+    # sampler, and 32 word multiplications per Pasta multiplication. The masked rank is Akita's
+    # estimator's at the masked bound (NOTE_MASKED_ROWS); the alternatives' rows follow the
+    # (log β)² rule, which the estimator confirms at the §5.5 bounds. An attempt commits the
+    # mask, N/d NTTs of size d and rows · N/d pointwise products, and draws N samples; the
+    # alternatives are α = 12 and 6 at the same challenges, and Karney's sampler.
     note_c_l1, note_d = MASK_CHALLENGE_L1, 512
+    assert abs(NOTE_MASKED_ROWS / (ROWS["pasta_sis"] * MASK_RANK) - 1) < 0.01
     fig("note_log_cs", sig(math.log2(note_c_l1) + MASK_LOG_S, 3))
     fig("note_log_sigma", sig(mask_log_sigma(), 3))
     fig("note_log_z2", sig(1 + mask_log_sigma() + MASK_LOG_N / 2, 3))
     fig("note_log_zinf", sig(math.log2(MASK_TAIL) + mask_log_sigma(), 3))
     fig("note_log_beta", sig(masked_log_beta(), 3))
-    note_rows = ROWS["pasta_sis"] * MASK_RANK
-    fig("note_masked_rows", round(note_rows))
+    note_rows = NOTE_MASKED_ROWS
+    fig("note_masked_rows", note_rows)
     fig("note_masked_kb", sig(note_rows * 32 / 1000, 3))
     fig("note_unmasked_kb", sig(ROWS["pasta_sis"] * 32 / 1000, 2))
     fig("note_padding_kdigits", sig((note_rows * 255 + 256) / 3 / 1000, 2))
@@ -4471,7 +4476,7 @@ def define_figures():
     fig("note_z_mb", mb(2**MASK_LOG_N * math.ceil(math.log2(MASK_TAIL) + mask_log_sigma()) / 8))
 
     def note_attempt(alpha, c_l1=note_c_l1, d=note_d, sample=MASK_SAMPLE_WORD_MULTS):
-        rows = ROWS["pasta_sis"] * mask_rank(alpha, c_l1)
+        rows = note_rows if alpha == MASK_ALPHA else ROWS["pasta_sis"] * mask_rank(alpha, c_l1)
         commit = 2**MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
         return commit, 2**MASK_LOG_N * sample
 
