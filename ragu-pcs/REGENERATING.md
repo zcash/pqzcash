@@ -7,7 +7,10 @@ how to redo the first two kinds. Paths are relative to `ragu-pcs/`.
 
 ## The page's figures and claims
 
-`python pareto-model.py` writes `pareto.html`. Every figure that the text quotes sits between
+`python pareto-model.py` writes `pareto.html`, the standalone page, and the same page for the
+book in four files that the book's chapter includes and serves: `pareto-book.html` (the text),
+`pareto.css` (scoped to the page and coloured from mdbook's theme, with the plot and controls
+kept dark), `pareto.js` and `pareto-data.js`. Every figure that the text quotes sits between
 markers in `pareto-template.html` and in the two notes, `pasta-proof-size.md` and
 `zk-fiat-shamir-with-aborts.md`, as `<!--fig:NAME-->value<!--/fig-->`, and the model fills them
 when it writes the page. A qualitative statement that the model can check is a named

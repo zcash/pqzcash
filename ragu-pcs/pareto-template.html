@@ -70,7 +70,7 @@ a { color: var(--accent-ink); }
 select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
 .group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
 button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
-#plot { width: 100%; height: 720px; background: var(--surface); border: 1px solid var(--rule); min-width: 0; }
+#plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; }  /* the same box as the controls, so the two are the same height */
 /* A crosshair over the plot, in both views, so the pointer does not cover the hover box. */
 #plot .nsewdrag, #plot .gl-container canvas, #plot .drag { cursor: crosshair !important; }
 @media (max-width: 640px) { #plot { height: 440px; } }
@@ -103,7 +103,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-<div class="wrap">
+<div id="pareto" class="wrap">
   <h1>Ragu PCS Pareto</h1>
   <p id="selfcheck" class="selfcheck"></p>
   <p class="lede">Ragu as a PCD scheme, priced with its Pedersen-IPA decider today, with the lattice scheme Akita under five field and modulus choices, and with the hash-based schemes: WHIR over Pasta, over Goldilocks, and with Pasta claims in 64‑bit limbs; a Plonky3-style FRI over Goldilocks; the Flock/Binius-style binary-field family; and BitZ, each with ARC accumulation and with its own recursion. Two experimental drafts join them: BitZ's arithmetization over Akita, called Kishu; and Flock-style Boolean circuits over Akita's binary groups. Each point is one configuration. Its coordinates are compressed proof bytes and two measures chosen from the same seven: the accumulation prover and the transaction prover by default, or prover commitment work, the step's commitments alone, merge gates, the atoms that the merge circuit absorbs, the decider's verification work, the prover's work for a whole transaction, or the accumulator's memory. The hash-based rows' rate and grinding, the security floor, zero knowledge, and the hashes allowed in circuits (conventional only, or Poseidon 1.1 too) are selectable. Each class, pre-quantum (Pedersen-IPA) and post‑quantum (the rest), has its own frontier: the configurations that nothing else in the class beats on all three at once, where native or relation Pasta arithmetic counts as a requirement rather than a cost. The WHIR-type and Plonky3 families start unticked in the families list, since Akita dominates them on every measure and their many rows crowd the picture.</p>
@@ -506,7 +506,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
 const DATA = /*DATA*/;
 const COLORS = { pedersen: 'var(--c-pedersen)', fp128: 'var(--c-fp128)', goldilocks: 'var(--c-gold)', pasta_q64: 'var(--c-q64)', pasta_sis: 'var(--c-sis)', pasta: 'var(--c-pasta)', whir: 'var(--c-whir)', whir_gold: 'var(--c-whirgold)', whir_hybrid: 'var(--c-whirhybrid)', plonky3: 'var(--c-plonky3)', flock: 'var(--c-flock)',
   whir_rec: 'var(--c-whirrec)', whir_gold_rec: 'var(--c-whirgoldrec)', whir_hybrid_rec: 'var(--c-whirhybridrec)', plonky3_rec: 'var(--c-plonky3rec)', flock_rec: 'var(--c-flockrec)', bitz: 'var(--c-bitz)', bitz_rec: 'var(--c-bitzrec)', bits_q64: 'var(--c-bitsq64)', bits_q64_poseidon: 'var(--c-bitsq64pos)', bits_akita: 'var(--c-bitsakita)' };
-const css = getComputedStyle(document.documentElement);
+const css = getComputedStyle(document.querySelector('#pareto .top'));  // the plot's theme, live; in the book the plot and controls keep the dark one
 const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
 const OFF_BY_DEFAULT = ['whir', 'whir_gold', 'whir_hybrid', 'plonky3', 'whir_rec', 'whir_gold_rec', 'whir_hybrid_rec', 'plonky3_rec'];
 // The family list's sections, each under its heading: the pre-quantum scheme; the lattice-based
@@ -532,7 +532,7 @@ GROUPS.forEach(([heading, href, group], i) => {
   for (const f of group) {
     const l = document.createElement('label');
     const shapes = [...new Set(DATA.points.filter(p => p.family === f).map(p => p.change === 'none' ? 'circle' : 'square'))].sort();
-    const swatches = shapes.map(s => `<span class="swatch ${s}" style="background:${color(f)}"></span>`).join('');
+    const swatches = shapes.map(s => `<span class="swatch ${s}" style="background:${COLORS[f]}"></span>`).join('');
     // The WHIR-type families and Plonky3 start unticked: Akita dominates them on every measure,
     // and their many rows crowd the picture; the families list turns them on.
     const on = OFF_BY_DEFAULT.includes(f) ? '' : 'checked';
@@ -855,7 +855,7 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${color(p.family)}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.transaction === null ? '' : `${fmtWork(val(p, 'transaction'))} ${uname}`}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${onOverall.has(p) ? 'overall' : front.has(p) ? 'parameter-only' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.transaction === null ? '' : `${fmtWork(val(p, 'transaction'))} ${uname}`}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${onOverall.has(p) ? 'overall' : front.has(p) ? 'parameter-only' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="15">No family selected.</td></tr>';
@@ -891,5 +891,7 @@ document.querySelectorAll('table').forEach(table => {
 });
 document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, #txapp, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+// The book switches themes by changing the root element's class.
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 render();
 </script>

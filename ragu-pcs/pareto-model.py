@@ -4597,6 +4597,128 @@ assert all(
     for c in tx_checks
 )
 
+
+# The page as the book's chapter embeds it. The standalone page above is one file, with its own
+# fonts and light and dark themes, for the published artifact. The book gets the same page in
+# four files beside the chapter (scripts/build-book.sh copies them): the HTML with the text, a
+# stylesheet scoped to the page's wrapper and coloured from mdbook's theme variables, the script,
+# and the data as a script that sets a global, so that mdbook's search index sees the text and
+# not the data, and the built book works from a file: URL, where a fetch would be refused. The
+# chapter includes the HTML with `{{#include}}`; it has no blank lines, so Markdown sees one
+# HTML block.
+BOOK_THEME_VARIABLES = (
+    "--surface: var(--bg); --ink: var(--fg); --muted: var(--icons); --rule: var(--quote-border); "
+    "--accent: var(--links); --accent-ink: var(--links); --mono: var(--mono-font);"
+)
+BOOK_DARK_THEMES = ".coal #pareto, .navy #pareto, .ayu #pareto"
+BOOK_DROPPED_RULES = ("body", "h1", "h2", "h3", "p")  # the book's own typography applies
+BOOK_DROPPED_DECLARATIONS = (
+    "font-family: var(--serif);",
+    "font-family: var(--sans);",
+    "font-size: 16px; line-height: 1.55;",  # .prose
+)
+BOOK_EXTRA_CSS = """\
+#pareto.wrap { padding: 0; }
+#pareto table thead { background: none; }
+#pareto table tbody tr:nth-child(2n) { background: none; }
+#pareto table th, #pareto table td { border: 0; border-bottom: 1px solid var(--rule); }
+"""
+
+
+def css_rules(text):
+    """The stylesheet's top-level items: (prelude, body) for each block, or (comment, None)."""
+    items, i = [], 0
+    while i < len(text):
+        if text.startswith("/*", i):
+            j = text.index("*/", i) + 2
+            items.append((text[i:j].strip(), None))
+            i = j
+            continue
+        j = text.find("{", i)
+        if j < 0:
+            break
+        depth, k = 1, j + 1
+        while depth:
+            if text[k] == "{":
+                depth += 1
+            elif text[k] == "}":
+                depth -= 1
+            k += 1
+        items.append((text[i:j].strip(), text[j + 1 : k - 1]))
+        i = k
+    return items
+
+
+def scope_css(text):
+    """Every rule under the page's wrapper; the theme blocks and the dropped rules left out."""
+    out = []
+    for prelude, body in css_rules(text):
+        if body is None:
+            out.append(prelude)
+            continue
+        if prelude.startswith(":root") or prelude in BOOK_DROPPED_RULES:
+            continue
+        if prelude.startswith("@media"):
+            if "prefers-color-scheme" in prelude:
+                continue
+            out.append(f"{prelude} {{\n{scope_css(body)}\n}}")
+            continue
+        for d in BOOK_DROPPED_DECLARATIONS:
+            body = body.replace(d, "")
+        selectors = [s.strip() for s in prelude.split(",")]
+        scoped = ", ".join(
+            "#pareto" + s if s.startswith(".wrap") else f"#pareto {s}" for s in selectors
+        )
+        out.append(f"{scoped} {{{body}}}")
+    return "\n".join(out)
+
+
+def write_book_files(page, data_json):
+    style = page[page.index("<style>") + 7 : page.index("</style>")]
+    body = page[page.index("</style>") + 8 : page.index('<script src="https://cdnjs')]
+    plotly = page[page.index('<script src="https://cdnjs') : page.index("<script>\n")]
+    script = page[page.index("<script>\n") + 9 : page.rindex("</script>")]
+    palettes = re.findall(r"--c-[a-z0-9]+: #[0-9a-fA-F]+;", style)
+    half = len(palettes) // 3  # the light palette, then the same dark one twice
+    assert palettes[half : 2 * half] == palettes[2 * half :], "the two dark palettes differ"
+    light, dark = " ".join(palettes[:half]), " ".join(palettes[half : 2 * half])
+    # The plot and the controls keep the standalone page's dark theme, for contrast, whatever
+    # the book's theme; the text around them follows the book.
+    panel = next(
+        body for prelude, body in css_rules(style) if prelude == ':root[data-theme="dark"]'
+    )
+    panel = " ".join(
+        d.strip() + ";" for d in panel.split(";") if d.strip() and not d.strip().startswith("--bg:")
+    )
+    css = (
+        f"#pareto {{ {BOOK_THEME_VARIABLES} {light} }}\n{BOOK_DARK_THEMES} {{ {dark} }}\n"
+        f"#pareto .top {{ {panel} color: var(--ink); }}\n"
+        + scope_css(style)
+        + "\n"
+        + BOOK_EXTRA_CSS
+    )
+    lines = [ln for ln in body.split("\n") if ln.strip() and not ln.strip().startswith("<h1>")]
+    html = (
+        '<link rel="stylesheet" href="pareto.css">\n'
+        + "\n".join(lines)
+        + "\n"
+        + plotly.strip()
+        + '\n<script src="pareto-data.js"></script>\n<script src="pareto.js"></script>\n'
+    )
+    assert "<h1" not in html and "\n\n" not in html
+    assert script.count("const DATA = /*DATA*/;") == 1
+    js = (
+        "(function (DATA) {\n"
+        "if (!DATA) { document.getElementById('selfcheck').textContent = 'The page\\'s data, pareto-data.js, did not load.'; return; }\n"
+        + script.replace("const DATA = /*DATA*/;\n", "")
+        + "})(window.PARETO_DATA);\n"
+    )
+    (HERE / "pareto-book.html").write_text(html)
+    (HERE / "pareto.css").write_text(css)
+    (HERE / "pareto.js").write_text(js)
+    (HERE / "pareto-data.js").write_text("window.PARETO_DATA = " + data_json + ";\n")
+
+
 # Fill the markers: pareto.html always from the model; the tracked files only with `--fill`,
 # and otherwise the run fails on a stale value, as it does on a failed claim. `--figures`
 # lists every figure.
@@ -4626,9 +4748,9 @@ for name in PROSE_FILES:
     if text.count("<!--claim:") != text.count("<!--/claim-->"):
         dangling.append(name)
     if name == "pareto-template.html":
-        (HERE / "pareto.html").write_text(
-            new.replace("/*DATA*/", json.dumps(data, separators=(",", ":")))
-        )
+        data_json = json.dumps(data, separators=(",", ":"))
+        (HERE / "pareto.html").write_text(new.replace("/*DATA*/", data_json))
+        write_book_files(new, data_json)
     if fill and new != text:
         path.write_text(new)
 for name, figure, old, new in stale:

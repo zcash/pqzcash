@@ -8,4 +8,11 @@ __pycache__/
 /ragu-pcs/keep/
 /ragu-pcs/hash-based/
 /ragu-pcs/pareto.html
-/book/src/proof-systems/pareto.html
+/ragu-pcs/pareto-book.html
+/ragu-pcs/pareto.css
+/ragu-pcs/pareto.js
+/ragu-pcs/pareto-data.js
+/book/src/proof-systems/pareto-book.html
+/book/src/proof-systems/pareto.css
+/book/src/proof-systems/pareto.js
+/book/src/proof-systems/pareto-data.js
