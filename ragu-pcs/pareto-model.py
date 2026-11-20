@@ -3451,8 +3451,9 @@ def define_figures():
                 fig("kishu_zk_alpha_optimum_recovery", sig(a))
                 fig("tx_recovery_kishu_zk_optimum_s", secs(wo))
         excess[name] = worst
-        fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
-        fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
+        if name != "fast":  # the prose quotes the page's, Karney's and the free sampler's
+            fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
+            fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
     lo, hi = band("recovery", 1, MASK_SAMPLE_WORD_MULTS)
     fig("kishu_zk_alpha_recovery_band_min", sig(lo))
     fig("kishu_zk_alpha_recovery_band_max", sig(hi))
