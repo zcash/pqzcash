@@ -148,13 +148,12 @@ def accumulator_bytes(variant, K, rank, digits=None):
 # at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
 # the unmasked 2^27 (§5.2, §5.5). The page takes α = 48 with weight-20 ternary challenges in the
 # accumulation matrix's ring dimension of 512 (‖c‖₁ = 20), which give 2^42.2 and a factor of
-# 2.45: the widest of the sweep's widths with nine slices a coordinate, and within two percent
+# 2.45: the widest of the sweep's widths with nine slices a coordinate, and within three percent
 # of the least user transaction at the page's sampler for every application (the zero-knowledge
 # section; the sweep is in define_figures). The note's §5.3 example used α = 12 and weight 32
-# in dimension 128, 2.37, and its §5.6 prices the alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
+# in dimension 128, 2.37, before it took the page's parameters; its §5.6 prices the alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
 # coordinate.
 MASK_ALPHA = 48
-NOTE_MASK_ALPHA = 12  # the zero-knowledge note's own example (its §5.3 and §5.4)
 MASK_CHALLENGE_L1 = 20
 MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
 
@@ -222,7 +221,7 @@ def pedersen_per_coefficient(rank):
 # coordinate. Refining those few in higher precision makes the rounding exact. The exact
 # alternative, Karney's method, is KARNEY_SAMPLE_WORD_MULTS, 300 ns a coordinate (Du, Fan and
 # Wei measured Karney's RandomLib sampler at 2.1 to 3.5 million samples a second on an
-# i7-8550U, arXiv 2008.03855 Table 1); the note's §5.4 example uses it.
+# i7-8550U, arXiv 2008.03855 Table 1); the note's §5.4 quotes it as the alternative.
 def mask_attempts(alpha=MASK_ALPHA):
     return math.exp(12 / alpha + 1 / (2 * alpha**2))
 
@@ -3357,7 +3356,7 @@ def define_figures():
         p["rank"] < plain["rank"] and zk_steps > plain_steps,
     )
     fig("mask_alpha", MASK_ALPHA)
-    fig("mask_rank_alpha12", sig(mask_rank(NOTE_MASK_ALPHA)))
+    fig("mask_rank_alpha12", sig(mask_rank(12)))
     fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
     fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
     fig("mask_rounded_divergence_log2", round(-rounded_gaussian_log_divergence()))
@@ -4449,32 +4448,62 @@ def define_figures():
     fig("masked_accumulator_mb", mb(MASK_LENGTH * unmasked_bytes))
     fig("masked_accumulator_mb_alpha6", mb(mask_length(6) * unmasked_bytes, 3))
 
-    # The zero-knowledge note's masking fold over Pasta (its §5.4), at the note's own parameters:
-    # the §5.3 rows (weight-32 challenges in dimension 128, about 340), N = 2^22 digits, and 32
-    # word multiplications per Pasta multiplication. An attempt commits the mask, N/d NTTs of size
-    # d and rows · N/d pointwise products, and draws N Karney samples at the note's α = 12; §5.6's α = 6 row keeps
-    # weight 32, and its weight-20 row is in dimension 512.
-    def note_attempt(alpha, c_l1, d):
-        rows = ROWS["pasta_sis"] * (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
-        commit = 2**MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
-        return commit, 2**MASK_LOG_N * KARNEY_SAMPLE_WORD_MULTS
+    # The zero-knowledge note's worked example over Pasta (its §5.3 and §5.4), at the page's
+    # parameters: weight-20 challenges in dimension 512, α = 48, N = 2^22 digits, the page's
+    # sampler, and 32 word multiplications per Pasta multiplication. The masked rank is the
+    # unmasked 143 rows by the (log β)² rule, which Akita's estimator confirms at the §5.5
+    # bounds. An attempt commits the mask, N/d NTTs of size d and rows · N/d pointwise products,
+    # and draws N samples; the alternatives are α = 12 and 6 at the same challenges, and
+    # Karney's sampler.
+    note_c_l1, note_d = MASK_CHALLENGE_L1, 512
+    fig("note_log_cs", sig(math.log2(note_c_l1) + MASK_LOG_S, 3))
+    fig("note_log_sigma", sig(mask_log_sigma(), 3))
+    fig("note_log_z2", sig(1 + mask_log_sigma() + MASK_LOG_N / 2, 3))
+    fig("note_log_zinf", sig(math.log2(MASK_TAIL) + mask_log_sigma(), 3))
+    fig("note_log_beta", sig(masked_log_beta(), 3))
+    note_rows = ROWS["pasta_sis"] * MASK_RANK
+    fig("note_masked_rows", round(note_rows))
+    fig("note_masked_kb", sig(note_rows * 32 / 1000, 3))
+    fig("note_unmasked_kb", sig(ROWS["pasta_sis"] * 32 / 1000, 2))
+    fig("note_padding_kdigits", sig((note_rows * 255 + 256) / 3 / 1000, 2))
+    fig("note_rank_factor", sig(MASK_RANK, 3))
+    fig("note_zinf_bits", math.ceil(math.log2(MASK_TAIL) + mask_log_sigma()))
+    fig("note_z_mb", mb(2**MASK_LOG_N * math.ceil(math.log2(MASK_TAIL) + mask_log_sigma()) / 8))
 
-    commit, sampling = note_attempt(NOTE_MASK_ALPHA, 32, 128)
-    fold = (commit + sampling) * mask_attempts(NOTE_MASK_ALPHA)
-    fig("note_mask_attempts", sig(mask_attempts(NOTE_MASK_ALPHA)))
-    fig("note_sample_ns", round(KARNEY_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    def note_attempt(alpha, c_l1=note_c_l1, d=note_d, sample=MASK_SAMPLE_WORD_MULTS):
+        rows = ROWS["pasta_sis"] * mask_rank(alpha, c_l1)
+        commit = 2**MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
+        return commit, 2**MASK_LOG_N * sample
+
+    fig("note_ntt_log2", sig(MASK_LOG_N + math.log2(math.log2(note_d) / 2), 3))
+    fig("note_pointwise_log2", sig(MASK_LOG_N + math.log2(note_rows / note_d), 3))
+    fig(
+        "note_mults_log2",
+        sig(MASK_LOG_N + math.log2(note_rows / note_d + math.log2(note_d) / 2), 3),
+    )
+    commit, sampling = note_attempt(MASK_ALPHA)
+    fig("note_word_mults_log2", sig(math.log2(commit), 3))
+    fold = (commit + sampling) * MASK_ATTEMPTS
     fig("zk_note_commit_s", secs(commit))
     fig("zk_note_sampling_s", secs(sampling))
     fig("zk_note_sampling_over_commit", sig(sampling / commit))
     fig("zk_note_attempt_s", secs(commit + sampling))
     fig("zk_note_fold_s", secs(fold))
-    attempts_alpha6 = mask_attempts(6)
-    fig("zk_note_fold_alpha6_s", secs(sum(note_attempt(6, 32, 128)) * attempts_alpha6))
-    fig("zk_note_attempt_alpha6_w20_s", secs(sum(note_attempt(6, 20, 512)), 2))
+    fig("zk_note_fold_alpha12_s", secs(sum(note_attempt(12)) * mask_attempts(12)))
+    fig("zk_note_fold_alpha6_s", secs(sum(note_attempt(6)) * mask_attempts(6)))
+    fig("zk_note_attempt_alpha6_s", secs(sum(note_attempt(6)), 2))
+    fig(
+        "zk_note_fold_karney_s",
+        secs(sum(note_attempt(MASK_ALPHA, sample=KARNEY_SAMPLE_WORD_MULTS)) * MASK_ATTEMPTS),
+    )
+    fig("note_batch_alpha48", math.ceil(math.log(0.01) / math.log(1 - 1 / MASK_ATTEMPTS)))
+    fig("note_batch_alpha12", math.ceil(math.log(0.01) / math.log(1 - 1 / mask_attempts(12))))
+    fig("note_batch_alpha6", math.ceil(math.log(0.01) / math.log(1 - 1 / mask_attempts(6))))
+    fig("note_blocks_k", math.ceil(math.log(2**-10 / 256) / math.log(1 - 1 / MASK_ATTEMPTS)))
     claim(
-        "mask_fold_seconds",
-        "the masking fold takes seconds on a fast core (the note's §5.8)",
-        1 <= fold / RATE_PER_S < 10,
+        "mask_fold_phone_seconds",
+        "the masking fold is a fraction of a second on a fast core and a few seconds on a phone (the note's §5.8)",
+        0.1 <= fold / RATE_PER_S < 1,
     )
     # The user proof it is compared with: two to four dozen rank-13 steps over Pasta at the page's
     # step and accumulation prover.
@@ -4483,9 +4512,9 @@ def define_figures():
     fig("zk_note_proof24_s", secs(24 * per_step))
     fig("zk_note_proof48_s", secs(48 * per_step))
     claim(
-        "mask_fold_noticeable_fraction",
-        "the masking fold is a noticeable fraction of a two-dozen-step user proof",
-        0.05 <= fold / (24 * per_step) <= 0.5,
+        "mask_fold_small_fraction",
+        "the masking fold is under three percent of a two-dozen-step user proof",
+        fold / (24 * per_step) < 0.03,
     )
 
     for r in (13, 14, 15, 16):
