@@ -4617,10 +4617,14 @@ BOOK_DROPPED_DECLARATIONS = (
     "font-family: var(--sans);",
     "font-size: 16px; line-height: 1.55;",  # .prose
 )
+# The tables take the book's header fill, and every row is filled: odd rows in the book's
+# alternate-row colour, even rows in that colour deepened by a little of the text colour. So
+# the table reads as a surface of its own rather than as stripes on the page. The page's own
+# rule under each row replaces mdbook's grid of cell borders.
 BOOK_EXTRA_CSS = """\
 #pareto.wrap { padding: 0; }
-#pareto table thead { background: none; }
-#pareto table tbody tr:nth-child(2n) { background: none; }
+#pareto table tbody tr { background: var(--table-alternate-bg); }
+#pareto table tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%); }
 #pareto table th, #pareto table td { border: 0; border-bottom: 1px solid var(--rule); }
 """
 
