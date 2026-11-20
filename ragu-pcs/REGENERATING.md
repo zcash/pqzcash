@@ -184,6 +184,14 @@ The recovery circuit's and the Merkle path's costs in each arithmetization (`REC
 the arithmetizations' own gate costs; Tachyon's nodes are the measured circuits above. Nothing
 external is needed beyond the gate probe.
 
+## The sampler
+
+`MASK_SAMPLE_NS` and its companions are `scripts/sampler-bench.c`'s measurement: build it with
+`clang -O3 -o work/sampler-bench scripts/sampler-bench.c -lm` and run `work/sampler-bench 22 32
+22.9 aes` and `work/sampler-bench 22 32` on one core of an idle machine on mains, three times
+each, and take the medians of the whole-path and randomness-alone lines. The `aes` form needs
+macOS (CommonCrypto); the ChaCha20 form is portable.
+
 ## The notes' own tables
 
 The tables in `pasta-proof-size.md` §3, §3.1, §6.2 and §6.3 are the planner's figures from

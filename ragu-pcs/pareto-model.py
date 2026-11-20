@@ -208,11 +208,16 @@ def pedersen_per_coefficient(rank):
 # point. §5.8 of the note moves the attempts off the device's critical path, so this is total
 # work, not latency.
 #
-# The page's sampler is a rounded continuous Gaussian at 20 ns a coordinate, 60 word
-# multiplications at 3e9 a second: Hülsing, Lange and Smeets' AVX Box-Muller sampler (PKC 2018,
-# ePrint 2017/1025, Table 5.1) takes 27,672 cycles per 1,024 coordinates, 47,576 with its
-# ChaCha20 randomness, on a 3.5 GHz Haswell, and the page adds the boundary check and the
-# scaling. With Sheppard's correction σ = s − 1/(24s) the rounded Gaussian is a discrete
+# The page's sampler is a rounded continuous Gaussian at MASK_SAMPLE_NS a coordinate, measured
+# with scripts/sampler-bench.c on one core of an Apple M4 Max on mains (2026-11-20, the median
+# of three runs of 32 × 2^22 coordinates at σ = 2^22.9): AES-128-CTR randomness through
+# CommonCrypto on the AES instructions, two 53-bit uniforms per Box–Muller pair in doubles,
+# Sheppard's correction, the scaling, the tail check |x| ≤ 14σ and the rounding;
+# MASK_SAMPLE_RNG_NS of it is the randomness. With ChaCha20 in plain C the same path is
+# MASK_SAMPLE_CHACHA_NS, MASK_SAMPLE_CHACHA_RNG_NS of it the randomness. For comparison,
+# Hülsing, Lange and Smeets' AVX Box-Muller sampler (PKC 2018, ePrint 2017/1025, Table 5.1)
+# takes 27,672 cycles per 1,024 coordinates, 47,576 with its ChaCha20 randomness, on a 3.5 GHz
+# Haswell. With Sheppard's correction σ = s − 1/(24s) the rounded Gaussian is a discrete
 # Gaussian of parameter s to a Rényi divergence of order a of 1 + 73aN/(33177600 s^8) (Jeudy,
 # ePrint 2026/2583, Theorem 3.1), negligible at this width, so the rejection-sampling argument
 # carries over; what double precision cannot do is round exactly: a coordinate's absolute error
@@ -227,7 +232,11 @@ def mask_attempts(alpha=MASK_ALPHA):
 
 
 MASK_ATTEMPTS = mask_attempts()
-MASK_SAMPLE_WORD_MULTS = 60
+MASK_SAMPLE_NS = 7.1
+MASK_SAMPLE_RNG_NS = 1.5
+MASK_SAMPLE_CHACHA_NS = 14.0
+MASK_SAMPLE_CHACHA_RNG_NS = 7.7
+MASK_SAMPLE_WORD_MULTS = round(MASK_SAMPLE_NS * 3)  # at 3 word multiplications a nanosecond
 KARNEY_SAMPLE_WORD_MULTS = 900
 
 
@@ -3351,7 +3360,10 @@ def define_figures():
     fig("tx_recovery_kishu_zk_rank", p["rank"])
     _, parts = kishu_zk_costs(p)
     fig("tx_recovery_kishu_zk_sampling_s", secs(parts["sampling"]))
-    fig("mask_sample_ns", round(MASK_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    fig("mask_sample_ns", sig(MASK_SAMPLE_NS, 2))
+    fig("mask_sample_rng_ns", sig(MASK_SAMPLE_RNG_NS, 2))
+    fig("mask_sample_chacha_ns", sig(MASK_SAMPLE_CHACHA_NS, 2))
+    fig("mask_sample_chacha_rng_ns", sig(MASK_SAMPLE_CHACHA_RNG_NS, 2))
 
     # Where Kishu's zero-knowledge cost goes, and what moves it (the zero-knowledge section's
     # Kishu paragraphs): the fold's parts, the steps' part against the plain row's, the
