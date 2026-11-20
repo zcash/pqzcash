@@ -4617,7 +4617,7 @@ BOOK_THEME_VARIABLES = (
     "--accent: var(--links); --accent-ink: var(--links); --mono: var(--mono-font);"
 )
 BOOK_DARK_THEMES = ".coal #pareto, .navy #pareto, .ayu #pareto"
-BOOK_DROPPED_RULES = ("body", "h1", "h2", "h3", "p")  # the book's own typography applies
+BOOK_DROPPED_RULES = ("body", "h1", "h2", "h3", "h4", "h5", "p")  # the book's typography applies
 BOOK_DROPPED_DECLARATIONS = (
     "font-family: var(--serif);",
     "font-family: var(--sans);",
@@ -4723,7 +4723,7 @@ def write_book_files(page, data_json):
     # mdbook wraps a Markdown heading's text in a link to its own anchor, which carries the
     # hover cue and the click-to-link; the page's headings are HTML, so they get the same.
     body = re.sub(
-        r'<h([23]) id="([^"]+)">(.*?)</h\1>',
+        r'<h([2-5]) id="([^"]+)">(.*?)</h\1>',
         r'<h\1 id="\2"><a class="header" href="#\2">\3</a></h\1>',
         body,
     )
