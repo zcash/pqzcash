@@ -146,12 +146,15 @@ def accumulator_bytes(variant, K, rank, digits=None):
 # Gaussian mask has width σ = MASK_ALPHA · ‖cs‖₂, the accepted response ‖z‖₂ ≈ 2σ√N, and the
 # relaxed opening that extraction yields needs binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖₂, with ‖c − c'‖₁
 # at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
-# the unmasked 2^27 (§5.2, §5.5). The page takes α = 12 with weight-20 ternary challenges in the
-# accumulation matrix's ring dimension of 512 (‖c‖₁ = 20), which give 2^40.2 and a factor of
-# 2.22; the note's §5.3 example used weight 32 in dimension 128, 2.37, and its §5.6 prices the
-# alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
+# the unmasked 2^27 (§5.2, §5.5). The page takes α = 48 with weight-20 ternary challenges in the
+# accumulation matrix's ring dimension of 512 (‖c‖₁ = 20), which give 2^42.2 and a factor of
+# 2.45: the widest of the sweep's widths with nine slices a coordinate, and within two percent
+# of the least user transaction at the page's sampler for every application (the zero-knowledge
+# section; the sweep is in define_figures). The note's §5.3 example used α = 12 and weight 32
+# in dimension 128, 2.37, and its §5.6 prices the alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
 # coordinate.
-MASK_ALPHA = 12
+MASK_ALPHA = 48
+NOTE_MASK_ALPHA = 12  # the zero-knowledge note's own example (its §5.3 and §5.4)
 MASK_CHALLENGE_L1 = 20
 MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
 
@@ -201,30 +204,32 @@ def pedersen_per_coefficient(rank):
 
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
-# accumulation matrix and N Gaussian samples by Karney's exact method at about 300 ns a
-# coordinate (Du, Fan and Wei measured Karney's RandomLib sampler at 2.1 to 3.5 million samples
-# a second on an i7-8550U, arXiv 2008.03855 Table 1), 900 word-multiplication equivalents at
-# 3e9 per second; N is the accumulator's digits, K groups of 2^rank coefficients
-# (zk-fiat-shamir-with-aborts.md §5.4). The fold's own merge is added at the point. §5.8 of the
-# note moves the attempts off the device's critical path, so this is total work, not latency.
+# accumulation matrix and N Gaussian samples; N is the accumulator's digits, K groups of 2^rank
+# coefficients (zk-fiat-shamir-with-aborts.md §5.4). The fold's own merge is added at the
+# point. §5.8 of the note moves the attempts off the device's critical path, so this is total
+# work, not latency.
 #
-# A rounded continuous Gaussian is far cheaper to sample: Hülsing, Lange and Smeets' AVX
-# Box-Muller sampler (PKC 2018, ePrint 2017/1025, Table 5.1) takes 27,672 cycles per 1,024
-# coordinates, 47,576 with its ChaCha20 randomness, on a 3.5 GHz Haswell. With Sheppard's
-# correction σ = s − 1/(24s) the rounded Gaussian is a discrete Gaussian of parameter s to a
-# Rényi divergence of order a of 1 + 73aN/(33177600 s^8) (Jeudy, ePrint 2026/2583, Theorem
-# 3.1), negligible at this width, so the rejection-sampling argument carries over; what double
-# precision cannot do is round exactly: a coordinate's absolute error is up to its size times
-# 2^-53, so about 2 τσ 2^-53 of the coordinates lie within it of a half-integer, which is also
-# the paper's §5.2 worst-case bound on the divergence per coordinate. Refining those few in
-# higher precision makes the rounding exact. MASK_CHEAP_SAMPLE_WORD_MULTS prices that sampler
-# at 20 ns a coordinate: the measured rate with randomness, the boundary check and the scaling.
+# The page's sampler is a rounded continuous Gaussian at 20 ns a coordinate, 60 word
+# multiplications at 3e9 a second: Hülsing, Lange and Smeets' AVX Box-Muller sampler (PKC 2018,
+# ePrint 2017/1025, Table 5.1) takes 27,672 cycles per 1,024 coordinates, 47,576 with its
+# ChaCha20 randomness, on a 3.5 GHz Haswell, and the page adds the boundary check and the
+# scaling. With Sheppard's correction σ = s − 1/(24s) the rounded Gaussian is a discrete
+# Gaussian of parameter s to a Rényi divergence of order a of 1 + 73aN/(33177600 s^8) (Jeudy,
+# ePrint 2026/2583, Theorem 3.1), negligible at this width, so the rejection-sampling argument
+# carries over; what double precision cannot do is round exactly: a coordinate's absolute error
+# is up to its size times 2^-53, so about 2 τσ 2^-53 of the coordinates lie within it of a
+# half-integer, which is also the paper's §5.2 worst-case bound on the divergence per
+# coordinate. Refining those few in higher precision makes the rounding exact. The exact
+# alternative, Karney's method, is KARNEY_SAMPLE_WORD_MULTS, 300 ns a coordinate (Du, Fan and
+# Wei measured Karney's RandomLib sampler at 2.1 to 3.5 million samples a second on an
+# i7-8550U, arXiv 2008.03855 Table 1); the note's §5.4 example uses it.
 def mask_attempts(alpha=MASK_ALPHA):
     return math.exp(12 / alpha + 1 / (2 * alpha**2))
 
 
 MASK_ATTEMPTS = mask_attempts()
-MASK_SAMPLE_WORD_MULTS = 900
+MASK_SAMPLE_WORD_MULTS = 60
+KARNEY_SAMPLE_WORD_MULTS = 900
 
 
 def mask_fold(variant, K, rank, rank_scale):
@@ -3061,15 +3066,13 @@ PAGE_APPLICATIONS = (
 )
 MASK_ALPHAS = (6, 12, 24, 48, 96)  # the page's sweep of the mask's Gaussian width
 MASK_ALPHA_GRID = tuple(2 ** (k / 4) for k in range(8, 41))  # 4 to 1024 by quarter octaves
-MASK_FAST_SAMPLE_WORD_MULTS = 300  # a sampler three times Karney's rate, 100 ns a coordinate
-MASK_CHEAP_SAMPLE_WORD_MULTS = 60  # a rounded continuous Gaussian by vectorised Box-Muller, 20 ns
+MASK_FAST_SAMPLE_WORD_MULTS = 300  # a sampler at 100 ns a coordinate, for the sweep
 SAMPLER_RATES = {  # word multiplications a coordinate, for the sweeps of the mask's width
     "page": MASK_SAMPLE_WORD_MULTS,
+    "karney": KARNEY_SAMPLE_WORD_MULTS,
     "fast": MASK_FAST_SAMPLE_WORD_MULTS,
-    "cheap": MASK_CHEAP_SAMPLE_WORD_MULTS,
     "free": 0,
 }
-MASK_ALPHA_CHOICE = 80  # a width to check against every application's optimum
 KARNEY_MSAMPLES_PER_S = (2.109, 3.502)  # Karney's RandomLib sampler, million a second (Table 1)
 HLS18_CYCLES_PER_SAMPLE = (27672 / 1024, 47576 / 1024)  # without and with randomness, at 3.5 GHz
 HLS18_GHZ = 3.5
@@ -3319,9 +3322,11 @@ def define_figures():
 
     # Where Kishu's zero-knowledge cost goes, and what moves it (the zero-knowledge section's
     # Kishu paragraphs): the fold's parts, the steps' part against the plain row's, the
-    # per-digit commitment rate masked and plain, then the sweeps of the mask's width and the
-    # sampler's cost, the fold's amortisation over four recovery inputs, and the width that
-    # minimises each application's zero-knowledge transaction.
+    # per-digit commitment rate masked and plain; the sampler, the page's rounded Gaussian
+    # against Karney's exact method and a 100 ns one; the sweep of the mask's width at the
+    # page's sampler; the fold's amortisation over four recovery inputs; and the width that
+    # minimises each application's zero-knowledge transaction at each sampler rate, against the
+    # page's width.
     assert kishu_zk_best("recovery")[1] == w
     zk_steps = tx_steps(p, "recovery", "poseidon")
     zk_per_step = p["step_prover"] + p["accumulation_prover"] + p["route_step"]
@@ -3351,6 +3356,28 @@ def define_figures():
         "Kishu's zero-knowledge optimum for the recovery circuit is at a lower rank than the plain one, with more merges",
         p["rank"] < plain["rank"] and zk_steps > plain_steps,
     )
+    fig("mask_alpha", MASK_ALPHA)
+    fig("mask_rank_alpha12", sig(mask_rank(NOTE_MASK_ALPHA)))
+    fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
+    fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
+    fig("mask_rounded_divergence_log2", round(-rounded_gaussian_log_divergence()))
+    fig("mask_double_undecided_log2", round(-double_undecided_log()))
+    fig("mask_double_undecided_fold_log2", round(-(double_undecided_log() + MASK_LOG_N)))
+    claim(
+        "rounded_gaussian_negligible",
+        "the rounded Gaussian's divergence from the discrete one is below 2^-128 over the fold's coordinates, and double precision leaves a fold's undecided coordinates at a fraction above 2^-16",
+        rounded_gaussian_log_divergence() < -128 and double_undecided_log() + MASK_LOG_N > -16,
+    )
+    fig("mask_karney_sample_ns", round(KARNEY_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    fig("karney_ns_min", sig(1000 / KARNEY_MSAMPLES_PER_S[1]))
+    fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
+    q, wk = kishu_zk_best("recovery", MASK_ALPHA, KARNEY_SAMPLE_WORD_MULTS)
+    fig("tx_recovery_kishu_zk_karney_s", secs(wk))
+    fig("tx_recovery_kishu_zk_karney_rank", q["rank"])
+    fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
+    fig("tx_recovery_kishu_zk_fast_s", secs(wf))
+    fig("tx_recovery_kishu_zk_fast_rank", q["rank"])
     sweep = {}
     for a in MASK_ALPHAS:
         q, wa = kishu_zk_best("recovery", a)
@@ -3368,100 +3395,49 @@ def define_figures():
     assert sweep[MASK_ALPHA] == w
     claim(
         "kishu_zk_falls_with_alpha",
-        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 96, by under 5% from 48 to 96",
-        all(sweep[a] > sweep[2 * a] for a in MASK_ALPHAS[:-1]) and sweep[48] / sweep[96] < 1.05,
-    )
-    q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
-    fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
-    fig("tx_recovery_kishu_zk_fast_s", secs(wf))
-    fig("tx_recovery_kishu_zk_fast_rank", q["rank"])
-    q, wb = kishu_zk_best("recovery", 24, MASK_FAST_SAMPLE_WORD_MULTS)
-    fig("tx_recovery_kishu_zk_fast_alpha24_s", secs(wb))
-    claim(
-        "kishu_zk_sampler_larger_lever",
-        "a sampler three times faster saves Kishu's zero-knowledge recovery more than doubling α does, and the two compound",
-        wf < sweep[24] and wb < wf,
+        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 48, and at 96 is within two percent of 48",
+        all(sweep[a] > sweep[2 * a] for a in (6, 12, 24)) and abs(sweep[96] / sweep[48] - 1) < 0.02,
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
     fig("tx_recovery4_kishu_zk_rank", q["rank"])
-    optima = {(app, n): kishu_zk_optimum(app, n) for app, n in PAGE_APPLICATIONS}
-    at_page = {(app, n): kishu_zk_best(app, MASK_ALPHA, count=n)[1] for app, n in PAGE_APPLICATIONS}
-    savings = {k: 1 - optima[k][2] / at_page[k] for k in optima}
-    fig("kishu_zk_alpha_optimum_min", sig(min(a for a, _, _ in optima.values())))
-    fig("kishu_zk_alpha_optimum_max", sig(max(a for a, _, _ in optima.values())))
-    fig("kishu_zk_alpha_optimum_recovery", sig(optima[("recovery", 1)][0]))
-    fig("kishu_zk_alpha_saving_min_pct", round(100 * min(savings.values())))
-    fig("kishu_zk_alpha_saving_max_pct", round(100 * max(savings.values())))
-    fig("tx_recovery_kishu_zk_optimum_s", secs(optima[("recovery", 1)][2]))
 
-    # The minimum is shallow: the widths on the grid within two percent of it.
-    def band(app, n, sample=MASK_SAMPLE_WORD_MULTS):
+    # The minimum over the width is shallow: the widths on the grid within two percent of it.
+    def band(app, n, sample):
         least = kishu_zk_optimum(app, n, sample)[2]
         close = [a for a in MASK_ALPHA_GRID if kishu_zk_best(app, a, sample, n)[1] < 1.02 * least]
         return min(close), max(close)
 
-    lo, hi = band("recovery", 1)
-    fig("kishu_zk_alpha_recovery_band_min", sig(lo))
-    fig("kishu_zk_alpha_recovery_band_max", sig(hi))
-    # What a cheap sampler would do to the balance: a rounded continuous Gaussian from a
-    # vectorised Box-Muller, taken at MASK_CHEAP_SAMPLE_WORD_MULTS (the comment above it).
-    a_cheap, q, w_cheap = kishu_zk_optimum("recovery", 1, MASK_CHEAP_SAMPLE_WORD_MULTS)
-    fig("mask_cheap_sample_ns", round(MASK_CHEAP_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
-    fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
-    fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
-    fig("mask_rounded_divergence_log2", round(-rounded_gaussian_log_divergence()))
-    fig("mask_double_undecided_log2", round(-double_undecided_log()))
-    fig("mask_double_undecided_fold_log2", round(-(double_undecided_log() + MASK_LOG_N)))
-    claim(
-        "rounded_gaussian_negligible",
-        "the rounded Gaussian's divergence from the discrete one is below 2^-128 over the fold's coordinates, and double precision leaves a fold's undecided coordinates at a fraction above 2^-16",
-        rounded_gaussian_log_divergence() < -128 and double_undecided_log() + MASK_LOG_N > -16,
-    )
-    band_cheap = band("recovery", 1, MASK_CHEAP_SAMPLE_WORD_MULTS)
-    fig("kishu_zk_alpha_recovery_cheap_band_min", sig(band_cheap[0]))
-    fig("kishu_zk_alpha_recovery_cheap_band_max", sig(band_cheap[1]))
-    fig("kishu_zk_alpha_optimum_recovery_cheap", sig(a_cheap))
-    fig("tx_recovery_kishu_zk_cheap_optimum_s", secs(w_cheap))
-    fig("tx_recovery_kishu_zk_cheap_optimum_rank", q["rank"])
-    q, w_cheap12 = kishu_zk_best("recovery", MASK_ALPHA, MASK_CHEAP_SAMPLE_WORD_MULTS)
-    fig("tx_recovery_kishu_zk_cheap_s", secs(w_cheap12))
-    fig("tx_recovery_kishu_zk_cheap_rank", q["rank"])
-    for (app, n), (a, q, wo) in optima.items():
-        KISHU_ZK_ALPHA[f"{app}:{n}"] = dict(
-            alpha=round(a, 1),
-            rank=q["rank"],
-            hash=q["hashes"],
-            route=q["route"],
-            zk_s=secs(wo),
-            page_s=secs(at_page[(app, n)]),
-            saving_pct=round(100 * savings[(app, n)], 1),
-        )
-    # The optima at the other sampler rates, and a fixed width against all of them.
-    excess = []
+    excess = {}
     for name, sample in SAMPLER_RATES.items():
-        found = {}
+        found, worst = {}, 0
         for app, n in PAGE_APPLICATIONS:
             a, q, wo = kishu_zk_optimum(app, n, sample)
-            w_choice = kishu_zk_best(app, MASK_ALPHA_CHOICE, sample, n)[1]
+            w_page = kishu_zk_best(app, MASK_ALPHA, sample, n)[1]
             found[(app, n)] = a
-            excess.append(w_choice / wo - 1)
-            row = KISHU_ZK_ALPHA[f"{app}:{n}"]
-            row[f"alpha_{name}"] = round(a, 1)
-            row[f"zk_s_{name}"] = secs(wo)
-            row[f"alpha{MASK_ALPHA_CHOICE}_{name}_s"] = secs(w_choice)
-        if name != "page":
-            fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
-            fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
-    fig("mask_alpha_choice", MASK_ALPHA_CHOICE)
-    fig("kishu_zk_alpha_choice_excess_pct", sig(100 * max(excess)))
+            worst = max(worst, w_page / wo - 1)
+            KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
+                alpha=round(a, 1), rank=q["rank"], zk_s=secs(wo), page_alpha_s=secs(w_page)
+            )
+            if name == "page" and (app, n) == ("recovery", 1):
+                fig("kishu_zk_alpha_optimum_recovery", sig(a))
+                fig("tx_recovery_kishu_zk_optimum_s", secs(wo))
+        excess[name] = worst
+        fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
+        fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
+    lo, hi = band("recovery", 1, MASK_SAMPLE_WORD_MULTS)
+    fig("kishu_zk_alpha_recovery_band_min", sig(lo))
+    fig("kishu_zk_alpha_recovery_band_max", sig(hi))
+    fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
+    fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
     claim(
-        "alpha_choice_near_optimum",
-        "a width of 80 is within three percent of the least zero-knowledge transaction for every application at every sampler rate from Karney's to free",
-        MASK_ALPHA_CHOICE == 80 and max(excess) < 0.03,
+        "alpha_page_near_optimum",
+        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every application at the page's sampler and within seven percent at Karney's",
+        MASK_LENGTH == 9
+        and mask_length(64) == 10
+        and excess["page"] < 0.03
+        and excess["karney"] < 0.07,
     )
-    fig("karney_ns_min", sig(1000 / KARNEY_MSAMPLES_PER_S[1]))
-    fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
     fig("tx_recovery_q64_zk_rank", p["rank"])
@@ -4476,21 +4452,23 @@ def define_figures():
     # The zero-knowledge note's masking fold over Pasta (its §5.4), at the note's own parameters:
     # the §5.3 rows (weight-32 challenges in dimension 128, about 340), N = 2^22 digits, and 32
     # word multiplications per Pasta multiplication. An attempt commits the mask, N/d NTTs of size
-    # d and rows · N/d pointwise products, and draws N Karney samples; §5.6's α = 6 row keeps
+    # d and rows · N/d pointwise products, and draws N Karney samples at the note's α = 12; §5.6's α = 6 row keeps
     # weight 32, and its weight-20 row is in dimension 512.
     def note_attempt(alpha, c_l1, d):
         rows = ROWS["pasta_sis"] * (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
         commit = 2**MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
-        return commit, 2**MASK_LOG_N * MASK_SAMPLE_WORD_MULTS
+        return commit, 2**MASK_LOG_N * KARNEY_SAMPLE_WORD_MULTS
 
-    commit, sampling = note_attempt(MASK_ALPHA, 32, 128)
-    fold = (commit + sampling) * MASK_ATTEMPTS
+    commit, sampling = note_attempt(NOTE_MASK_ALPHA, 32, 128)
+    fold = (commit + sampling) * mask_attempts(NOTE_MASK_ALPHA)
+    fig("note_mask_attempts", sig(mask_attempts(NOTE_MASK_ALPHA)))
+    fig("note_sample_ns", round(KARNEY_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
     fig("zk_note_commit_s", secs(commit))
     fig("zk_note_sampling_s", secs(sampling))
     fig("zk_note_sampling_over_commit", sig(sampling / commit))
     fig("zk_note_attempt_s", secs(commit + sampling))
     fig("zk_note_fold_s", secs(fold))
-    attempts_alpha6 = math.exp(12 / 6 + 1 / (2 * 36))
+    attempts_alpha6 = mask_attempts(6)
     fig("zk_note_fold_alpha6_s", secs(sum(note_attempt(6, 32, 128)) * attempts_alpha6))
     fig("zk_note_attempt_alpha6_w20_s", secs(sum(note_attempt(6, 20, 512)), 2))
     claim(
