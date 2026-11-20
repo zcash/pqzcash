@@ -4629,6 +4629,10 @@ def css_rules(text):
     """The stylesheet's top-level items: (prelude, body) for each block, or (comment, None)."""
     items, i = [], 0
     while i < len(text):
+        while i < len(text) and text[i].isspace():
+            i += 1
+        if i == len(text):
+            break
         if text.startswith("/*", i):
             j = text.index("*/", i) + 2
             items.append((text[i:j].strip(), None))
@@ -4658,7 +4662,7 @@ def scope_css(text):
             continue
         if prelude.startswith(":root") or prelude in BOOK_DROPPED_RULES:
             continue
-        if prelude.startswith("@media"):
+        if prelude.startswith(("@media", "@container")):
             if "prefers-color-scheme" in prelude:
                 continue
             out.append(f"{prelude} {{\n{scope_css(body)}\n}}")

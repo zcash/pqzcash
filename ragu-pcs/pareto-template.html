@@ -27,9 +27,10 @@
   --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsq64pos: #ffd740; --c-bitsakita: #c8a48e;
 }
 body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; margin: 0; }
-.wrap { max-width: none; margin: 0; padding-block: 28px 48px; padding-inline: 16px; }
+.wrap { max-width: none; margin: 0; padding-block: 28px 48px; padding-inline: 16px; container-type: inline-size; }
 .top { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 16px; align-items: start; margin: 18px 0 12px; }
-@media (max-width: 1000px) { .top { grid-template-columns: 1fr; } .controls { max-height: none; } }
+/* Below 1000 px of the page's own width, in the standalone page or the book's column, the plot takes the whole width and the controls go below it. */
+@container (max-width: 1000px) { .top { grid-template-columns: 1fr; } .controls { max-height: none; } }
 h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; margin: 0 0 6px; text-wrap: balance; }
 h2 { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 32px 0 10px; }
 h3 { font-family: var(--serif); font-weight: 600; font-size: 17px; margin: 24px 0 6px; }
@@ -73,7 +74,7 @@ button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-i
 #plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; overflow: hidden; }  /* the same box as the controls, so the two are the same height */
 /* A crosshair over the plot, in both views, so the pointer does not cover the hover box. */
 #plot .nsewdrag, #plot .gl-container canvas, #plot .drag { cursor: crosshair !important; }
-@media (max-width: 640px) { #plot { height: 440px; } }
+@container (max-width: 640px) { #plot { height: 440px; } }
 .tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); margin: 14px 0 18px; }
 /* The small tables are no wider than their columns need, centred, with room above and below. */
 .tablewrap.narrow { width: fit-content; max-width: 100%; margin: 22px auto 26px; }
@@ -586,6 +587,14 @@ document.getElementById('swapmeasures').addEventListener('click', () => {
 // to the left, so that the best configurations are nearest the viewer; a constant uirevision
 // keeps whatever the viewer turns it to.
 const DEFAULT_CAMERA = { eye: { x: -1.25, y: -1.25, z: 1.0 }, up: { x: 0, y: 0, z: 1 } };
+// The default eye fits the scene in a plot CAMERA_REF_WIDTH pixels wide. The vertical field of
+// view is fixed, so a narrower plot crops the scene at the sides; the eye moves out in
+// proportion, at the first render and when the plot's width changes.
+const CAMERA_REF_WIDTH = 600;
+const plotWidth = () => document.getElementById('plot').clientWidth || CAMERA_REF_WIDTH;
+const cameraScale = w => Math.max(1, CAMERA_REF_WIDTH / w);
+const scaledEye = (eye, k) => ({ x: eye.x * k, y: eye.y * k, z: eye.z * k });
+let plotWidthRendered = 0;
 // Toggling the projection carries the live camera into the next render, so that only the
 // projection changes and not the view direction.
 let carryCamera = false;
@@ -846,16 +855,30 @@ function render() {
     layout.xaxis = { ...axis('compressed proof bytes'), type: scale, range: rx, autorange: false };
     layout.yaxis = { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry, autorange: false };
   } else {
-    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry }, zaxis: { ...axis(measureTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface, camera: { ...(camera || DEFAULT_CAMERA), projection: { type: document.getElementById('ortho').checked ? 'orthographic' : 'perspective' } } };
+    layout.scene = { xaxis: { ...axis('proof bytes'), type: scale, range: rx }, yaxis: { ...axis(measureTitle(s)), type: ylog ? 'log' : 'linear', range: ry }, zaxis: { ...axis(measureTitle(t)), type: zlog ? 'log' : 'linear', range: rz }, aspectmode: 'cube', bgcolor: surface, camera: { ...(camera || { ...DEFAULT_CAMERA, eye: scaledEye(DEFAULT_CAMERA.eye, cameraScale(plotWidth())) }), projection: { type: document.getElementById('ortho').checked ? 'orthographic' : 'perspective' } } };
     layout.margin = { l: 0, r: 0, t: 0, b: 0 };
   }
   keepCameraOnce = false;
   Plotly.react('plot', traces, layout, { responsive: true, displaylogo: false });
+  plotWidthRendered = plotWidth();
   // The plot's box changes width without a window resize when the book's sidebar opens or
-  // closes; the responsive option watches the window only, so watch the box itself.
+  // closes; the responsive option watches the window only, so watch the box itself, and move
+  // the camera's eye with the width.
   if (!plotResizer) {
     let frame;
-    plotResizer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => Plotly.Plots.resize('plot')); });
+    plotResizer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const w = plotWidth(), fl = document.getElementById('plot')._fullLayout;
+        const live = fl && fl.scene && fl.scene.camera;
+        if (live && plotWidthRendered && w !== plotWidthRendered) {
+          const f = cameraScale(w) / cameraScale(plotWidthRendered);
+          if (f !== 1) Plotly.relayout('plot', { 'scene.camera.eye': scaledEye(live.eye, f) });
+        }
+        plotWidthRendered = w;
+        Plotly.Plots.resize('plot');
+      });
+    });
     plotResizer.observe(document.getElementById('plot'));
   }
   const tbody = document.querySelector('#table tbody');
