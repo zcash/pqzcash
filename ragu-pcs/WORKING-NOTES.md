@@ -2396,3 +2396,107 @@ ragu/work/bench-fuse-asm.log.
 - 13:10 UTC, addendum: toggling the orthographic projection carries the live camera, so only the projection changes (0d5b4a4); the measure eyebrows shortened to "2D vertical axis" and "2D marker size, 3D vertical axis" with two lines reserved, since the swap column had made them wrap unequally (the user's report). Artifact v146.
 - 13:20 UTC, addendum: the commitments-only measure is "prover commitment work" everywhere it is named (4bceec6; the user), the two rank claims restated with it and their marker refilled; artifact v147; unpushed from 4bceec6.
 - 13:36 UTC, addendum: the user asked why the table never shows "relation, limbs": the two routes differ only in the application's cost, so under the transaction measure the fingerprint row dominates its limb twin (half the digits on the recovery circuit) and under any other third measure the rows are identical and both appear. Found on the way: the fingerprint route's per-step cost was charged on every step; now only on applications with multiplications (`route_step`, DATA.has_mults), so the routes tie on the path applications. The Pasta classes are a list on the page. Commits 4bceec6, 7c23f5a, b748596 and this one, unpushed; artifact v150.
+
+## 2026-11-20 03:08 UTC: Kishu's zero-knowledge cost; the mask's width and the sampler; rounded Gaussians
+
+- WHERE KISHU'S ZERO-KNOWLEDGE COST GOES (the user, late on 2026-11-19: "Kishu is paying a lot
+  in tx prover cost for zk. can we improve it?"). The 3.90 s recovery with zk (rank 18,
+  fingerprint route) is: the fold 1.39 s (the sampling 1.29 s at 300 ns a coordinate, the masks'
+  commitments under the masked matrix 0.065 s, the fold's own merge 0.039 s); the steps and
+  merges 2.50 s, 33 at 75.8 ms, against 0.777 s plain (5 steps at rank 21), since the masked
+  rank factor 2.22 raises the Ajtai rate from 23.7 to 45.3 word multiplications a digit and the
+  fold, which grows with the rank, pulls the optimum down to rank 18; the constraint PIOP 4 ms.
+  Why rejection sampling (the user's question): flooding would need σ about 2^λ times ‖cs‖ and
+  the rank with it; rejection sampling gives the exact centred Gaussian at σ = α‖cs‖ for
+  M = exp(12/α + 1/(2α²)) attempts; a one-shot abort-free mask by a Rényi argument is a
+  judgement call, not taken.
+- THE COST OF A WIDER MASK (the user's question): each doubling of α adds one bit to the masked
+  bound's log (39.2 / 40.2 / 41.2 / 42.2 / 43.2 at α = 6 / 12 / 24 / 48 / 96, against 27
+  unmasked), so the rank factor is 2.11 / 2.22 / 2.33 / 2.45 / 2.56, the masked digit 43.4 /
+  45.3 / 47.3 / 49.3 / 51.4 word multiplications, the slices a coordinate 8 / 9 / 9 / 9 / 10, the
+  attempts 7.5 / 2.7 / 1.7 / 1.3 / 1.1, and the recovery with zk 6.09 / 3.90 / 3.31 / 3.00 /
+  2.89 s at ranks 17 / 18 / 19 / 19 / 19. Bytes and the decider do not move. A sampler at
+  100 ns gives 2.62 s (rank 19) and, with α = 24, 2.28 s. A transaction with four recovery
+  inputs pays the fold once: 2.21 s a note at rank 19.
+- THE MODEL (8d7efa7; artifact v151): `kishu_costs(K, circuits, rank, hp, check, floor, zk,
+  route, alpha, sample)` returns a Kishu row's fields and the fold's parts (sampling, masks,
+  merge), and the row loop takes its fields from it; `mask_rank`, `mask_length` and
+  `mask_attempts` take α, `ajtai_per_coefficient` takes α; `kishu_zk_best(app, alpha, sample,
+  count)` recomputes the page's zk rows at another width or sampler cost (the circuits stay,
+  since the zk-layer merge's extra atoms depend only on the slices' rounded log, asserted) and
+  `kishu_zk_optimum` minimises over MASK_ALPHA_GRID (4 to 1024 by quarter octaves) at
+  SAMPLER_RATES page / fast / cheap / free (900 / 300 / 60 / 0 word multiplications, 300 / 100
+  / 20 / 0 ns); `--figures` prints the per-application table (KISHU_ZK_ALPHA). The row data is
+  unchanged (both pages' DATA parsed and compared; only the self-check list grew). The page's
+  zero-knowledge section has the breakdown, the sampler, the α table and the sweeps, guarded by
+  the claims kishu_zk_steps_over_fold, kishu_zk_rank_below_plain, kishu_zk_falls_with_alpha,
+  kishu_zk_sampler_larger_lever, rounded_gaussian_negligible and alpha_choice_near_optimum.
+  `th .sym` keeps α and β out of the table headings' uppercase, which rendered them as Latin A
+  and B (the user's report; the µs fix of 96c8748 had gone with the microseconds).
+- THE WIDTH THAT MINIMISES EACH APPLICATION'S ZK TRANSACTION (the user's question), with the
+  recovery per note and the seconds at the optimum against α = 12:
+
+  | application | 300 ns | 100 ns | 20 ns | free sampler |
+  |---|---|---|---|---|
+  | recovery | 181: 2.87 (3.90) | 181: 2.09 | 76: 1.54 | 64: 1.32 |
+  | 4 recovery inputs | 181: 6.79 (8.84) | 181: 5.21 | 64: 4.09 | 32: 3.76 |
+  | 2 tachyactions | 152: 1.51 (2.05) | 181: 1.06 | 64: 0.778 | 32: 0.697 |
+  | 4 tachyactions | 304: 2.14 (2.83) | 108: 1.47 | 90: 1.13 | 45: 0.977 |
+  | 8 tachyactions | 181: 2.97 (4.05) | 181: 2.23 | 64: 1.67 | 32: 1.51 |
+  | 16 tachyactions | 108: 4.61 (5.93) | 108: 3.34 | 90: 2.64 | 45: 2.34 |
+  | 1 path | 215: 0.567 (0.801) | 256: 0.388 | 90: 0.252 | 90: 0.193 |
+  | 2 paths | 128: 0.824 (1.17) | 152: 0.535 | 128: 0.354 | 64: 0.282 |
+  | 4 paths | 256: 1.16 (1.63) | 256: 0.804 | 90: 0.533 | 90: 0.415 |
+  | 8 paths | 128: 1.75 (2.45) | 152: 1.17 | 128: 0.807 | 64: 0.664 |
+  | 16 paths | 215: 2.57 (3.44) | 256: 1.85 | 90: 1.31 | 90: 1.07 |
+  | 64 paths | 215: 6.13 (7.85) | 90: 4.76 | 76: 3.71 | 38: 3.39 |
+
+  The optima are high (the user: "much higher alphas than I expected") because each attempt
+  samples and commits the accumulator's K·2^rank digits, six steps' worth, while a doubling of
+  α costs about four percent on each step's digits, and because the measure counts the user's
+  prover only: the rows term on every public merge (the matrix is shared), the masked
+  accumulator's tenth slice from α = 64 (the transfer and the aggregator's range checks) and
+  the memory are outside it. Even a free sampler leaves the optima at 32 to 91, since each
+  attempt still commits the mask. The minimum is shallow: within two percent from 76 to 860 at
+  300 ns and from 32 to 260 at 20 ns for the recovery circuit. The user: about 80 is more than
+  sufficient; checked, α = 80 is within 2.6% of the least for every application at every
+  sampler rate (the claim alpha_choice_near_optimum). The page keeps α = 12.
+- ROUNDED GAUSSIANS IN PLACE OF THE EXACT DISCRETE SAMPLER (the user's question: has it been
+  considered, how hard, and the saving; papers in keep/ as 2017-1025.pdf, 2026-2583.pdf,
+  2019-1011.pdf, 2008.03855v1.pdf, 2017-480.pdf, 10770212.pdf). Hülsing, Lange and Smeets (PKC
+  2018, ePrint 2017/1025) put rounded Gaussians into Lyubashevsky's scheme and BLISS: the
+  rejection lemma's analogue holds with the same M (their Lemma 3.1 and Theorem 3.1, σ =
+  ω(‖v‖√log m)), the rejection rate unchanged; their AVX Box–Muller sampler takes 27,672
+  cycles per 1,024 coordinates, 47,576 with its ChaCha20 randomness, on a 3.5 GHz Haswell (7.7
+  and 13 ns); their §5.2 bounds the finite-precision loss by the Rényi divergence of order ∞.
+  Jeudy (ePrint 2026/2583, October 2026), Theorem 3.1: with Sheppard's correction σ(s) =
+  s − 1/(24s), the rounded Gaussian over Z^n at any centre is the discrete Gaussian of
+  parameter s to a Rényi divergence of order a of 1 + 73an/(33177600 s^8) + o(s^-9); so the
+  proof replaces the real rounded mask by the ideal discrete one at that loss, which at our s
+  of 2^20.9 (α = 12) and N = 2^22 is below 2^-163: the rejection-sampling theorem and the
+  simulation of the note's §4 are untouched. The remaining question is finite precision. The
+  PKC 2018 bound is about 2τσ·2^-p a coordinate for p bits: at p = 53 and τσ = 14σ = 2^24.7
+  that is 2^-27 a coordinate and 2^-5 over a fold of 2^22, enough for search-type security by
+  Prest's order-a Rényi bound (ASIACRYPT 2017, ePrint 2017/480) but not for the simulation's
+  closeness. The same 2^-27 is the fraction of coordinates that double precision leaves
+  undecided between two integers (a coordinate's error is its size times 2^-53), one coordinate
+  in 32 folds; refining those in higher precision, with a rigorous error bound on the double
+  computation (the error from the uniforms' 53-bit truncation is about 2^-29 a coordinate by
+  the Box–Muller derivatives, and a correctly rounded libm gives the evaluation's), makes the
+  rounding exact and leaves no precision argument. COSAC (PQCrypto 2020, ePrint 2019/1011) is
+  the other route, rejection from the rounded Gaussian to the exact discrete one at about two
+  trials a sample, which needs an exp per trial. Karney's 300 ns is corroborated: Du, Fan and
+  Wei (arXiv 2008.03855, Table 1) measured RandomLib's exact normal sampler at 2.1 to 3.5
+  million samples a second on an i7-8550U. The saving, at 20 ns a coordinate (the measured
+  rate with randomness plus the boundary check and scaling, MASK_CHEAP_SAMPLE_WORD_MULTS = 60):
+  recovery with zk 1.80 s at α = 12 (rank 20) and 1.54 s at α about 76, against 3.90 s; what
+  remains is the masked rank on the steps. Difficulty: low; a paragraph in the zero-knowledge
+  note citing Jeudy, and the exact-rounding sampler as implementation work. The note's §5.4
+  sentence that Karney's sampler or a high-precision CDT is the standard answer is now out of
+  date; not changed, for the user's wording.
+- STATE: main at 8d7efa7 plus this entry, unpushed from 8d7efa7 (everything through 3336531
+  was pushed). Artifact v151. PENDING: whether to set α (80?) on the page and in the note's
+  example; the note's §5.4 sampler sentence and a remark in its §5.6 that the transaction
+  measure prefers a wider mask; then as before: the soundness note's lemmas for the two
+  routes and the user's review; the 2026-11-14 open modelling questions; the Pasta-claims
+  recovery row's BLAKE3 figure; the hash-based rows' PIOP verifiers in their merges.
