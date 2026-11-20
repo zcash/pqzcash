@@ -3330,6 +3330,9 @@ def define_figures():
     p, w = best_for("pasta_q64", "recovery", "poseidon", hashes="poseidon")
     fig("tx_recovery_q64_s", secs(w))
     fig("tx_recovery_q64_rank", p["rank"])
+    p_blake3, w_blake3 = best_for("pasta_q64", "recovery", "blake3", hashes="blake3")
+    fig("tx_recovery_q64_blake3_s", secs(w_blake3))
+    fig("tx_recovery_q64_blake3_rank", p_blake3["rank"])
     claim(
         "q64_recovery_sumchecks",
         "the Pasta-claims row's recovery prover is nearly all the fold's sum-checks",
