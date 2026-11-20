@@ -175,7 +175,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits (ADPS16 core-SVP)</label>
       <label><input type="radio" name="floor" value="147" id="floor147"> 147 quantum bits (the most Akita's compression maps allow; Pedersen‑IPA and the binary groups drop out)</label>
       <hr class="sep">
-      <label><input type="checkbox" id="zk" checked> zero knowledge (<a href="#zero-knowledge">see text</a>)</label>
+      <label><input type="checkbox" id="zk" checked> <a href="#zero-knowledge">zero knowledge</a></label>
     </div>
     <div class="group"><span class="eyebrow">Allowed changes</span>
       <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional hashes only (BLAKE3)</label>
@@ -183,7 +183,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <hr class="sep">
       <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
     </div>
-    <div class="group wide grid"><span class="eyebrow">Rank (see <a href="#rank">the Rank section</a>)</span>
+    <div class="group wide grid"><span class="eyebrow"><a href="#rank">Rank</a></span>
       <label><input type="checkbox" class="rank" value="12" checked id="rank12"> <span>12</span></label>
       <label><input type="checkbox" class="rank" value="13" checked id="rank13"> <span>13</span></label>
       <label><input type="checkbox" class="rank" value="14" checked id="rank14"> <span>14</span></label>
@@ -199,7 +199,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" class="rank" value="24" checked id="rank24"> <span>24</span></label>
     </div>
     <div class="group wide two">
-    <div class="group"><span class="eyebrow">PCD header (see <a href="#knobs">the Knobs section</a>)</span>
+    <div class="group"><span class="eyebrow"><a href="#knobs">PCD header</a></span>
       <label><input type="radio" name="header" class="header" value="2" checked id="header2"> <span>2 elements</span></label>
       <label><input type="radio" name="header" class="header" value="4" id="header4"> <span>4 elements</span></label>
       <label><input type="radio" name="header" class="header" value="9" id="header9"> <span>9 elements (Tachyon's; a Tachyon or recovery transaction forces it)</span></label>
