@@ -162,15 +162,24 @@ def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
     return 1 + math.log2(2 * c_l1) + 1 + log_z
 
 
-MASK_RANK = (masked_log_beta() / MASK_UNMASKED_LOG_BETA) ** 2
-MASK_LENGTH = math.ceil(
-    (math.log2(14) + math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S) / 3
-)
+def mask_rank(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+    """The masked accumulation matrix's rows over the unmasked, the square of the bounds' log
+    ratio (the note's §5.2); each doubling of α adds one bit to the masked bound."""
+    return (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
+
+
+def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+    """Base-8 digits per masked coordinate, whose width is 14σ."""
+    return math.ceil((math.log2(14) + math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S) / 3)
+
+
+MASK_RANK = mask_rank()
+MASK_LENGTH = mask_length()
 MASK_SUMCHECK_ATOMS = 2 * round(math.log2(MASK_LENGTH)) * 3
 
 
-def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0):
-    rows = ROWS[variant] * (MASK_RANK if zk else 1) * rank_scale
+def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0, alpha=MASK_ALPHA):
+    rows = ROWS[variant] * (mask_rank(alpha) if zk else 1) * rank_scale
     per_digit = (rows / RING_D + math.log2(RING_D) / 2) * WORD_MULTS[variant]
     return DIGITS[variant] * per_digit
 
@@ -193,11 +202,28 @@ def pedersen_per_coefficient(rank):
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
 # accumulation matrix and N Gaussian samples by Karney's exact method at about 300 ns a
-# coordinate, 900 word-multiplication equivalents at 3e9 per second; N is the accumulator's
-# digits, K groups of 2^rank coefficients (zk-fiat-shamir-with-aborts.md §5.4). The fold's own
-# merge is added at the point. §5.8 of the note moves the attempts off the device's critical
-# path, so this is total work, not latency.
-MASK_ATTEMPTS = math.exp(12 / MASK_ALPHA + 1 / (2 * MASK_ALPHA**2))
+# coordinate (Du, Fan and Wei measured Karney's RandomLib sampler at 2.1 to 3.5 million samples
+# a second on an i7-8550U, arXiv 2008.03855 Table 1), 900 word-multiplication equivalents at
+# 3e9 per second; N is the accumulator's digits, K groups of 2^rank coefficients
+# (zk-fiat-shamir-with-aborts.md §5.4). The fold's own merge is added at the point. §5.8 of the
+# note moves the attempts off the device's critical path, so this is total work, not latency.
+#
+# A rounded continuous Gaussian is far cheaper to sample: Hülsing, Lange and Smeets' AVX
+# Box-Muller sampler (PKC 2018, ePrint 2017/1025, Table 5.1) takes 27,672 cycles per 1,024
+# coordinates, 47,576 with its ChaCha20 randomness, on a 3.5 GHz Haswell. With Sheppard's
+# correction σ = s − 1/(24s) the rounded Gaussian is a discrete Gaussian of parameter s to a
+# Rényi divergence of order a of 1 + 73aN/(33177600 s^8) (Jeudy, ePrint 2026/2583, Theorem
+# 3.1), negligible at this width, so the rejection-sampling argument carries over; what double
+# precision cannot do is round exactly: a coordinate's absolute error is up to its size times
+# 2^-53, so about 2 τσ 2^-53 of the coordinates lie within it of a half-integer, which is also
+# the paper's §5.2 worst-case bound on the divergence per coordinate. Refining those few in
+# higher precision makes the rounding exact. MASK_CHEAP_SAMPLE_WORD_MULTS prices that sampler
+# at 20 ns a coordinate: the measured rate with randomness, the boundary check and the scaling.
+def mask_attempts(alpha=MASK_ALPHA):
+    return math.exp(12 / alpha + 1 / (2 * alpha**2))
+
+
+MASK_ATTEMPTS = mask_attempts()
 MASK_SAMPLE_WORD_MULTS = 900
 
 
@@ -2435,10 +2461,56 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
 # handoff, whose rejection sampling runs over the accumulator's K × 2^rank digits, one per
 # committed bit, so it grows with the rank where the merges shrink. The projection form reveals
 # coordinates and has no zero-knowledge rows.
-for (
-    check,
-    (bool_per_bit, bool_bytes, bool_verify_ms, bool_mults, bool_bits),
-), hp in itertools.product(BOOL_CHECK.items(), HASH_POLICIES):
+def kishu_costs(
+    K, circuits, rank, hp, check, floor, zk, route, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS
+):
+    """A Kishu row's work, and the parts of its masking fold. The merge's commitments are the
+    prover measure; its constraint PIOP joins the accumulation prover. The step pays its digits
+    and its overheads in the merge above (the application's constraint PIOP itself is per
+    application, DATA.piop). The fold is the expected rejection-sampling attempts, each a
+    commitment of a mask of the accumulator's K × 2^rank digits under the masked matrix and as
+    many Gaussian samples, plus the fold's own merge. `alpha` and `sample` stand in for the
+    mask's Gaussian width and the sampler's cost, for the page's sweep of the two."""
+    bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
+    digits, merge_piop = frontend_merge(
+        K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
+    )
+    rank_scale = RANK_SCALE[floor]["goldilocks"]
+    per_digit = ajtai_per_coefficient("pasta_q64", zk, rank_scale, alpha) / DIGITS["pasta_q64"]
+    masked_digit = ajtai_per_coefficient("pasta_q64", True, rank_scale, alpha) / DIGITS["pasta_q64"]
+    commitments = circuits * 2**rank * (per_digit + bool_per_bit)
+    per_step_digit = per_digit + bool_per_bit
+    step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
+    attempts = mask_attempts(alpha) if zk else 0
+    parts = dict(
+        sampling=attempts * K * 2**rank * sample,
+        masks=attempts * K * 2**rank * masked_digit,
+        merge=commitments if zk else 0,
+    )
+    fields = dict(
+        prover=round(commitments),
+        accumulation_prover=round(
+            commitments
+            + merge_piop
+            + accumulation_sumchecks(
+                "pasta_q64", K, rank, digits=1, word_mults=WORD_MULTS["pasta_q64"]
+            )
+        ),
+        step_prover=round(step_digits * per_step_digit),
+        route_step=(
+            round(fingerprint_step_extra_digits(rank, hp) * per_step_digit)
+            if route == "fingerprint"
+            else 0
+        ),
+        fold=round(sum(parts.values())),
+        gates=round(digits),
+    )
+    return fields, parts
+
+
+for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(
+    BOOL_CHECK.items(), HASH_POLICIES
+):
     K = STAGES + 1
     for floor in FLOORS:
         for zk in (False,) if check == "projection" else (False, True):
@@ -2446,9 +2518,6 @@ for (
                 circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
                 if circuits is None:
                     continue  # the per-circuit claim's digits exceed this rank's circuit
-                digits, merge_piop = frontend_merge(
-                    K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
-                )
                 atoms = akita_atoms("kishu", K, circuits, zk)
                 # Kishu's claims are at the 64-bit profile in a small extension, as the Goldilocks
                 # variant's are, so its opening and decider follow that variant's plan and
@@ -2456,32 +2525,10 @@ for (
                 # Pasta-width elements that Kishu does not have.
                 log_len = rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
                 rank_scale = RANK_SCALE[floor]["goldilocks"]
-                per_digit = ajtai_per_coefficient("pasta_q64", zk, rank_scale) / DIGITS["pasta_q64"]
-                masked_digit = (
-                    ajtai_per_coefficient("pasta_q64", True, rank_scale) / DIGITS["pasta_q64"]
-                )
-                fold = (
-                    round(
-                        MASK_ATTEMPTS * K * 2**rank * (masked_digit + MASK_SAMPLE_WORD_MULTS)
-                        + circuits * 2**rank * (per_digit + bool_per_bit)
-                    )
-                    if zk
-                    else 0
-                )
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
-                # The merge's commitments are the prover measure; its constraint PIOP joins the
-                # accumulation prover. The step pays its digits and its overheads in the merge
-                # above (the application's constraint PIOP itself is per application, DATA.piop).
-                commitments = circuits * 2**rank * (per_digit + bool_per_bit)
-                step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
-                per_step_digit = per_digit + bool_per_bit
                 for route in MULT_ROUTES:
-                    route_step = (
-                        round(fingerprint_step_extra_digits(rank, hp) * per_step_digit)
-                        if route == "fingerprint"
-                        else 0
-                    )
+                    fields, _ = kishu_costs(K, circuits, rank, hp, check, floor, zk, route)
                     points.append(
                         dict(
                             family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
@@ -2500,24 +2547,8 @@ for (
                             route=route,
                             arith=f"bits_pasta_{route}",
                             bytes=round(opening + instance + bool_bytes),
-                            prover=round(commitments),
-                            accumulation_prover=round(
-                                commitments
-                                + merge_piop
-                                + accumulation_sumchecks(
-                                    "pasta_q64",
-                                    K,
-                                    rank,
-                                    digits=1,
-                                    word_mults=WORD_MULTS["pasta_q64"],
-                                )
-                            ),
                             memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
-                            step_prover=round(step_digits * per_step_digit),
-                            route_step=route_step,
-                            fold=fold,
                             accumulation=atoms,
-                            gates=round(digits),
                             verify=akita_verify(
                                 "goldilocks",
                                 log_len,
@@ -2526,10 +2557,11 @@ for (
                             )
                             + round(bool_verify_ms * WORD_MULTS_PER_MS),
                             folded=K,
-                            label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {digits / 1e6:.1f}M digits, {K} groups, Booleanity by {check}, multiplication by {route}"
+                            label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {fields['gates'] / 1e6:.1f}M digits, {K} groups, Booleanity by {check}, multiplication by {route}"
                             + HASH_LABEL[hp]
                             + (", ZK" if zk else "")
                             + floor_label(floor),
+                            **fields,
                         )
                     )
 
@@ -2987,6 +3019,93 @@ def kishu_best(app, **kw):
     return min((best_for(f, app, "poseidon", **kw) for f in KISHU), key=lambda pw: pw[1])
 
 
+def kishu_zk_costs(p, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS):
+    """A Kishu zero-knowledge row's costs and fold parts at another Gaussian width or sampler
+    cost: the row's circuits stay, since the zk-layer merge's extra atoms depend only on the
+    rounded log of the mask's length, which is 3 for 6 to 11 slices a coordinate."""
+    assert round(math.log2(mask_length(alpha))) == round(math.log2(MASK_LENGTH)), alpha
+    return kishu_costs(
+        p["groups"],
+        p["circuits"],
+        p["rank"],
+        p["hashes"],
+        p["check"],
+        p["floor"],
+        True,
+        p["route"],
+        alpha,
+        sample,
+    )
+
+
+def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1):
+    """Kishu's least zero-knowledge transaction over both variants and routes, the page's rows
+    with their mask-dependent costs recomputed at `alpha` and `sample`; at the page's values it
+    is kishu_best(app, zk=True, count=count) without the self-check's record."""
+    best = None
+    for f in KISHU:
+        for p in shown(f, "poseidon", zk=True):
+            q = dict(p, **kishu_zk_costs(p, alpha, sample)[0])
+            w = tx_work(q, app, "poseidon", count)
+            if best is None or w < best[1]:
+                best = (q, w)
+    return best
+
+
+# The applications the page offers, with their counts (the application select).
+PAGE_APPLICATIONS = (
+    ("recovery", 1),
+    ("recovery", 4),
+    *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
+    *(("path", n) for n in (1, 2, 4, 8, 16, 64)),
+)
+MASK_ALPHAS = (6, 12, 24, 48, 96)  # the page's sweep of the mask's Gaussian width
+MASK_ALPHA_GRID = tuple(2 ** (k / 4) for k in range(8, 41))  # 4 to 1024 by quarter octaves
+MASK_FAST_SAMPLE_WORD_MULTS = 300  # a sampler three times Karney's rate, 100 ns a coordinate
+MASK_CHEAP_SAMPLE_WORD_MULTS = 60  # a rounded continuous Gaussian by vectorised Box-Muller, 20 ns
+SAMPLER_RATES = {  # word multiplications a coordinate, for the sweeps of the mask's width
+    "page": MASK_SAMPLE_WORD_MULTS,
+    "fast": MASK_FAST_SAMPLE_WORD_MULTS,
+    "cheap": MASK_CHEAP_SAMPLE_WORD_MULTS,
+    "free": 0,
+}
+MASK_ALPHA_CHOICE = 80  # a width to check against every application's optimum
+KARNEY_MSAMPLES_PER_S = (2.109, 3.502)  # Karney's RandomLib sampler, million a second (Table 1)
+HLS18_CYCLES_PER_SAMPLE = (27672 / 1024, 47576 / 1024)  # without and with randomness, at 3.5 GHz
+HLS18_GHZ = 3.5
+MASK_TAIL = 14  # the masked coordinates are at most 14σ (the slices above)
+DOUBLE_MANTISSA_BITS = 53
+
+
+def mask_log_sigma(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+    return math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S
+
+
+def rounded_gaussian_log_divergence(alpha=MASK_ALPHA, order=2):
+    """log2 of (the Rényi divergence − 1) between the fold's mask as a rounded Gaussian with
+    Sheppard's correction and the discrete Gaussian the proof assumes, over N coordinates
+    (Jeudy, ePrint 2026/2583, Theorem 3.1)."""
+    return math.log2(73 * order) + MASK_LOG_N - math.log2(33177600) - 8 * mask_log_sigma(alpha)
+
+
+def double_undecided_log(alpha=MASK_ALPHA):
+    """log2 of the fraction of coordinates that double-precision Box-Muller leaves within its
+    error of a half-integer, 2 τσ 2^-53, the worst case over the tail."""
+    return 1 + math.log2(MASK_TAIL) + mask_log_sigma(alpha) - DOUBLE_MANTISSA_BITS
+
+
+KISHU_ZK_ALPHA = {}  # per application, the width that minimises Kishu's zk transaction (--figures)
+
+
+def kishu_zk_optimum(app, count=1, sample=MASK_SAMPLE_WORD_MULTS):
+    """The α on the grid at which Kishu's zero-knowledge transaction is least, with the row
+    and its work there."""
+    return min(
+        ((a, *kishu_zk_best(app, a, sample, count)) for a in MASK_ALPHA_GRID),
+        key=lambda t: t[2],
+    )
+
+
 def sig(x, n=2):
     """`x` to `n` significant figures, with thousands separators."""
     if x == 0:
@@ -2997,6 +3116,10 @@ def sig(x, n=2):
 
 def secs(work, n=3):
     return sig(work / RATE_PER_S, n)
+
+
+def millis(work, n=3):
+    return sig(work / WORD_MULTS_PER_MS, n)
 
 
 def minutes(work):
@@ -3190,11 +3313,155 @@ def define_figures():
     fig("tx_recovery_kishu_zk_route", p["route"])
     fig("tx_recovery_kishu_zk_s", secs(w))
     fig("tx_recovery_kishu_zk_rank", p["rank"])
-    fig(
-        "tx_recovery_kishu_zk_sampling_s",
-        secs(MASK_ATTEMPTS * p["groups"] * 2 ** p["rank"] * MASK_SAMPLE_WORD_MULTS),
-    )
+    _, parts = kishu_zk_costs(p)
+    fig("tx_recovery_kishu_zk_sampling_s", secs(parts["sampling"]))
     fig("mask_sample_ns", round(MASK_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+
+    # Where Kishu's zero-knowledge cost goes, and what moves it (the zero-knowledge section's
+    # Kishu paragraphs): the fold's parts, the steps' part against the plain row's, the
+    # per-digit commitment rate masked and plain, then the sweeps of the mask's width and the
+    # sampler's cost, the fold's amortisation over four recovery inputs, and the width that
+    # minimises each application's zero-knowledge transaction.
+    assert kishu_zk_best("recovery")[1] == w
+    zk_steps = tx_steps(p, "recovery", "poseidon")
+    zk_per_step = p["step_prover"] + p["accumulation_prover"] + p["route_step"]
+    fig("tx_recovery_kishu_zk_fold_s", secs(p["fold"]))
+    fig("tx_recovery_kishu_zk_masks_s", secs(parts["masks"]))
+    fig("tx_recovery_kishu_zk_fold_merge_s", secs(parts["merge"]))
+    fig("tx_recovery_kishu_zk_steps", zk_steps)
+    fig("tx_recovery_kishu_zk_step_ms", millis(zk_per_step))
+    fig("tx_recovery_kishu_zk_steps_s", secs(zk_steps * zk_per_step))
+    fig("tx_recovery_kishu_zk_piop_ms", millis(PIOP_WORK["recovery"][p["arith"]]))
+    plain, plain_w = kishu_best("recovery")
+    plain_steps = tx_steps(plain, "recovery", "poseidon")
+    plain_per_step = plain["step_prover"] + plain["accumulation_prover"] + plain["route_step"]
+    fig("tx_recovery_kishu_steps_s", secs(plain_steps * plain_per_step))
+    fig("kishu_digit_mults", sig(ajtai_per_coefficient("pasta_q64") / DIGITS["pasta_q64"], 3))
+    fig(
+        "kishu_digit_mults_masked",
+        sig(ajtai_per_coefficient("pasta_q64", True) / DIGITS["pasta_q64"], 3),
+    )
+    claim(
+        "kishu_zk_steps_over_fold",
+        "Kishu's zero-knowledge recovery spends more in its steps and merges than in the fold",
+        zk_steps * zk_per_step > p["fold"],
+    )
+    claim(
+        "kishu_zk_rank_below_plain",
+        "Kishu's zero-knowledge optimum for the recovery circuit is at a lower rank than the plain one, with more merges",
+        p["rank"] < plain["rank"] and zk_steps > plain_steps,
+    )
+    sweep = {}
+    for a in MASK_ALPHAS:
+        q, wa = kishu_zk_best("recovery", a)
+        sweep[a] = wa
+        fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
+        fig(f"mask_rank_factor_alpha{a}", sig(mask_rank(a), 3))
+        fig(f"mask_log_beta_alpha{a}", sig(masked_log_beta(a), 3))
+        fig(f"mask_length_alpha{a}", mask_length(a))
+        fig(
+            f"kishu_digit_mults_alpha{a}",
+            sig(ajtai_per_coefficient("pasta_q64", True, 1.0, a) / DIGITS["pasta_q64"], 3),
+        )
+        fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
+        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", q["rank"])
+    assert sweep[MASK_ALPHA] == w
+    claim(
+        "kishu_zk_falls_with_alpha",
+        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 96, by under 5% from 48 to 96",
+        all(sweep[a] > sweep[2 * a] for a in MASK_ALPHAS[:-1]) and sweep[48] / sweep[96] < 1.05,
+    )
+    q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
+    fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    fig("tx_recovery_kishu_zk_fast_s", secs(wf))
+    fig("tx_recovery_kishu_zk_fast_rank", q["rank"])
+    q, wb = kishu_zk_best("recovery", 24, MASK_FAST_SAMPLE_WORD_MULTS)
+    fig("tx_recovery_kishu_zk_fast_alpha24_s", secs(wb))
+    claim(
+        "kishu_zk_sampler_larger_lever",
+        "a sampler three times faster saves Kishu's zero-knowledge recovery more than doubling α does, and the two compound",
+        wf < sweep[24] and wb < wf,
+    )
+    q, w4 = kishu_best("recovery", zk=True, count=4)
+    fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
+    fig("tx_recovery4_kishu_zk_rank", q["rank"])
+    optima = {(app, n): kishu_zk_optimum(app, n) for app, n in PAGE_APPLICATIONS}
+    at_page = {(app, n): kishu_zk_best(app, MASK_ALPHA, count=n)[1] for app, n in PAGE_APPLICATIONS}
+    savings = {k: 1 - optima[k][2] / at_page[k] for k in optima}
+    fig("kishu_zk_alpha_optimum_min", sig(min(a for a, _, _ in optima.values())))
+    fig("kishu_zk_alpha_optimum_max", sig(max(a for a, _, _ in optima.values())))
+    fig("kishu_zk_alpha_optimum_recovery", sig(optima[("recovery", 1)][0]))
+    fig("kishu_zk_alpha_saving_min_pct", round(100 * min(savings.values())))
+    fig("kishu_zk_alpha_saving_max_pct", round(100 * max(savings.values())))
+    fig("tx_recovery_kishu_zk_optimum_s", secs(optima[("recovery", 1)][2]))
+
+    # The minimum is shallow: the widths on the grid within two percent of it.
+    def band(app, n, sample=MASK_SAMPLE_WORD_MULTS):
+        least = kishu_zk_optimum(app, n, sample)[2]
+        close = [a for a in MASK_ALPHA_GRID if kishu_zk_best(app, a, sample, n)[1] < 1.02 * least]
+        return min(close), max(close)
+
+    lo, hi = band("recovery", 1)
+    fig("kishu_zk_alpha_recovery_band_min", sig(lo))
+    fig("kishu_zk_alpha_recovery_band_max", sig(hi))
+    # What a cheap sampler would do to the balance: a rounded continuous Gaussian from a
+    # vectorised Box-Muller, taken at MASK_CHEAP_SAMPLE_WORD_MULTS (the comment above it).
+    a_cheap, q, w_cheap = kishu_zk_optimum("recovery", 1, MASK_CHEAP_SAMPLE_WORD_MULTS)
+    fig("mask_cheap_sample_ns", round(MASK_CHEAP_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
+    fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
+    fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
+    fig("mask_rounded_divergence_log2", round(-rounded_gaussian_log_divergence()))
+    fig("mask_double_undecided_log2", round(-double_undecided_log()))
+    fig("mask_double_undecided_fold_log2", round(-(double_undecided_log() + MASK_LOG_N)))
+    claim(
+        "rounded_gaussian_negligible",
+        "the rounded Gaussian's divergence from the discrete one is below 2^-128 over the fold's coordinates, and double precision leaves a fold's undecided coordinates at a fraction above 2^-16",
+        rounded_gaussian_log_divergence() < -128 and double_undecided_log() + MASK_LOG_N > -16,
+    )
+    band_cheap = band("recovery", 1, MASK_CHEAP_SAMPLE_WORD_MULTS)
+    fig("kishu_zk_alpha_recovery_cheap_band_min", sig(band_cheap[0]))
+    fig("kishu_zk_alpha_recovery_cheap_band_max", sig(band_cheap[1]))
+    fig("kishu_zk_alpha_optimum_recovery_cheap", sig(a_cheap))
+    fig("tx_recovery_kishu_zk_cheap_optimum_s", secs(w_cheap))
+    fig("tx_recovery_kishu_zk_cheap_optimum_rank", q["rank"])
+    q, w_cheap12 = kishu_zk_best("recovery", MASK_ALPHA, MASK_CHEAP_SAMPLE_WORD_MULTS)
+    fig("tx_recovery_kishu_zk_cheap_s", secs(w_cheap12))
+    fig("tx_recovery_kishu_zk_cheap_rank", q["rank"])
+    for (app, n), (a, q, wo) in optima.items():
+        KISHU_ZK_ALPHA[f"{app}:{n}"] = dict(
+            alpha=round(a, 1),
+            rank=q["rank"],
+            hash=q["hashes"],
+            route=q["route"],
+            zk_s=secs(wo),
+            page_s=secs(at_page[(app, n)]),
+            saving_pct=round(100 * savings[(app, n)], 1),
+        )
+    # The optima at the other sampler rates, and a fixed width against all of them.
+    excess = []
+    for name, sample in SAMPLER_RATES.items():
+        found = {}
+        for app, n in PAGE_APPLICATIONS:
+            a, q, wo = kishu_zk_optimum(app, n, sample)
+            w_choice = kishu_zk_best(app, MASK_ALPHA_CHOICE, sample, n)[1]
+            found[(app, n)] = a
+            excess.append(w_choice / wo - 1)
+            row = KISHU_ZK_ALPHA[f"{app}:{n}"]
+            row[f"alpha_{name}"] = round(a, 1)
+            row[f"zk_s_{name}"] = secs(wo)
+            row[f"alpha{MASK_ALPHA_CHOICE}_{name}_s"] = secs(w_choice)
+        if name != "page":
+            fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
+            fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
+    fig("mask_alpha_choice", MASK_ALPHA_CHOICE)
+    fig("kishu_zk_alpha_choice_excess_pct", sig(100 * max(excess)))
+    claim(
+        "alpha_choice_near_optimum",
+        "a width of 80 is within three percent of the least zero-knowledge transaction for every application at every sampler rate from Karney's to free",
+        MASK_ALPHA_CHOICE == 80 and max(excess) < 0.03,
+    )
+    fig("karney_ns_min", sig(1000 / KARNEY_MSAMPLES_PER_S[1]))
+    fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
     fig("tx_recovery_q64_zk_rank", p["rank"])
@@ -4199,16 +4466,12 @@ def define_figures():
     fig("mask_rank", sig(MASK_RANK))
     fig("mask_sumcheck_atoms", MASK_SUMCHECK_ATOMS)
     fig("mask_rank_weight32", sig((masked_log_beta(c_l1=32) / MASK_UNMASKED_LOG_BETA) ** 2))
-    fig("mask_attempts_alpha6", sig(math.exp(12 / 6 + 1 / (2 * 36))))
-    fig("mask_rank_alpha6", sig((masked_log_beta(alpha=6) / MASK_UNMASKED_LOG_BETA) ** 2))
+    fig("mask_rank_alpha6", sig(mask_rank(6)))
     # The accumulator's digit vector, N base-8 digits, and the masked one's MASK_LENGTH slices.
     unmasked_bytes = 2**MASK_LOG_N * 3 / 8
     fig("accumulator_mb", mb(unmasked_bytes))
     fig("masked_accumulator_mb", mb(MASK_LENGTH * unmasked_bytes))
-    length_alpha6 = math.ceil(
-        (math.log2(14) + math.log2(6) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S) / 3
-    )
-    fig("masked_accumulator_mb_alpha6", mb(length_alpha6 * unmasked_bytes, 3))
+    fig("masked_accumulator_mb_alpha6", mb(mask_length(6) * unmasked_bytes, 3))
 
     # The zero-knowledge note's masking fold over Pasta (its §5.4), at the note's own parameters:
     # the §5.3 rows (weight-32 challenges in dimension 128, about 340), N = 2^22 digits, and 32
@@ -4331,6 +4594,8 @@ if "--figures" in sys.argv:
         print(f"{name} = {value}")
     for name, (text, _) in CLAIMS.items():
         print(f"claim {name}: {text}")
+    for app, row in KISHU_ZK_ALPHA.items():
+        print(f"kishu zk optimum {app}: {row}")
 used, marked, stale, stale_claims, dangling = set(), set(), [], [], []
 for name in PROSE_FILES:
     path = HERE / name
