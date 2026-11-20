@@ -70,7 +70,7 @@ a { color: var(--accent-ink); }
 select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
 .group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
 button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
-#plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; }  /* the same box as the controls, so the two are the same height */
+#plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; overflow: hidden; }  /* the same box as the controls, so the two are the same height */
 /* A crosshair over the plot, in both views, so the pointer does not cover the hover box. */
 #plot .nsewdrag, #plot .gl-container canvas, #plot .drag { cursor: crosshair !important; }
 @media (max-width: 640px) { #plot { height: 440px; } }
@@ -508,6 +508,7 @@ const COLORS = { pedersen: 'var(--c-pedersen)', fp128: 'var(--c-fp128)', goldilo
   whir_rec: 'var(--c-whirrec)', whir_gold_rec: 'var(--c-whirgoldrec)', whir_hybrid_rec: 'var(--c-whirhybridrec)', plonky3_rec: 'var(--c-plonky3rec)', flock_rec: 'var(--c-flockrec)', bitz: 'var(--c-bitz)', bitz_rec: 'var(--c-bitzrec)', bits_q64: 'var(--c-bitsq64)', bits_q64_poseidon: 'var(--c-bitsq64pos)', bits_akita: 'var(--c-bitsakita)' };
 const css = getComputedStyle(document.querySelector('#pareto .top'));  // the plot's theme, live; in the book the plot and controls keep the dark one
 const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
+let plotResizer = null;
 const OFF_BY_DEFAULT = ['whir', 'whir_gold', 'whir_hybrid', 'plonky3', 'whir_rec', 'whir_gold_rec', 'whir_hybrid_rec', 'plonky3_rec'];
 // The family list's sections, each under its heading: the pre-quantum scheme; the lattice-based
 // schemes; the hash-based ones.
@@ -850,6 +851,13 @@ function render() {
   }
   keepCameraOnce = false;
   Plotly.react('plot', traces, layout, { responsive: true, displaylogo: false });
+  // The plot's box changes width without a window resize when the book's sidebar opens or
+  // closes; the responsive option watches the window only, so watch the box itself.
+  if (!plotResizer) {
+    let frame;
+    plotResizer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => Plotly.Plots.resize('plot')); });
+    plotResizer.observe(document.getElementById('plot'));
+  }
   const tbody = document.querySelector('#table tbody');
   tbody.innerHTML = '';
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
