@@ -3176,6 +3176,12 @@ def fig(name, value):
     FIGURES[name] = str(value)
 
 
+def tex_pow2(exponent):
+    """A power of two as a LaTeX math span, for a figure that stands in the prose as a formula;
+    a marker never sits inside a math span, so the figure carries the whole span."""
+    return f"$2^{{{exponent}}}$"
+
+
 CLAIMS = {}  # name -> (text, holds): wording the figures cannot carry, checked against the model
 
 
@@ -3363,9 +3369,9 @@ def define_figures():
     fig("mask_rank_alpha12", sig(mask_rank(12)))
     fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
     fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
-    fig("mask_rounded_divergence_log2", round(-rounded_gaussian_log_divergence()))
-    fig("mask_double_undecided_log2", round(-double_undecided_log()))
-    fig("mask_double_undecided_fold_log2", round(-(double_undecided_log() + MASK_LOG_N)))
+    fig("mask_rounded_divergence", tex_pow2(round(rounded_gaussian_log_divergence())))
+    fig("mask_double_undecided", tex_pow2(round(double_undecided_log())))
+    fig("mask_double_undecided_folds", tex_pow2(round(-(double_undecided_log() + MASK_LOG_N))))
     claim(
         "rounded_gaussian_negligible",
         "the rounded Gaussian's divergence from the discrete one is below 2^-128 over the fold's coordinates, and double precision leaves a fold's undecided coordinates at a fraction above 2^-16",
@@ -4461,11 +4467,11 @@ def define_figures():
     # alternatives are α = 12 and 6 at the same challenges, and Karney's sampler.
     note_c_l1, note_d = MASK_CHALLENGE_L1, 512
     assert abs(NOTE_MASKED_ROWS / (ROWS["pasta_sis"] * MASK_RANK) - 1) < 0.01
-    fig("note_log_cs", sig(math.log2(note_c_l1) + MASK_LOG_S, 3))
-    fig("note_log_sigma", sig(mask_log_sigma(), 3))
-    fig("note_log_z2", sig(1 + mask_log_sigma() + MASK_LOG_N / 2, 3))
-    fig("note_log_zinf", sig(math.log2(MASK_TAIL) + mask_log_sigma(), 3))
-    fig("note_log_beta", sig(masked_log_beta(), 3))
+    fig("note_cs_bound", tex_pow2(sig(math.log2(note_c_l1) + MASK_LOG_S, 3)))
+    fig("note_sigma", tex_pow2(sig(mask_log_sigma(), 3)))
+    fig("note_z2", tex_pow2(sig(1 + mask_log_sigma() + MASK_LOG_N / 2, 3)))
+    fig("note_zinf", tex_pow2(sig(math.log2(MASK_TAIL) + mask_log_sigma(), 3)))
+    fig("note_beta", tex_pow2(sig(masked_log_beta(), 3)))
     note_rows = NOTE_MASKED_ROWS
     fig("note_masked_rows", note_rows)
     fig("note_masked_kb", sig(note_rows * 32 / 1000, 3))
@@ -4480,14 +4486,14 @@ def define_figures():
         commit = 2**MASK_LOG_N * (rows / d + math.log2(d) / 2) * WORD_MULTS["pasta_sis"]
         return commit, 2**MASK_LOG_N * sample
 
-    fig("note_ntt_log2", sig(MASK_LOG_N + math.log2(math.log2(note_d) / 2), 3))
-    fig("note_pointwise_log2", sig(MASK_LOG_N + math.log2(note_rows / note_d), 3))
+    fig("note_ntts", tex_pow2(sig(MASK_LOG_N + math.log2(math.log2(note_d) / 2), 3)))
+    fig("note_pointwise", tex_pow2(sig(MASK_LOG_N + math.log2(note_rows / note_d), 3)))
     fig(
-        "note_mults_log2",
-        sig(MASK_LOG_N + math.log2(note_rows / note_d + math.log2(note_d) / 2), 3),
+        "note_mults",
+        tex_pow2(sig(MASK_LOG_N + math.log2(note_rows / note_d + math.log2(note_d) / 2), 3)),
     )
     commit, sampling = note_attempt(MASK_ALPHA)
-    fig("note_word_mults_log2", sig(math.log2(commit), 3))
+    fig("note_word_mults", tex_pow2(sig(math.log2(commit), 3)))
     fold = (commit + sampling) * MASK_ATTEMPTS
     fig("zk_note_commit_s", secs(commit))
     fig("zk_note_sampling_s", secs(sampling))
