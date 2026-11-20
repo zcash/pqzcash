@@ -719,7 +719,12 @@ TACHYON_STEPS = {  # Pasta gates at header 9 and stage 5; Poseidon permutations;
     "OutputBind": (1467, 2, 102, 0),
     "OutputAction": (1351, 2, 85, 2),
     "ActionMerge": (17, 0, 0, 6),
-    "FeeFuse": (1934, 4, 187, 4),
+    "FeeFuse": (
+        1934,
+        3,
+        102,
+        4,
+    ),  # the fee blind, the fee digest and the change commitment; the blind's 255-bit and the slack's 51-bit multiplications (stamp/proof/stamp.rs, gadgets/note.rs)
     "Rerandomize": (20, 0, 0, 0),
 }
 POSEIDON_RAGU_GATES = 192
