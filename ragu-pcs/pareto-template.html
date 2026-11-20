@@ -56,6 +56,7 @@ a { color: var(--accent-ink); }
 .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
 .group.grid .eyebrow { grid-column: 1 / -1; }
 .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.group a.eyebrow { color: var(--accent-ink); }  /* an eyebrow that is a link keeps the link colour */
 /* A thin rule between the controls that share a group, such as the view's projection, scale and hold. */
 .group hr.sep { width: 100%; border: 0; border-top: 1px solid var(--rule); margin: 3px 0; }
 .group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
@@ -112,7 +113,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <div class="controls">
     <div class="group wide"><div id="families"></div></div>
     <div class="group wide measures">
-    <div class="group"><span class="eyebrow">Second measure (2D vertical axis)</span>
+    <div class="group"><span class="eyebrow"><a href="#measures">Second measure</a> (2D vertical axis)</span>
       <label><input type="radio" name="second" value="accumulation_prover" checked id="secondacc"> accumulation prover</label>
       <label><input type="radio" name="second" value="prover" id="secondprover"> prover commitment work</label>
       <label><input type="radio" name="second" value="gates" id="secondgates"> merge gates</label>
@@ -122,7 +123,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="second" value="memory" id="secondmem"> accumulator memory</label>
     </div>
     <div class="swap"><button type="button" id="swapmeasures" title="swap the second and third measures" aria-label="swap the second and third measures">&#x21C4;</button></div>
-    <div class="group"><span class="eyebrow">Third measure (2D marker size, 3D vertical axis)</span>
+    <div class="group"><span class="eyebrow"><a href="#measures">Third measure</a> (2D marker size, 3D vertical axis)</span>
       <label><input type="radio" name="third" value="accumulation_prover" id="thirdacc"> accumulation prover</label>
       <label><input type="radio" name="third" value="prover" id="thirdprover"> prover commitment work</label>
       <label><input type="radio" name="third" value="gates" id="thirdgates"> merge gates</label>
@@ -132,7 +133,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="third" value="memory" id="thirdmem"> accumulator memory</label>
     </div>
     </div>
-    <div class="group wide"><span class="eyebrow">Transaction prover: the transaction proves</span>
+    <div class="group wide"><span class="eyebrow"><a href="#transaction-prover">Transaction prover</a>: the transaction proves</span>
       <label><select id="txapp">
         <option value="recovery" selected>the Ironwood recovery circuit</option>
         <option value="recovery:4">a transaction with 4 Ironwood recovery inputs</option>
@@ -149,7 +150,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       </select></label>
     </div>
     <div class="group wide two">
-    <div class="group"><span class="eyebrow">View</span>
+    <div class="group"><a href="#axes" class="eyebrow">View</a>
       <label><input type="radio" name="view" value="2d" id="view2d"> 2D: bytes against the second measure, the third as marker size (log scale over the plotted points, 5 to 22 px)</label>
       <label><input type="radio" name="view" value="3d" checked id="view3d"> 3D: bytes, second measure, third measure</label>
       <label><input type="checkbox" id="ortho"> orthographic projection in 3D</label>
@@ -160,30 +161,30 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" id="holdcamera"> hold the view (axes, camera, zoom) when options change</label>
     </div>
     <div class="stack">
-    <div class="group"><span class="eyebrow">Work unit</span>
+    <div class="group"><a href="#prover-work" class="eyebrow">Work unit</a>
       <label><input type="radio" name="unit" value="muls" id="unitmuls"> 64‑bit multiplications</label>
       <label><input type="radio" name="unit" value="ms" checked id="unitms"> milliseconds on one core, at 3e9 multiplications per second</label>
     </div>
-    <div class="group"><span class="eyebrow">Frontier</span>
+    <div class="group"><a href="#frontiers" class="eyebrow">Frontier</a>
       <label><input type="checkbox" id="collapse-pre"> collapse pre-quantum to its frontier</label>
       <label><input type="checkbox" id="collapse-post"> collapse post‑quantum to its frontier</label>
       <label><input type="checkbox" id="perfamily"> within each family separately</label>
     </div>
     </div>
     </div>
-    <div class="group"><span class="eyebrow">Security floor and zero knowledge</span>
+    <div class="group"><span class="eyebrow"><a href="#security-floor">Security floor</a> and <a href="#zero-knowledge">zero knowledge</a></span>
       <label><input type="radio" name="floor" value="128" checked id="floor128"> 128 quantum bits (ADPS16 core-SVP)</label>
       <label><input type="radio" name="floor" value="147" id="floor147"> 147 quantum bits (the most Akita's compression maps allow; Pedersen‑IPA and the binary groups drop out)</label>
       <hr class="sep">
       <label><input type="checkbox" id="zk" checked> <a href="#zero-knowledge">zero knowledge</a></label>
     </div>
-    <div class="group"><span class="eyebrow">Allowed changes</span>
+    <div class="group"><a href="#changes" class="eyebrow">Allowed changes</a>
       <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional hashes only (BLAKE3)</label>
       <label><input type="radio" name="hashes" value="poseidon" id="hashesposeidon"> arithmetic hashes allowed (Poseidon 1.1)</label>
       <hr class="sep">
       <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
     </div>
-    <div class="group wide grid"><span class="eyebrow"><a href="#rank">Rank</a></span>
+    <div class="group wide grid"><a href="#rank" class="eyebrow">Rank</a>
       <label><input type="checkbox" class="rank" value="12" checked id="rank12"> <span>12</span></label>
       <label><input type="checkbox" class="rank" value="13" checked id="rank13"> <span>13</span></label>
       <label><input type="checkbox" class="rank" value="14" checked id="rank14"> <span>14</span></label>
@@ -199,18 +200,18 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" class="rank" value="24" checked id="rank24"> <span>24</span></label>
     </div>
     <div class="group wide two">
-    <div class="group"><span class="eyebrow"><a href="#knobs">PCD header</a></span>
+    <div class="group"><a href="#knobs" class="eyebrow">PCD header</a>
       <label><input type="radio" name="header" class="header" value="2" checked id="header2"> <span>2 elements</span></label>
       <label><input type="radio" name="header" class="header" value="4" id="header4"> <span>4 elements</span></label>
       <label><input type="radio" name="header" class="header" value="9" id="header9"> <span>9 elements (Tachyon's; a Tachyon or recovery transaction forces it)</span></label>
     </div>
     <div class="stack">
-    <div class="group"><span class="eyebrow">Pedersen‑IPA's fixed circuits</span>
+    <div class="group"><a href="#circuit-budget" class="eyebrow">Pedersen‑IPA's fixed circuits</a>
       <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> as today, one circuit each</label>
       <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the rank's budget</label>
     </div>
     </div>
-    <div class="group wide"><span class="eyebrow">Hash-based families' grinding (proof of work in the query phase)</span>
+    <div class="group wide"><span class="eyebrow"><a href="#grinding">Hash-based families' grinding</a> (proof of work in the query phase)</span>
       <label><select id="grind">
         <option value="auto" selected>best per row (smallest prover)</option>
         <option value="0">none</option>
@@ -500,20 +501,22 @@ const color = f => css.getPropertyValue(COLORS[f].slice(4, -1)).trim();
 const OFF_BY_DEFAULT = ['whir', 'whir_gold', 'whir_hybrid', 'plonky3', 'whir_rec', 'whir_gold_rec', 'whir_hybrid_rec', 'plonky3_rec'];
 // The family list's sections, each under its heading: the pre-quantum scheme; the lattice-based
 // schemes; the hash-based ones.
-const GROUPS = [
-  ['Pre-quantum', ['pedersen']],
-  ['Lattice-based', ['fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'bits_q64', 'bits_q64_poseidon', 'bits_akita']],
-  ['Hash-based', ['bitz', 'bitz_rec', 'flock', 'flock_rec', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec']],
+const GROUPS = [  // heading, the section it links to, families
+  ['Pre-quantum', '#circuit-budget', ['pedersen']],
+  ['Lattice-based', '#trust', ['fp128', 'goldilocks', 'pasta_q64', 'pasta_sis', 'pasta', 'bits_q64', 'bits_q64_poseidon', 'bits_akita']],
+  ['Hash-based', '#hash-based', ['bitz', 'bitz_rec', 'flock', 'flock_rec', 'whir', 'whir_rec', 'whir_gold', 'whir_gold_rec', 'whir_hybrid', 'whir_hybrid_rec', 'plonky3', 'plonky3_rec']],
 ];
-const order = GROUPS.flatMap(([, fams]) => fams);
+const order = GROUPS.flatMap(([, , fams]) => fams);
 const famBox = document.getElementById('families');
 // Each family's swatch uses the marker shapes its points have in the plot: a
 // circle for configurations needing parameter changes only, a square for the
 // rest, both where a family has both.
-GROUPS.forEach(([heading, group], i) => {
-  const h = document.createElement('div');
+GROUPS.forEach(([heading, href, group], i) => {
+  const h = document.createElement('a');
   h.className = 'eyebrow';
+  h.href = href;
   h.textContent = heading;
+  h.style.display = 'block';
   if (i) h.style.marginTop = '6px';
   famBox.appendChild(h);
   for (const f of group) {
