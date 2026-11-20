@@ -4629,6 +4629,7 @@ BOOK_DROPPED_DECLARATIONS = (
 # rule under each row replaces mdbook's grid of cell borders.
 BOOK_EXTRA_CSS = """\
 #pareto.wrap { padding: 0; }
+#pareto a.header { color: inherit; }
 #pareto table tbody tr { background: var(--table-alternate-bg); }
 #pareto table tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%); }
 #pareto table th, #pareto table td { border: 0; border-bottom: 1px solid var(--rule); }
@@ -4710,6 +4711,13 @@ def write_book_files(page, data_json):
         + scope_css(style)
         + "\n"
         + BOOK_EXTRA_CSS
+    )
+    # mdbook wraps a Markdown heading's text in a link to its own anchor, which carries the
+    # hover cue and the click-to-link; the page's headings are HTML, so they get the same.
+    body = re.sub(
+        r'<h([23]) id="([^"]+)">(.*?)</h\1>',
+        r'<h\1 id="\2"><a class="header" href="#\2">\3</a></h\1>',
+        body,
     )
     lines = [ln for ln in body.split("\n") if ln.strip() and not ln.strip().startswith("<h1>")]
     html = (
