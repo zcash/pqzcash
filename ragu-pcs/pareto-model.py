@@ -3266,10 +3266,30 @@ PASTA_ARITH = {
     "bits_akita": "bits",
 }
 PASTA_COUNTS = ("native", "relation")
+# The security assumption is the dominance test's second requirement: a configuration is
+# dominated only by one that assumes no more. The hash-based families rest on a random oracle
+# alone; Akita's and Kishu's on Module-SIS as well; the Boolean-over-Akita row's security
+# ledger is open, so it ranks above both and removes nothing (the user, 2026-11-21: a lattice
+# scheme must not dominate a hash-based one, and a row that is not baked must not dominate the
+# others). Pedersen-IPA is its own class, so its level never meets another.
+LATTICE_FAMILIES = (
+    "pedersen",
+    "fp128",
+    "goldilocks",
+    "pasta_q64",
+    "pasta_sis",
+    "pasta",
+    "bits_q64",
+    "bits_q64_poseidon",
+)
+ASSUMPTION_LEVEL = {
+    f: 2 if f == "bits_akita" else 1 if f in LATTICE_FAMILIES else 0 for f in PASTA_ARITH
+}
 
 for p in points:
     p["pasta_arith"] = PASTA_ARITH[p["family"]] + (f", {p['route']}" if p.get("route") else "")
     p["pasta"] = p["pasta_arith"].split(",")[0] in PASTA_COUNTS
+    p["assumption"] = ASSUMPTION_LEVEL[p["family"]]
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS).
@@ -3292,8 +3312,9 @@ def pareto(pts):
             and q["prover"] <= p["prover"]
             and q["accumulation"] <= p["accumulation"]
             and q["pasta"] >= p["pasta"]
-            and (q["bytes"], q["prover"], q["accumulation"])
-            != (p["bytes"], p["prover"], p["accumulation"])
+            and q["assumption"] <= p["assumption"]
+            and (q["bytes"], q["prover"], q["accumulation"], q["pasta"], q["assumption"])
+            != (p["bytes"], p["prover"], p["accumulation"], p["pasta"], p["assumption"])
             for q in pts
         )
         keep.append(not dominated)
