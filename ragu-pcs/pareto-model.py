@@ -179,6 +179,23 @@ def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
 MASK_RANK = mask_rank()
 MASK_LENGTH = mask_length()
 MASK_SUMCHECK_ATOMS = 2 * round(math.log2(MASK_LENGTH)) * 3
+# Bits of a masked coordinate stored compactly, its width 14σ (the note's z∞ bits).
+MASK_COORDINATE_BITS = math.ceil(
+    math.log2(14) + math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S
+)
+
+
+# The peak fuse memory measure: what a fuse holds at its peak, in bytes. For the lattice rows
+# it is the two children's accumulators, with the output overwriting one of them as the linear
+# combination is computed; the fold's second-round sum-check table, half the accumulator's
+# digits as claim-field elements, since the first round can stream over the packed digits; and
+# under zero knowledge the mask, the accumulator's digits at MASK_COORDINATE_BITS each. The new
+# step's witness and the commitment's working set are small beside these. The other rows hold
+# two accumulators (the default below the points).
+def peak_fuse_bytes(accumulator_bytes_, digits, table_element_bytes, zk):
+    table = digits / 2 * table_element_bytes
+    mask = digits * MASK_COORDINATE_BITS / 8 if zk else 0
+    return 2 * accumulator_bytes_ + table + mask
 
 
 def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0, alpha=MASK_ALPHA):
@@ -1730,6 +1747,14 @@ for variant, hp in itertools.product(
                             + accumulation_sumchecks(variant, accumulator)
                         ),
                         memory=accumulator_bytes(variant, accumulator),
+                        peak_memory=round(
+                            peak_fuse_bytes(
+                                accumulator_bytes(variant, accumulator),
+                                accumulator * DIGITS[variant],
+                                CLAIM_BYTES[variant],
+                                zk,
+                            )
+                        ),
                         step_prover=round(2**rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         fold=round(
                             mask_fold(variant, accumulator, rank_scale)
@@ -3140,6 +3165,7 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                 rank_scale = RANK_SCALE[floor]["goldilocks"]
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
+                accumulator = accumulator_coefficients("kishu", rank, circuits)
                 for route in MULT_ROUTES:
                     fields, _ = kishu_costs(K, circuits, rank, hp, check, floor, zk, route)
                     points.append(
@@ -3160,10 +3186,14 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                             route=route,
                             arith=f"bits_pasta_{route}",
                             bytes=round(opening + instance + bool_bytes),
-                            memory=accumulator_bytes(
-                                "pasta_q64",
-                                accumulator_coefficients("kishu", rank, circuits),
-                                digits=1,
+                            memory=accumulator_bytes("pasta_q64", accumulator, digits=1),
+                            peak_memory=round(
+                                peak_fuse_bytes(
+                                    accumulator_bytes("pasta_q64", accumulator, digits=1),
+                                    accumulator,
+                                    CLAIM_BYTES["kishu"],
+                                    zk,
+                                )
                             ),
                             accumulation=atoms,
                             verify=akita_verify(
@@ -3305,6 +3335,11 @@ points.append(
             binary_open_bytes(bits_akita_log, K) + K * 128 + 2 * K * 32 + 4 + CLAIM_BYTES["fp128"]
         ),
         memory=round(bits_akita_accumulator / 8),  # the accumulator's bits, packed
+        peak_memory=round(
+            peak_fuse_bytes(
+                bits_akita_accumulator / 8, bits_akita_accumulator, CLAIM_BYTES["fp128"], False
+            )
+        ),
         prover=round(bits_akita_prover),
         accumulation_prover=round(bits_akita_accumulation),
         step_prover=round(BOOL_STEP_BITS * bits_akita_prover / bits_akita_ands),
@@ -3532,6 +3567,7 @@ for p in points:
         "memory", p["bytes"]
     )  # the rows under their own recursion hold only the previous proof
     p.setdefault("fold_leaf", p["fold"])  # only the lattice rows' masks scale with the accumulator
+    p.setdefault("peak_memory", 2 * p["memory"])  # two accumulators, the output over one of them
 assert (
     abs(BOOL_CHECK["sumcheck"][0] / WORD_MULTS["pasta_q64"] - SUMCHECK_FIELD_MULTS_PER_DIGIT) < 0.2
 )
@@ -3555,6 +3591,7 @@ PRUNE_MEASURES = (
     "gates",
     "verify",
     "memory",
+    "peak_memory",
 )
 
 
@@ -4637,6 +4674,18 @@ def define_figures():
         "memory_pedersen_rank13_3",
         mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["memory"], 3),
     )
+
+    # Peak fuse memory (the axes list): Kishu at rank 21 with and without zero knowledge, Akita
+    # with Pasta claims at rank 17, and Pedersen-IPA at rank 13.
+    kishu21 = dict(rank=21, hashes="blake3", check="sumcheck", route="limbs")
+    fig("peak_kishu_rank21_zk", mb(pick("bits_q64", zk=True, **kishu21)["peak_memory"]))
+    fig("peak_kishu_rank21", mb(pick("bits_q64", **kishu21)["peak_memory"]))
+    fig("peak_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["peak_memory"], 3))
+    fig(
+        "peak_pedersen_rank13",
+        mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["peak_memory"]),
+    )
+    fig("mask_coordinate_bits", MASK_COORDINATE_BITS)
     fig("packed_digit_bits", PACKED_DIGIT_BITS - 1)
 
     # The circuit budget table: the rows of its body.
@@ -5639,6 +5688,7 @@ data = dict(
         accumulation="base-field atoms the merge circuit absorbs per fold: 2 per Pedersen commitment; for Akita 120 sum-check elements plus the compressed images at the variant's atom width",
         gates="gates synthesized across every circuit of one merge: measured for Pedersen-IPA, estimated for Akita",
         verify="the decider's verification in word-multiplication equivalents at 3e9 per second: modelled for Pedersen-IPA, measured for Akita and the hash-based verifiers, see the page",
+        peak_memory="bytes a fuse holds at its peak: two accumulators, the fold's second-round sum-check table, and the mask under zero knowledge for the lattice rows; two accumulators otherwise",
     ),
 )
 data["tx_checks"] = tx_checks
