@@ -3285,6 +3285,11 @@ LATTICE_FAMILIES = (
 ASSUMPTION_LEVEL = {
     f: 2 if f == "bits_akita" else 1 if f in LATTICE_FAMILIES else 0 for f in PASTA_ARITH
 }
+# The changes a configuration needs are the third requirement, parameters only below code
+# changes below design changes (the user, 2026-11-21): a configuration is dominated only by one
+# that needs no more, which keeps the best parameter-only configurations on the frontier beside
+# what the changes buy.
+CHANGE_LEVEL = {"none": 0, "code": 1, "design": 2}
 
 for p in points:
     p["pasta_arith"] = PASTA_ARITH[p["family"]] + (f", {p['route']}" if p.get("route") else "")
@@ -3313,8 +3318,23 @@ def pareto(pts):
             and q["accumulation"] <= p["accumulation"]
             and q["pasta"] >= p["pasta"]
             and q["assumption"] <= p["assumption"]
-            and (q["bytes"], q["prover"], q["accumulation"], q["pasta"], q["assumption"])
-            != (p["bytes"], p["prover"], p["accumulation"], p["pasta"], p["assumption"])
+            and CHANGE_LEVEL[q["change"]] <= CHANGE_LEVEL[p["change"]]
+            and (
+                q["bytes"],
+                q["prover"],
+                q["accumulation"],
+                q["pasta"],
+                q["assumption"],
+                q["change"],
+            )
+            != (
+                p["bytes"],
+                p["prover"],
+                p["accumulation"],
+                p["pasta"],
+                p["assumption"],
+                p["change"],
+            )
             for q in pts
         )
         keep.append(not dominated)
@@ -5444,6 +5464,7 @@ data = dict(
     piop=PIOP_WORK,
     has_mults=APPLICATION_MULTS,
     own_last_step=sorted(OWN_LAST_STEP),
+    change_level=CHANGE_LEVEL,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,
