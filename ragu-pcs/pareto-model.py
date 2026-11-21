@@ -862,20 +862,22 @@ def absorb_piop(bytes_, hp, checked_words=0):
 # through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
 # stage of 5 values. They are Pasta gates with Poseidon, a gate being one multiplication with
 # free linear constraints, and all are within the 2,048 of rank 13. In the other
-# arithmetizations the transaction is a post-quantum variant of Tachyon in a new shielded pool,
-# so the Poseidon permutations, two gates per S-box of degree 5 and 192 per permutation, are
-# hashed under the page's policy. The fixed-base scalar multiplications' window selections, two
-# gates per three-bit window in Ragu, cost the bits' four monomials in any unit, since the
-# limbs' selections are then linear; each window's point addition, two gates, and each opening
-# of a staged value at zeta, two gates by the action merge's 17 for six, are Pallas base-field
-# multiplications. The remaining gates are the scalars' bit checks, the canonicity and range
-# comparisons and the step's glue (the statements note), priced as bit operations, one gate,
-# AND gate or committed bit each, which understates any among them that multiply field
-# elements; `bits_as_mults` prices them as multiplications instead, for the prose's bound. The
-# windows are 85 for a 255-bit scalar and 17 for a 51-bit amount (keep/tachyon-statements.md,
-# the cost table). The rerandomization's circuit is the adapter's own handful of gates.
-# Per-note steps (NoteSeed, NullifierDerive, the spendable and anchor-span steps) run in the
-# background and are not counted, as in the benchmarks.
+# arithmetizations the transaction is Tachyon's circuits as they are: a pre-quantum protocol
+# proven in a post-quantum proof system. That is not a useful deployment, which Zoodles is,
+# but it compares the proof systems on the same application. The Poseidon permutations, two
+# gates per S-box of degree 5 and 192 per permutation, are hashed under the page's policy. The
+# fixed-base scalar multiplications' window selections, two gates per three-bit window in
+# Ragu, cost the bits' four monomials in any unit, since the limbs' selections are then
+# linear; each window's point addition, two gates, and each opening of a staged value at zeta,
+# two gates by the action merge's 17 for six, are Pallas base-field multiplications. The
+# remaining gates are the scalars' bit checks, the canonicity and range comparisons and the
+# step's glue (the statements note), priced as bit operations, one gate, AND gate or committed
+# bit each, which understates any among them that multiply field elements; `bits_as_mults`
+# prices them as multiplications instead, for the prose's bound. The windows are 85 for a
+# 255-bit scalar and 17 for a 51-bit amount (keep/tachyon-statements.md, the cost table). The
+# rerandomization's circuit is the adapter's own handful of gates. Per-note steps (NoteSeed,
+# NullifierDerive, the spendable and anchor-span steps) run in the background and are not
+# counted, as in the benchmarks.
 TACHYON_STEPS = {  # Pasta gates at header 9 and stage 5; Poseidon permutations; windows; openings
     "SpendBind": (1630, 2, 102, 0),
     "SpendAction": (1649, 3, 85, 2),
