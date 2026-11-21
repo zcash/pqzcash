@@ -2630,3 +2630,41 @@ statistical padding, which dominated the leaf.
 Open: the lattice estimator on the padding; whether the host's zk-layer merge needs more than
 its 18 extra elements for the three-way fold (leaf, mask, its other child); the linking
 commitment; an MPC-in-the-head row with native verification.
+
+## 2026-11-21 13:07 UTC: the hardware wallets page
+
+A book chapter, `hardware-wallets.md` beside the notes and included from
+`book/src/hardware-wallets.md` (top level in SUMMARY.md), with its figures filled by the model
+like the notes' (`PROSE_FILES`). It records the device split, the two shapes of the wallet's
+proof with the page's figures, why a Kishu-style proof cannot be small enough for an animated
+QR channel, and how the signature of knowledge is argued. New figures: `qk_z_floor_kbytes`
+(the leaf alone, no padding or masking elements: 40 kbytes), `qk_min_rank` (14),
+`qk_succinct_proof_kbytes` (68 kbytes: one circuit at rank 14, the opening at the planner's
+floor), `leansphincs_pruned_sig_bytes` (4,276), `leansphincs_ethereum_bytes` (7,740),
+`sok_second_preimage_pct` (63) and `sok_loss_factor` (3.2); claims `qk_qr_channel_too_big`
+and `sok_loss_small`. The opening and decider extrapolations are floored at the planner's
+smallest geometry (43a0268): the decider's line, fitted at 2^27 bits, went negative at a
+one-compression leaf.
+
+The signature-of-knowledge section: a proof of knowledge of a preimage would be replayed, and
+the unforgeability reduction must simulate signatures, so simulation extractability with the
+message as label is what is needed (Chase–Lysyanskaya 2006). Binding the message into the
+instance before the first challenge is proved classically (Faust–Kohlweiss–Marson–Venturi 2012
+for sigma protocols; Dao–Grubbs 2023, Faonio–Fiore–Kohlweiss–Russo–Zajac 2023 and
+Kohlweiss–Pancholi–Takahashi 2023 for sum-check and PIOP SNARKs), but in the QROM only sigma
+protocols and the knowledge soundness of Fiat–Shamir IOPs are settled, the multi-round bound of
+Don–Fehr–Majenz 2020 is exponential in the rounds, and the SE proofs rewind. The route that is
+available: H^qk maps 256 bits to 256 bits, a random qsk has a second preimage with probability
+1 − 1/e, and the reduction to collision resistance holds a preimage, signs honestly and extracts
+one from the forgery, which by witness indistinguishability differs from its own with
+probability about a half; loss about 3.2; needs only zero knowledge and knowledge soundness
+with auxiliary input (the two-witness argument of Katz–Wang 2003 with the hash's
+non-injectivity as the second key).
+
+Corrections from the user: a wallet does not necessarily export ak (a single-signer wallet
+derives and exports it; with FROST it is the DKG's output), which the page now says; the
+use_qsk = false path is not considered, since use_qsk = true is the one whose costs a hardware
+wallet optimizes; and the tag byte for qk's derivation, proposed in chat, is withdrawn: H^qk is
+already domain-separated, so a signature route would define its own derivation of qk from the
+public key under another context when the scheme is known, and the Recovery Statement takes it
+as another arm of its tagged union, with keys derived before then being preimage-route keys.
