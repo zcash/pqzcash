@@ -696,6 +696,65 @@ def path_cost(field, hp):
     return RECOVERY_PATH_BLAKE3[unit]
 
 
+# ---- The hardware wallet's part of the Recovery Statement, as applications ----------------
+# ZIP 2005's SoK^qsk is made on the device that holds qsk (its Option A), and the host's
+# Recovery Statement proves the rest. Two shapes of that part are priced as applications on
+# their own, under either hash policy, since their hash is the scheme's and not the page's:
+#   - the device's own statement, one BLAKE3 compression for H^qk(qsk) = qk with the linking
+#     commitment left out, for a device that proves it as a leaf of the same proof system;
+#   - a leanSPHINCS verifier, for a device that signs SigHash with the stateless hash-based
+#     signature of post-quantum Ethereum (EthLib's Cryptography/Sphincs module; EIP-8288 and
+#     the draft EIP of ethereum/EIPs#12672), the host proving the verification with the
+#     signature and the public key as witnesses. The counts are sphincs.art's layered
+#     two-level WOTS forest key of lifetime 2^30 (TomWambsgans/sphincs.art at 8157875,
+#     scripts/scheme.py --json: height 26 as layers 10 + 8 + 8, WOTS+C with 64 chains of 4
+#     positions and target sum 128, 8 forest coordinates), 408 Keccak-f[1600] permutations or
+#     462 BLAKE2s compressions, with the 6,332-byte signature as committed input bits.
+#     Ethereum's provisional set, with FORS of 24 trees of height 10 in place of the forest,
+#     verifies in 515 permutations.
+# XOR is not free in a digit arithmetization or over a prime field, so Keccak-f costs its 24
+# rounds of 3,200 XOR bits in theta and 1,600 ANDs and 1,600 XORs in chi, 153,600 committed
+# bits or gates and as many product terms, against a BLAKE2s compression's 21,312 (ten rounds
+# of BLAKE3's G function) and a BLAKE3 compression's 15,072. In a Boolean circuit with XOR free
+# Keccak-f is chi's 38,400 ANDs and BLAKE2s its additions.
+BLAKE2S_ROUNDS = 10
+BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + 4 * 32) + 16 * 32
+BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32
+BLAKE2S_PIOP = piop_sum(
+    (BLAKE2S_ROUNDS * 8 * 4, ADD32_PIOP), (BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP)
+)
+KECCAK_ROUNDS = 24
+KECCAK_ROUND_BITS = 3200 + 1600 + 1600  # theta's XORs; chi's ANDs and XORs
+KECCAK_BITS = KECCAK_ROUNDS * KECCAK_ROUND_BITS
+KECCAK_ANDS = KECCAK_ROUNDS * 1600
+KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
+LEANSPHINCS_VERIFY = {"keccak": 408, "blake2s": 462}  # hash calls of one verification
+LEANSPHINCS_SIG_BYTES = 6332
+LEANSPHINCS_ETHEREUM_PERMS = 515
+HASH_UNITS = {  # one call of each hash as prime-field gates, AND gates, and bits or digits
+    "blake3": {"gates": BLAKE3_GATES, "boolean": BLAKE3_ANDS, "bits": BLAKE3_BITS},
+    "blake2s": {"gates": BLAKE2S_BITS, "boolean": BLAKE2S_ANDS, "bits": BLAKE2S_BITS},
+    "keccak": {"gates": KECCAK_BITS, "boolean": KECCAK_ANDS, "bits": KECCAK_BITS},
+}
+HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_PIOP}
+
+
+def hash_app_cost(field, hash_, calls, input_bytes=0):
+    """`calls` of `hash_` and `input_bytes` of witness in the unit of `field`'s
+    arithmetization: the inputs are committed bits in the bit arithmetizations and
+    Boolean-checked wires in a field, and free wires in a Boolean circuit."""
+    unit = bits_unit(field)
+    kind = unit if unit in ("boolean", "bits") else "gates"
+    inputs = 0 if kind == "boolean" else 8 * input_bytes
+    return calls * HASH_UNITS[hash_][kind] + inputs
+
+
+def hash_app_piop(hash_, calls):
+    """The constraint counts of `calls` of `hash_` in Kishu's PIOP; the input bits' Booleanity
+    is paid per digit."""
+    return piop_sum((calls, HASH_PIOPS[hash_]))
+
+
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
 # `Stamp::prove`). A spend is a SpendBind and a SpendAction step, and an output an OutputBind
 # seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
@@ -819,6 +878,16 @@ ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
+    # The hardware wallet's part of the Recovery Statement: the device's statement, and a
+    # leanSPHINCS verifier with either hash; their hash is the scheme's under either policy.
+    "qk": {a: {hp: round(hash_app_cost(a, "blake3", 1)) for hp in HASH_POLICIES} for a in ARITHS},
+    **{
+        f"leansphincs_{h}": {
+            a: {hp: round(hash_app_cost(a, h, n, LEANSPHINCS_SIG_BYTES)) for hp in HASH_POLICIES}
+            for a in ARITHS
+        }
+        for h, n in LEANSPHINCS_VERIFY.items()
+    },
     # A Tachyon transaction is its proof tree's nodes, each in the unit, in order.
     **{
         f"tachyon{n}": {
@@ -837,6 +906,11 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
 PIOP_WORK = {
     "recovery": {a: round(piop_word_mults(recovery_piop(kishu_route(a)))) for a in KISHU_ARITHS},
     "path": {a: round(piop_word_mults(path_piop())) for a in KISHU_ARITHS},
+    "qk": {a: round(piop_word_mults(hash_app_piop("blake3", 1))) for a in KISHU_ARITHS},
+    **{
+        f"leansphincs_{h}": {a: round(piop_word_mults(hash_app_piop(h, n))) for a in KISHU_ARITHS}
+        for h, n in LEANSPHINCS_VERIFY.items()
+    },
     **{
         f"tachyon{n}": {
             a: round(
@@ -853,9 +927,11 @@ PIOP_WORK = {
 
 # Whether an application has Pasta multiplications, which is when Kishu's fingerprint route
 # pays its per-step cost (DATA.has_mults).
-APPLICATION_MULTS = {"recovery": True, "path": False} | {
-    f"tachyon{n}": True for n in TACHYON_TRANSACTIONS
-}
+APPLICATION_MULTS = (
+    {"recovery": True, "path": False, "qk": False}
+    | {f"leansphincs_{h}": False for h in LEANSPHINCS_VERIFY}
+    | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
+)
 
 # The arithmetization of each family's application circuit, for `step_gates`; Kishu's rows
 # set theirs by multiplication route.
@@ -3132,6 +3208,9 @@ def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1)
 PAGE_APPLICATIONS = (
     ("recovery", 1),
     ("recovery", 4),
+    ("qk", 1),
+    ("leansphincs_blake2s", 1),
+    ("leansphincs_keccak", 1),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
     *(("path", n) for n in (1, 2, 4, 8, 16, 64)),
 )
@@ -3348,6 +3427,48 @@ def define_figures():
     )
     fig("bool_mult_ands", sig((1 + BOOL_REDUCTION) * mult_ands(255)))
 
+    # The hardware wallet's part of the Recovery Statement as applications: the device's own
+    # statement, and a leanSPHINCS verifier with either hash (the Transaction prover section).
+    fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
+    fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
+    fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
+    fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
+    fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
+    fig("leansphincs_sig_bytes", fmt(LEANSPHINCS_SIG_BYTES))
+    fig("leansphincs_ethereum_perms", LEANSPHINCS_ETHEREUM_PERMS)
+    fig("keccak_bits", sig(KECCAK_BITS, 3))
+    fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
+    keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
+    blake2s_kishu = APP["leansphincs_blake2s"]["bitz"]["blake3"]
+    fig("app_leansphincs_keccak_kishu", millions(keccak_kishu, 3))
+    fig("app_leansphincs_blake2s_kishu", millions(blake2s_kishu, 3))
+    fig("leansphincs_keccak_over_blake2s", sig(keccak_kishu / blake2s_kishu))
+    fig(
+        "leansphincs_keccak_over_blake2s_boolean",
+        sig(
+            APP["leansphincs_keccak"]["boolean"]["blake3"]
+            / APP["leansphincs_blake2s"]["boolean"]["blake3"]
+        ),
+    )
+    claim(
+        "leansphincs_keccak_dearer",
+        "the leanSPHINCS verifier with Keccak-256 costs between five and eight times the one with BLAKE2s in Kishu's digits",
+        5 <= keccak_kishu / blake2s_kishu <= 8,
+    )
+    for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak"):
+        p, w = kishu_best(app, zk=True)
+        fig(f"tx_{app}_kishu_zk_s", secs(w))
+        fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        if app == "qk":
+            merges = tx_steps(p, app, "poseidon") * p["accumulation_prover"]
+            fig("tx_qk_kishu_zk_merges_pct", round(100 * merges / w))
+            fig("tx_qk_kishu_zk_fold_pct", round(100 * p["fold"] / w))
+            claim(
+                "qk_merge_and_fold",
+                "the merge and the masking fold are over nine tenths of Kishu's zero-knowledge transaction for the device's statement alone",
+                (merges + p["fold"]) / w > 0.9,
+            )
+
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
     checked_in = pick("pedersen", rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
@@ -3501,8 +3622,11 @@ def define_figures():
         for app, n in PAGE_APPLICATIONS:
             a, q, wo = kishu_zk_optimum(app, n, sample)
             w_page = kishu_zk_best(app, MASK_ALPHA, sample, n)[1]
-            found[(app, n)] = a
-            worst = max(worst, w_page / wo - 1)
+            if (
+                app != "qk"
+            ):  # the device's statement alone is one compression: its transaction is its merges, and its optimum is no transaction's
+                found[(app, n)] = a
+                worst = max(worst, w_page / wo - 1)
             KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
                 alpha=round(a, 1), rank=q["rank"], zk_s=secs(wo), page_alpha_s=secs(w_page)
             )
@@ -3520,7 +3644,7 @@ def define_figures():
     fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
     claim(
         "alpha_page_near_optimum",
-        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every application at the page's sampler and within seven percent at Karney's",
+        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler and within seven percent at Karney's",
         MASK_LENGTH == 9
         and mask_length(64) == 10
         and excess["page"] < 0.03
