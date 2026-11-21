@@ -1008,10 +1008,10 @@ CLMUL_ANDS = {
 # ZOODLES_SIGHASH_COMPRESSIONS, verified in the circuit with the public key as a witness since
 # the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
-# either policy. The lineage's steps run in the background and are not counted, as Tachyon's
-# are not. The simpler variant `zoodles_merkle` proves a 32-level Merkle path under the page's
-# policy in each spend instead, opening the note and deriving one nullifier there, with no set
-# polynomials.
+# either policy. The lineage's steps run in the background and are not in the transaction, as
+# Tachyon's are not; `zoodles_epoch` below prices one epoch of them. The simpler variant
+# `zoodles_merkle` proves a 32-level Merkle path under the page's policy in each spend
+# instead, opening the note and deriving one nullifier there, with no set polynomials.
 # Per node: BLAKE3 compressions, roots or products of set polynomials, openings at the
 # challenge, and bits of range checks and header sums. A spend's bind step derives the two
 # nullifiers and range-checks the epoch and the amount; its action step derives the payment key
@@ -2644,7 +2644,8 @@ for grind in GRINDS:
 # p, projected to a random prime field for the PIOP, so a Pasta gate is a 255-bit value and a
 # 255-bit quotient, 510 committed bits. The merge is a hybrid circuit: the two Ligerito
 # verifications as SHA-256 over 𝔽₂, and the GKR and PIOP verifiers native over 𝔽₂^128 and the
-# projection field, a few thousand constraints that are not counted. The PCS costs are the
+# projection field, their products committed as 128-bit elements (bitz_piop_verifier_mults in
+# bitz_point). The PCS costs are the
 # paper's Table 10 (rate 1/2, 100 bits, one thread of a MacBook Air M5) at the committed
 # bits, interpolated in their logarithm: prover, verifier, and the proof's non-Ligerito and
 # Ligerito parts. The paper's benchmark (albert-garreta/BitZ-PoC at 8ced3b98, one thread,
@@ -3101,8 +3102,9 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
 #     under either hash policy; the fold of each child's 128-byte image by a ternary challenge of the page's
 #     weight, one adder bit per image bit per unit of weight; and one proof-field
 #     multiplication per sum-check element, counted in AND gates with XOR free by the cheapest
-#     of schoolbook, Karatsuba and Toom-Cook 3 at each width (mult_ands), which dominates.
-#     The Flock PIOP's own verifier is not counted, as for the 𝔽₂ family.
+#     of schoolbook, Karatsuba and Toom-Cook 3 at each width (mult_ands), which dominates;
+#     and the two inputs' Flock PIOP verifiers at the merge's own size, as the 𝔽₂ family's
+#     merge counts them.
 #   - Bytes: the measured opening extrapolated from 2^29 bits down to the merge's witness at
 #     the planner's growth per doubling for the 128-bit field, with the stage groups at that
 #     field's growth with K, plus the instance. The measured pair a doubling apart differ by
@@ -3113,8 +3115,8 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
 #     this machine; plus Flock's PIOP. The accumulation prover adds the fold's sum-checks over
 #     the K groups of the merge's bits, as the lattice rows count them, at the binary field's
 #     multiplication cost (CLMULS[128] carry-less 64-bit multiplications, one word
-#     multiplication each); the measured open time, which stood in for them before, is the
-#     opening's and is not counted for the lattice rows either.
+#     multiplication each). The measured open time is the opening's, which the accumulation
+#     prover does not count for the lattice rows either.
 #   - Verify: the measured decider scaled to the merge's bits at Akita's single-thread slope.
 #   - Atoms: Akita's at the 128-bit claim width; the transaction measure as the 𝔽₂ family's.
 # Not modelled: zero knowledge (the groups are not hiding) and the higher floor (the q24
@@ -3136,14 +3138,33 @@ def reduce_ands(n):
     return 6 * n
 
 
+def bits_akita_merge_parts(K, circuits, field):
+    """AND gates of Akita's merge in a Boolean circuit, by part: the transcript hashed by
+    BLAKE3, the fold of the children's images, the sum-check verifier's field multiplications,
+    the claims, and the two inputs' Flock PIOP verifiers at the merge's own size, as the 𝔽₂
+    family's merge counts them, at a fixed point."""
+    parts = dict(
+        hashing=akita_absorbed_bytes("fp128", K, circuits, False)
+        / BLAKE3_BLOCK
+        * BLAKE3_ANDS_PADDED,
+        fold=2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2),
+        sumcheck=SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field)),
+        claims=CLAIM_GATES * circuits,
+    )
+    base = sum(parts.values())
+    ands = base
+    for _ in range(40):
+        verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * CLMUL_ANDS[128]
+        new = base + verifier
+        if abs(new - ands) < 1:
+            break
+        ands = new
+    parts["verifier"] = verifier
+    return parts
+
+
 def bits_akita_merge_ands(K, circuits, field):
-    """AND gates of Akita's merge in a Boolean circuit: the transcript hashed by BLAKE3, the
-    fold of the children's images, the sum-check verifier's field multiplications, and the
-    claims."""
-    hashing = akita_absorbed_bytes("fp128", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_ANDS_PADDED
-    fold = 2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2)
-    sumcheck = SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field))
-    return hashing + fold + sumcheck + CLAIM_GATES * circuits
+    return sum(bits_akita_merge_parts(K, circuits, field).values())
 
 
 def binary_open_bytes(log_bits, K):
@@ -5129,10 +5150,22 @@ def define_figures():
     fig("bits_akita_gates", millions(ba["gates"]))
     fig("bits_akita_kb", kb(ba["bytes"]))
     fig("bits_akita_prover", sci(ba["prover"]))
+    # The Boolean-over-Akita merge's parts (the family's merge paragraph).
+    parts = bits_akita_merge_parts(K, 1, BINARY_MEASURED["field"])
+    fig("bits_akita_transcript_kb", sig(akita_absorbed_bytes("fp128", K, 1, False) / 1000, 2))
+    for part in ("hashing", "fold", "sumcheck", "verifier"):
+        fig(f"bits_akita_{part}_mands", sig(parts[part] / 1e6, 2))
+    fig("bits_akita_merge_mands", sig(bits_akita_ands / 1e6, 2))
     claim(
-        "bits_akita_merge_ninth_f2",
-        "the binary-groups merge is about a ninth of the 𝔽₂ family's ARC merge at rate 1/8",
-        8 <= f8["gates"] / ba["gates"] <= 11,
+        "bits_akita_sumcheck_dominates",
+        "the sum-check verifier's field multiplications are the largest part of the Boolean-over-Akita merge",
+        parts["sumcheck"] > max(v for k, v in parts.items() if k != "sumcheck"),
+    )
+    fig("bits_akita_f2_merge_ratio", sig(f8["gates"] / ba["gates"], 2))
+    claim(
+        "bits_akita_merge_below_f2",
+        "the binary-groups merge is smaller than the 𝔽₂ family's ARC merge at rate 1/8",
+        ba["gates"] < f8["gates"],
     )
     fig(
         "bits_akita_mults_per_pasta_gate",
