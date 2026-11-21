@@ -802,6 +802,58 @@ def hash_app_piop(hash_, calls):
     return piop_sum((calls, HASH_PIOPS[hash_]))
 
 
+# ---- Zoodles, a spend protocol without Pasta arithmetic ------------------------------------
+# A sketch (2026-11-21) of a shielded protocol with no curve arithmetic at all, named for the
+# pasta-free noodle, priced as a transaction of ZOODLES_INPUTS inputs and ZOODLES_OUTPUTS outputs. A note commitment is a BLAKE3
+# hash of the note's four fields, 128 bytes; a nullifier a BLAKE3 hash of the key and rho; the
+# payment key a BLAKE3 hash of the authorizing key; amounts are range-checked and summed in the
+# PCD headers, so there are no value commitments and no binding signature; the Merkle path is
+# hashed under the page's policy, as the path application is. Spend authorization is one of two
+# per input: a Sprout-like preimage check, the authorizing key's hash being the payment key, which
+# costs the key hash alone; or a leanSPHINCS signature with BLAKE2s over a transaction digest of
+# ZOODLES_SIGHASH_COMPRESSIONS, verified in the circuit with the public key as a witness, since
+# the zero-knowledge fold hides it and no re-randomized signature is needed.
+ZOODLES_INPUTS = 2
+ZOODLES_OUTPUTS = 2
+ZOODLES_NOTE_COMPRESSIONS = 2
+ZOODLES_NULLIFIER_COMPRESSIONS = 1
+ZOODLES_KEY_COMPRESSIONS = 1
+ZOODLES_SIGHASH_COMPRESSIONS = 8
+ZOODLES_AMOUNT_BYTES = 7
+ZOODLES_AUTHS = ("preimage", "leansphincs")
+
+
+def zoodles_cost(field, hp, auth):
+    """The sketch's transaction in the unit of `field`'s arithmetization under policy `hp`."""
+    spend_hashes = (
+        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS
+    )
+    spend = path_cost(field, hp) + hash_app_cost(
+        field, "blake3", spend_hashes, ZOODLES_AMOUNT_BYTES
+    )
+    if auth == "leansphincs":
+        spend += hash_app_cost(
+            field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
+        )
+    output = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS, ZOODLES_AMOUNT_BYTES)
+    sighash = (
+        hash_app_cost(field, "blake3", ZOODLES_SIGHASH_COMPRESSIONS) if auth == "leansphincs" else 0
+    )
+    return ZOODLES_INPUTS * spend + ZOODLES_OUTPUTS * output + sighash
+
+
+def zoodles_piop(auth):
+    spend_hashes = (
+        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS
+    )
+    blake3 = ZOODLES_INPUTS * spend_hashes + ZOODLES_OUTPUTS * ZOODLES_NOTE_COMPRESSIONS
+    parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP)]
+    if auth == "leansphincs":
+        parts.append((ZOODLES_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
+        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+    return piop_sum(*parts)
+
+
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
 # `Stamp::prove`). A spend is a SpendBind and a SpendAction step, and an output an OutputBind
 # seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
@@ -935,6 +987,13 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
         }
         for h, n in LEANSPHINCS_VERIFY.items()
     },
+    # The Zoodles transaction, by spend authorization.
+    **{
+        f"zoodles_{auth}": {
+            a: {hp: round(zoodles_cost(a, hp, auth)) for hp in HASH_POLICIES} for a in ARITHS
+        }
+        for auth in ZOODLES_AUTHS
+    },
     # A Tachyon transaction is its proof tree's nodes, each in the unit, in order.
     **{
         f"tachyon{n}": {
@@ -959,6 +1018,10 @@ PIOP_WORK = {
         for h, n in LEANSPHINCS_VERIFY.items()
     },
     **{
+        f"zoodles_{auth}": {a: round(piop_word_mults(zoodles_piop(auth))) for a in KISHU_ARITHS}
+        for auth in ZOODLES_AUTHS
+    },
+    **{
         f"tachyon{n}": {
             a: round(
                 sum(
@@ -977,6 +1040,7 @@ PIOP_WORK = {
 APPLICATION_MULTS = (
     {"recovery": True, "path": False, "qk": False}
     | {f"leansphincs_{h}": False for h in LEANSPHINCS_VERIFY}
+    | {f"zoodles_{auth}": False for auth in ZOODLES_AUTHS}
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
 )
 
@@ -3273,6 +3337,8 @@ PAGE_APPLICATIONS = (
     ("qk", 1),
     ("leansphincs_blake2s", 1),
     ("leansphincs_keccak", 1),
+    ("zoodles_preimage", 1),
+    ("zoodles_leansphincs", 1),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
     *(("path", n) for n in (1, 2, 4, 8, 16, 64)),
 )
@@ -3610,6 +3676,37 @@ def define_figures():
     fig("leansphincs_lifetime", fmt(LEANSPHINCS_LIFETIME))
     fig("leansphincs_grind_keccak_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["keccak"]))
     fig("leansphincs_grind_blake2s_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["blake2s"]))
+
+    # Zoodles, the sketch without Pasta arithmetic: its transaction in Kishu's digits and the
+    # families' transaction provers, by spend authorization.
+    fig(
+        "zoodles_spend_blake3",
+        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS,
+    )
+    fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
+    zoodles_zk = {}
+    for auth in ZOODLES_AUTHS:
+        app = f"zoodles_{auth}"
+        fig(f"app_{app}_kishu", millions(APP[app]["bitz"]["blake3"], 3))
+        p, w = kishu_best(app)
+        fig(f"tx_{app}_kishu_s", secs(w))
+        p, w = kishu_best(app, zk=True)
+        zoodles_zk[auth] = w
+        fig(f"tx_{app}_kishu_zk_s", secs(w))
+        fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        p, w = best_for("bitz", app, zk=True)
+        fig(f"tx_{app}_bitz_zk_s", secs(w))
+        p, w = best_for("bits_akita", app)
+        fig(f"tx_{app}_bits_akita_s", secs(w))
+        p, w = best_for("flock", app)
+        fig(f"tx_{app}_flock_s", secs(w))
+        p, w = best_for("goldilocks", app, "poseidon")
+        fig(f"tx_{app}_goldilocks_s", secs(w))
+    claim(
+        "zoodles_preimage_quarter",
+        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature",
+        zoodles_zk["preimage"] < zoodles_zk["leansphincs"] / 4,
+    )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
     fig("sok_loss_factor", sig(2 / second_preimage))
