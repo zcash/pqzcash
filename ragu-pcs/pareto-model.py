@@ -411,10 +411,18 @@ LABEL = {
 }
 
 
+# The planner's smallest geometry, 2^14 coefficients. Below it the opening and the decider are
+# taken at 2^14: both are lines fitted above it (the opening at the planner's rows there, the
+# decider at the paper's 2^27 bits), and the decider's line would go negative fourteen
+# doublings down, at the size of a one-compression leaf.
+AKITA_MIN_LOG_LEN = 14
+
+
 def akita_bytes(variant, K, log_len, floor=128):
     """Opening bytes with K extra committed groups and a batched witness of 2^log_len
     coefficients, from the planner's rows at 2^14 and the per-doubling slope, at the floor's
-    plan."""
+    plan, and at 2^14 below it."""
+    log_len = max(log_len, AKITA_MIN_LOG_LEN)
     xs, ys = AKITA_K, AKITA[floor][variant]
     if K >= xs[-1]:
         y = ys[-1] + (ys[-1] - ys[-2]) / (xs[-1] - xs[-2]) * (K - xs[-1])
@@ -445,7 +453,7 @@ AKITA_VERIFY_MS = {"fp128": (4.2, 0.45, 20), "goldilocks": (3.9, 0.35, 21)}
 
 def akita_verify(variant, log_len, zk, rank_scale=1.0):
     base, slope, ref = AKITA_VERIFY_MS["goldilocks" if variant == "goldilocks" else "fp128"]
-    ms = base + slope * (log_len - ref)
+    ms = base + slope * (max(log_len, AKITA_MIN_LOG_LEN) - ref)
     if variant not in ("fp128", "goldilocks"):
         ms *= 4
     # With zero knowledge the final accumulator is at the ordinary length, so the sum-checks
