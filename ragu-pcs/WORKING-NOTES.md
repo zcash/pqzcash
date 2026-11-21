@@ -2668,3 +2668,52 @@ wallet optimizes; and the tag byte for qk's derivation, proposed in chat, is wit
 already domain-separated, so a signature route would define its own derivation of qk from the
 public key under another context when the scheme is known, and the Recovery Statement takes it
 as another arm of its tagged union, with keys derived before then being preimage-route keys.
+
+## 2026-11-21 14:45 UTC: the Boolean row's fold counted, the carry-less multiplication measured, k-ary merges
+
+The user noticed that the Boolean-over-Akita row did exceptionally well on the leanSPHINCS
+verifiers (0.44 s on the Keccak one against Kishu's 4.68) and asked for the best of both
+worlds for Kishu. Most of that win was an accounting gap: the row's prover took the measured
+commit and open times per bit, the open time standing in for the fold's sum-checks, and had no
+accumulation_prover of its own, so it never paid the fold's sum-checks over the K groups that
+the lattice rows pay (accumulation_sumchecks, 11 field multiplications per accumulator digit per
+merge, which for Kishu at rank 22 is 554M of the 708M word multiplications a merge costs,
+against 141M of merge commitments and 14M of merge PIOP). Fixed (830529c): the per-bit cost is
+the commit alone (9.7 word multiplications) plus Flock's PIOP, and the accumulation prover
+adds the fold's sum-checks over the six groups at the binary field's multiplication cost.
+
+That cost was measured, since the user suspected CLMULS overestimated it with wide carry-less
+instructions. scripts/clmul-bench.c times a GF(2^128) multiplication by PMULL (Karatsuba and a
+three-step reduction modulo the GCM polynomial, six PMULLs) against a scalar Goldilocks
+multiplication, in independent chains, on one M4 Max core on mains. The first version let the
+compiler keep the chains in memory and bounce the Karatsuba cross term through general
+registers (four fmov and two scalar eor per multiply); formed in the vector unit with the
+chains unrolled, it is 0.94 ns with sixteen chains (1.04 with eight), the scalar Goldilocks
+0.52 ns. At the page's word multiplication of 0.33 ns that is 2.8 against the table's 4, so
+CLMUL_WORD_MULTS = 0.7 scales every width's count to the measurement (GF128_MEASURED_NS);
+REGENERATING.md has the procedure. The F2 family's figures moved by a few percent.
+
+After both: the Keccak verifier 0.77 s on the Boolean row against Kishu's 4.68 (6×, the bit
+count's 4× and a cheaper commit per bit), BLAKE2s 0.39 against 0.77 (2×), the recovery circuit
+80 s against 0.79, one Merkle path 0.19 against 0.062. So the merge is no longer where the
+Boolean row wins; the unit count is. The best of both worlds for Kishu is therefore Akita's
+binary group kind as a second group kind inside a Kishu step for XOR-heavy wires, with Flock's
+PIOP over GF(2^128) for them and Kishu's over F_q for the integer relations, the merge hybrid,
+crossings by salted digests unless the binary groups' bits also carry F_q claims (to check in
+akita#285's specs/binary-p64-root.md). XOR cannot be made free inside the F_q PIOP: the
+integer-sum-with-committed-carries parity loses to the product form for two-way XOR (a committed
+digit is 33.5 word multiplications against 9.8 per product term) and to the shared column
+parities for Keccak's theta. The gain is for XOR-heavy verifiers; the recovery circuit's hashes
+are about 13 percent of its digits.
+
+k-ary merges, the user's suggestion for the merge-side cost, look worth modelling. Kishu's
+accumulation prover per step is dominated by the fold's sum-checks, which run over the folded
+accumulator's K × 2^rank digits whatever the number of children, while a k-ary tree has
+(steps − 1)/(k − 1) merges instead of steps − 1. With the merge circuit taken as half fixed and
+half per child, and the extra children's linear combinations at one word multiplication per
+digit, the merge-side cost per step at rank 22 falls from 708M to about 300M at k = 4 and 180M
+at k = 8, so the transaction prover roughly halves at k = 4 (the recovery circuit from 0.79 s
+toward 0.4) and gains a further quarter at 8. Open: Akita's fold with k children (the
+pre-decomposition norm grows about k-fold, a slice at most), the merge circuit's per-child share
+(the children's Booleanity and PIOP verifiers may be more than half), and that it is a design
+change to Ragu's merge step. Not in the model; a merge-arity parameter would price it.
