@@ -2717,3 +2717,22 @@ toward 0.4) and gains a further quarter at 8. Open: Akita's fold with k children
 pre-decomposition norm grows about k-fold, a slice at most), the merge circuit's per-child share
 (the children's Booleanity and PIOP verifiers may be more than half), and that it is a design
 change to Ragu's merge step. Not in the model; a merge-arity parameter would price it.
+
+## 2026-11-21 14:55 UTC: the leanSPHINCS verifier at the pruned key
+
+The user chose the pruned key as the simplest change for the leanSPHINCS verifier under Kishu.
+The page's two verifier applications now price sphincs.art's pruned key of lifetime 2^30 (one
+tree of height 26, kept subtree of height 12): 262 Keccak-f permutations or 298 BLAKE2s
+compressions a verification, a 4,276-byte signature, 16,384 grinding digests per signature
+on the signer (2.8 s with Keccak on a Nano S+ at the benchmark's 5,800 a second, 0.50 s with
+BLAKE2s at 32,600), and 126,900 proved signatures, one per recovery transaction. Kishu with
+zero knowledge: BLAKE2s 1.09 s at rank 20 (was 1.38 at the layered key's 462 compressions),
+Keccak 4.39 s (was 6.39 at 408); 6.39M and 40.3M digits. The layered key's and Ethereum's
+counts stay as comparison figures (`LEANSPHINCS_LAYERED_*`, `LEANSPHINCS_ETHEREUM_*`;
+`LEDGER_HASH_PER_S` holds the benchmark's rates). The option labels carry the counts as figures.
+
+Considered and dropped: fusing Keccak's chi, and theta's D, into degree-3 constraints would cut
+a permutation's digits by about 30 percent (6,400 to 4,480 bits a round), but the user's
+experience from Halo 2 is that the complexity of higher-degree constraints does not pay, which
+is why Halo 2's recursion was never fully implemented; the saving would only be worth having
+if a degree-2 proof system could express it, and it cannot without the intermediate bit.
