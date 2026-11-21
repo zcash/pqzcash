@@ -810,56 +810,44 @@ def hash_app_piop(hash_, calls):
     return piop_sum((calls, HASH_PIOPS[hash_]))
 
 
-# ---- Zoodles, a spend protocol without Pasta arithmetic ------------------------------------
-# A sketch (2026-11-21) of a shielded protocol with no curve arithmetic at all, named for the
-# pasta-free noodle, priced as a transaction of ZOODLES_INPUTS inputs and ZOODLES_OUTPUTS outputs. A note commitment is a BLAKE3
-# hash of the note's four fields, 128 bytes; a nullifier a BLAKE3 hash of the key and rho; the
-# payment key a BLAKE3 hash of the authorizing key; amounts are range-checked and summed in the
-# PCD headers, so there are no value commitments and no binding signature; the Merkle path is
-# hashed under the page's policy, as the path application is. Spend authorization is one of two
-# per input: a Sprout-like preimage check, the authorizing key's hash being the payment key, which
-# costs the key hash alone; or a leanSPHINCS signature with BLAKE2s over a transaction digest of
-# ZOODLES_SIGHASH_COMPRESSIONS, verified in the circuit with the public key as a witness, since
-# the zero-knowledge fold hides it and no re-randomized signature is needed.
-ZOODLES_INPUTS = 2
-ZOODLES_OUTPUTS = 2
-ZOODLES_NOTE_COMPRESSIONS = 2
-ZOODLES_NULLIFIER_COMPRESSIONS = 1
-ZOODLES_KEY_COMPRESSIONS = 1
-ZOODLES_SIGHASH_COMPRESSIONS = 8
-ZOODLES_AMOUNT_BYTES = 7
-ZOODLES_AUTHS = ("preimage", "leansphincs")
+# Kishu's claim field and transcript: an F_q value as one-bit digits, a multiplication in E,
+# the Poseidon variant's rate and cost, the range check before BLAKE3 hashes a prover-supplied
+# word, and the digits and constraints of absorbing transcript bytes. Here, before the
+# applications, since Zoodles prices its set openings with them.
+Q64_DIGITS = 64  # an F_q value as one-bit digits
+E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
+Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
+Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
+# A 64-bit decomposition of an F_q value is canonical only below q = 2^64 - 59, so a
+# prover-supplied word whose bytes BLAKE3 hashes is first checked to be below q: it is at or
+# above q exactly when bits 63 to 6 are all one and the low six bits are at least 5, so the
+# conjunction of 58 bits (57 products), the test on the low six (about five) and one
+# constraint forbidding both, about 63 committed bits and as many constraints. Poseidon absorbs
+# the field elements themselves and needs none.
+RANGE_CHECK_DIGITS = 57 + 5 + 1
 
 
-def zoodles_cost(field, hp, auth):
-    """The sketch's transaction in the unit of `field`'s arithmetization under policy `hp`."""
-    spend_hashes = (
-        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS
-    )
-    spend = path_cost(field, hp) + hash_app_cost(
-        field, "blake3", spend_hashes, ZOODLES_AMOUNT_BYTES
-    )
-    if auth == "leansphincs":
-        spend += hash_app_cost(
-            field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
-        )
-    output = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS, ZOODLES_AMOUNT_BYTES)
-    sighash = (
-        hash_app_cost(field, "blake3", ZOODLES_SIGHASH_COMPRESSIONS) if auth == "leansphincs" else 0
-    )
-    return ZOODLES_INPUTS * spend + ZOODLES_OUTPUTS * output + sighash
+POSEIDON_Q64_PIOP = (
+    Q64_POSEIDON_MULTS,
+    0,
+    138 * 100,
+)  # two constraints per S-box, their linear forms over about fifty state words after the partial rounds' layers
+RANGE_CHECK_PIOP = (RANGE_CHECK_DIGITS, 3 * RANGE_CHECK_DIGITS, 0)
+E_MULT_PIOP = (3, 12, 0)  # three field products by Karatsuba
 
 
-def zoodles_piop(auth):
-    spend_hashes = (
-        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS
-    )
-    blake3 = ZOODLES_INPUTS * spend_hashes + ZOODLES_OUTPUTS * ZOODLES_NOTE_COMPRESSIONS
-    parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP)]
-    if auth == "leansphincs":
-        parts.append((ZOODLES_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
-        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
-    return piop_sum(*parts)
+def absorb_digits(bytes_, hp, checked_words=0):
+    """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
+    prover-supplied words range-checked before BLAKE3 hashes them."""
+    if hp == "poseidon":
+        return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
+    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * RANGE_CHECK_DIGITS
+
+
+def absorb_piop(bytes_, hp, checked_words=0):
+    if hp == "poseidon":
+        return piop_sum((bytes_ / Q64_POSEIDON_RATE_BYTES, POSEIDON_Q64_PIOP))
+    return piop_sum((bytes_ / BLAKE3_BLOCK, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP))
 
 
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
@@ -981,6 +969,196 @@ def tachyon_node_piop(route, node):
     )
 
 
+# AND gates per field multiplication in a Boolean circuit, a carry-less product of the field's
+# width: Karatsuba at 128 and 256 bits, where its halving is exact; at 192 bits Toom-3 in
+# characteristic 2 (Bodrato, WAIFI 2007), five products in place of a three-limb Karatsuba's
+# six: three of 64 bits at the points 0, 1 and infinity, and two at x and x + 1, where a
+# three-piece operand evaluates to 66 bits, a 64-bit product plus the cross terms of the two
+# extra bits. Toom's other points are polynomials in x, which lengthen the pieces by their
+# degree times k - 1, so larger k gains nothing at these widths and nothing at powers of two.
+# Here, before the applications, since Zoodles prices its set bookkeeping with it.
+CLMUL_ANDS = {
+    128: 3**7,
+    191: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
+    192: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
+    256: 3**8,
+}
+
+
+# ---- Zoodles, a spend protocol without Pasta arithmetic ------------------------------------
+# A sketch (2026-11-21) of a shielded protocol with no curve arithmetic at all, named for the
+# pasta-free noodle. It keeps Tachyon's architecture: the proof tree above without the
+# rerandomization, and a note's membership and unspentness attested by a background lineage
+# over the chain's anchors rather than by a Merkle path in the spend. The published tachygrams,
+# a spend's two epoch nullifiers, an output's commitment and padding, and the fee step's change
+# commitment, are roots of set polynomials that the merges multiply at the challenge. In Tachyon
+# the set polynomials are Pedersen vector commitments and the bridge hash a Pedersen hash onto
+# Pallas; here they are the proof system's own committed vectors with evaluation claims, and
+# the bridge hash a BLAKE3 hash of the commitment, computed natively. A tachygram is an element
+# of a 256-bit extension of the claim field (Pasta's own field; a quadratic extension of a
+# 128-bit field or of Kishu's E; a quartic one of Goldilocks), so a root costs one
+# multiplication there by Karatsuba, and an opening one more evaluation claim, absorbed by the
+# merge above and folded by CLAIM_GATES multiplications. The curve goes: amounts are
+# range-checked and summed in the PCD headers in place of value commitments and the binding
+# signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
+# payment key is the BLAKE3 hash of the authorizing key, which Tachyon's spend step derives
+# already) or a leanSPHINCS signature with BLAKE2s over a transaction digest of
+# ZOODLES_SIGHASH_COMPRESSIONS, verified in the circuit with the public key as a witness since
+# the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
+# the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
+# either policy. The lineage's steps run in the background and are not counted, as Tachyon's
+# are not. The simpler variant `zoodles_merkle` proves a 32-level Merkle path under the page's
+# policy in each spend instead, opening the note and deriving one nullifier there, with no set
+# polynomials.
+# Per node: BLAKE3 compressions, roots or products of set polynomials, openings at the
+# challenge, and bits of range checks and header sums. A spend's bind step derives the two
+# nullifiers and range-checks the epoch and the amount; its action step derives the payment key
+# and roots the nullifiers; an output's bind step hashes the commitment and the padding and
+# range-checks the amount; its action step roots them; a merge multiplies the two sets and sums
+# the amounts; the fee step hashes the change note, range-checks the slack, the fee and the
+# change, and roots the change commitment.
+ZOODLES_INPUTS = 2
+ZOODLES_OUTPUTS = 2
+ZOODLES_NOTE_COMPRESSIONS = 2
+ZOODLES_SIGHASH_COMPRESSIONS = 8
+ZOODLES_AMOUNT_BITS = 51
+# Tachyon's EPOCH_MAX + 1 is 2^32 block heights over epochs of 4,096 (constants.rs).
+ZOODLES_EPOCH_BITS = 20
+ZOODLES_SUM_BITS = 64
+ZOODLES_AUTHS = ("preimage", "leansphincs")
+ZOODLES_NODES = {
+    "SpendBind": (2, 0, 0, ZOODLES_EPOCH_BITS + ZOODLES_AMOUNT_BITS),
+    "SpendAction": (1, 2, 1, 0),
+    "OutputBind": (2 * ZOODLES_NOTE_COMPRESSIONS, 0, 0, ZOODLES_AMOUNT_BITS),
+    "OutputAction": (0, 2, 1, 0),
+    "ActionMerge": (0, 1, 3, ZOODLES_SUM_BITS),
+    "FeeFuse": (ZOODLES_NOTE_COMPRESSIONS, 1, 2, 3 * ZOODLES_AMOUNT_BITS + ZOODLES_SUM_BITS),
+}
+# Multiplications in the claim field for one in its 256-bit extension, where the field is not
+# itself 256 bits wide; three elsewhere.
+ZOODLES_ROOT_MULTS = {"pasta": 1, "fp128": 3, "goldilocks": 9}
+
+
+def zoodles_nodes(spends, outputs):
+    """Tachyon's tree without the rerandomization; the fee step is the root and its own step."""
+    return tachyon_nodes(spends, outputs)[:-1]
+
+
+def claim_mult_cost(field):
+    """One multiplication in a 128-bit claim field in the unit of `field`'s arithmetization: a
+    native gate in a prime field, a carry-less Karatsuba product in a Boolean circuit, and the
+    product's two F_q values as digits in the bit arithmetizations."""
+    if field == "boolean":
+        return CLMUL_ANDS[128]
+    if bits_unit(field) == "bits":
+        return E_MULT_DIGITS
+    return 1
+
+
+def zoodles_root_cost(field):
+    return ZOODLES_ROOT_MULTS.get(field, 3) * claim_mult_cost(field)
+
+
+def zoodles_opening_cost(field, hp):
+    """One more evaluation claim: its bytes absorbed by the merge above, under the policy where
+    the field has a Poseidon and by BLAKE3 otherwise, and CLAIM_GATES multiplications folding
+    it."""
+    fold = CLAIM_GATES * claim_mult_cost(field)
+    if bits_unit(field) == "bits":
+        hp = hp if field in KISHU_ARITHS else "blake3"
+        bytes_ = CLAIM_BYTES["kishu"]
+        return absorb_digits(bytes_, hp, bytes_ // 8 if hp == "blake3" else 0) + fold
+    if field == "boolean":
+        return CLAIM_BYTES["fp128"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+    if hp == "poseidon":
+        return RECOVERY_PATH_POSEIDON[field] / 33 + fold
+    return CLAIM_BYTES[field] / BLAKE3_BLOCK * BLAKE3_GATES + fold
+
+
+def zoodles_node_cost(field, hp, node, auth):
+    """One Zoodles node in the unit of `field`'s arithmetization: its BLAKE3 compressions, its
+    roots and openings, its bits, and under the signature authorization the leanSPHINCS
+    verifier in a spend's action step and the transaction digest in the fee step."""
+    blake3, roots, openings, bits = ZOODLES_NODES[node]
+    verifier = 0
+    if auth == "leansphincs":
+        if node == "SpendAction":
+            verifier = hash_app_cost(
+                field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
+            )
+        if node == "FeeFuse":
+            blake3 += ZOODLES_SIGHASH_COMPRESSIONS
+    return (
+        hash_app_cost(field, "blake3", blake3)
+        + roots * zoodles_root_cost(field)
+        + openings * zoodles_opening_cost(field, hp)
+        + bits * BIT_GATE_OFF_PASTA
+        + verifier
+    )
+
+
+def zoodles_node_piop(node, auth):
+    blake3, roots, openings, bits = ZOODLES_NODES[node]
+    parts = []
+    if auth == "leansphincs":
+        if node == "SpendAction":
+            parts.append((LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+        if node == "FeeFuse":
+            blake3 += ZOODLES_SIGHASH_COMPRESSIONS
+    claim_bytes = CLAIM_BYTES["kishu"]
+    return piop_sum(
+        *parts,
+        (blake3, BLAKE3_PIOP),
+        (3 * roots + CLAIM_GATES * openings, E_MULT_PIOP),
+        (openings, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
+        (bits, BIT_CHECK_PIOP),
+    )
+
+
+def zoodles_merkle_cost(field, hp, auth):
+    """The Merkle-path variant's transaction: each spend opens its note, derives one nullifier
+    and the payment key and proves its path under the policy, and under the signature
+    authorization verifies its leanSPHINCS signature over the transaction digest; each output
+    hashes its note; the fee step hashes the change note; the amounts are range-checked and
+    summed."""
+    spend = (
+        path_cost(field, hp)
+        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2)
+        + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
+    )
+    sighash = 0
+    if auth == "leansphincs":
+        spend += hash_app_cost(
+            field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
+        )
+        sighash = hash_app_cost(field, "blake3", ZOODLES_SIGHASH_COMPRESSIONS)
+    output = (
+        hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
+        + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
+    )
+    fee = (
+        hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
+        + (3 * ZOODLES_AMOUNT_BITS + ZOODLES_SUM_BITS) * BIT_GATE_OFF_PASTA
+    )
+    sums = (ZOODLES_INPUTS + ZOODLES_OUTPUTS - 1) * ZOODLES_SUM_BITS * BIT_GATE_OFF_PASTA
+    return ZOODLES_INPUTS * spend + ZOODLES_OUTPUTS * output + fee + sighash + sums
+
+
+def zoodles_merkle_piop(auth):
+    blake3 = (
+        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2)
+        + (ZOODLES_OUTPUTS + 1) * ZOODLES_NOTE_COMPRESSIONS
+    )
+    bits = (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3) * ZOODLES_AMOUNT_BITS + (
+        ZOODLES_INPUTS + ZOODLES_OUTPUTS
+    ) * ZOODLES_SUM_BITS
+    parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP), (bits, BIT_CHECK_PIOP)]
+    if auth == "leansphincs":
+        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+        parts.append((ZOODLES_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
+    return piop_sum(*parts)
+
+
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
@@ -995,10 +1173,24 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
         }
         for h, n in LEANSPHINCS_VERIFY.items()
     },
-    # The Zoodles transaction, by spend authorization.
+    # A Zoodles transaction is its proof tree's nodes, each in the unit, in order, by spend
+    # authorization; the Merkle-path variant is one circuit.
     **{
         f"zoodles_{auth}": {
-            a: {hp: round(zoodles_cost(a, hp, auth)) for hp in HASH_POLICIES} for a in ARITHS
+            a: {
+                hp: [
+                    round(zoodles_node_cost(a, hp, node, auth))
+                    for node in zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
+                ]
+                for hp in HASH_POLICIES
+            }
+            for a in ARITHS
+        }
+        for auth in ZOODLES_AUTHS
+    },
+    **{
+        f"zoodles_merkle_{auth}": {
+            a: {hp: round(zoodles_merkle_cost(a, hp, auth)) for hp in HASH_POLICIES} for a in ARITHS
         }
         for auth in ZOODLES_AUTHS
     },
@@ -1026,7 +1218,21 @@ PIOP_WORK = {
         for h, n in LEANSPHINCS_VERIFY.items()
     },
     **{
-        f"zoodles_{auth}": {a: round(piop_word_mults(zoodles_piop(auth))) for a in KISHU_ARITHS}
+        f"zoodles_{auth}": {
+            a: round(
+                sum(
+                    piop_word_mults(zoodles_node_piop(node, auth))
+                    for node in zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
+                )
+            )
+            for a in KISHU_ARITHS
+        }
+        for auth in ZOODLES_AUTHS
+    },
+    **{
+        f"zoodles_merkle_{auth}": {
+            a: round(piop_word_mults(zoodles_merkle_piop(auth))) for a in KISHU_ARITHS
+        }
         for auth in ZOODLES_AUTHS
     },
     **{
@@ -1049,8 +1255,12 @@ APPLICATION_MULTS = (
     {"recovery": True, "path": False, "qk": False}
     | {f"leansphincs_{h}": False for h in LEANSPHINCS_VERIFY}
     | {f"zoodles_{auth}": False for auth in ZOODLES_AUTHS}
+    | {f"zoodles_merkle_{auth}": False for auth in ZOODLES_AUTHS}
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
 )
+# The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
+# is re-packed into steps (DATA.own_last_step); Zoodles has no such node.
+OWN_LAST_STEP = {f"tachyon{n}" for n in TACHYON_TRANSACTIONS}
 
 # The arithmetization of each family's application circuit, for `step_gates`; Kishu's rows
 # set theirs by multiplication route.
@@ -1818,19 +2028,6 @@ CLMULS = {
 # carry-less multiplication costs 0.7 word multiplications wherever the table prices work.
 GF128_MEASURED_NS = 0.94
 CLMUL_WORD_MULTS = GF128_MEASURED_NS * WORD_MULTS_PER_MS / 1e6 / CLMULS[128]
-# AND gates per field multiplication in a Boolean circuit, a carry-less product of the field's
-# width: Karatsuba at 128 and 256 bits, where its halving is exact; at 192 bits Toom-3 in
-# characteristic 2 (Bodrato, WAIFI 2007), five products in place of a three-limb Karatsuba's
-# six: three of 64 bits at the points 0, 1 and infinity, and two at x and x + 1, where a
-# three-piece operand evaluates to 66 bits, a 64-bit product plus the cross terms of the two
-# extra bits. Toom's other points are polynomials in x, which lengthen the pieces by their
-# degree times k - 1, so larger k gains nothing at these widths and nothing at powers of two.
-CLMUL_ANDS = {
-    128: 3**7,
-    191: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
-    192: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
-    256: 3**8,
-}
 
 
 def elem_bytes(bits):
@@ -2614,26 +2811,6 @@ BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, mer
     "sumcheck": (437.7 / 2**27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
 }
 assert abs(CONSTRAINT_TERM_WORD_MULTS - BOOL_CHECK["sumcheck"][0]) < 1e-9
-Q64_DIGITS = 64  # an F_q value as one-bit digits
-E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
-Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
-Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
-# A 64-bit decomposition of an F_q value is canonical only below q = 2^64 - 59, so a
-# prover-supplied word whose bytes BLAKE3 hashes is first checked to be below q: it is at or
-# above q exactly when bits 63 to 6 are all one and the low six bits are at least 5, so the
-# conjunction of 58 bits (57 products), the test on the low six (about five) and one
-# constraint forbidding both, about 63 committed bits and as many constraints. Poseidon absorbs
-# the field elements themselves and needs none.
-RANGE_CHECK_DIGITS = 57 + 5 + 1
-
-
-POSEIDON_Q64_PIOP = (
-    Q64_POSEIDON_MULTS,
-    0,
-    138 * 100,
-)  # two constraints per S-box, their linear forms over about fifty state words after the partial rounds' layers
-RANGE_CHECK_PIOP = (RANGE_CHECK_DIGITS, 3 * RANGE_CHECK_DIGITS, 0)
-E_MULT_PIOP = (3, 12, 0)  # three field products by Karatsuba
 BIT_GATE_PIOP = (1, 3, 0)
 PIOP_ROUND_ELEMENTS = 4  # degree three with the eq weights
 PIOP_ROUND_MULTS = 4
@@ -2641,20 +2818,6 @@ PIOP_ROUND_MULTS = 4
 
 def piop_rounds(entries):
     return math.ceil(math.log2(entries)) + 1
-
-
-def absorb_digits(bytes_, hp, checked_words=0):
-    """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
-    prover-supplied words range-checked before BLAKE3 hashes them."""
-    if hp == "poseidon":
-        return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
-    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * RANGE_CHECK_DIGITS
-
-
-def absorb_piop(bytes_, hp, checked_words=0):
-    if hp == "poseidon":
-        return piop_sum((bytes_ / Q64_POSEIDON_RATE_BYTES, POSEIDON_Q64_PIOP))
-    return piop_sum((bytes_ / BLAKE3_BLOCK, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP))
 
 
 def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
@@ -3225,14 +3388,15 @@ RATE_PER_S = 1000 * WORD_MULTS_PER_MS  # word multiplications per second of one 
 def tx_steps(p, app, policy, count=1):
     """The page's txStepsFor (pareto-template.html): the application's units in the row's
     arithmetization under the row's hash policy, or under the page's for a row priced under
-    either, in as many steps as the row's step holds, rounded up; a Tachyon tree is re-packed
-    first-fit decreasing, its last node, the rerandomization, as its own step."""
+    either, in as many steps as the row's step holds, rounded up; a proof tree is re-packed
+    first-fit decreasing, a Tachyon tree's last node, the rerandomization, as its own step."""
     units = APPLICATIONS[app][p["arith"]][policy if p["hashes"] == "any" else p["hashes"]]
     cap = p["step_units"]
     if not isinstance(units, list):
         return math.ceil(units * count / cap)
-    steps, items = 1, []
-    for node in units[:-1]:
+    own_last = app in OWN_LAST_STEP
+    steps, items = (1, []) if own_last else (0, [])
+    for node in units[:-1] if own_last else units:
         steps += node // cap
         if node % cap:
             items.append(node % cap)
@@ -3348,6 +3512,7 @@ PAGE_APPLICATIONS = (
     ("leansphincs_keccak", 1),
     ("zoodles_preimage", 1),
     ("zoodles_leansphincs", 1),
+    *((f"zoodles_merkle_{auth}", 1) for auth in ZOODLES_AUTHS),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
     *(("path", n) for n in (1, 2, 4, 8, 16, 64)),
 )
@@ -3686,36 +3851,89 @@ def define_figures():
     fig("leansphincs_grind_keccak_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["keccak"]))
     fig("leansphincs_grind_blake2s_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["blake2s"]))
 
-    # Zoodles, the sketch without Pasta arithmetic: its transaction in Kishu's digits and the
-    # families' transaction provers, by spend authorization.
-    fig(
-        "zoodles_spend_blake3",
-        ZOODLES_NOTE_COMPRESSIONS + ZOODLES_NULLIFIER_COMPRESSIONS + ZOODLES_KEY_COMPRESSIONS,
-    )
+    # Zoodles: its tree's nodes, hashes, roots and openings; its transaction in Kishu's digits
+    # and the families' transaction provers, by spend authorization and for the Merkle-path
+    # variant; and Tachyon's four tachyactions beside them.
+    nodes = zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
+    fig("zoodles_nodes", len(nodes))
+    fig("zoodles_blake3", sum(ZOODLES_NODES[n][0] for n in nodes))
+    fig("zoodles_roots", sum(ZOODLES_NODES[n][1] for n in nodes))
+    fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
-    zoodles_zk = {}
-    for auth in ZOODLES_AUTHS:
-        app = f"zoodles_{auth}"
-        fig(f"app_{app}_kishu", millions(APP[app]["bitz"]["blake3"], 3))
+    fig(
+        "zoodles_opening_kishu_digits",
+        sig(zoodles_opening_cost("bits_pasta_fingerprint", "blake3"), 3),
+    )
+    # The Merkle-path variants carry only the figures the text quotes.
+    zoodles_zk, zoodles_plain, zoodles_bitz_zk, zoodles_flock = {}, {}, {}, {}
+    for app in (
+        *(f"zoodles_{auth}" for auth in ZOODLES_AUTHS),
+        *(f"zoodles_merkle_{auth}" for auth in ZOODLES_AUTHS),
+    ):
+        full = not app.startswith("zoodles_merkle")
+        units = APP[app]["bitz"]["blake3"]
+        digits = sum(units) if isinstance(units, list) else units
+        if full or app == "zoodles_merkle_preimage":
+            fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else sig(digits, 3))
         p, w = kishu_best(app)
+        zoodles_plain[app] = w
+        p, w_zk = kishu_best(app, zk=True)
+        zoodles_zk[app] = w_zk
+        fig(f"tx_{app}_kishu_zk_s", secs(w_zk))
+        zoodles_bitz_zk[app] = best_for("bitz", app, zk=True)[1]
+        zoodles_flock[app] = best_for("flock", app)[1]
+        if not full:
+            continue
         fig(f"tx_{app}_kishu_s", secs(w))
-        p, w = kishu_best(app, zk=True)
-        zoodles_zk[auth] = w
-        fig(f"tx_{app}_kishu_zk_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
-        p, w = best_for("bitz", app, zk=True)
-        fig(f"tx_{app}_bitz_zk_s", secs(w))
+        fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app)
         fig(f"tx_{app}_bits_akita_s", secs(w))
-        p, w = best_for("flock", app)
-        fig(f"tx_{app}_flock_s", secs(w))
+        fig(f"tx_{app}_flock_s", secs(zoodles_flock[app]))
         p, w = best_for("goldilocks", app, "poseidon")
         fig(f"tx_{app}_goldilocks_s", secs(w))
     claim(
         "zoodles_preimage_quarter",
         "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature",
-        zoodles_zk["preimage"] < zoodles_zk["leansphincs"] / 4,
+        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs"] / 4,
     )
+    claim(
+        "zoodles_merkle_paths_most",
+        "the Merkle-path variant's two paths are more than half of its Kishu digits",
+        2 * APP["path"]["bitz"]["blake3"] > APP["zoodles_merkle_preimage"]["bitz"]["blake3"] / 2,
+    )
+    p, tachyon4 = kishu_best("tachyon4")
+    fig("tx_tachyon4_kishu_s", secs(tachyon4))
+    p, tachyon4_zk = kishu_best("tachyon4", zk=True)
+    fig("tx_tachyon4_kishu_zk_s", secs(tachyon4_zk))
+    p, tachyon4_bitz_zk = best_for("bitz", "tachyon4", zk=True)
+    fig("tx_tachyon4_bitz_zk_s", secs(tachyon4_bitz_zk))
+    p, tachyon4_flock = best_for("flock", "tachyon4")
+    fig("tx_tachyon4_flock_s", secs(tachyon4_flock))
+    fig("tachyon4_over_zoodles_flock", sig(tachyon4_flock / zoodles_flock["zoodles_preimage"], 2))
+    p, w = best_for("pedersen", "tachyon4", "poseidon")
+    fig("tx_tachyon4_pedersen_s", secs(w))
+    p, w = best_for("pedersen", "zoodles_merkle_preimage", "poseidon")
+    fig("tx_zoodles_merkle_pedersen_s", secs(w))
+    fig(
+        "zoodles_preimage_of_tachyon_pct",
+        round(100 * zoodles_zk["zoodles_preimage"] / tachyon4_zk),
+    )
+    fig(
+        "zoodles_merkle_of_tachyon_pct",
+        round(100 * zoodles_zk["zoodles_merkle_preimage"] / tachyon4_zk),
+    )
+    for app, name_, name in (
+        ("zoodles_preimage", "zoodles_preimage", "Zoodles by preimage"),
+        ("zoodles_merkle_preimage", "zoodles_merkle", "the Merkle-path variant of Zoodles"),
+    ):
+        claim(
+            f"{name_}_beats_tachyon",
+            f"{name} costs less than Tachyon's four tachyactions on the transaction prover in Kishu, with and without zero knowledge, and in BitZ",
+            zoodles_zk[app] < tachyon4_zk
+            and zoodles_plain[app] < tachyon4
+            and zoodles_bitz_zk[app] < tachyon4_bitz_zk,
+        )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
     fig("sok_loss_factor", sig(2 / second_preimage))
@@ -5086,6 +5304,7 @@ data = dict(
     applications=APPLICATIONS,
     piop=PIOP_WORK,
     has_mults=APPLICATION_MULTS,
+    own_last_step=sorted(OWN_LAST_STEP),
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,
