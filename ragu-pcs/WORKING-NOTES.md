@@ -2591,3 +2591,42 @@ hiding commitment with a direct zero-knowledge proof of its relation, whose veri
 proves, and the fold's cost is gone. The model prices neither yet. Also open: the linking
 commitment's two compressions in `qk`, and a `qk` row for an MPC-in-the-head proof with native
 verification.
+
+## 2026-11-21 05:44 UTC: the wallet's own share of the device statement, with the host proving the handoff
+
+The `qk` figure of the previous entry charges the user the handoff fold, 47 percent of the
+transaction, most of it the merge NARK that proves the fold. That merge need not be the
+wallet's: the zero-knowledge note's §4.2 lists the handoff merge's witness (the hiding
+commitment, the mask's commitment, the challenge, the claims, the obligation transcripts) as
+simulatable, so the host can derive the challenge, prove the fold's merge and the obligations
+(the note's §5.8 deferral) and verify the leaf's sum-checks in its own merge. The one addition:
+the wallet's constraint and Booleanity sum-checks must be zero-knowledge, since the host sees
+their transcripts where the user's own merges consumed them before; Libra-style masking
+polynomials, ℓ (d + 1) committed elements each (120 here). The revealed evaluation claims
+are blinded by the hiding padding. The wallet keeps what touches the secret: the leaf's
+commitment with the padding at the masked rank, the sum-checks, the mask sampled and committed
+in idle time, and z = y + cs with the rejection test.
+
+Pricing (figures `qk_device_*`, claim `qk_device_share_small`): the padding is computational,
+5,000 uniform bits (`HIDING_PADDING_BITS`), on the assumption that Aρ is pseudorandom when
+knapsack-LWE is hard at the masked matrix's 1,385 rows at q64: by the Micciancio–Mol duality
+that is LWE of dimension bits − rows with binary error at the 64-bit modulus, and the primal
+uSVP estimate at block 484 (δ = 1.0035) needs about 3,300 dimensions, so 5,000 bits is a
+margin of a third; to be confirmed with the lattice estimator. The note's leftover-hash padding
+would be 1,385 × 64 + 256 ≈ 89k bits, six times the statement. So the wallet commits 27,800
+digits: 0.603 ms online on one M4 core (the commitment at the masked rank and the Booleanity
+rate, the constraint PIOP, the response), 0.836 ms idle (1.28 attempts of sampling and
+committing the mask), against the 154M word multiplications (51 ms) the measure charges the
+user's handoff. The response z is 22 bits a coordinate at σ = 48 · 20 · √27,800, 76 kbytes.
+Device rates are assumptions scaled from sphincs.art's hardware-wallet benchmark (a Nano S+
+hashes BLAKE2s about 500 times below a laptop core; 64-bit modular multiplication fares worse
+on a 32-bit core): 10^7 word multiplications a second for an MCU-class device, 3 × 10^6 for a
+secure element, so 0.18 s and 0.60 s; the transfer of z at the Nano S+'s measured 21 kbytes a
+second is 3.6 s, 1.3 s with the benchmark's pipelined transport, and is the cost that does not
+move. A leaf-sized mask is sound (the theorem is per vector, the unoccupied coordinates are
+public zeros, Ay keeps its entropy) and is what these figures use; it mattered little under the
+statistical padding, which dominated the leaf.
+
+Open: the lattice estimator on the padding; whether the host's zk-layer merge needs more than
+its 18 extra elements for the three-way fold (leaf, mask, its other child); the linking
+commitment; an MPC-in-the-head row with native verification.
