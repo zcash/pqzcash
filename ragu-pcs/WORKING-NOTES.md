@@ -2778,3 +2778,110 @@ scripts/build-book.sh`, then commit model + template ("pareto: a future spend pr
 Pasta as applications"), republish pareto.html to the artifact, and a notes entry with the
 figures. The alpha-sweep claim (alpha_page_near_optimum) covers every page application but
 `qk`; if the new ones break its three percent, exclude them as `qk` is excluded, with a reason.
+
+## 2026-11-21 17:01 UTC: Zoodles named and rebuilt on Tachyon's architecture; the BLAKE3 AND counts split
+
+The user named the Pasta-free sketch Zoodles, after the pasta-free noodle, and the model's
+keys are `zoodles_*` (bc26c38 priced the first cut: two inputs by preimage or leanSPHINCS,
+two outputs, a Merkle path in each spend; 1.18M Kishu digits, 0.398 s with zero knowledge at
+rank 19 against 14.1M and 1.77 s).
+
+The BLAKE3 to BLAKE2s ratio (the user: "should be roughly 7/10"): 0.71 in digits and 0.70 in
+prime-field gates, but 0.76 in AND gates, because BLAKE3_ANDS was 8,192 and BLAKE2S_ANDS
+carried 512 finalisation XORs. Flock's paper (§4.1) lays a batch out as a stack of
+per-instance blocks of 2^m0 committed bits, and a BLAKE3 compression's 6,944 carries (31 per
+32-bit addition) and 896 input bits fit a block of 2^13, which is where 8,192 came from; the
+paper's 82.1k compressions a second is at that layout, and the 1.5 × 2^14 Keccak batches are
+three permutations packed per block of 2^17. Commit c1d85d5: `BLAKE3_ANDS_PADDED` = 8,192
+where the count is Flock's witness or hypercube (the per-bit rate from the measured batches,
+the base matrix's 13 sum-check rounds, the F2 merges' hashes, BitZ's HASH_BITS, the
+Boolean-over-Akita merge's transcript hashing); `BLAKE3_ANDS` = 7 × 8 × 4 × 32 = 7,168 for the
+applications, where the 2^22 step does the padding; `BLAKE2S_ANDS` = 10,240. Figures moved:
+a path 240,000 AND gates (was 270,000), the device statement 7,170 (8,190), the Keccak to
+BLAKE2s Boolean ratio 3.3 (3.1); the Boolean rows' seconds did not, since their applications
+fill the same number of 2^22-gate steps. Not done: counting a compression's input bits in the
+Boolean unit (hash_app_cost leaves them free there), and Flock's block padding on the
+applications (4.5 percent for BLAKE3, about one for BLAKE2s at three per 2^15, 8.5 for Keccak
+at three per 2^17).
+
+Tachyon's membership technique, from the source at 73031f7 (stamp/proof/spendable.rs,
+evidence.rs): no Merkle path over note commitments in a spend. The spendable header is
+(cm, epoch, anchor); SpendableInit opens the creation stamp's tachygram-set polynomial at cm
+and enforces zero and folds the anchor (a Poseidon hash chain over the stamps' bridge hashes);
+SpendableLift advances over NoteUnspent segments that open each epoch's sets at the nullifier
+and enforce nonzero. The evidence tree is a quaternary Poseidon Merkle tree over sealed
+buckets for the sync service (EvidenceTreeDescend walks four levels a step), not something a
+spend proves. The technique needs only a binding polynomial commitment opened at a
+circuit-chosen point, Schwartz–Zippel at ζ, and a hash chain, so it ports to Akita or Kishu
+unchanged; the instantiation does not: the set polynomials are Pedersen vector commitments
+under Ragu's host generators and the bridge hash a Pedersen hash onto Pallas. The page's
+Tachyon rows keep the value commitments and rk on Pallas too, so they are Tachyon's circuits
+in a post-quantum proof system, not a post-quantum protocol.
+
+The user: a post-quantum Tachyon with the set commitments as the PCS's own and BLAKE3 for
+the plain hashes, plus the dynamic fee, is what Zoodles is; the simpler Merkle-path version
+stays as a note that it still beats Tachyon on the transaction prover. Commit 70cd427:
+Zoodles is Tachyon's tree without the rerandomization (12 nodes for two spends and two
+outputs), priced per node as BLAKE3 compressions, roots or products of set polynomials,
+openings at the challenge and bits (ZOODLES_NODES): a spend's bind step derives two epoch
+nullifiers (2 compressions) and range-checks the epoch (20 bits, Tachyon's EPOCH_MAX + 1 =
+2^32/4096) and the amount (51); its action step derives the payment key (1) and roots the
+nullifiers (2 roots, 1 opening); an output's bind step hashes cm and pad (4) and its action
+step roots them; a merge multiplies the sets (1 product, 3 openings) and sums the amounts (64
+bits); the fee step hashes the change note (2), range-checks slack, fee and change, and roots
+the change commitment (1 root, 2 openings). A tachygram is an element of a 256-bit extension
+of the claim field (Pasta itself; quadratic over a 128-bit field or Kishu's E; quartic over
+Goldilocks), so a root is 1, 3 or 9 claim-field multiplications (claim_mult_cost: a gate, a
+CLMUL_ANDS[128] product, or E_MULT_DIGITS), and an opening one more claim: CLAIM_BYTES
+absorbed by the merge above plus CLAIM_GATES multiplications, 4,410 Kishu digits. The
+leanSPHINCS variant adds the verifier to each spend's action step and the 8-compression digest
+to the fee step. The lineage runs in the background and is not counted, as Tachyon's is not.
+The Merkle variants (`zoodles_merkle_preimage`, `zoodles_merkle_leansphincs`, the second at
+the user's request for regularity) open the note in the spend, derive one nullifier and the
+payment key, prove the path under the policy, and have the fee step too. The packing rule that
+gave Tachyon's rerandomization its own step was giving Zoodles' fee step one as well, which
+doubled the hash-based rows' Zoodles figures (two steps of 2^22 gates for one circuit); now
+only the trees in OWN_LAST_STEP (DATA.own_last_step, the page's txStepsFor mirrors it) have a
+last node of their own. Q64_DIGITS, E_MULT_DIGITS, the Poseidon-q64 constants, RANGE_CHECK_*,
+absorb_digits/absorb_piop and CLMUL_ANDS moved before the applications, which price with them.
+
+Figures, transaction prover on one core, two inputs and two outputs; Tachyon's four
+tachyactions beside:
+
+| family | Zoodles, preimage | Zoodles, leanSPHINCS | Merkle, preimage | Merkle, leanSPHINCS | Tachyon |
+|---|---|---|---|---|---|
+| Kishu digits | 313,000 | 13.2M | 1.21M | 14.1M | 1.22M |
+| Kishu zk | 0.223 s (rank 19) | 1.77 s (21) | 0.398 s (19) | 1.77 s | 0.531 s |
+| Kishu | 0.0593 s | 1.06 s | 0.149 s | | 0.265 s |
+| BitZ zk | 0.0770 s | 0.254 s | 0.0903 s | | 0.180 s |
+| Boolean over Akita | 0.193 s | 0.387 s | 0.193 s | | 10.2 s |
+| Flock | 0.169 s | 0.338 s | 0.169 s | | 8.97 s |
+| Akita Goldilocks, Poseidon tree | 1.03 s | 52.0 s | 0.905 s | | 8.02 s |
+| Pedersen-IPA, Poseidon | | | 44.3 s | | 6.33 s |
+
+Zoodles by preimage is 42 percent of Tachyon with zero knowledge in Kishu, the Merkle variant
+75; claims zoodles_preimage_beats_tachyon and zoodles_merkle_beats_tachyon (Kishu with and
+without zk, BitZ zk), zoodles_merkle_paths_most, zoodles_preimage_quarter. The Pasta-native
+rows reverse the order (a path's hashes cost a prime field more than the curve), and Flock
+pays 53 times more on Tachyon than on Zoodles (the Pallas multiplications in a Boolean
+circuit). The α sweep now includes the Zoodles applications; the page's 48 stays within its
+bound. Artifact version 191. The page's self-check (DATA.tx_checks against txWork) is empty
+in headless Chrome (--dump-dom); next time pass a scratch --user-data-dir and
+--disable-features=MediaRouter --disable-background-networking, since Chrome's startup
+discovery raised the OS's local-network prompt for the terminal.
+
+Assumptions to revisit: the set polynomials over a 64-bit field need the quartic extension
+(or four polynomials) for 256-bit tachygrams, and ζ in that extension; an opening priced as
+one more claim ignores that a committed online vector per step adds a group to the fold; the
+Boolean families' claim field taken as F_{2^128}; the lineage's per-epoch cost (unspent
+segments, bucket openings) is the real price of dropping the path and is not modelled;
+Zoodles' sighash binding for the preimage route is the signature-of-knowledge argument of the
+hardware-wallets chapter.
+
+STATE: main at this entry's commit; eight commits after a49be05 unpushed (c87382c, 71fa025,
+c6cbbf3, eb88548, 845248c, bc26c38, c1d85d5, 70cd427, and this one). PENDING: as before
+(the soundness note's review, the 2026-11-14 modelling questions, the Tachyon gate
+classification, k-ary merges, Kishu with binary groups, the lattice estimator on the 5,000-bit
+padding, the host's zk-layer merge for the three-way fold, the linking commitment in qk, an
+MPCitH row), plus the Zoodles assumptions above and the Boolean unit's input bits and block
+padding.
