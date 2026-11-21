@@ -738,7 +738,9 @@ KECCAK_ANDS = KECCAK_ROUNDS * 1600
 KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
 LEANSPHINCS_VERIFY = {"keccak": 408, "blake2s": 462}  # hash calls of one verification
 LEANSPHINCS_SIG_BYTES = 6332
+LEANSPHINCS_PRUNED_SIG_BYTES = 4276  # sphincs.art's pruned key of lifetime 2^30, b = 12
 LEANSPHINCS_ETHEREUM_PERMS = 515
+LEANSPHINCS_ETHEREUM_BYTES = 7740
 HASH_UNITS = {  # one call of each hash as prime-field gates, AND gates, and bits or digits
     "blake3": {"gates": BLAKE3_GATES, "boolean": BLAKE3_ANDS, "bits": BLAKE3_BITS},
     "blake2s": {"gates": BLAKE2S_BITS, "boolean": BLAKE2S_ANDS, "bits": BLAKE2S_BITS},
@@ -3547,6 +3549,41 @@ def define_figures():
         device_online < qk_fold / 20,
     )
 
+    # For the hardware wallets page: the response's information-content floor (the leaf alone,
+    # no padding and no masking elements), a succinct Kishu proof of the leaf at the least rank
+    # that holds it (one circuit, the opening at the planner's floor), the signature sizes, and
+    # the loss of the collision-resistance reduction for the signature of knowledge.
+    floor_log_sigma = math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + math.log2(leaf) / 2
+    z_floor_bytes = leaf * math.ceil(math.log2(MASK_TAIL) + floor_log_sigma) / 8
+    min_rank = math.ceil(math.log2(leaf))
+    groups = STAGES + 1
+    succinct = (
+        akita_bytes("goldilocks", groups - 1, min_rank - math.log2(DIGITS["goldilocks"]))
+        + groups * 128
+        + 2 * groups * 32
+        + 4
+        + CLAIM_BYTES["kishu"]
+        + BOOL_CHECK["sumcheck"][1]
+    )
+    fig("qk_z_floor_kbytes", kb(z_floor_bytes))
+    fig("qk_min_rank", min_rank)
+    fig("qk_succinct_proof_kbytes", kb(succinct))
+    claim(
+        "qk_qr_channel_too_big",
+        "the leaf's masked response with no padding and no masking elements, and a succinct proof of the leaf, are each over 30 kbytes",
+        min(z_floor_bytes, succinct) > 30_000,
+    )
+    fig("leansphincs_pruned_sig_bytes", fmt(LEANSPHINCS_PRUNED_SIG_BYTES))
+    fig("leansphincs_ethereum_bytes", fmt(LEANSPHINCS_ETHEREUM_BYTES))
+    second_preimage = 1 - math.exp(-1)
+    fig("sok_second_preimage_pct", round(100 * second_preimage))
+    fig("sok_loss_factor", sig(2 / second_preimage))
+    claim(
+        "sok_loss_small",
+        "the collision-resistance reduction for the signature of knowledge loses less than a factor of four",
+        2 / second_preimage < 4,
+    )
+
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
     checked_in = pick("pedersen", rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
@@ -4861,7 +4898,12 @@ def define_figures():
 define_figures()
 
 # ---- Filling the markers --------------------------------------------------------------
-PROSE_FILES = ("pareto-template.html", "pasta-proof-size.md", "zk-fiat-shamir-with-aborts.md")
+PROSE_FILES = (
+    "pareto-template.html",
+    "pasta-proof-size.md",
+    "zk-fiat-shamir-with-aborts.md",
+    "hardware-wallets.md",
+)
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # A claim's sentence sits between `<!--claim:names:hash-->` and `<!--/claim-->`, the names
 # comma-separated where one sentence carries several claims, the hash the first six hex digits

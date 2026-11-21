@@ -7,3 +7,4 @@
   - [Working Notes]()
     - [Akita Proof Sizes at a Pasta Modulus](proof-systems/working-notes/pasta-proof-size.md)
     - [Zero Knowledge for a Lattice Accumulation Step](proof-systems/working-notes/zk-fiat-shamir-with-aborts.md)
+- [Hardware Wallets](hardware-wallets.md)
