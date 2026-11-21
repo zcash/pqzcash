@@ -3053,3 +3053,15 @@ Artifact version 204.
 
 STATE: main at this entry's commit; everything through 2f83321 was pushed by the user; the two
 commits after it are unpushed.
+
+## 2026-11-21 19:47 UTC: the masked accumulator and the memory measure
+
+The zero-knowledge section's "Not modelled: the masked accumulator itself, about 14 Mbytes
+against 1.6 Mbytes" read as if the ordinary accumulator were unmodelled too (the user). The
+accumulator memory measure counts the ordinary accumulator at the handoff's norm bound, 21 bits
+a digit; the two figures in that sentence are the zero-knowledge note's digit vector and its
+masked slices packed at 3 bits a base-8 digit, so the sentence now says what the measure counts
+and that both figures are in digit slices (the commit before this one). Artifact version 206.
+
+STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the two
+commits after it are unpushed.
