@@ -1055,8 +1055,8 @@ CLMUL_ANDS = {
 # range-checked and summed in the PCD headers in place of value commitments and the binding
 # signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
 # payment key is the BLAKE3 hash of the authorizing key, which Tachyon's spend step derives
-# already) or a leanSPHINCS signature with BLAKE2s over a transaction digest of
-# ZOODLES_SIGHASH_COMPRESSIONS, verified in the circuit with the public key as a witness since
+# already) or a leanSPHINCS signature with BLAKE2s over a transaction digest
+# (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
 # the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
 # either policy. The lineage's steps run in the background and are not in the transaction, as
@@ -1073,11 +1073,35 @@ CLMUL_ANDS = {
 ZOODLES_INPUTS = 2
 ZOODLES_OUTPUTS = 2
 ZOODLES_NOTE_COMPRESSIONS = 2
-ZOODLES_SIGHASH_COMPRESSIONS = 8
 ZOODLES_AMOUNT_BITS = 51
 # Tachyon's EPOCH_MAX + 1 is 2^32 block heights over epochs of 4,096 (constants.rs).
 ZOODLES_EPOCH_BITS = 20
 ZOODLES_SUM_BITS = 64
+# A preimage check needs no transaction digest: it is proved inside the spend step, which the
+# tree binds to the rest of the transaction, directly and through the PCD headers. A signature
+# is made outside the proof, so its message must bind the transaction's effecting data: each
+# spend's two epoch nullifiers, each output's commitment, the change commitment, the fee and
+# the epoch (ZOODLES_SIGHASH_BYTES). An output's padding tachygram need not be in it, since
+# the digest is never visible outside the step. The prover passes the digest in a PCD header,
+# each spend verifies its signature over it, and the fee step recomputes it from the
+# tachygrams as a witness, re-rooting them against its children's set products
+# (ZOODLES_SIGHASH_ROOTS more multiplications), which binds the digest to the tree. The
+# Merkle variant has no set polynomials: its headers carry the nullifiers and commitments,
+# which the fee step hashes directly.
+ZOODLES_TACHYGRAM_BITS = 256
+ZOODLES_SIGHASH_BYTES = (
+    (2 * ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
+    + ZOODLES_SUM_BITS // 8
+    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+)
+ZOODLES_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_SIGHASH_BYTES / BLAKE3_BLOCK)
+ZOODLES_SIGHASH_ROOTS = 2 * (ZOODLES_INPUTS + ZOODLES_OUTPUTS)
+ZOODLES_MERKLE_SIGHASH_BYTES = (
+    (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
+    + ZOODLES_SUM_BITS // 8
+    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+)
+ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_MERKLE_SIGHASH_BYTES / BLAKE3_BLOCK)
 ZOODLES_AUTHS = ("preimage", "leansphincs")
 ZOODLES_NODES = {
     "SpendBind": (2, 0, 0, ZOODLES_EPOCH_BITS + ZOODLES_AMOUNT_BITS),
@@ -1131,7 +1155,8 @@ def zoodles_opening_cost(field, hp):
 def zoodles_node_cost(field, hp, node, auth):
     """One Zoodles node in the unit of `field`'s arithmetization: its BLAKE3 compressions, its
     roots and openings, its bits, and under the signature authorization the leanSPHINCS
-    verifier in a spend's action step and the transaction digest in the fee step."""
+    verifier in a spend's action step and the transaction digest in the fee step, with the
+    tachygrams it hashes re-rooted against the children's set products."""
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     verifier = 0
     if auth == "leansphincs":
@@ -1141,6 +1166,7 @@ def zoodles_node_cost(field, hp, node, auth):
             )
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
+            roots += ZOODLES_SIGHASH_ROOTS
     return (
         hash_app_cost(field, "blake3", blake3)
         + roots * zoodles_root_cost(field)
@@ -1158,6 +1184,7 @@ def zoodles_node_piop(node, auth):
             parts.append((LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
+            roots += ZOODLES_SIGHASH_ROOTS
     claim_bytes = CLAIM_BYTES["kishu"]
     return piop_sum(
         *parts,
@@ -1184,7 +1211,7 @@ def zoodles_merkle_cost(field, hp, auth):
         spend += hash_app_cost(
             field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
         )
-        sighash = hash_app_cost(field, "blake3", ZOODLES_SIGHASH_COMPRESSIONS)
+        sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
     output = (
         hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
         + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
@@ -1208,7 +1235,7 @@ def zoodles_merkle_piop(auth):
     parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP), (bits, BIT_CHECK_PIOP)]
     if auth == "leansphincs":
         parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
-        parts.append((ZOODLES_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
+        parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
 
@@ -1232,7 +1259,6 @@ def zoodles_merkle_piop(auth):
 # folds the commitment with one scalar multiplication, so the Pasta unit carries the step's
 # gates alone, which understates Akita's Pasta-claims rows.
 ZOODLES_BUCKET_LOG = 13
-ZOODLES_TACHYGRAM_BITS = 256
 # QrProfile::MAX_DEPTH (primitives/qr.rs); the circuit tests every position.
 ZOODLES_PROFILE_DEPTH = 32
 # Tachyon's EPOCH_SIZE, at the chain's 75-second target spacing.
@@ -4079,6 +4105,16 @@ def define_figures():
     fig("zoodles_roots", sum(ZOODLES_NODES[n][1] for n in nodes))
     fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
+    fig("zoodles_sighash_bytes", fmt(ZOODLES_SIGHASH_BYTES))
+    fig("zoodles_sighash_roots", ZOODLES_SIGHASH_ROOTS)
+    # The digest's hashing against one step at the rank the signature transaction favours.
+    p_sig, _ = kishu_best("zoodles_leansphincs", zk=True)
+    claim(
+        "zoodles_sighash_small",
+        "the transaction digest's hashing is under a tenth of one step at the rank Kishu's signature transaction favours",
+        hash_app_cost(p_sig["arith"], "blake3", ZOODLES_SIGHASH_COMPRESSIONS)
+        < 0.1 * 2 ** p_sig["rank"],
+    )
     fig(
         "zoodles_opening_kishu_digits",
         sig(zoodles_opening_cost("bits_pasta_fingerprint", "blake3"), 3),
