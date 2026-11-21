@@ -2885,3 +2885,76 @@ classification, k-ary merges, Kishu with binary groups, the lattice estimator on
 padding, the host's zk-layer merge for the three-way fold, the linking commitment in qk, an
 MPCitH row), plus the Zoodles assumptions above and the Boolean unit's input bits and block
 padding.
+
+## 2026-11-21 17:50 UTC: the lineage step as an application; the frontier collapse checked; leanSPHINCS pruning
+
+The user asked for the wallet's witness update as an application (521490d, `zoodles_epoch`):
+one note's lineage advanced one epoch of 4,096 blocks (3.6 days at 75 s), Tachyon's UnspentLift
+read from stamp/proof/pool.rs and qr.rs. The step takes the epoch's bucket proof as its right
+input (a bucket: one quadratic-residue profile's share of the epoch's tachygrams, at most 2^13
+members, Tachyon's online slot, built once per epoch for everyone), tests the nullifier's
+profile at QrProfile::MAX_DEPTH = 32 positions (a squaring and a selection each), opens the
+bucket's contents at the nullifier and enforces nonzero (a private point: the merge above
+evaluates the point's tensor, 2 × 13 multiplications), appends the member to the elapsed
+sequence (two openings and a root), range-checks the epoch and derives the epoch's nullifier
+(one compression). The bind, lift and fuse steps that close a segment run once per spend and
+are left out. The step's own circuit is 40,200 Kishu digits; the bucket's 8,192 tachygrams are
+2.10 million bits or digits, folded element by element by every lattice and hash-based row
+(zoodles_bucket_units; Pasta's unit carries the step's gates alone, since Pedersen-IPA folds the
+builder's commitment, which understates Akita's Pasta-claims rows). Figures: Kishu 0.262 s a
+note an epoch at rank 20 without zk (the lineage never leaves the wallet), BitZ 0.107, Flock
+0.169, Akita over Goldilocks 0.259, Pedersen-IPA 3.56 s; 12 percent of the Kishu figure is
+committing the bucket's digits, the builder's work. Consequences in the text: the lineage's
+accumulator stays at the bucket's rank and the spend inherits it (Zoodles by preimage with zk
+at rank 20: 0.351 s against 0.223 at 19) unless the buckets are sized to the spend's rank; a
+sorted Merkle tree over an epoch of 2^24 tachygrams would make the exclusion proof 24
+compressions, 362,000 digits, under a fifth of the bucket's, with no profile revealed to the
+server (claims zoodles_epoch_bucket_most, zoodles_sorted_tree_cheaper). Set polynomials suit
+Pedersen, where a commitment folds in one multiplication, not digits.
+
+The frontier collapse is not broken (the user: F2 recursive points with small proofs drop out
+when "within each family separately" is unticked). work/frontier-probe.py reproduces the
+page's rule (a dominator has bytes, second and third measures at most the point's, Pasta
+support at least, and not all equal) over the page's selection. In the user's state (second
+measure the transaction prover on the Merkle-path Zoodles by preimage, third the accumulation
+prover, floor 128, zk, conventional hashes, default families) 5 of the 34 F2 recursive rows are
+on their own frontier and 1 on the class frontier; the other 4 are dominated by Kishu rows
+(69,285 B at rank 21, accumulation prover 4.15e8, transaction 1.83e9) against the best F2
+recursive proof of 77,376 B at rate 1/64 (4.19e9, 4.48e9). Kishu's smallest proof is smaller
+than every F2 recursive proof; the impression came from comparing with BitZ (510 kB) and Flock
+ARC (125 kB), which survive on other measures. The table's Frontier column says "family" for
+such rows.
+
+leanSPHINCS pruning, from formal/sphincs/README.md and Scheme/Pruning.lean (the user is a
+SPHINCS co-designer and asked for the construction): d = 1, height h = log2(lifetime) − 4 (26
+at 2^30), WOTS+C leaves (64 chains × 4 positions, target sum 128) each signing a two-level WOTS
+forest of T = 8 trees (or FORS); one digest hash gives h index bits + 26T forest bits;
+signature 16 + 352T + 1028d + 16h = 4,276 B. Keygen builds only a subtree of height b at a
+seed-chosen position and fills the h − b spine siblings with surrogates, seed-derived digests
+with nothing beneath: 226·2^b + 2(h − b) hashes. Signing walks R0, R0 + δ, … (δ odd, both from
+H(seed, m)) until the index lands in the kept subtree: 2^(h−b) digests expected. The verifier
+is unchanged and cannot tell a pruned key from a full one (the slides' privacy property).
+Lifetimes at 127 bits, h = 26: full 1.38e9, b = 20: 26.0M, b = 14: 480,100, b = 12: 126,900,
+b = 8: 8,830, i.e. 20.6 to 34.5 signatures per leaf: 14 bits of grinding buy about 1.5× the
+load per leaf. Against a plain tree of height b (the README's rule 21.45·2^h in the cover
+model at the proved shares, an extrapolation below h = 20): matching 126,900 needs about 0.8
+more levels, 1.7× keygen once, against 16,384 digests per signature, 224 bytes and 14 verifier
+hashes (0.3M Kishu digits, 5 percent). The user's points: the leaves are seed-derived, so a
+full root computed at keygen lets the signer regenerate any subtree later and choose or widen
+its landing region at will (the surrogates exist only to avoid the full keygen on a device);
+and the device need only produce the leaf hashes (226 per leaf, secret-dependent), the host
+building and storing the tree and serving paths. Then no grind is needed, the lifetime is the
+full key's, and the device's cost is keygen: 226·2^h hashes at the Nano S+ rates (BLAKE2s
+32.6k/s, Keccak 5.8k/s): h = 12: 28 s / 2.7 min; h = 16: 7.6 min / 43 min; h = 18: 30 min /
+2.9 h; h = 20: 2 h / 11.5 h; the leaf export 16·2^h bytes (16 MB at h = 20, 13 min at 21 kB/s).
+Open: the pruned theorems assume surrogates; with real unused subtrees in their place the
+forger gains only zero-load instances, to be checked. Also noted (the user): the Merkle paths
+matter far less than the signature: per spend 33 BLAKE3 compressions against 298 BLAKE2s, 9×
+in count and 12.8× in digits; in time the two paths add 0.18 s and the two signatures 1.55 s
+to the Kishu zk transaction; a BLAKE3-based leanSPHINCS would still be 9× the path.
+
+STATE: main at this entry's commit; eleven commits after a49be05 unpushed (through 521490d
+and this one). Artifact version 192. PENDING: as the previous entry, plus: the lineage's
+rank coupling with the spend (bucket size as a parameter), the sorted-tree exclusion proof as
+an alternative lineage, the bind/lift/fuse steps per spend, the Boolean unit's input bits and
+block padding; the hardware-wallets chapter could take the host-assisted keygen point.
