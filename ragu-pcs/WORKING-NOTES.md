@@ -3022,3 +3022,34 @@ particular transaction types". Artifact version 196.
 
 STATE: main at this entry's commit; everything through 1388a24 was pushed by the user; the
 two commits after it are unpushed.
+
+## 2026-11-21 19:33 UTC: prose revisions around the frontier and the measures
+
+A round of wording changes at the user's requests, after the two application lists landed
+(a7993f2), squashed into one commit at the user's request:
+
+- The lede's paragraph on a point's coordinates, the settings, the two frontiers and the
+  unticked families moved under the plot, headed "The frontier plot" (id `frontiers`, so the
+  Frontier control still links there). Its "frontier" link, which had low contrast against the
+  lede's grey, went with the move, and the lede now says only what the page costs.
+- The "Frontiers" heading went. The frontier's definition, the six-axis test naming the three
+  requirements, follows that paragraph directly, in place of the stale sentence that the
+  frontier was taken on bytes and the two measures alone.
+- The requirements section is "Pasta and the scheme assumption" (id `requirements`). The
+  changes requirement has its own section in place of the redundant "Parameter changes
+  against design changes" paragraph, which kept its table and per-family sentences.
+- The seven measures are listed once each, with semicolons; the transaction prover had
+  appeared twice. The defaults have a sentence of their own.
+- The changes axis's example sentence ends at "for example".
+- The open security ledger "is treated as making a stronger assumption".
+- The Tachyon rows are described as Tachyon's own circuits, a pre-quantum protocol proven in a
+  post-quantum proof system: not a deployment, which Zoodles is, but the same application for
+  comparing the proof systems. The measure's paragraph, the Tachyon section and the model's
+  comment say so; the comment was rewrapped.
+- A link in the lede, should one return, takes the ink colour with an accent underline (its own
+  commit, after the squash), since the link colour read poorly against the lede's grey.
+
+Artifact version 204.
+
+STATE: main at this entry's commit; everything through 2f83321 was pushed by the user; the two
+commits after it are unpushed.
