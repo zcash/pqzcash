@@ -1159,6 +1159,74 @@ def zoodles_merkle_piop(auth):
     return piop_sum(*parts)
 
 
+# ---- Zoodles' lineage: one note advanced one epoch ------------------------------------------
+# The wallet's witness update, Tachyon's UnspentLift (stamp/proof/pool.rs): one step per epoch
+# of ZOODLES_EPOCH_BLOCKS blocks, which takes the epoch's bucket proof as its right input. A
+# bucket is one profile's share of the epoch's tachygrams, partitioned by the quadratic-residue
+# sides of x + R_j at successive discriminants down to at most 2^ZOODLES_BUCKET_LOG members,
+# Tachyon's online polynomial slot at the production rank, and built once per epoch for
+# everyone. The step tests the nullifier's profile against the bucket's, a squaring and a
+# selection at each of QrProfile::MAX_DEPTH positions; opens the bucket's contents at the
+# nullifier and enforces nonzero, a private point, so the merge above evaluates the point's
+# tensor too, two multiplications per variable; appends the member to the elapsed sequence by a
+# product identity at the challenge, two more openings and a root; range-checks the epoch; and
+# derives the epoch's nullifier, one compression. The bind, lift and fuse steps that close a
+# segment run once per spend, not per epoch, and are left out. The bucket's contents are the
+# builder's commitment, but the lattice and hash-based rows fold the whole witness element by
+# element, so the bucket's tachygrams enter the wallet's accumulator as committed elements of
+# the arithmetization and keep its rank there; the step prover's share of the figures then
+# counts committing them, which the builder did once (zoodles_epoch_commit_pct). Pedersen-IPA
+# folds the commitment with one scalar multiplication, so the Pasta unit carries the step's
+# gates alone, which understates Akita's Pasta-claims rows.
+ZOODLES_BUCKET_LOG = 13
+ZOODLES_TACHYGRAM_BITS = 256
+# QrProfile::MAX_DEPTH (primitives/qr.rs); the circuit tests every position.
+ZOODLES_PROFILE_DEPTH = 32
+# Tachyon's EPOCH_SIZE, at the chain's 75-second target spacing.
+ZOODLES_EPOCH_BLOCKS = 4096
+ZOODLES_BLOCK_SECONDS = 75
+# A sorted tree over an epoch of 2^24 tachygrams, the exclusion proof's alternative.
+ZOODLES_EPOCH_TREE_HEIGHT = 24
+# Bits of one committed element where the unit is a field element; the bit arithmetizations
+# and Boolean circuits commit bits.
+FIELD_BITS = {"pasta": 255, "goldilocks": 64, "fp128": 128}
+
+
+def zoodles_epoch_step_cost(field, hp):
+    """The unspent-lift step's own circuit in the unit of `field`'s arithmetization."""
+    private_point = 2 * ZOODLES_BUCKET_LOG * claim_mult_cost(field)
+    return (
+        hash_app_cost(field, "blake3", 1)
+        + ZOODLES_PROFILE_DEPTH * 2 * claim_mult_cost(field)
+        + 3 * zoodles_opening_cost(field, hp)
+        + private_point
+        + zoodles_root_cost(field)
+        + ZOODLES_EPOCH_BITS * BIT_GATE_OFF_PASTA
+    )
+
+
+def zoodles_bucket_units(field):
+    """The bucket's tachygrams as committed elements of `field`'s arithmetization; none in
+    the Pasta unit, where Pedersen-IPA folds the builder's commitment."""
+    if field == "pasta":
+        return 0
+    return 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS / FIELD_BITS.get(field, 1)
+
+
+def zoodles_epoch_cost(field, hp):
+    return zoodles_epoch_step_cost(field, hp) + zoodles_bucket_units(field)
+
+
+def zoodles_epoch_piop():
+    claim_bytes = CLAIM_BYTES["kishu"]
+    return piop_sum(
+        (1, BLAKE3_PIOP),
+        (ZOODLES_PROFILE_DEPTH * 2 + 3 * CLAIM_GATES + 2 * ZOODLES_BUCKET_LOG + 3, E_MULT_PIOP),
+        (3, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
+        (ZOODLES_EPOCH_BITS, BIT_CHECK_PIOP),
+    )
+
+
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
@@ -1193,6 +1261,10 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
             a: {hp: round(zoodles_merkle_cost(a, hp, auth)) for hp in HASH_POLICIES} for a in ARITHS
         }
         for auth in ZOODLES_AUTHS
+    },
+    # One Zoodles note's lineage advanced one epoch.
+    "zoodles_epoch": {
+        a: {hp: round(zoodles_epoch_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS
     },
     # A Tachyon transaction is its proof tree's nodes, each in the unit, in order.
     **{
@@ -1235,6 +1307,7 @@ PIOP_WORK = {
         }
         for auth in ZOODLES_AUTHS
     },
+    "zoodles_epoch": {a: round(piop_word_mults(zoodles_epoch_piop())) for a in KISHU_ARITHS},
     **{
         f"tachyon{n}": {
             a: round(
@@ -1256,6 +1329,7 @@ APPLICATION_MULTS = (
     | {f"leansphincs_{h}": False for h in LEANSPHINCS_VERIFY}
     | {f"zoodles_{auth}": False for auth in ZOODLES_AUTHS}
     | {f"zoodles_merkle_{auth}": False for auth in ZOODLES_AUTHS}
+    | {"zoodles_epoch": False}
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
 )
 # The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
@@ -3513,6 +3587,7 @@ PAGE_APPLICATIONS = (
     ("zoodles_preimage", 1),
     ("zoodles_leansphincs", 1),
     *((f"zoodles_merkle_{auth}", 1) for auth in ZOODLES_AUTHS),
+    ("zoodles_epoch", 1),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
     *(("path", n) for n in (1, 2, 4, 8, 16, 64)),
 )
@@ -3934,6 +4009,49 @@ def define_figures():
             and zoodles_plain[app] < tachyon4
             and zoodles_bitz_zk[app] < tachyon4_bitz_zk,
         )
+    # Zoodles' lineage step: the bucket and the step, the families' figures, the builder's
+    # commitment share, the spend at the lineage's rank, and the sorted-tree alternative.
+    bucket_digits = 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS
+    fig("zoodles_bucket_coeffs", fmt(2**ZOODLES_BUCKET_LOG))
+    fig("zoodles_bucket_digits", millions(bucket_digits, 3))
+    fig("zoodles_profile_depth", ZOODLES_PROFILE_DEPTH)
+    fig("zoodles_epoch_blocks", fmt(ZOODLES_EPOCH_BLOCKS))
+    fig("zoodles_epoch_days", sig(ZOODLES_EPOCH_BLOCKS * ZOODLES_BLOCK_SECONDS / 86400, 2))
+    fig(
+        "zoodles_epoch_step_kishu",
+        sig(zoodles_epoch_step_cost("bits_pasta_fingerprint", "blake3"), 3),
+    )
+    fig("app_zoodles_epoch_kishu", millions(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
+    claim(
+        "zoodles_epoch_bucket_most",
+        "the bucket is over nine tenths of the lineage step's Kishu digits",
+        bucket_digits > 0.9 * APP["zoodles_epoch"]["bitz"]["blake3"],
+    )
+    p, w = kishu_best("zoodles_epoch")
+    fig("tx_zoodles_epoch_kishu_s", secs(w))
+    fig("tx_zoodles_epoch_kishu_rank", p["rank"])
+    steps = tx_steps(p, "zoodles_epoch", p["hashes"])
+    bucket_share = zoodles_bucket_units(p["arith"]) / (steps * p["step_units"])
+    fig("zoodles_epoch_commit_pct", round(100 * steps * p["step_prover"] * bucket_share / w))
+    lineage_rank = p["rank"]
+    p, w = best_for("bitz", "zoodles_epoch")
+    fig("tx_zoodles_epoch_bitz_s", secs(w))
+    p, w = best_for("flock", "zoodles_epoch")
+    fig("tx_zoodles_epoch_flock_s", secs(w))
+    p, w = best_for("goldilocks", "zoodles_epoch", "poseidon")
+    fig("tx_zoodles_epoch_goldilocks_s", secs(w))
+    p, w = best_for("pedersen", "zoodles_epoch", "poseidon")
+    fig("tx_zoodles_epoch_pedersen_s", secs(w))
+    p, w = kishu_best("zoodles_preimage", zk=True, rank=lineage_rank)
+    fig("tx_zoodles_preimage_kishu_zk_lineage_rank_s", secs(w))
+    fig("zoodles_epoch_tree_height", ZOODLES_EPOCH_TREE_HEIGHT)
+    sorted_digits = ZOODLES_EPOCH_TREE_HEIGHT * BLAKE3_BITS
+    fig("zoodles_sorted_tree_digits", sig(sorted_digits, 3))
+    claim(
+        "zoodles_sorted_tree_cheaper",
+        "a sorted tree's exclusion proof over an epoch of 2^24 tachygrams is under a fifth of the bucket's digits",
+        5 * sorted_digits < bucket_digits,
+    )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
     fig("sok_loss_factor", sig(2 / second_preimage))
