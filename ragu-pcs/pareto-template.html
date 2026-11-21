@@ -53,6 +53,11 @@ a { color: var(--accent-ink); }
 .group.measures, .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
 /* The two measure groups with the swap button between them. */
 .group.measures { grid-template-columns: 1fr auto 1fr; gap: 12px 10px; }
+/* One application list at full width, or both side by side when both measures are the transaction prover. */
+.group.txapps { display: grid; grid-template-columns: 1fr; gap: 12px 18px; }
+.group.txapps.both { grid-template-columns: 1fr 1fr; }
+/* The hidden attribute must beat the groups' own display. */
+[hidden] { display: none !important; }
 .measures .swap { display: flex; align-items: center; }
 /* The two eyebrows reserve two lines each, so the lists start level whatever the width. */
 .measures .group .eyebrow { min-height: 2.8em; }
@@ -143,8 +148,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="third" value="memory" id="thirdmem"> accumulator memory</label>
     </div>
     </div>
-    <div class="group wide"><span class="eyebrow"><a href="#transaction-prover">Transaction prover</a>: the transaction proves</span>
-      <label><select id="txapp">
+    <!-- The transaction prover may be the second measure, the third, or both, each with its own
+         application; the script fills the third's list from the second's and shows the list of
+         each side that has the measure, one at full width or both side by side. With neither,
+         the second's list shows alone, without naming a measure, and the third's follows it. -->
+    <div class="group wide txapps" id="txapps">
+    <div class="group" id="txapp2-group"><span class="eyebrow"><a href="#transaction-prover">Transaction prover</a><span class="side">, second</span><span class="proves">: the transaction proves</span></span>
+      <label><select id="txapp2">
         <option value="recovery" selected>the Ironwood recovery circuit</option>
         <option value="recovery:4">a transaction with 4 Ironwood recovery inputs</option>
         <option value="qk">the hardware wallet's statement alone: H^qk, one BLAKE3 compression</option>
@@ -166,6 +176,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
         <option value="path:16">16 Merkle path checks</option>
         <option value="path:64">64 Merkle path checks</option>
       </select></label>
+    </div>
+    <div class="group" id="txapp3-group"><span class="eyebrow"><a href="#transaction-prover">Transaction prover</a>, third<span class="proves">: the transaction proves</span></span>
+      <label><select id="txapp3"></select></label>
+    </div>
     </div>
     <div class="group wide two">
     <div class="group"><a href="#axes" class="eyebrow">View</a>
@@ -263,7 +277,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The assumption works the same way: a configuration is dominated only by one that assumes no more. The hash-based families rest on a random oracle alone. Akita's and Kishu's rows rest on Module-SIS as well, so a Kishu row never removes a Flock or BitZ row from the post‑quantum frontier, however much cheaper it is. The Boolean-over-Akita row's security ledger is open, which ranks it above both: it can be removed by any row and removes none.</p>
   <p>The changes work the same way, in the order of <a href="#frontier-table">the table's Changes needed column</a>: parameters only, then changes to Ragu's code, then changes to its design. A configuration is dominated only by one that needs no more, so a design change never removes a parameter-only configuration from the frontier, and the plot keeps what parameters alone reach beside what the changes buy.</p>
   <h3 id="measures">Which measures</h3>
-  <p>The second and third measures are chosen independently from the same seven, the accumulation prover by default for the second and the transaction prover for the third, with the Ironwood recovery circuit as the transaction. The frontier is taken on bytes and both. The accumulation prover is what one fuse costs the prover beyond its own step: the merge circuits' commitments, which are <a href="#prover-work">prover commitment work</a>, plus the fold's sum-checks over the accumulator, and for Kishu its merge's constraint PIOP.</p>
+  <p>The second and third measures are chosen independently from the same seven, the accumulation prover by default for the second and the transaction prover for the third, with the Ironwood recovery circuit as the transaction. The transaction prover may be both measures, each with its own application, so that two applications can be compared. The frontier is taken on bytes and both. The accumulation prover is what one fuse costs the prover beyond its own step: the merge circuits' commitments, which are <a href="#prover-work">prover commitment work</a>, plus the fold's sum-checks over the accumulator, and for Kishu its merge's constraint PIOP.</p>
   <p>Merge gates is offered since every family has an estimate of them. Accumulation atoms is kept because it is the more robust proxy for the lattice merge, whose gate count is estimated. For the hash-based families atoms say nothing, since their merge cost is the Merkle hashing. <!--claim:fast_deciders_under_10ms:13c010-->Decider work is the decider's verification cost: under ten milliseconds for the 64-bit and 128-bit lattice rows, the binary-field families and the hash-based deciders with BLAKE3 trees; <!--fig:decider_pasta_ms_min-->2.33<!--/fig--> to <!--fig:decider_pasta_ms_max-->26.7<!--/fig--> ms for Akita's three Pasta variants, Kishu and BitZ; <!--fig:decider_pedersen_ms_min-->41.9<!--/fig--> to <!--fig:decider_pedersen_ms_max-->384<!--/fig--> ms for Pedersen-IPA; and, with Poseidon trees, <!--fig:decider_whir_gold_ms_min-->4.76<!--/fig--> to <!--fig:decider_whir_gold_ms_max-->30.8<!--/fig--> ms for WHIR over Goldilocks and <!--fig:decider_whir_pasta_ms_min-->22.4<!--/fig--> to <!--fig:decider_whir_pasta_ms_max-->158<!--/fig--> ms for WHIR over Pasta.<!--/claim--> So it rarely decides a frontier, but it is there to check.</p>
   <p>Transaction prover is the expected work to prove the application chosen below: the Ironwood recovery circuit, a transaction with four recovery inputs, the hardware wallet's part of the recovery statement on its own (the device's $\mathsf{H^{qk}}$ statement, or a <a href="https://sphincs.art">leanSPHINCS</a> verifier with either BLAKE2s or Keccak-256), a Zoodles transaction (two inputs and two outputs of a sketched protocol with no curve arithmetic) or one epoch of a Zoodles note's lineage, a number of Merkle path checks, or a Tachyon transaction of 2 to 16 tachyactions in Tachyon's own proof tree. For the post-quantum families the Tachyon transaction is a post-quantum variant of Tachyon in a new shielded pool, whose hashes follow the page's policy. The recovery circuit recovers notes of the existing pool, so its nullifier stays Poseidon over Pasta. The application is costed in each family's own arithmetization, so it takes more steps where Pallas arithmetic must be emulated. The measure charges each step at the family's per-step commitment cost and one merge per step at the row's accumulation prover. The zero-knowledge rows also pay the masking work at the handoff to the public aggregator. The <a href="#transaction-prover">Transaction prover section</a> below gives each application's cost in each arithmetization.</p>
   <h3 id="changes">Parameter changes against design changes</h3>
@@ -605,12 +619,29 @@ GROUPS.forEach(([heading, href, group], i) => {
     famBox.appendChild(l);
   }
 });
+// The transaction prover may be chosen as the second measure, the third, or both, each side with
+// its own application list; the third's list is a copy of the second's.
+const SIDES = ['second', 'third'];
+const txSelect = side => document.getElementById(side === 'second' ? 'txapp2' : 'txapp3');
+txSelect('third').innerHTML = txSelect('second').innerHTML;
+const measureOf = side => document.querySelector(`input[name=${side}]:checked`).value;
+// The point property that a side's measure reads: the transaction prover's value differs by
+// side, since each side has its own application.
+const measureKey = side => { const m = measureOf(side); return m === 'transaction' ? `transaction_${side}` : m; };
+const txSides = () => SIDES.filter(side => measureOf(side) === 'transaction');
+// With neither measure the transaction prover, the second's list stands for both: the third
+// follows it, so that choosing the measure on either side afterwards starts from that choice.
+txSelect('second').addEventListener('change', () => { if (txSides().length === 0) txSelect('third').value = txSelect('second').value; });
+// The selected option's text, shortened for an axis title.
+function txShort(side) {
+  const text = txSelect(side).selectedOptions[0].textContent.replace(/\s*\(.*$/, '').replace(/:.*$/, '');
+  return text.length > 44 ? text.slice(0, 42).trimEnd() + '…' : text;
+}
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
 // does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash.
 let userHeader = 2, lastForced = false;  // the header chosen on the control, kept through a forced spell
 function forcedHeader() {
-  const app = document.getElementById('txapp').value;
-  return (second() === 'transaction' || third() === 'transaction') && (app.startsWith('tachyon') || app.startsWith('recovery'));
+  return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery'); });
 }
 function selected() {
   const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
@@ -640,13 +671,16 @@ function frontierAmong(pts, second, third) {
   const level = p => DATA.change_level[p.change];
   return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q[second] <= p[second] && q[third] <= p[third] && q.pasta >= p.pasta && q.assumption <= p.assumption && level(q) <= level(p) && (q.bytes !== p.bytes || q[second] !== p[second] || q[third] !== p[third] || q.pasta !== p.pasta || q.assumption !== p.assumption || q.change !== p.change)));
 }
-const second = () => document.querySelector('input[name=second]:checked').value;
-// The swap button exchanges the second and third measures; render() then greys out the
-// mirrored choice on each side again.
+const second = () => measureOf('second');
+// The swap button exchanges the second and third measures, with their applications; render()
+// then greys out the mirrored choice on each side again.
 document.getElementById('swapmeasures').addEventListener('click', () => {
   const s = second(), t = third();
   for (const box of document.querySelectorAll('input[name=second]')) { box.disabled = false; box.checked = box.value === t; }
   for (const box of document.querySelectorAll('input[name=third]')) { box.disabled = false; box.checked = box.value === s; }
+  const a2 = txSelect('second').value, a3 = txSelect('third').value;
+  txSelect('second').value = a3;
+  txSelect('third').value = a2;
   render();
 });
 // The 3D view opens from the low corner, bytes receding to the right and the second measure
@@ -665,9 +699,9 @@ let plotWidthRendered = 0;
 // projection changes and not the view direction.
 let carryCamera = false;
 document.getElementById('ortho').addEventListener('change', () => { carryCamera = true; });
-const third = () => document.querySelector('input[name=third]:checked').value;
+const third = () => measureOf('third');
 // The measures in work units, which the unit option converts.
-const WORK_MEASURES = ['prover', 'accumulation_prover', 'verify', 'transaction'];
+const WORK_MEASURES = ['prover', 'accumulation_prover', 'verify', 'transaction_second', 'transaction_third'];
 // Prover and decider work are stored in 64-bit word multiplications; the
 // unit option shows them as milliseconds at 3e9 per second on one core, to three
 // significant figures, or to the nearest millisecond from a second up.
@@ -677,7 +711,7 @@ const unitName = () => unit() === 'ms' ? 'ms' : '64‑bit muls';
 const fmtMs = v => v >= 1000 ? fmt(Math.round(v)) : v.toPrecision(3);  // keeps a trailing zero: 8.90
 const fmtWork = v => unit() === 'ms' ? fmtMs(v) : fmt(Math.round(v));
 const val = (p, key) => WORK_MEASURES.includes(key) ? p[key] * unitFactor() : p[key];
-const measureTitle = m => ({ prover: `prover commitment work, ${unitName()} per step`, accumulation_prover: `accumulation prover ${unitName()} per step: the merge's commitments and the fold's sum-checks`, gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `decider ${unitName()}`, transaction: `transaction prover ${unitName()}`, memory: 'accumulator bytes' })[m];
+const measureTitle = m => m.startsWith('transaction_') ? `transaction prover ${unitName()}<br>${txShort(m.slice('transaction_'.length))}` : ({ prover: `prover commitment work, ${unitName()} per step`, accumulation_prover: `accumulation prover ${unitName()} per step: the merge's commitments and the fold's sum-checks`, gates: 'merge gates', accumulation: 'accumulation atoms per merge', verify: `decider ${unitName()}`, memory: 'accumulator bytes' })[m];
 function fmt(n) { return n.toLocaleString('en-GB'); }
 // The transaction measure's steps: the application's units in the row's arithmetization,
 // hashed under the row's own policy, or under the selected one for a row priced under either,
@@ -739,7 +773,7 @@ document.getElementById('holdcamera').addEventListener('change', e => {
   const scale = document.querySelector('input[name=scale]:checked').value;
   const r = a => a && a.range ? a.range.slice() : undefined;
   const sc = fl.scene || {};
-  const s = second(), t = third(), u = unit();
+  const s = measureKey('second'), t = measureKey('third'), u = unit();
   held = view === '2d'
     ? { scale, view, second: s, third: t, unit: u, x: r(fl.xaxis), y: r(fl.yaxis), z: padded(selected(), t, t !== 'accumulation' && scale === 'log') }
     : { scale, view, second: s, third: t, unit: u, x: r(sc.xaxis), y: r(sc.yaxis), z: r(sc.zaxis) };
@@ -755,7 +789,7 @@ function wrapLabel(label, width = 60) {
   return lines.join('<br>');
 }
 function hover(p) {
-  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}${p.transaction === null ? '' : `<br>transaction prover ${fmtWork(val(p, 'transaction'))} ${unitName()}`}<br>${CHANGE[p.change]}`;
+  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure: ${fmtWork(val(p, `transaction_${side}`))} ${unitName()}`).join('')}<br>${CHANGE[p.change]}`;
 }
 function render() {
   // Each class, pre-quantum (Pedersen-IPA) and post‑quantum (Akita), has its
@@ -765,18 +799,26 @@ function render() {
   // table always lists both frontiers. The changes a configuration needs are
   // an axis of the dominance test, so the best parameter-only configurations
   // stay on the frontier beside what code or design changes buy.
-  const s = second(), t = third();
-  // The two measures are chosen independently; the one chosen on either side
-  // is greyed out on the other.
-  for (const box of document.querySelectorAll('input[name=second]')) box.disabled = box.value === t;
-  for (const box of document.querySelectorAll('input[name=third]')) box.disabled = box.value === s;
+  const s = measureKey('second'), t = measureKey('third');
+  // The two measures are chosen independently; the one chosen on either side is greyed out
+  // on the other, except the transaction prover, which both sides may take with their own
+  // applications. The application list of each side that has it is shown, one at full width
+  // or both side by side; with neither, the second's list shows alone, without naming a measure.
+  for (const box of document.querySelectorAll('input[name=second]')) box.disabled = box.value === third() && box.value !== 'transaction';
+  for (const box of document.querySelectorAll('input[name=third]')) box.disabled = box.value === second() && box.value !== 'transaction';
+  const sides = txSides();
+  document.getElementById('txapps').classList.toggle('both', sides.length === 2);
+  document.getElementById('txapp2-group').hidden = sides.length > 0 && !sides.includes('second');
+  document.getElementById('txapp3-group').hidden = !sides.includes('third');
+  // Alone, the list names no measure; side by side, the two eyebrows name only their measures.
+  document.querySelector('#txapp2-group .side').hidden = sides.length === 0;
+  for (const e of document.querySelectorAll('#txapps .proves')) e.hidden = sides.length === 2;
   // The transaction measure: the selected application, costed in each arithmetization's
   // unit under the hash policy (DATA.applications), in as many steps as its step holds
   // (step_units, the same unit), rounded up, at the family's per-step commitment cost; one
   // merge per step at the row's prover; and, for the zero-knowledge rows, the masking work
   // at the handoff to the public aggregator (Akita's masking fold; the hash-based families'
   // masked prover extra).
-  const [txKind, txCount] = document.getElementById('txapp').value.split(':');
   const txPolicy = document.querySelector('input[name=hashes]:checked').value;
   // The PCD header is the application's choice and applies to every row alike: the rows are
   // priced without one, and the selected header adds its elements at 64 bytes each. A Tachyon
@@ -795,8 +837,11 @@ function render() {
     if (p.bytes0 === undefined) p.bytes0 = p.bytes;
     p.bytes = p.bytes0 + header * DATA.header_element_bytes;
   }
-  for (const p of DATA.points) p.transaction = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
-  const all = selected().filter(p => (s !== 'transaction' && t !== 'transaction') || p.transaction !== null);
+  for (const side of SIDES) {
+    const [txKind, txCount] = txSelect(side).value.split(':');
+    for (const p of DATA.points) p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
+  }
+  const all = selected().filter(p => sides.length === 0 || p.step_prover !== null);
   // With the per-family box ticked, each family's frontier is taken on its own,
   // so that a family dominated by another still shows its best configurations.
   const perFamily = document.getElementById('perfamily').checked;
@@ -947,7 +992,7 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.transaction === null ? '' : `${fmtWork(val(p, 'transaction'))} ${uname}`}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => `${fmtWork(val(p, `transaction_${side}`))} ${uname}`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="15">No family selected.</td></tr>';
@@ -981,7 +1026,7 @@ document.querySelectorAll('table').forEach(table => {
     sortTable(table, i, dir);
   }));
 });
-document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, #txapp, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 // The book switches themes by changing the root element's class.
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
