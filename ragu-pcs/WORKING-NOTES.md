@@ -3169,3 +3169,68 @@ the Neo text at work/2026-242.txt.
 
 STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the five
 commits after it are unpushed.
+
+## 2026-11-21 23:54 UTC: the accumulator's length, the leaf handoff, the digest, peak fuse memory, the width
+
+Nine commits after 385528c, ed01f37 to 737e690, all on main.
+
+- **The Akita paper has a reference key**, [DBK+26] (ed01f37).
+- **The stage groups are priced at their support** (fc896ed). A stage holds its values at the
+  wires of its reserved gates and is zero elsewhere, so what is committed and folded is its
+  support: 584 values at header 9 (STAGE_VALUES; preamble 2 × (3·9 + 12 + 1 + 39), query 172,
+  eval 122, inner error 90, outer error 42, from Ragu 8109a41c), a claim-field element each (two
+  coefficients over Goldilocks, 128 bits in Kishu and the binary groups). Akita's grouped opening
+  admits groups of different dimensions ([DBK+26], §5).
+- **The batch group is circuits × 2^rank** (aa2e515). The user asked why Pedersen's accumulator
+  memory was so high (it is the measured uncompressed proof, 96 polynomials of 2^13), which
+  exposed that the batch group was 2^rank in the mask, the sum-checks and the memory but
+  circuits × 2^rank in the opening and the merge's one image. The user ruled for circuits ×
+  2^rank (accumulator_coefficients). So the accumulation prover, the fold and the memory are
+  nearly flat in rank until one circuit holds the merge (rank 21 for Kishu) and double per rank
+  beyond. Kishu's recovery 0.399 s plain, 0.743 s zk, both at rank 21 with five merges; Pasta
+  claims 26.8 s at rank 17 with Poseidon, 1,980 s under BLAKE3; Zoodles by preimage 0.186 s zk.
+- **The device statement masks its leaf alone** (d6f1616; the user: the wallet proves one
+  circuit). LEAF_HANDOFF = {qk}, a row's fold_leaf over 2^rank digits, DATA.leaf_handoff in the
+  page's txWork; qk 0.113 s at rank 16, 56% the host's merge, 38% the fold.
+- **The Zoodles signature's digest** (2b62fce; the user's design). The preimage check needs no
+  digest, being proved inside the spend step that the tree binds. A signature's message must
+  bind the effecting data: each spend's two nullifiers, each output's commitment, the change
+  commitment, the fee, and the epoch, 235 bytes or 4 compressions, not 8. The prover passes it as
+  a PCD header, each spend verifies its signature over it, and the fee step recomputes it from
+  the tachygrams as a witness, re-rooted against its children's set products (8
+  multiplications). The paddings need not be in it (the user: the digest is never visible outside
+  the step). The figures barely moved.
+- **Peak fuse memory** is the eighth measure (b619b23; the user's definition): two accumulators
+  with the output over one, the second-round sum-check table (half the digits as claim-field
+  elements, the first round streamed), the mask at 27 bits a coordinate under zk; other rows
+  two accumulators. Kishu rank 21: 36 Mbytes zk, 29 plain; Pasta claims rank 17: 238; Pedersen
+  rank 13: 50. Radios, hover, table (16 columns), pruning, an axes section.
+- **The width stays 48** (dd91f26). The user asked to re-optimize α. With the accumulator at the
+  merge's size the optima spread from 13 (recovery with four inputs) to 91 (Zoodles by preimage,
+  whose fold is most of its cost); 48 is the minimax of the widths with nine slices: the worst
+  application 2.7% off its least, against 4.3% at 32 and 8.3% at 24 (claim alpha_page_minimax);
+  at Karney's rate 20%. Akita's estimator at the other bounds (work/pasta-rank-alphas.log):
+  40.2 → 317 Pasta rows / 1,257 at q64; 40.6 → 323 / 1,282; 41.2 → 333 / 1,320; 41.6 → 340 /
+  1,346; 42.2 → 349 / 1,385, within 1% of the (log β)² rule throughout.
+- Copy-edits in the Zoodles paragraphs (1f28a3f) and the chapter's correction (737e690): the
+  pruned key's grind is the wallet's, since it is keyed and the key would reveal the kept leaves
+  (the user); a full tree with the host building and storing it has no grind.
+- Explained on the way: the printout's Kishu rows at 17 and 21 only (its frontier is bytes,
+  prover and atoms; ranks 18 to 20 chop the same 2^21 digits); the peak estimate and the
+  in-place fold.
+
+NEXT, from the user's remarks:
+
+- Does Zoodles need a 9-element header? The header could be the recovery circuit's size, with
+  Zoodles fitted in it.
+- The lineage should not use set polynomials over digits ("no need to use polynomials here"),
+  so re-price zoodles_epoch as the sorted Merkle-tree exclusion proof, two neighbours and their
+  paths, with smaller epochs than 2^24 tachygrams (the user's intuition). The trade-off is steps
+  per note against tree height.
+- The hardware-wallet material may become its own page later, not now.
+
+Still open: the §5.8 deferral as Kishu's zero-knowledge route; MASK_LOG_N = 22 is the note's N,
+so a per-row N would shave the rank factor for small accumulators; and the older list.
+
+STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the 15
+commits after it, this one included, are unpushed. Artifact version 208; the book builds.
