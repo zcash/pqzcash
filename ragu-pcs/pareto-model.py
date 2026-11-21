@@ -4453,6 +4453,23 @@ def define_figures():
     fig("kishu_zk_alpha_recovery_band_max", sig(hi))
     fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
     fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
+    # The page's width against the narrower widths with nine slices: the worst application's
+    # excess over its own optimum at each, at the page's sampler (the width paragraph).
+    excess_at = {}
+    for a in (24, 32):
+        excess_at[a] = max(
+            kishu_zk_best(app, a, MASK_SAMPLE_WORD_MULTS, n)[1]
+            / kishu_zk_optimum(app, n, MASK_SAMPLE_WORD_MULTS)[2]
+            - 1
+            for app, n in PAGE_APPLICATIONS
+            if app != "qk"
+        )
+        fig(f"kishu_zk_alpha{a}_excess_pct", sig(100 * excess_at[a]))
+    claim(
+        "alpha_page_minimax",
+        "among the widths with nine slices a coordinate, the page's 48 has the least worst-case excess over the applications' optima at the page's sampler, below 32's and 24's",
+        excess["page"] < excess_at[32] < excess_at[24],
+    )
     claim(
         "alpha_page_near_optimum",
         "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler",
