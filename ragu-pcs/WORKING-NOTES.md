@@ -3096,3 +3096,76 @@ Artifact version 207.
 
 STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the four
 commits after it are unpushed.
+
+## 2026-11-21 21:01 UTC: why zero knowledge is dear in Kishu; the stage groups; Akita's groups; the Neo paper
+
+Nothing committed in this stretch beyond the notes; it is analysis towards a model change.
+
+**Zero knowledge in Kishu.** The user: the masking fold was inherited from Ragu's Pedersen version,
+where zero knowledge is nearly free; for Kishu it is most of the cost, so it deserves optimizing
+(the conclusion reached for the hardware wallet applies generally). At rank 19, Zoodles by
+preimage is 0.062 s plain (step 0.009, merge 0.051) and 0.223 s with zk: step 0.017 and merge
+0.069 under the masked matrix's 2.45× rows, and the fold 0.136 = sampling 0.028 + the mask's
+commitment 0.066 + the fold's merge 0.041 (work/zk-parts-probe.py). Why: hiding in lattice
+accumulation means masking the witness (the aggregator must receive a foldable witness; Ulrich's
+"the mask is witness-size"), the mask runs over the whole accumulator, K = 6 groups of 2^rank,
+and each mask coordinate is a 27-bit sample committed at the masked rank (49 wm against 24 for a
+bit), so one attempt costs about seven times committing the step. Levers: the mask's length (see
+the stage groups), §5.8 deferral of the fold's merge to the aggregator (0.041 s), §5.9's separate
+matrix for the 2.45× (0.026 s here), block masking for the bound.
+
+**The masked accumulator's memory.** Could be the zk rows' accumulator memory; the note masks a
+fresh small-digit witness (‖s‖₂ ≤ 2^13, N = 2^22 digits), as a one-step transaction has, so the
+masked response is 9 slices × 3 bits = 27 bits a coordinate against the measure's 21 at the
+handoff bound: 1.3× the measure (10.6 against 8.3 Mbytes for Kishu at rank 19); the note's "14
+against 1.6 Mbytes" compares to the fresh digits at 3 bits. Neo's Π_DEC (below) re-decomposes the
+folded witness into k binary pieces after every fold, the same small-digit convention. The first
+level's extra auxiliary digits need the planner run at the masked rows (the catalog pipeline).
+
+**The stage groups.** K = STAGES + 1 = 6: the fuse's five stage polynomials, committed
+separately because a challenge is drawn between them, plus one batch of every step circuit's
+witness (Akita opens a batch at the cost of one). In Ragu the trace r(X) = a(X) + … + f(X) splits
+by wire position; a stage holds its values at the a and d wires of its reserved gates (two a
+gate, `stage_gates`), zero elsewhere, and bonding circuits enforce the non-overlap; so a stage's
+zeros are structural and public. Sizes from Ragu 8109a41c (`values()` of each native stage), for
+the Standard profile (2 online polynomials, 6 online queries, 39 unified wires, 4 binders, 23
+fixed and 48 rx polynomials, 28 fixed and 53 internal circuits with the walk's 25 steps, 103
+claims in 15 fold groups of 7, sponge width 5): at header 9, preamble 2 × (3·9 + 12 + 1 + 39) =
+158, query 53 + 1 + 2·(48 + 5) + 12 = 172, eval 2·(48 + 4) + 6 + 6 + 2·3 = 122, inner error 15 × 6
+= 90, outer error 14 + 15 + 8 + 5 = 42: 584 values in all (about 1,100 at header 96); only the
+preamble depends on the header. The model charges the five stage groups as dense 2^rank vectors
+in the mask (K·2^rank) and in the fold's sum-checks (accumulation_sumchecks over K·2^rank); the
+planner's bytes already treat them as small. Correcting both at rank 19: the mask's sampling and
+commitment 0.094 → ~0.016 s, the fold's sum-checks in every merge 0.023 → ~0.004 s; Zoodles by
+preimage ~0.11 s with zk and ~0.04 s without, and every lattice row's accumulation prover moves.
+The user asked that Akita's grouped opening admit unequal group lengths: the paper says "every
+group uses the opening method prescribed for the fold's absolute level, though the groups'
+dimensions and points may differ" (work/akita.txt line 3182), its planning policy sets per-group
+size limits, and the opening profile follows "the shapes of separately committed objects"; its
+density options are the source kinds, dense, one-hot and binary, which do not matter here: a
+stage is a short dense source of its support's length. The lattice fuse's stages, an estimate,
+carry the same kinds of values.
+
+**Neo and SuperNeo (keep/2026-242.pdf, ePrint 2026/242, cited by Akita [82, 83]).** Lattice
+folding for CCS with Ajtai commitments: norm-preserving embeddings of field vectors into ring
+vectors (Neo along coefficient slots; SuperNeo packed, a transform making a ring product simulate
+a field inner product), pay-per-bit commitment cost (a bit costs the added rotations where it is
+nonzero), a field-native sum-check over F_{q^2}, Π_RLC then Π_DEC, which splits the folded
+witness base b = 2 into k pieces, each committed; parameters at Goldilocks (d = 54, Φ = X^54 +
+X^27 + 1, κ = 18, k = 14, B = 2^14, 129 bits), Almost Goldilocks (d = 64, κ = 15, k = 13) and
+M61. No zero knowledge. Akita cites it for pay-per-bit and takes SuperNeo's strong/weak
+reduction interfaces for its extraction (akita.txt 7034–7065); Akita handles the ring's partial
+splitting itself (its §1599–1622), so Neo's remark on fully splitting rings is not an issue for
+Akita's X^64 + 1 as far as the paper goes. Under pay-per-bit a mask coordinate costs like 27 bits
+against 1 for a witness bit, worse than the model's 49 against 24; Akita's NTT-style commitment,
+as the model prices it, is value-independent.
+
+NEXT: implement the stage-support correction (STAGE_VALUES from the formulas above; the mask and
+the fold's sum-checks over 2^rank plus the stages' supports in the variant's digits; the memory
+measure likewise), then the §5.8 deferral as Kishu's zero-knowledge route and the masked
+accumulator at 27 bits a coordinate as the zk rows' memory, with the text rewritten; then re-read
+the zero-knowledge figures and claims. Probes: work/zk-parts-probe.py, work/frontier-probe.py;
+the Neo text at work/2026-242.txt.
+
+STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the five
+commits after it are unpushed.
