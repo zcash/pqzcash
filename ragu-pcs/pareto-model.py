@@ -471,7 +471,15 @@ def pedersen_verify(rank, nat, nes):
 # Counted in AND gates with XOR free, which is the garbled-circuit cost model and the cost of
 # the Flock-style families' witnesses: a full adder is one AND, since the carry is
 # b ⊕ ((a ⊕ b) ∧ (b ⊕ c)), so an m-bit addition or subtraction is about m.
-BLAKE3_ANDS = 8192
+# A BLAKE3 compression is its seven rounds of eight G functions with four 32-bit additions, as
+# BLAKE2B_ANDS counts BLAKE2b's. Flock lays a batch out as one block of 2^m0 committed bits per
+# instance (its §4.1), and a compression's 6,944 carries and 896 input bits fit the block of
+# 2^13, so BLAKE3_ANDS_PADDED is a compression's share of a Flock witness. It prices what is
+# Flock's witness or hypercube: the per-bit rate measured on Flock's BLAKE3 batches, the base
+# matrix's sum-check rounds, and the hashes of the Flock-style merges. An application's count
+# is the unpadded AND gates, the step doing the padding.
+BLAKE3_ANDS = 7 * 8 * 4 * 32
+BLAKE3_ANDS_PADDED = 2**13
 
 
 @functools.lru_cache(maxsize=None)
@@ -729,7 +737,7 @@ def path_cost(field, hp):
 # Keccak-f is chi's 38,400 ANDs and BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
 BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + 4 * 32) + 16 * 32
-BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32
+BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32
 BLAKE2S_PIOP = piop_sum(
     (BLAKE2S_ROUNDS * 8 * 4, ADD32_PIOP), (BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP)
 )
@@ -1736,8 +1744,9 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # Binary-field systems: Flock (arXiv 2607.27491) and Binius64 on the FRI-Binius and Ligerito
 # commitments, Boolean R1CS over 𝔽₂ with claims in 𝔽₂^128 and a bit-oriented hash. They have
 # no Pasta circuits, so the merge is priced in its own terms: ARC's openings as for the other
-# hash-based variants, each path node a BLAKE3 compression of about 2^13 AND gates, so the
-# merge is a Boolean witness of that many gates, and there is no rank. Proof bytes come from
+# hash-based variants, each path node a BLAKE3 compression in a block of 2^13 committed bits,
+# Flock's layout for a batch, so the merge is a Boolean witness of that many bits, and there
+# is no rank. Proof bytes come from
 # Ulrich Haböck's FRI-Binius proof-size optimizer (frib_optimizer.sage, ported beside it as
 # frib_optimizer.py): the floor's security in the list-decoding regime with the largest list
 # that the correlated-agreement bound allows, up to 2^15, the row's grinding, and the folding
@@ -1922,7 +1931,7 @@ def f2_piop(bits, chal):
     """Flock's measured prover less its commitment, per witness bit (one per AND gate), with
     the zero-check and lincheck scaled by half the challenge field's multiplication cost over
     𝔽₂^128's."""
-    per_gate = WORD_MULTS_PER_SECOND / BLAKE3_PER_SECOND / BLAKE3_ANDS
+    per_gate = WORD_MULTS_PER_SECOND / BLAKE3_PER_SECOND / BLAKE3_ANDS_PADDED
     gen, check = FLOCK_PIOP_SHARE
     return bits * per_gate * (gen + check * (1 + (CLMULS[chal] / CLMULS[128] - 1) / 2))
 
@@ -2053,7 +2062,7 @@ BITZ_FIELD_BITS = 128
 
 def f2_piop_verifier_mults(log_bits):
     """Field multiplications of one input's Flock PIOP verifier at a witness of 2^log_bits."""
-    matrix_rounds = math.log2(BLAKE3_ANDS)
+    matrix_rounds = math.log2(BLAKE3_ANDS_PADDED)
     return PIOP_ROUND_MULTS * (2 * log_bits + 3 * matrix_rounds)
 
 
@@ -2070,10 +2079,10 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
     inv = int(rate.split("/")[1])
     t = arc_openings(rate, floor, grind)
     hashes = 2 * t * 30
-    ands = hashes * BLAKE3_ANDS
+    ands = hashes * BLAKE3_ANDS_PADDED
     for _ in range(40):
         verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * CLMUL_ANDS[chal]
-        ands = hashes * BLAKE3_ANDS + verifier
+        ands = hashes * BLAKE3_ANDS_PADDED + verifier
         depth = (
             math.log2(ands / 128 * inv / 16) + 4
         )  # path nodes, plus four compressions for a 256-byte leaf
@@ -2081,7 +2090,7 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
         if abs(new - hashes) < 1:
             break
         hashes = new
-    return round(hashes), round(hashes * BLAKE3_ANDS + verifier)
+    return round(hashes), round(hashes * BLAKE3_ANDS_PADDED + verifier)
 
 
 for grind in GRINDS:
@@ -2252,8 +2261,8 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # Appendix C and §5) folds two variables per level, five levels at rates 1/2, 1/4, 1/8, 1/16,
 # 1/32 with 218, 106, 71, 53, 43 queries at 100 bits, the queries linear in the security level
 # (Remark 10). A query opens a column of four 𝔽₂^128 elements, one hash compression, through a
-# path of the level's depth. The nodes are priced as BLAKE3 compressions of about 2^13 AND
-# gates, as the 𝔽₂ family's rows price them.
+# path of the level's depth. The nodes are priced as BLAKE3 compressions in blocks of 2^13
+# committed bits, as the 𝔽₂ family's rows price them.
 # Flock's implementation hashes with SHA-256 (§2), 31,400 witness bits per compression in its
 # arithmetization (BitZ, Table 2) at 42,100 per second: 3.8 times the merge bits and half
 # the throughput, for every row of these families alike. BitZ reports that proving many
@@ -2261,7 +2270,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # merge takes the former. Ligerito's levels have their own rates, so a row's rate applies to
 # its proof bytes and, in the ARC rows, to the accumulator's openings, not to the verifier.
 LIGERITO_LEVELS = [(2, 218), (4, 106), (8, 71), (16, 53), (32, 43)]
-HASH_BITS = BLAKE3_ANDS
+HASH_BITS = BLAKE3_ANDS_PADDED
 HASH_PER_SECOND = BLAKE3_PER_SECOND
 
 
@@ -2297,7 +2306,7 @@ def f2_rec_merge(rate, floor, grind, chal, zk=None):
             2 if grind else 0
         )
         new = (
-            hashes * BLAKE3_ANDS
+            hashes * BLAKE3_ANDS_PADDED
             + 2 * (p["field_mults"] + f2_piop_verifier_mults(math.log2(bits))) * CLMUL_ANDS[chal]
         )
         if abs(new - bits) < 1:
@@ -2849,8 +2858,8 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
 # committed in 174 ms, opened in 648 ms and verified in 8.5 ms on an M4 Max under load with
 # the `parallel` feature on; the P64 root is 1 to 4 percent smaller with times within noise.
 #   - The merge is Akita's fold in a Boolean circuit, our estimate: the transcript absorbed by
-#     BLAKE3 at 8,192 AND gates per compression, native in a Boolean circuit under either hash
-#     policy; the fold of each child's 128-byte image by a ternary challenge of the page's
+#     BLAKE3 in blocks of 8,192 committed bits per compression, native in a Boolean circuit
+#     under either hash policy; the fold of each child's 128-byte image by a ternary challenge of the page's
 #     weight, one adder bit per image bit per unit of weight; and one proof-field
 #     multiplication per sum-check element, counted in AND gates with XOR free by the cheapest
 #     of schoolbook, Karatsuba and Toom-Cook 3 at each width (mult_ands), which dominates.
@@ -2892,7 +2901,7 @@ def bits_akita_merge_ands(K, circuits, field):
     """AND gates of Akita's merge in a Boolean circuit: the transcript hashed by BLAKE3, the
     fold of the children's images, the sum-check verifier's field multiplications, and the
     claims."""
-    hashing = akita_absorbed_bytes("fp128", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_ANDS
+    hashing = akita_absorbed_bytes("fp128", K, circuits, False) / BLAKE3_BLOCK * BLAKE3_ANDS_PADDED
     fold = 2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2)
     sumcheck = SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field))
     return hashing + fold + sumcheck + CLAIM_GATES * circuits
