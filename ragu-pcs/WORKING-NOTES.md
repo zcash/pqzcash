@@ -2736,3 +2736,45 @@ a permutation's digits by about 30 percent (6,400 to 4,480 bits a round), but th
 experience from Halo 2 is that the complexity of higher-degree constraints does not pay, which
 is why Halo 2's recursion was never fully implemented; the saving would only be worth having
 if a degree-2 proof system could express it, and it cannot without the intermediate bit.
+
+## 2026-11-21 15:25 UTC: a future spend protocol without Pasta, in progress
+
+STATE: the model carries UNCOMMITTED edits for two new transaction applications; the template
+has not been edited for them yet, so `python pareto-model.py` will report their figures as
+unused until the paragraph and options below exist. Everything before this entry is committed
+(eb88548 is the last commit; four commits after a49be05 are unpushed).
+
+The user's sketch, to price for two inputs and two outputs: a spend protocol with no Pasta
+arithmetic. A note commitment is a BLAKE3 hash of the note's four fields (128 bytes, two
+compressions); a nullifier one BLAKE3 compression over the key and rho; the payment key one
+BLAKE3 compression over the authorizing key; amounts range-checked (51 bits) and summed in the
+PCD headers, so no value commitments and no binding signature; the Merkle path hashed under the
+page's policy as the path application is. Spend authorization per input, usually the same for
+all: a Sprout-like preimage check (the payment key's hash alone), or a leanSPHINCS signature
+with BLAKE2s (the pruned key, 298 compressions, 4,276 bytes as input bits) over a transaction
+digest of 8 BLAKE3 compressions, verified in the circuit with the public key as a witness,
+since the zero-knowledge fold hides it and no re-randomized signature is needed.
+
+In the model (done): constants FUTURE_INPUTS/OUTPUTS = 2, FUTURE_NOTE_COMPRESSIONS = 2,
+FUTURE_NULLIFIER_COMPRESSIONS = 1, FUTURE_KEY_COMPRESSIONS = 1, FUTURE_SIGHASH_COMPRESSIONS = 8,
+FUTURE_AMOUNT_BYTES = 7, FUTURE_AUTHS; `future_cost(field, hp, auth)` and `future_piop(auth)`
+after `hash_app_piop`; APPLICATIONS, PIOP_WORK and APPLICATION_MULTS entries `future_preimage`
+and `future_leansphincs`; both in PAGE_APPLICATIONS; in define_figures after the leanSPHINCS
+grinding figures: figs future_spend_blake3 (4), future_sighash_blake3 (8), and per application
+app_{app}_kishu (digits), tx_{app}_kishu_s, tx_{app}_kishu_zk_s, tx_{app}_kishu_zk_rank,
+tx_{app}_bitz_zk_s, tx_{app}_bits_akita_s, tx_{app}_flock_s, tx_{app}_goldilocks_s (Poseidon
+policy), and the claim future_preimage_quarter (the preimage transaction under a quarter of the
+signature one in Kishu with zk). By hand, Kishu digits: preimage 2 × (497k path + 4 × 15,072
++ 56) + 2 × (2 × 15,072 + 56) ≈ 1.18M; leanSPHINCS adds 2 × 6.39M + 8 × 15,072 ≈ 13.9M.
+
+To finish: (1) template option lines after the leanSPHINCS ones, values `future_preimage` and
+`future_leansphincs`, labels "a future protocol without Pasta: 2 inputs by BLAKE3 preimage, 2
+outputs" and "... 2 inputs by leanSPHINCS (BLAKE2s), 2 outputs"; (2) a paragraph in the
+application subsection after the wallet-share paragraph, stating the assumptions above and
+carrying every figure named here plus `<!--claim:future_preimage_quarter:000000-->`; (3) a
+mention in the Transaction prover measure's sentence (the one listing the applications);
+(4) `ruff format`, `python pareto-model.py --fill`, the default run, `nix develop --command
+scripts/build-book.sh`, then commit model + template ("pareto: a future spend protocol without
+Pasta as applications"), republish pareto.html to the artifact, and a notes entry with the
+figures. The alpha-sweep claim (alpha_page_near_optimum) covers every page application but
+`qk`; if the new ones break its three percent, exclude them as `qk` is excluded, with a reason.
