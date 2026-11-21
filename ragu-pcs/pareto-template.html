@@ -74,9 +74,10 @@ a { color: var(--accent-ink); }
 .swatches { display: inline-flex; gap: 3px; align-items: center; align-self: flex-start; height: 1.35em; width: 40px; justify-content: center; flex: none; }
 .group label .swatches .swatch { margin-top: 0; }
 /* A grey fill, a shade off the panel in either theme, marks the selects and buttons as controls. */
-select, button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--surface), var(--ink) 9%); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
-/* The swap button's arrow sits in the middle of the button, not on its text baseline. */
+select, button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--surface), var(--ink) 14%); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
+/* The swap button's arrow is an inline SVG, so it sits in the middle of the button whatever the font's glyph metrics. */
 #swapmeasures { display: inline-flex; align-items: center; justify-content: center; height: 2em; padding: 0 8px; line-height: 1; }
+#swapmeasures svg { width: 1.1em; height: 1.1em; display: block; }
 .group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
 button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
 #plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; overflow: hidden; }  /* the same box as the controls, so the two are the same height */
@@ -131,7 +132,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="second" value="transaction" id="secondtx"> transaction prover</label>
       <label><input type="radio" name="second" value="memory" id="secondmem"> accumulator memory</label>
     </div>
-    <div class="swap"><button type="button" id="swapmeasures" title="swap the second and third measures" aria-label="swap the second and third measures">&#x21C4;</button></div>
+    <div class="swap"><button type="button" id="swapmeasures" title="swap the second and third measures" aria-label="swap the second and third measures"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.5 5h11.5M11 2l3 3-3 3M13.5 11H2M5 8l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
     <div class="group"><span class="eyebrow"><a href="#measures">Third measure</a> (2D marker size, 3D vertical axis)</span>
       <label><input type="radio" name="third" value="accumulation_prover" id="thirdacc"> accumulation prover</label>
       <label><input type="radio" name="third" value="prover" id="thirdprover"> prover commitment work</label>
