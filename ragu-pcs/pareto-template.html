@@ -44,6 +44,8 @@ h5 { font-family: var(--serif); font-weight: 600; font-size: 15px; margin: 16px 
 p { margin: 0 0 10px; }
 .lede { color: var(--muted); }
 a { color: var(--accent-ink); }
+/* A link in the lede's grey takes the ink colour and an accent underline, so that it stands out. */
+.lede a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 2px; }
 .selfcheck { color: #b00020; font-weight: 600; }
 .selfcheck:empty { display: none; }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
