@@ -73,7 +73,10 @@ a { color: var(--accent-ink); }
 /* The swatch box takes the label's first line and centres the swatch in it, where the checkbox sits, so a two-line label keeps them level. */
 .swatches { display: inline-flex; gap: 3px; align-items: center; align-self: flex-start; height: 1.35em; width: 40px; justify-content: center; flex: none; }
 .group label .swatches .swatch { margin-top: 0; }
-select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
+/* A grey fill, a shade off the panel in either theme, marks the selects and buttons as controls. */
+select, button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--surface), var(--ink) 9%); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
+/* The swap button's arrow sits in the middle of the button, not on its text baseline. */
+#swapmeasures { display: inline-flex; align-items: center; justify-content: center; height: 2em; padding: 0 8px; line-height: 1; }
 .group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
 button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
 #plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; overflow: hidden; }  /* the same box as the controls, so the two are the same height */
