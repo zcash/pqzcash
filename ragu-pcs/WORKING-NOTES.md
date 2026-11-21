@@ -2958,3 +2958,24 @@ and this one). Artifact version 192. PENDING: as the previous entry, plus: the l
 rank coupling with the spend (bucket size as a parameter), the sorted-tree exclusion proof as
 an alternative lineage, the bind/lift/fuse steps per spend, the Boolean unit's input bits and
 block padding; the hardware-wallets chapter could take the host-assisted keygen point.
+
+## 2026-11-21 18:06 UTC: the security assumption as the second dominance requirement
+
+The frontier check above led the user to the real gap: a lattice row could dominate a
+hash-based one although it rests on an extra assumption. Now (the commit before this one) the
+dominance test is Pareto dominance on five axes, bytes, the two chosen measures, Pasta support
+(more is better), and the assumption level (less is better: 0 a random oracle alone, the
+hash-based families; 1 Module-SIS with a random oracle, Akita's and Kishu's rows and
+Pedersen-IPA in its own class; 2 the Boolean-over-Akita row, whose security ledger is open, so
+it can dominate nothing, the user's ruling), a dominator being at least as good on all five and
+better on one. The old rule required the strict improvement on one of the three costs; the
+user asked that the two requirements behave as separate axes, so the strictness now runs over
+all five (`ASSUMPTION_LEVEL`, `p["assumption"]`, `pareto()`, the page's `frontierAmong`; the
+section "Pasta and the assumption as requirements" says so; the lede's "Akita dominates" the
+WHIR-type families became "beats", since it no longer dominates them). In the page's default
+state the frontier table has 57 overall rows and 8 family-only rows; the model's own printout
+is unchanged (its measures are bytes, prover and atoms, where no hash-based row was dominated
+by a lattice row). Artifact version 193. The commit's sentence on the ranking was reworded
+at the user's request for its mixed commas.
+
+STATE: main at this entry's commit; thirteen commits after a49be05 unpushed.
