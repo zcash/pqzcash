@@ -206,8 +206,9 @@ def pedersen_per_coefficient(rank):
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
 # accumulation matrix and N Gaussian samples; N is the accumulator's digits, its coefficients
 # (accumulator_coefficients) in digits (zk-fiat-shamir-with-aborts.md §5.4). The fold's own
-# merge is added at the point. §5.8 of the note moves the attempts off the device's critical
-# path, so this is total work, not latency.
+# merge is added at the point. A bare leaf handed over without a fuse (LEAF_HANDOFF) masks its
+# own 2^rank digits instead, the row's fold_leaf. §5.8 of the note moves the attempts off the
+# device's critical path, so this is total work, not latency.
 #
 # The page's sampler is a rounded continuous Gaussian at MASK_SAMPLE_NS a coordinate, measured
 # with scripts/sampler-bench.c on one core of an Apple M4 Max on mains (2026-11-20, the median
@@ -1387,6 +1388,11 @@ APPLICATION_MULTS = (
 # The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
 # is re-packed into steps (DATA.own_last_step); Zoodles has no such node.
 OWN_LAST_STEP = {f"tachyon{n}" for n in TACHYON_TRANSACTIONS}
+# The applications whose user hands over a bare leaf without a fuse of their own, so that the
+# masking fold covers the leaf's 2^rank digits rather than a chain's accumulator, and the merge
+# that folds the leaf is the host's (DATA.leaf_handoff; the hardware-wallets chapter). Every
+# other application's user chain has merges, and its last accumulator is what the fold masks.
+LEAF_HANDOFF = {"qk"}
 
 # The arithmetization of each family's application circuit, for `step_gates`; Kishu's rows
 # set theirs by multiplication route.
@@ -1701,6 +1707,12 @@ for variant, hp in itertools.product(
                         step_prover=round(2**rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         fold=round(
                             mask_fold(variant, accumulator, rank_scale)
+                            + circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
+                        )
+                        if zk
+                        else 0,
+                        fold_leaf=round(
+                            mask_fold(variant, 2**rank, rank_scale)
                             + circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
                         )
                         if zk
@@ -3040,8 +3052,10 @@ def kishu_costs(
     and its overheads in the merge above (the application's constraint PIOP itself is per
     application, DATA.piop). The fold is the expected rejection-sampling attempts, each a
     commitment of a mask of the accumulator's digits under the masked matrix and as many
-    Gaussian samples, plus the fold's own merge. `alpha` and `sample` stand in for the
-    mask's Gaussian width and the sampler's cost, for the page's sweep of the two."""
+    Gaussian samples, plus the fold's own merge; `fold_leaf` masks one step's 2^rank digits
+    instead, for a bare leaf handed over without a fuse (LEAF_HANDOFF). `alpha` and `sample`
+    stand in for the mask's Gaussian width and the sampler's cost, for the page's sweep of the
+    two."""
     bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
     digits, merge_piop = frontend_merge(
         K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
@@ -3075,6 +3089,7 @@ def kishu_costs(
             else 0
         ),
         fold=round(sum(parts.values())),
+        fold_leaf=round(attempts * 2**rank * (sample + masked_digit) + parts["merge"]),
         gates=round(digits),
     )
     return fields, parts
@@ -3490,6 +3505,7 @@ for p in points:
     p.setdefault(
         "memory", p["bytes"]
     )  # the rows under their own recursion hold only the previous proof
+    p.setdefault("fold_leaf", p["fold"])  # only the lattice rows' masks scale with the accumulator
 assert (
     abs(BOOL_CHECK["sumcheck"][0] / WORD_MULTS["pasta_q64"] - SUMCHECK_FIELD_MULTS_PER_DIGIT) < 0.2
 )
@@ -3537,6 +3553,7 @@ def prune_measures(p):
     return tuple((p[m] or 0) for m in PRUNE_MEASURES) + (
         (p["step_prover"] or 0) + p["accumulation_prover"],
         p["fold"] or 0,
+        p["fold_leaf"] or 0,
     )
 
 
@@ -3606,12 +3623,18 @@ def tx_steps(p, app, policy, count=1):
     return steps + len(bins)
 
 
+def app_fold(p, app):
+    """The application's masking fold: over the leaf alone for a bare leaf handed over without
+    a fuse (LEAF_HANDOFF), over the chain's accumulator otherwise."""
+    return p["fold_leaf"] if app in LEAF_HANDOFF else p["fold"]
+
+
 def tx_work(p, app, policy, count=1):
     steps = tx_steps(p, app, policy, count)
     return (
         steps * (p["step_prover"] + p["accumulation_prover"])
         + (steps * p.get("route_step", 0) if APPLICATION_MULTS[app] else 0)
-        + p["fold"]
+        + app_fold(p, app)
         + PIOP_WORK.get(app, {}).get(p["arith"], 0) * count
     )
 
@@ -3961,13 +3984,13 @@ def define_figures():
         if app == "qk":
             merges = tx_steps(p, app, "poseidon") * p["accumulation_prover"]
             fig("tx_qk_kishu_zk_merges_pct", round(100 * merges / w))
-            fig("tx_qk_kishu_zk_fold_pct", round(100 * p["fold"] / w))
+            fig("tx_qk_kishu_zk_fold_pct", round(100 * app_fold(p, app) / w))
             claim(
                 "qk_merge_and_fold",
                 "the merge and the masking fold are over nine tenths of Kishu's zero-knowledge transaction for the device's statement alone",
-                (merges + p["fold"]) / w > 0.9,
+                (merges + app_fold(p, app)) / w > 0.9,
             )
-            qk_fold = p["fold"]
+            qk_fold = app_fold(p, app)
 
     # The wallet's own share of the device statement with the host proving the handoff (the
     # constants' comment): its digits, its online and idle work, the response's size, and the
@@ -5566,6 +5589,7 @@ data = dict(
     piop=PIOP_WORK,
     has_mults=APPLICATION_MULTS,
     own_last_step=sorted(OWN_LAST_STEP),
+    leaf_handoff=sorted(LEAF_HANDOFF),
     change_level=CHANGE_LEVEL,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
