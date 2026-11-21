@@ -2979,3 +2979,23 @@ by a lattice row). Artifact version 193. The commit's sentence on the ranking wa
 at the user's request for its mixed commas.
 
 STATE: main at this entry's commit; thirteen commits after a49be05 unpushed.
+
+## 2026-11-21 18:18 UTC: the changes needed as the third dominance requirement; Oxford commas
+
+The user: "parameters only" is another dominance axis. Now (the commit before this one) the
+dominance test runs on six axes: bytes, the two chosen measures, Pasta support (more is
+better), the assumption level, and CHANGE_LEVEL (none 0, code 1, design 2; less is better),
+a dominator at least as good on all six and better on one. With the changes as an axis the
+best parameter-only configurations are on the class frontier by the rule itself, so the union
+of the class's frontier with its parameter-only frontier, and the table's "parameter-only"
+label, are gone: the Frontier column says "overall" or "family". The requirements section
+(id `requirements`, was `pasta`, the user having caught a link whose anchor still said Pasta)
+describes all three requirements; the lede names them. In the page's default state the
+frontier table has 58 overall rows (57 with the assumption axis alone) and 8 family rows; the
+model's own printout rose to 9 Pedersen-IPA, 210 post-quantum and 234 zero-knowledge frontier
+points. The user asked for Oxford commas in lists (the commit message's "Pasta support, and the
+assumption"); the earlier commits' lists and this file's were fixed by fixups folded in with an
+autosquash rebase from c1d85d5, and the model's and page's rule comments reworded to shorter
+sentences. Artifact version 194.
+
+STATE: main at this entry's commit; fifteen commits after a49be05 unpushed.
