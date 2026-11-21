@@ -106,7 +106,8 @@ RING_D = 64
 ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pasta": 143}
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
-# lattice rows it is the folded digit vector, K groups of 2^rank coefficients in digits, each
+# lattice rows it is the folded digit vector, the accumulator's coefficients (the batch group's
+# 2^rank and the stage groups' values, accumulator_coefficients below) in digits, each
 # digit stored at the width of its accumulator's norm bound. The certified l2 bound at the
 # handoff is about 2^19 (zk-fiat-shamir-with-aborts.md's ledger), which bounds every entry, so
 # 20 bits and a sign. Each fold multiplies the entries by up to 40, so a level below the top
@@ -121,9 +122,9 @@ WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "p
 PACKED_DIGIT_BITS = 1 + 20  # a sign and the handoff accumulator's bound of about 2^19 per entry
 
 
-def accumulator_bytes(variant, K, rank, digits=None):
+def accumulator_bytes(variant, coefficients, digits=None):
     digits = DIGITS[variant] if digits is None else digits
-    return K * 2**rank * digits * PACKED_DIGIT_BITS / 8
+    return coefficients * digits * PACKED_DIGIT_BITS / 8
 
 
 # The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
@@ -203,10 +204,10 @@ def pedersen_per_coefficient(rank):
 
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
-# accumulation matrix and N Gaussian samples; N is the accumulator's digits, K groups of 2^rank
-# coefficients (zk-fiat-shamir-with-aborts.md §5.4). The fold's own merge is added at the
-# point. §5.8 of the note moves the attempts off the device's critical path, so this is total
-# work, not latency.
+# accumulation matrix and N Gaussian samples; N is the accumulator's digits, its coefficients
+# (accumulator_coefficients) in digits (zk-fiat-shamir-with-aborts.md §5.4). The fold's own
+# merge is added at the point. §5.8 of the note moves the attempts off the device's critical
+# path, so this is total work, not latency.
 #
 # The page's sampler is a rounded continuous Gaussian at MASK_SAMPLE_NS a coordinate, measured
 # with scripts/sampler-bench.c on one core of an Apple M4 Max on mains (2026-11-20, the median
@@ -240,14 +241,14 @@ MASK_SAMPLE_WORD_MULTS = round(MASK_SAMPLE_NS * 3)  # at 3 word multiplications 
 KARNEY_SAMPLE_WORD_MULTS = 900
 
 
-def mask_fold(variant, K, rank, rank_scale):
-    digits = DIGITS[variant] * K * 2**rank
+def mask_fold(variant, coefficients, rank_scale):
+    digits = DIGITS[variant] * coefficients
     per_digit = ajtai_per_coefficient(variant, True, rank_scale) / DIGITS[variant]
     return MASK_ATTEMPTS * digits * (per_digit + MASK_SAMPLE_WORD_MULTS)
 
 
 # The accumulation prover: the fold's two norm and range sum-checks run over the accumulator,
-# K groups of 2^rank coefficients in digits. A sum-check pass costs about five field
+# its coefficients (accumulator_coefficients) in digits. A sum-check pass costs about five field
 # multiplications per digit, from Kishu's measured Booleanity sum-check: 437.7 ms
 # for 2^27 bits on one core, 9.8 word multiplications per 64-bit digit (BOOL_CHECK below). The
 # page's accumulation prover measure adds that work to the merge's commitments for the lattice
@@ -267,14 +268,14 @@ FOLD_FIELD_MULTS_PER_DIGIT = 1
 CLAIM_WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 32, "pasta": 32}
 
 
-def accumulation_sumchecks(variant, K, rank, digits=None, word_mults=None):
+def accumulation_sumchecks(variant, coefficients, digits=None, word_mults=None):
     """Word multiplications of the fold's sum-checks and linear combination over an
-    accumulator of K groups of 2^rank coefficients of `digits` digits each (the variant's, or
-    one per bit), at the claim field's multiplication cost unless given."""
+    accumulator of `coefficients` coefficients of `digits` digits each (the variant's, or one
+    per bit), at the claim field's multiplication cost unless given."""
     digits = DIGITS[variant] if digits is None else digits
     word_mults = CLAIM_WORD_MULTS[variant] if word_mults is None else word_mults
     per_digit = ACCUMULATION_SUMCHECKS * SUMCHECK_FIELD_MULTS_PER_DIGIT + FOLD_FIELD_MULTS_PER_DIGIT
-    return per_digit * word_mults * K * 2**rank * digits
+    return per_digit * word_mults * coefficients * digits
 
 
 # Base-field atoms the merge circuit absorbs per compressed commitment (128 bytes).
@@ -333,6 +334,52 @@ CLAIM_BYTES = {
     "kishu": 16,
 }
 CLAIM_GATES = 4
+
+# The accumulator's length. Its K = STAGES + 1 groups are the fuse's stage polynomials and one
+# batch of the step circuits' witnesses, taken as 2^rank coefficients. A stage polynomial is
+# sparse. In Ragu the trace splits by wire position: a stage holds its values at the a and d
+# wires of its reserved gates and is zero elsewhere, and bonding circuits enforce that the
+# stages do not overlap. So a stage's zeros are structural and public, and what is committed
+# and folded is its support. Ragu 8109a41c's native stages (each stage's values() under
+# crates/ragu_pcd/src/internal/native/stages/) hold the counts below at the Standard profile.
+# The preamble holds, for each of the two children, three values an entry of the header, the
+# six online openings twice, a circuit id and the 39 unified wires; it alone depends on the
+# header, taken at STAGE_HEADER entries, the largest the page offers. A lattice fuse's stages,
+# an estimate, carry the same kinds of values, each a claim-field element: one coefficient
+# where a coefficient is a claim-field element, two over Goldilocks, whose claims are in a
+# quadratic extension, and the element's bits where the witness is bits (Kishu and the binary
+# groups). Akita's grouped opening admits groups of different sizes: every group uses the fold
+# level's opening method "though the groups' dimensions and points may differ" (the paper's
+# §5), and its planner sizes groups separately. So the mask, the fold's sum-checks and the
+# accumulator's memory run over accumulator_coefficients, 2^rank plus the stages' values, not
+# K × 2^rank. The merge still absorbs K images and folds K groups, and the opening bytes come
+# from the planner's runs with K groups of 2^14 coefficients, which overstate the small stage
+# groups.
+STAGE_HEADER = 9
+STAGE_VALUES = {
+    "preamble": 2 * (3 * STAGE_HEADER + 2 * 6 + 1 + 39),
+    "query": 172,
+    "eval": 122,
+    "inner_error": 90,
+    "outer_error": 42,
+}
+assert len(STAGE_VALUES) == STAGES
+STAGE_VALUES_TOTAL = sum(STAGE_VALUES.values())
+STAGE_VALUE_COEFFICIENTS = {
+    "fp128": 1,
+    "goldilocks": 2,
+    "pasta_q64": 1,
+    "pasta_sis": 1,
+    "pasta": 1,
+    "kishu": CLAIM_BYTES["kishu"] * 8,
+    "bits_akita": CLAIM_BYTES["fp128"] * 8,
+}
+
+
+def accumulator_coefficients(variant, rank):
+    """The accumulator's coefficients: the batch group's 2^rank and the stage groups' values,
+    each as the variant commits a claim-field element."""
+    return 2**rank + STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS[variant]
 
 
 def akita_atoms(variant, K, circuits, zk):
@@ -1620,6 +1667,7 @@ for variant, hp in itertools.product(
                 # own matrix (see MASK_RANK).
                 opening = akita_bytes(variant, K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES[variant]
+                accumulator = accumulator_coefficients(variant, rank)
                 # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                 # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
                 # commitment variant a decoupled commitment modulus.
@@ -1644,12 +1692,12 @@ for variant, hp in itertools.product(
                         ),
                         accumulation_prover=round(
                             circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
-                            + accumulation_sumchecks(variant, K, rank)
+                            + accumulation_sumchecks(variant, accumulator)
                         ),
-                        memory=accumulator_bytes(variant, K, rank),
+                        memory=accumulator_bytes(variant, accumulator),
                         step_prover=round(2**rank * ajtai_per_coefficient(variant, zk, rank_scale)),
                         fold=round(
-                            mask_fold(variant, K, rank, rank_scale)
+                            mask_fold(variant, accumulator, rank_scale)
                             + circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
                         )
                         if zk
@@ -2978,9 +3026,10 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
 
 # Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
-# handoff, whose rejection sampling runs over the accumulator's K × 2^rank digits, one per
-# committed bit, so it grows with the rank where the merges shrink. The projection form reveals
-# coordinates and has no zero-knowledge rows.
+# handoff, whose rejection sampling runs over the accumulator's digits, one per committed bit
+# (accumulator_coefficients: the step's 2^rank and the stages' values as bits), so it grows
+# with the rank where the merges shrink. The projection form reveals coordinates and has no
+# zero-knowledge rows.
 def kishu_costs(
     K, circuits, rank, hp, check, floor, zk, route, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS
 ):
@@ -2988,8 +3037,8 @@ def kishu_costs(
     prover measure; its constraint PIOP joins the accumulation prover. The step pays its digits
     and its overheads in the merge above (the application's constraint PIOP itself is per
     application, DATA.piop). The fold is the expected rejection-sampling attempts, each a
-    commitment of a mask of the accumulator's K × 2^rank digits under the masked matrix and as
-    many Gaussian samples, plus the fold's own merge. `alpha` and `sample` stand in for the
+    commitment of a mask of the accumulator's digits under the masked matrix and as many
+    Gaussian samples, plus the fold's own merge. `alpha` and `sample` stand in for the
     mask's Gaussian width and the sampler's cost, for the page's sweep of the two."""
     bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
     digits, merge_piop = frontend_merge(
@@ -3002,9 +3051,10 @@ def kishu_costs(
     per_step_digit = per_digit + bool_per_bit
     step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
     attempts = mask_attempts(alpha) if zk else 0
+    accumulator = accumulator_coefficients("kishu", rank)
     parts = dict(
-        sampling=attempts * K * 2**rank * sample,
-        masks=attempts * K * 2**rank * masked_digit,
+        sampling=attempts * accumulator * sample,
+        masks=attempts * accumulator * masked_digit,
         merge=commitments if zk else 0,
     )
     fields = dict(
@@ -3013,7 +3063,7 @@ def kishu_costs(
             commitments
             + merge_piop
             + accumulation_sumchecks(
-                "pasta_q64", K, rank, digits=1, word_mults=WORD_MULTS["pasta_q64"]
+                "pasta_q64", accumulator, digits=1, word_mults=WORD_MULTS["pasta_q64"]
             )
         ),
         step_prover=round(step_digits * per_step_digit),
@@ -3067,7 +3117,9 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                             route=route,
                             arith=f"bits_pasta_{route}",
                             bytes=round(opening + instance + bool_bytes),
-                            memory=accumulator_bytes("pasta_q64", K, rank, digits=1),
+                            memory=accumulator_bytes(
+                                "pasta_q64", accumulator_coefficients("kishu", rank), digits=1
+                            ),
                             accumulation=atoms,
                             verify=akita_verify(
                                 "goldilocks",
@@ -3113,10 +3165,10 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
 #   - Prover: the measured commit time per committed bit, at BINARY_THREADS times the measured
 #     time for one thread, since BitZ's benchmark gave four to five times on ten threads of
 #     this machine; plus Flock's PIOP. The accumulation prover adds the fold's sum-checks over
-#     the K groups of the merge's bits, as the lattice rows count them, at the binary field's
-#     multiplication cost (CLMULS[128] carry-less 64-bit multiplications, one word
-#     multiplication each). The measured open time is the opening's, which the accumulation
-#     prover does not count for the lattice rows either.
+#     the accumulator (the merge's bits and the stages' values as bits), as the lattice rows
+#     count them, at the binary field's multiplication cost (CLMULS[128] carry-less 64-bit
+#     multiplications, one word multiplication each). The measured open time is the opening's,
+#     which the accumulation prover does not count for the lattice rows either.
 #   - Verify: the measured decider scaled to the merge's bits at Akita's single-thread slope.
 #   - Atoms: Akita's at the 128-bit claim width; the transaction measure as the 𝔽₂ family's.
 # Not modelled: zero knowledge (the groups are not hiding) and the higher floor (the q24
@@ -3179,6 +3231,7 @@ def binary_open_bytes(log_bits, K):
 K = STAGES + 1
 bits_akita_ands = bits_akita_merge_ands(K, 1, BINARY_MEASURED["field"])
 bits_akita_log = math.log2(bits_akita_ands)
+bits_akita_accumulator = accumulator_coefficients("bits_akita", bits_akita_log)
 bits_akita_per_bit = (
     BINARY_MEASURED["commit_ms"]
     * BINARY_THREADS
@@ -3187,7 +3240,7 @@ bits_akita_per_bit = (
 )
 bits_akita_prover = bits_akita_ands * bits_akita_per_bit + f2_piop(bits_akita_ands, 128)
 bits_akita_accumulation = bits_akita_prover + accumulation_sumchecks(
-    "fp128", K, bits_akita_log, digits=1, word_mults=CLMULS[128] * CLMUL_WORD_MULTS
+    "fp128", bits_akita_accumulator, digits=1, word_mults=CLMULS[128] * CLMUL_WORD_MULTS
 )
 points.append(
     dict(
@@ -3206,7 +3259,7 @@ points.append(
         bytes=round(
             binary_open_bytes(bits_akita_log, K) + K * 128 + 2 * K * 32 + 4 + CLAIM_BYTES["fp128"]
         ),
-        memory=round(K * 2**bits_akita_log / 8),  # the groups' bits, packed
+        memory=round(bits_akita_accumulator / 8),  # the accumulator's bits, packed
         prover=round(bits_akita_prover),
         accumulation_prover=round(bits_akita_accumulation),
         step_prover=round(BOOL_STEP_BITS * bits_akita_prover / bits_akita_ands),
@@ -4216,9 +4269,9 @@ def define_figures():
         zk_steps * zk_per_step > p["fold"],
     )
     claim(
-        "kishu_zk_rank_below_plain",
-        "Kishu's zero-knowledge optimum for the recovery circuit is at a lower rank than the plain one, with more merges",
-        p["rank"] < plain["rank"] and zk_steps > plain_steps,
+        "kishu_zk_rank_same_as_plain",
+        "Kishu's zero-knowledge optimum for the recovery circuit is at the plain row's rank, with the same merges",
+        p["rank"] == plain["rank"] and zk_steps == plain_steps,
     )
     fig("mask_alpha", MASK_ALPHA)
     fig("mask_rank_alpha12", sig(mask_rank(12)))
@@ -4259,8 +4312,10 @@ def define_figures():
     assert sweep[MASK_ALPHA] == w
     claim(
         "kishu_zk_falls_with_alpha",
-        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 48, and at 96 is within two percent of 48",
-        all(sweep[a] > sweep[2 * a] for a in (6, 12, 24)) and abs(sweep[96] / sweep[48] - 1) < 0.02,
+        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 24, and is within one percent of the least at 48 and three percent at 96",
+        all(sweep[a] > sweep[2 * a] for a in (6, 12))
+        and sweep[48] < 1.01 * sweep[24]
+        and sweep[96] < 1.03 * sweep[24],
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
@@ -4300,11 +4355,11 @@ def define_figures():
     fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
     claim(
         "alpha_page_near_optimum",
-        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler and within seven percent at Karney's",
+        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler and within a tenth at Karney's",
         MASK_LENGTH == 9
         and mask_length(64) == 10
         and excess["page"] < 0.03
-        and excess["karney"] < 0.07,
+        and excess["karney"] < 0.1,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
@@ -4496,6 +4551,11 @@ def define_figures():
         ms = decider_ms(families, hashes)
         fig(f"decider_{name}_ms_min", sig(ms[0], 3))
         fig(f"decider_{name}_ms_max", sig(ms[-1], 3))
+
+    # The stage groups' support (the accumulation prover paragraph): Ragu's native stages'
+    # values, and the bits they are in Kishu.
+    fig("stage_values", fmt(STAGE_VALUES_TOTAL))
+    fig("kishu_stage_bits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
 
     # Accumulator memory (the axes list).
     fig("memory_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["memory"], 3))
