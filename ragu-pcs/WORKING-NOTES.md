@@ -3065,3 +3065,34 @@ and that both figures are in digit slices (the commit before this one). Artifact
 
 STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the two
 commits after it are unpushed.
+
+## 2026-11-21 19:56 UTC: the statements of what is not modelled
+
+The user asked for every statement that something is unmodelled to be checked (the commit before
+this one). Checked on the page: the Boolean row's fold sentence and its "Not modelled" list, the
+planner's 2^14 groups, the merges above the zero-knowledge layer, the masked accumulator (fixed
+earlier), the F2 zk mask's commitment, the mask-width sweep's omissions, the linking
+commitment in qk, the Zoodles lineage, the Tachyon bit-priced gates and per-note steps, and the
+estimator's dimensions for free; in the notes files, the planner's two statements. Three were
+wrong:
+
+- The Boolean-over-Akita row's merge left out the Flock PIOP verifier "as for the F2 family",
+  but the F2 family's merge has counted it since 3e24191. The merge now counts the two inputs'
+  verifiers at a fixed point of its own size (bits_akita_merge_parts): 1.5M of 4.1M AND gates
+  (was 2.7M), 6.9 times fewer than the F2 ARC merge at rate 1/8 (the "a ninth" claim is now a
+  figure with a smaller-than claim); the row's prover 5e7, decider 5.34 ms, proof 85 kbytes,
+  and the Zoodles figures 0.289/0.578 s. The merge paragraph's parts (transcript 2.7 kbytes,
+  hashing 0.35M, fold 0.27M, sum-check 2.1M, verifier 1.5M) are generated figures with a claim
+  that the sum-check multiplications dominate.
+- The Zoodles paragraph said the lineage's steps were not counted, although `zoodles_epoch`
+  prices one epoch; the sentence and the model's comment now say they are not in the
+  transaction and point to it.
+- BitZ's model comment said its PIOP and GKR verifiers were a few thousand constraints not
+  counted; its hybrid merge commits their products (bitz_point), so the comment says that.
+
+Also: the Tachyon section's per-note sentence points to the Zoodles lineage step as their
+counterpart; two sentences describing the Boolean row's fold as a change describe the present.
+Artifact version 207.
+
+STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the four
+commits after it are unpushed.
