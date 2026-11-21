@@ -1835,15 +1835,43 @@ def f2_verify(p, grind, chal, zk=None):
     ) * BLAKE3_NATIVE + p["field_mults"] * CLMULS[chal]
 
 
-def f2_merge(rate, floor, grind=GRIND_DEFAULT):
+# A hash-based family's merge also verifies its two inputs' PIOPs. Ragu's PIOP is evaluation
+# based and its claims are in the merge already; Flock's and Zinc+'s are sum-checks, whose
+# verifiers the merge runs. For Flock that is the zerocheck and the lincheck over the witness's
+# variables, and a sum-check per base matrix (one BLAKE3 compression's R1CS, a nonzero a wire)
+# that reduces the matrix's evaluation to a committed one for the accumulation to take, in
+# place of the native verifier's own evaluation of the small matrices, which a circuit should
+# not do. For BitZ it is Zinc+'s PIOP, the same shape, and the grand-product GKR, a layer per
+# variable. A round costs four multiplications in the challenge field: a degree-three
+# univariate at the challenge and the running eq factor. The Boolean merge multiplies by
+# Karatsuba (KARATSUBA_ANDS); BitZ's hybrid merge commits each product as a 128-bit element.
+PIOP_ROUND_MULTS = 4
+BITZ_FIELD_BITS = 128
+
+
+def f2_piop_verifier_mults(log_bits):
+    """Field multiplications of one input's Flock PIOP verifier at a witness of 2^log_bits."""
+    matrix_rounds = math.log2(BLAKE3_ANDS)
+    return PIOP_ROUND_MULTS * (2 * log_bits + 3 * matrix_rounds)
+
+
+def bitz_piop_verifier_mults(log_bits):
+    """Field multiplications of one input's Zinc+ PIOP and GKR verifiers at 2^log_bits bits."""
+    n = math.ceil(log_bits)
+    return f2_piop_verifier_mults(log_bits) + PIOP_ROUND_MULTS * n * (n + 1) / 2
+
+
+def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
     """(hashes, AND gates) of a merge: two inputs, ARC's openings, paths through the tree of
     the 𝔽₂^128-packed witness divided by the rate, at its fixed point, plus the grinding
-    check per input."""
+    check per input and the inputs' PIOP verifiers in the challenge field `chal`."""
     inv = int(rate.split("/")[1])
     t = arc_openings(rate, floor, grind)
     hashes = 2 * t * 30
+    ands = hashes * BLAKE3_ANDS
     for _ in range(40):
-        ands = hashes * BLAKE3_ANDS
+        verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * KARATSUBA_ANDS[chal]
+        ands = hashes * BLAKE3_ANDS + verifier
         depth = (
             math.log2(ands / 128 * inv / 16) + 4
         )  # path nodes, plus four compressions for a 256-byte leaf
@@ -1851,14 +1879,14 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT):
         if abs(new - hashes) < 1:
             break
         hashes = new
-    return round(hashes), round(hashes * BLAKE3_ANDS)
+    return round(hashes), round(hashes * BLAKE3_ANDS + verifier)
 
 
 for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
-            hashes, ands = f2_merge(rate, floor, grind)
             for chal, design in F2_DESIGNS.items():
+                hashes, ands = f2_merge(rate, floor, grind, chal)
                 for zk in ZK_LABEL:
                     p = frib_proof(ands, rate, floor, grind, chal, ARC_DECIDER_TREES, zk == "mask")
                     points.append(
@@ -2066,7 +2094,12 @@ def f2_rec_merge(rate, floor, grind, chal, zk=None):
         hashes = 2 * (p["auth"] + p["opened"] / 64 + (p["zook"][1] if zk == "zook" else 0)) + (
             2 if grind else 0
         )
-        new = hashes * BLAKE3_ANDS + 2 * p["field_mults"] * KARATSUBA_ANDS[chal]
+        new = (
+            hashes * BLAKE3_ANDS
+            + 2
+            * (p["field_mults"] + f2_piop_verifier_mults(math.log2(bits)))
+            * KARATSUBA_ANDS[chal]
+        )
         if abs(new - bits) < 1:
             break
         bits = new
@@ -2241,7 +2274,8 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
         else:
             depth = math.log2(bits / 128 * inv) + 1
             hashes = 2 * arc_openings(rate, floor, grind or 0) * depth + (2 if grind else 0)
-        new = app_bits + hashes * HASH_BITS
+        verifier = 2 * bitz_piop_verifier_mults(math.log2(bits)) * BITZ_FIELD_BITS
+        new = app_bits + hashes * HASH_BITS + verifier
         if abs(new - bits) < 1:
             break
         bits = new
@@ -2294,7 +2328,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
         step_prover=round(app_bits * prover_ms * WORD_MULTS_PER_MS / bits),
         fold=fold,
         accumulation=ARC_ATOMS,
-        gates=round(hashes * HASH_BITS),
+        gates=round(hashes * HASH_BITS + verifier),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
         folded=2,
         label=f"rank {rank}, rate {rate}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
@@ -4140,6 +4174,32 @@ def define_figures():
     f8 = f192["1/8"]
     fig("f2_gates_min", mil(min(p["gates"] for p in f192.values())))
     fig("f2_gates_max", mil(max(p["gates"] for p in f192.values())))
+    hashes_8, ands_8 = f2_merge("1/8", 128, GRIND_DEFAULT, 128)
+    f2_piop_mults = f2_piop_verifier_mults(math.log2(ands_8))
+    f2_piop_ands = 2 * f2_piop_mults * KARATSUBA_ANDS[128]
+    fig("f2_piop_mults", fmt(round(f2_piop_mults, -1)))
+    fig("f2_piop_mands", sig(f2_piop_ands / 1e6, 2))
+    fig("f2_piop_pct", sig(100 * f2_piop_ands / ands_8, 2))
+    claim(
+        "f2_piop_verifier_small",
+        "the F2 family's PIOP verifiers are under a fifth of its merge at every rate",
+        all(
+            2 * f2_piop_verifier_mults(math.log2(a)) * KARATSUBA_ANDS[128] < a / 5
+            for a in (f2_merge(r, 128, GRIND_DEFAULT, 128)[1] for r in RATES)
+        ),
+    )
+    bitz17 = bitz_point("arc", "1/8", 17, 128)
+    bitz_bits = 2**17 + bitz17["gates"]
+    bitz_piop_mults = bitz_piop_verifier_mults(math.log2(bitz_bits))
+    bitz_piop_bits = 2 * bitz_piop_mults * BITZ_FIELD_BITS
+    fig("bitz_piop_mults", fmt(round(bitz_piop_mults, -2)))
+    fig("bitz_piop_kbits", fmt(round(bitz_piop_bits / 1000)))
+    fig("bitz_piop_pct", sig(100 * bitz_piop_bits / bitz17["gates"], 2))
+    claim(
+        "bitz_piop_verifier_small",
+        "BitZ's PIOP and GKR verifiers are under two percent of its merge",
+        bitz_piop_bits < bitz17["gates"] / 50,
+    )
     fig("f2_rate_highest", min(f192, key=lambda r: int(r.split("/")[1])))
     fig("f2_rate_lowest", max(f192, key=lambda r: int(r.split("/")[1])))
     for fld in (192, 191, 256):
@@ -4185,9 +4245,9 @@ def define_figures():
     f_least = min(f192.values(), key=lambda p: p["prover"])
     fig("f2_192_prover_least", mil(f_least["prover"]))
     claim(
-        "f2_prover_least_rates_4_8",
-        "the 𝔽₂ family's prover is least at rates 1/4 to 1/8, within 5%",
-        all(f192[r]["prover"] <= 1.05 * f_least["prover"] for r in ("1/4", "1/8")),
+        "f2_prover_least_rate_4",
+        "the 𝔽₂ family's prover is least at rate 1/4, with rate 1/8 within a tenth of it",
+        f_least["rate"] == "1/4" and f192["1/8"]["prover"] <= 1.1 * f_least["prover"],
     )
     fig(
         "f2_over_gold_poseidon",
