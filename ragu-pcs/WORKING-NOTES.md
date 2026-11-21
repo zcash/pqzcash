@@ -2999,3 +2999,26 @@ autosquash rebase from c1d85d5, and the model's and page's rule comments reworde
 sentences. Artifact version 194.
 
 STATE: main at this entry's commit; fifteen commits after a49be05 unpushed.
+
+## 2026-11-21 18:52 UTC: the transaction prover on both measures
+
+The user asked to choose two transaction applications at once (the commit before this one):
+the transaction prover is never greyed out on the other side, so both measures may be it, each
+with its own application list (`#txapp2`, `#txapp3`; the third's options are a copy of the
+second's made by the script). A point carries `transaction_second` and `transaction_third`,
+the measure keys the sides read (`measureKey`); the axis titles name the application
+(`txShort`, the option text cut at a colon or parenthesis); the hover and the table's
+Transaction column show the sides that have the measure; the header is forced to nine when
+either side's application is a Tachyon transaction or the recovery circuit; the swap button
+exchanges the applications with the measures. The lists: one at full width when one side has
+the measure, both side by side (eyebrows "Transaction prover, second" and ", third") when both,
+and with neither the second's list alone under "Transaction prover: the transaction proves",
+the hidden third following its value. A `[hidden] { display: none !important }` rule was
+needed: the groups' `display: flex` beat the attribute, so both lists showed at first (the
+user). The user's stale book build had shown TypeErrors and no plot; a reload fixed it, and
+headless Chrome and Firefox (work/firefox-errors.py, work/firefox-txapps.py, which drives the
+three states) show no errors. The user: "it's now possible to see which schemes favour
+particular transaction types". Artifact version 196.
+
+STATE: main at this entry's commit; everything through 1388a24 was pushed by the user; the
+two commits after it are unpushed.
