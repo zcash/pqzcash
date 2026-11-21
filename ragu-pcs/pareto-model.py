@@ -713,13 +713,15 @@ def path_cost(field, hp):
 #   - a leanSPHINCS verifier, for a device that signs SigHash with the stateless hash-based
 #     signature of post-quantum Ethereum (EthLib's Cryptography/Sphincs module; EIP-8288 and
 #     the draft EIP of ethereum/EIPs#12672), the host proving the verification with the
-#     signature and the public key as witnesses. The counts are sphincs.art's layered
-#     two-level WOTS forest key of lifetime 2^30 (TomWambsgans/sphincs.art at 8157875,
-#     scripts/scheme.py --json: height 26 as layers 10 + 8 + 8, WOTS+C with 64 chains of 4
-#     positions and target sum 128, 8 forest coordinates), 408 Keccak-f[1600] permutations or
-#     462 BLAKE2s compressions, with the 6,332-byte signature as committed input bits.
-#     Ethereum's provisional set, with FORS of 24 trees of height 10 in place of the forest,
-#     verifies in 515 permutations.
+#     signature and the public key as witnesses. The counts are sphincs.art's pruned key of
+#     lifetime 2^30 (TomWambsgans/sphincs.art at 8157875, scripts/scheme.py --json: one tree
+#     of height 26 with a kept subtree of height 12, WOTS+C with 64 chains of 4 positions and
+#     target sum 128, 8 forest coordinates), 262 Keccak-f[1600] permutations or 298 BLAKE2s
+#     compressions, with the 4,276-byte signature as committed input bits; the signer grinds
+#     2^(26 - 12) digests per signature, and the key's proved lifetime is 126,900 signatures,
+#     one per recovery transaction. The layered forest key of the same lifetime verifies in
+#     408 or 462 with a 6,332-byte signature, and Ethereum's provisional set, with FORS of 24
+#     trees of height 10 in place of the forest, in 515 with 7,740 bytes.
 # XOR is not free in a digit arithmetization or over a prime field, so Keccak-f costs its 24
 # rounds of 3,200 XOR bits in theta and 1,600 ANDs and 1,600 XORs in chi, 153,600 committed
 # bits or gates and as many product terms, against a BLAKE2s compression's 21,312 (ten rounds
@@ -737,13 +739,19 @@ KECCAK_ROUND_BITS = 3200 + 1600 + 1600
 KECCAK_BITS = KECCAK_ROUNDS * KECCAK_ROUND_BITS
 KECCAK_ANDS = KECCAK_ROUNDS * 1600
 KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
-# Hash calls of one verification of the layered forest key, and that key's signature bytes;
-# sphincs.art's pruned key of lifetime 2^30 with b = 12; Ethereum's provisional FORS set.
-LEANSPHINCS_VERIFY = {"keccak": 408, "blake2s": 462}
-LEANSPHINCS_SIG_BYTES = 6332
-LEANSPHINCS_PRUNED_SIG_BYTES = 4276
+# Hash calls of one verification of the pruned key, its signature bytes, its grinding digests
+# per signature and its proved lifetime; the layered forest key's calls and bytes; Ethereum's
+# provisional FORS set's; and the hash rates of a Ledger Nano S+ from sphincs.art's
+# hardware-wallet benchmark, for the grinding's time there.
+LEANSPHINCS_VERIFY = {"keccak": 262, "blake2s": 298}
+LEANSPHINCS_SIG_BYTES = 4276
+LEANSPHINCS_GRIND = 2 ** (26 - 12)
+LEANSPHINCS_LIFETIME = 126_900
+LEANSPHINCS_LAYERED_VERIFY = {"keccak": 408, "blake2s": 462}
+LEANSPHINCS_LAYERED_SIG_BYTES = 6332
 LEANSPHINCS_ETHEREUM_PERMS = 515
 LEANSPHINCS_ETHEREUM_BYTES = 7740
+LEDGER_HASH_PER_S = {"keccak": 5800, "blake2s": 32600}
 # One call of each hash as prime-field gates, AND gates, and bits or digits.
 HASH_UNITS = {
     "blake3": {"gates": BLAKE3_GATES, "boolean": BLAKE3_ANDS, "bits": BLAKE3_BITS},
@@ -3594,8 +3602,14 @@ def define_figures():
         "the leaf's masked response with no padding and no masking elements, and a succinct proof of the leaf, are each over 30 kbytes",
         min(z_floor_bytes, succinct) > 30_000,
     )
-    fig("leansphincs_pruned_sig_bytes", fmt(LEANSPHINCS_PRUNED_SIG_BYTES))
+    fig("leansphincs_layered_sig_bytes", fmt(LEANSPHINCS_LAYERED_SIG_BYTES))
+    fig("leansphincs_layered_keccak_calls", LEANSPHINCS_LAYERED_VERIFY["keccak"])
+    fig("leansphincs_layered_blake2s_calls", LEANSPHINCS_LAYERED_VERIFY["blake2s"])
     fig("leansphincs_ethereum_bytes", fmt(LEANSPHINCS_ETHEREUM_BYTES))
+    fig("leansphincs_grind", fmt(LEANSPHINCS_GRIND))
+    fig("leansphincs_lifetime", fmt(LEANSPHINCS_LIFETIME))
+    fig("leansphincs_grind_keccak_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["keccak"]))
+    fig("leansphincs_grind_blake2s_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["blake2s"]))
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
     fig("sok_loss_factor", sig(2 / second_preimage))
