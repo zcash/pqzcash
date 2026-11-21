@@ -1614,12 +1614,19 @@ CLMULS = {
     192: 8,
     256: 11,
 }  # 64-bit carry-less multiplications per field multiplication: Karatsuba over the limbs, plus the reductions
-KARATSUBA_ANDS = {
+# AND gates per field multiplication in a Boolean circuit, a carry-less product of the field's
+# width: Karatsuba at 128 and 256 bits, where its halving is exact; at 192 bits Toom-3 in
+# characteristic 2 (Bodrato, WAIFI 2007), five products in place of a three-limb Karatsuba's
+# six: three of 64 bits at the points 0, 1 and infinity, and two at x and x + 1, where a
+# three-piece operand evaluates to 66 bits, a 64-bit product plus the cross terms of the two
+# extra bits. Toom's other points are polynomials in x, which lengthen the pieces by their
+# degree times k - 1, so larger k gains nothing at these widths and nothing at powers of two.
+CLMUL_ANDS = {
     128: 3**7,
-    191: 6 * 3**6,
-    192: 6 * 3**6,
+    191: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
+    192: 3 * 3**6 + 2 * (3**6 + 2 * 2 * 64 + 4),
     256: 3**8,
-}  # AND gates per field multiplication in a Boolean circuit
+}
 
 
 def elem_bytes(bits):
@@ -1844,7 +1851,7 @@ def f2_verify(p, grind, chal, zk=None):
 # not do. For BitZ it is Zinc+'s PIOP, the same shape, and the grand-product GKR, a layer per
 # variable. A round costs four multiplications in the challenge field: a degree-three
 # univariate at the challenge and the running eq factor. The Boolean merge multiplies by
-# Karatsuba (KARATSUBA_ANDS); BitZ's hybrid merge commits each product as a 128-bit element.
+# Karatsuba or Toom-3 (CLMUL_ANDS); BitZ's hybrid merge commits each product as a 128-bit element.
 PIOP_ROUND_MULTS = 4
 BITZ_FIELD_BITS = 128
 
@@ -1870,7 +1877,7 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
     hashes = 2 * t * 30
     ands = hashes * BLAKE3_ANDS
     for _ in range(40):
-        verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * KARATSUBA_ANDS[chal]
+        verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * CLMUL_ANDS[chal]
         ands = hashes * BLAKE3_ANDS + verifier
         depth = (
             math.log2(ands / 128 * inv / 16) + 4
@@ -2084,7 +2091,7 @@ def ligerito_first_share(log_bits):
 
 
 # The 𝔽₂ family's recursive merge verifies the step's own FRI-Binius proof twice: its hashes
-# as BLAKE3 compressions and its field multiplications by Karatsuba, at the fixed point.
+# as BLAKE3 compressions and its field multiplications by Karatsuba or Toom-3, at the fixed point.
 def f2_rec_merge(rate, floor, grind, chal, zk=None):
     """(hashes, witness bits) of the recursive merge, plus the grinding check per input."""
     bits = 2**25
@@ -2096,9 +2103,7 @@ def f2_rec_merge(rate, floor, grind, chal, zk=None):
         )
         new = (
             hashes * BLAKE3_ANDS
-            + 2
-            * (p["field_mults"] + f2_piop_verifier_mults(math.log2(bits)))
-            * KARATSUBA_ANDS[chal]
+            + 2 * (p["field_mults"] + f2_piop_verifier_mults(math.log2(bits))) * CLMUL_ANDS[chal]
         )
         if abs(new - bits) < 1:
             break
@@ -4176,7 +4181,7 @@ def define_figures():
     fig("f2_gates_max", mil(max(p["gates"] for p in f192.values())))
     hashes_8, ands_8 = f2_merge("1/8", 128, GRIND_DEFAULT, 128)
     f2_piop_mults = f2_piop_verifier_mults(math.log2(ands_8))
-    f2_piop_ands = 2 * f2_piop_mults * KARATSUBA_ANDS[128]
+    f2_piop_ands = 2 * f2_piop_mults * CLMUL_ANDS[128]
     fig("f2_piop_mults", fmt(round(f2_piop_mults, -1)))
     fig("f2_piop_mands", sig(f2_piop_ands / 1e6, 2))
     fig("f2_piop_pct", sig(100 * f2_piop_ands / ands_8, 2))
@@ -4184,7 +4189,7 @@ def define_figures():
         "f2_piop_verifier_small",
         "the F2 family's PIOP verifiers are under a fifth of its merge at every rate",
         all(
-            2 * f2_piop_verifier_mults(math.log2(a)) * KARATSUBA_ANDS[128] < a / 5
+            2 * f2_piop_verifier_mults(math.log2(a)) * CLMUL_ANDS[128] < a / 5
             for a in (f2_merge(r, 128, GRIND_DEFAULT, 128)[1] for r in RATES)
         ),
     )
