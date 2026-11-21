@@ -737,6 +737,30 @@ HASH_UNITS = {  # one call of each hash as prime-field gates, AND gates, and bit
     "keccak": {"gates": KECCAK_BITS, "boolean": KECCAK_ANDS, "bits": KECCAK_BITS},
 }
 HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_PIOP}
+# The wallet's own share of the device statement when the host proves the handoff. The
+# handoff merge's witness is simulatable: the hiding commitment, the mask's commitment, the
+# challenge, the claims and the obligation transcripts (the zero-knowledge note's §4.2). So the
+# host can derive the challenge, prove the fold's merge and the obligations (the note's §5.8
+# deferral), and verify the leaf's sum-checks in its own merge. The wallet keeps what touches
+# the secret. It commits the leaf with a hiding padding at the masked rank. It proves its
+# constraint and Booleanity sum-checks under Libra-style masking polynomials, ℓ (d + 1)
+# committed elements each with ℓ the rounds, since the host sees their transcripts. It samples
+# and commits the mask in idle time, and computes the response z = y + cs with the rejection
+# test. The padding is computational. Aρ for ρ of HIDING_PADDING_BITS uniform bits is
+# pseudorandom if knapsack-LWE is hard at the commitment's rows, which by the Micciancio–Mol
+# duality is LWE of dimension bits − rows with binary error at the 64-bit modulus. The primal
+# uSVP estimate at block 484 and root Hermite factor 1.0035 needs about 3,300 dimensions
+# against the masked matrix's 1,385 rows at q64, so 5,000 bits leaves a margin. The lattice
+# estimator should confirm it. The note's leftover-hash padding would be rows × 64 + 256 bits.
+# Device rates are assumptions scaled from sphincs.art's hardware-wallet benchmark. A Ledger
+# Nano S+ hashes BLAKE2s about 500 times below a laptop core and a Trezor Safe 3 about 200
+# times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
+# that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
+HIDING_PADDING_BITS = 5000
+MASKED_ROWS_Q64 = 1385  # the zero-knowledge note's §5.5 table at the masked bound 2^42.2
+SUMCHECK_MASK_DEGREE = 3
+DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
+DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
 
 
 def hash_app_cost(field, hash_, calls, input_bytes=0):
@@ -3468,6 +3492,52 @@ def define_figures():
                 "the merge and the masking fold are over nine tenths of Kishu's zero-knowledge transaction for the device's statement alone",
                 (merges + p["fold"]) / w > 0.9,
             )
+            qk_fold = p["fold"]
+
+    # The wallet's own share of the device statement with the host proving the handoff (the
+    # constants' comment): its digits, its online and idle work, the response's size, and the
+    # times on the assumed devices and link.
+    leaf = APP["qk"]["bitz"]["blake3"]
+    sumcheck_rounds = math.ceil(math.log2(leaf + HIDING_PADDING_BITS))
+    mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
+    device_digits = leaf + HIDING_PADDING_BITS + mask_elements * Q64_DIGITS
+    masked_digit = (
+        ajtai_per_coefficient("pasta_q64", True, RANK_SCALE[128]["goldilocks"])
+        / DIGITS["pasta_q64"]
+    )
+    device_online = (
+        device_digits * (masked_digit + BOOL_CHECK["sumcheck"][0])
+        + piop_word_mults(BLAKE3_PIOP)
+        + device_digits
+    )
+    device_idle = MASK_ATTEMPTS * device_digits * (MASK_SAMPLE_WORD_MULTS + masked_digit)
+    device_log_sigma = (
+        math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + math.log2(device_digits) / 2
+    )
+    z_bits = math.ceil(math.log2(MASK_TAIL) + device_log_sigma)
+    z_bytes = device_digits * z_bits / 8
+    fig("qk_sumcheck_mask_elements", mask_elements)
+    fig("hiding_padding_bits", fmt(HIDING_PADDING_BITS))
+    fig("hiding_padding_statistical_kbits", round((MASKED_ROWS_Q64 * 64 + 256) / 1000))
+    fig("qk_device_digits", sig(device_digits, 3))
+    fig("qk_device_online_ms", millis(device_online))
+    fig("qk_device_idle_ms", millis(device_idle))
+    fig("qk_device_z_bits", z_bits)
+    fig("qk_device_z_kbytes", kb(z_bytes))
+    fig("device_mcu_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['mcu'] / 1e6, 1)} million")
+    fig("device_se_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['secure_element'] / 1e6, 1)} million")
+    fig("qk_device_mcu_s", sig(device_online / DEVICE_WORD_MULTS_PER_S["mcu"]))
+    fig(
+        "qk_device_secure_element_s", sig(device_online / DEVICE_WORD_MULTS_PER_S["secure_element"])
+    )
+    fig("device_link_kbytes_s", round(DEVICE_LINK_BYTES_PER_S["measured"] / 1000))
+    fig("qk_device_link_s", sig(z_bytes / DEVICE_LINK_BYTES_PER_S["measured"]))
+    fig("qk_device_link_pipelined_s", sig(z_bytes / DEVICE_LINK_BYTES_PER_S["pipelined"]))
+    claim(
+        "qk_device_share_small",
+        "with the host proving the handoff, the wallet's online work for the device statement is under a twentieth of the handoff fold the measure charges the user",
+        device_online < qk_fold / 20,
+    )
 
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
