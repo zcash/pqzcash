@@ -107,7 +107,7 @@ ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pa
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
 # lattice rows it is the folded digit vector, the accumulator's coefficients (the batch group's
-# 2^rank and the stage groups' values, accumulator_coefficients below) in digits, each
+# circuits × 2^rank and the stage groups' values, accumulator_coefficients below) in digits, each
 # digit stored at the width of its accumulator's norm bound. The certified l2 bound at the
 # handoff is about 2^19 (zk-fiat-shamir-with-aborts.md's ledger), which bounds every entry, so
 # 20 bits and a sign. Each fold multiplies the entries by up to 40, so a level below the top
@@ -336,7 +336,10 @@ CLAIM_BYTES = {
 CLAIM_GATES = 4
 
 # The accumulator's length. Its K = STAGES + 1 groups are the fuse's stage polynomials and one
-# batch of the step circuits' witnesses, taken as 2^rank coefficients. A stage polynomial is
+# batch of every step circuit's witness: one committed vector of circuits × 2^rank coefficients,
+# since the merge absorbs one image for the batch and the decider opens it at that length, with
+# each circuit's claim an evaluation of its own slice. So the batch is about the merge's size
+# at every rank at which the merge needs more than one circuit. A stage polynomial is
 # sparse. In Ragu the trace splits by wire position: a stage holds its values at the a and d
 # wires of its reserved gates and is zero elsewhere, and bonding circuits enforce that the
 # stages do not overlap. So a stage's zeros are structural and public, and what is committed
@@ -351,8 +354,8 @@ CLAIM_GATES = 4
 # groups). Akita's grouped opening admits groups of different sizes: every group uses the fold
 # level's opening method "though the groups' dimensions and points may differ" (the paper's
 # §5), and its planner sizes groups separately. So the mask, the fold's sum-checks and the
-# accumulator's memory run over accumulator_coefficients, 2^rank plus the stages' values, not
-# K × 2^rank. The merge still absorbs K images and folds K groups, and the opening bytes come
+# accumulator's memory run over accumulator_coefficients, the batch plus the stages' values,
+# not K × 2^rank. The merge absorbs K images and folds K groups, and the opening bytes come
 # from the planner's runs with K groups of 2^14 coefficients, which overstate the small stage
 # groups.
 STAGE_HEADER = 9
@@ -376,10 +379,10 @@ STAGE_VALUE_COEFFICIENTS = {
 }
 
 
-def accumulator_coefficients(variant, rank):
-    """The accumulator's coefficients: the batch group's 2^rank and the stage groups' values,
-    each as the variant commits a claim-field element."""
-    return 2**rank + STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS[variant]
+def accumulator_coefficients(variant, rank, circuits):
+    """The accumulator's coefficients: the batch group's circuits × 2^rank and the stage
+    groups' values, each as the variant commits a claim-field element."""
+    return circuits * 2**rank + STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS[variant]
 
 
 def akita_atoms(variant, K, circuits, zk):
@@ -1667,7 +1670,7 @@ for variant, hp in itertools.product(
                 # own matrix (see MASK_RANK).
                 opening = akita_bytes(variant, K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES[variant]
-                accumulator = accumulator_coefficients(variant, rank)
+                accumulator = accumulator_coefficients(variant, rank, circuits)
                 # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                 # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
                 # commitment variant a decoupled commitment modulus.
@@ -3027,9 +3030,8 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
 # Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
 # handoff, whose rejection sampling runs over the accumulator's digits, one per committed bit
-# (accumulator_coefficients: the step's 2^rank and the stages' values as bits), so it grows
-# with the rank where the merges shrink. The projection form reveals coordinates and has no
-# zero-knowledge rows.
+# (accumulator_coefficients: the merge's circuits × 2^rank and the stages' values as bits).
+# The projection form reveals coordinates and has no zero-knowledge rows.
 def kishu_costs(
     K, circuits, rank, hp, check, floor, zk, route, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS
 ):
@@ -3051,7 +3053,7 @@ def kishu_costs(
     per_step_digit = per_digit + bool_per_bit
     step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
     attempts = mask_attempts(alpha) if zk else 0
-    accumulator = accumulator_coefficients("kishu", rank)
+    accumulator = accumulator_coefficients("kishu", rank, circuits)
     parts = dict(
         sampling=attempts * accumulator * sample,
         masks=attempts * accumulator * masked_digit,
@@ -3118,7 +3120,9 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                             arith=f"bits_pasta_{route}",
                             bytes=round(opening + instance + bool_bytes),
                             memory=accumulator_bytes(
-                                "pasta_q64", accumulator_coefficients("kishu", rank), digits=1
+                                "pasta_q64",
+                                accumulator_coefficients("kishu", rank, circuits),
+                                digits=1,
                             ),
                             accumulation=atoms,
                             verify=akita_verify(
@@ -3231,7 +3235,7 @@ def binary_open_bytes(log_bits, K):
 K = STAGES + 1
 bits_akita_ands = bits_akita_merge_ands(K, 1, BINARY_MEASURED["field"])
 bits_akita_log = math.log2(bits_akita_ands)
-bits_akita_accumulator = accumulator_coefficients("bits_akita", bits_akita_log)
+bits_akita_accumulator = accumulator_coefficients("bits_akita", bits_akita_log, 1)
 bits_akita_per_bit = (
     BINARY_MEASURED["commit_ms"]
     * BINARY_THREADS
@@ -4355,11 +4359,8 @@ def define_figures():
     fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
     claim(
         "alpha_page_near_optimum",
-        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler and within a tenth at Karney's",
-        MASK_LENGTH == 9
-        and mask_length(64) == 10
-        and excess["page"] < 0.03
-        and excess["karney"] < 0.1,
+        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler",
+        MASK_LENGTH == 9 and mask_length(64) == 10 and excess["page"] < 0.03,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
@@ -4556,6 +4557,12 @@ def define_figures():
     # values, and the bits they are in Kishu.
     fig("stage_values", fmt(STAGE_VALUES_TOTAL))
     fig("kishu_stage_bits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
+    # The least rank at which one circuit holds Kishu's merge, below which the batch is about
+    # the merge's size whatever the rank.
+    fig(
+        "kishu_one_circuit_rank",
+        min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] == 1),
+    )
 
     # Accumulator memory (the axes list).
     fig("memory_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["memory"], 3))
