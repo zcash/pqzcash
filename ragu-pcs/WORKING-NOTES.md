@@ -2539,3 +2539,55 @@ ragu/work/bench-fuse-asm.log.
 - 23:39 UTC, addendum: THE READABILITY PASS (11494ab; the user: "3 first, then your suggested order"): of the 84 sentences of 40 to 59 words in the prose, 55 that joined a claim to a consequence or a qualification were split at the joint by exact fragment edits (work/split-sentences.py; one fragment had to carry the limb-hybrid link); the 35 left and the 6 of 60 or more are enumerations of parallel values or cases, kept whole. The claims' markers wrap the split sentences as before and every check passes. Artifact v178. STATE: main at this entry; everything through f426b3f pushed.
 - 00:02 UTC, addendum: THE HASH-BASED MERGES VERIFY THEIR PIOPs (3e24191). f2_piop_verifier_mults(log_bits) = 4 × (2 log N + 3 log2(BLAKE3_ANDS)) field multiplications an input (the zerocheck, the lincheck and a sum-check per base matrix of one compression's R1CS, in place of the native verifier's own evaluation of the small matrices, which a circuit should delegate to a committed evaluation that ARC accumulates); bitz_piop_verifier_mults adds the GKR's n(n+1)/2 rounds; a round is four multiplications (a degree-three univariate at the challenge and the eq factor); the Boolean merge multiplies by KARATSUBA_ANDS[chal] (f2_merge takes the design's challenge field now), BitZ's hybrid merge commits 128-bit products. At rate 1/8: the F2 family 350 multiplications an input, 1.5 million AND gates, 5.7 percent of the merge (claim f2_piop_verifier_small, under a fifth at every rate); BitZ 1,700 products, 424 thousand bits, 1.4 percent (claim bitz_piop_verifier_small, under two percent; the page had said "a few thousand constraints that are not counted"). The F2 merges are 17 to 77 million AND gates (were 14 to 74), two tachyactions 5.07 s (was 4.69); the F2 prover is least at rate 1/4 alone, 1/8 within a tenth (claim f2_prover_least_rate_4 replaces f2_prover_least_rates_4_8 and its two markers). TOOM–COOK FOR THE BINARY-FIELD MULTIPLICATIONS (the user: "Did we check Toom–Cook?", then "check whether Toom-k for larger k (8, 16) is worthwhile"): not adopted. A first count assumed Toom-k's 2k − 1 pointwise products have n/k bits and gave 1,875 (Toom-3) and 1,029 (Toom-3 and 4) AND gates at 128 bits against Karatsuba's 2,187; that is wrong in characteristic 2, where the evaluation points beyond 0, 1 and ∞ are polynomials x^d + … (Bodrato, WAIFI 2007) and evaluating a k-piece operand at one lengthens the piece by d(k − 1) bits, so for Toom-4 at 128 bits the pieces are 32 bits but the products at x and x + 1 are 35-bit and at x² and x² + 1 are 38-bit. Counting that, Toom-k for any k up to 16 gives no gain at 128 or 256 bits, where Karatsuba's halving is exact (2,187 and 6,075 against 6,561 by the model's constant at 256, a 7 percent gain only there), and at 192 bits 4,185 against the model's 4,374 (4 percent); larger k only lengthens the pieces more. Under a bit-level Karatsuba recursion a 35-bit product costs as much as a 64-bit one; with schoolbook on the extra bits it is about 444 AND gates and Toom-4 at 128 bits about 2,943, still above Karatsuba. The constants stay. Artifact v179. STATE: main at this entry; everything through f426b3f pushed. NEXT (the user): pause ragu-pcs for FROST analysis. PENDING: the user's review of the soundness note; the 2026-11-14 open modelling questions (the Pasta-claims rows' claim-field sum-check, witness generation, the aggregator's opening and compression, phone parallelism); classifying the Tachyon nodes' remaining gates from Ragu's synthesis analysis.
 - 00:06 UTC, addendum: TOOM-3 AT 192 BITS after all (d8f091d; the user: "it's worth accounting for Toom-3 being slightly better at 192-bit"): CLMUL_ANDS (was KARATSUBA_ANDS) prices a 192-bit (and 191-bit) carry-less product at 3 × 729 + 2 × (729 + 2 × 2 × 64 + 4) = 4,165 AND gates, Toom-3's five products (three of 64 bits at 0, 1 and ∞, two of 66 bits at x and x + 1) against the three-limb Karatsuba's six, 4,374; 128 and 256 bits stay Karatsuba. The F2 recursion rows' merges fall a little (the 192-bit design 87 million witness bits at rate 1/8, was 89; the 191-bit 133, was 137), two tachyactions 5.05 s. The PIOP commit is 3e24191 after the Pasta note's refreshed figures were folded in. Artifact v180. STATE: main at this entry; everything through f426b3f pushed; the five commits after it unpushed.
+
+## 2026-11-21 05:10 UTC: the hardware wallet's part of the recovery statement as applications
+
+Context: ZIP 2005's Option A makes `SoK^qsk` on the hardware wallet that holds `qsk`, and the
+host's Recovery Statement proves the rest. Whether the device can prove its part at all was
+analysed on 2026-11-21 (the device statement as a Kishu leaf; an MPC-in-the-head proof of the
+preimage; a hash-based signature on the device with its verifier in the host's proof), and the
+verifier route looked feasible from the model's figures, so the page now prices it.
+
+Three applications joined the transaction measure (`hash_app_cost`, `hash_app_piop`,
+`HASH_UNITS`, `HASH_PIOPS` in the model; the option list, the application subsection and
+three references in the template):
+
+- `qk`: the device's own statement, one BLAKE3 compression for `H^qk(qsk) = qk`, the linking
+  commitment left out for now. 14,900 gates in a prime field, 8,192 AND gates, 15,072 bits or
+  digits.
+- `leansphincs_blake2s` and `leansphincs_keccak`: a leanSPHINCS verifier, for a device that
+  signs SigHash with post-quantum Ethereum's stateless hash-based signature (EthLib's
+  Cryptography/Sphincs module; EIP-8288; the draft EIP of ethereum/EIPs#12672, 2026-11-17). The
+  counts are sphincs.art's layered two-level WOTS forest key of lifetime 2^30 (checkout at
+  8157875, `python scripts/scheme.py --json`: height 26 as layers 10 + 8 + 8, WOTS+C with 64
+  chains of 4 positions and target sum 128, 8 forest coordinates): 462 BLAKE2s compressions or
+  408 Keccak-f permutations, plus the 6,332-byte signature as input bits. Ethereum's provisional
+  set, FORS of 24 trees of height 10 in place of the forest, is 515 permutations and 7,740
+  bytes; every parameter in that draft is marked provisional, and the hash is Keccak-256 there
+  ("the only primitive every client already implements") while sphincs.art keeps a
+  Keccak / BLAKE2s / SHA-256 toggle.
+
+Hash costs in the arithmetizations: a Keccak-f[1600] permutation is 24 rounds of theta's 3,200
+XOR bits and chi's 1,600 ANDs and 1,600 XORs, 153,600 committed bits or prime-field gates and
+as many product terms, since XOR is not free there; in a Boolean circuit 38,400 ANDs. A BLAKE2s
+compression is ten rounds of BLAKE3's G, 21,312 bits or gates (11,072 terms), 10,752 ANDs.
+
+Figures (one M4 core, zero knowledge, Kishu's least row): the BLAKE2s verifier 9.90M digits,
+1.38 s at rank 21; the Keccak verifier 62.7M digits, 6.39 s at rank 21, 6.3 times the digits
+(3.2 in a Boolean circuit), against 1.44 s for the recovery circuit; the device's statement
+alone 0.109 s at rank 15, of which the merge is 48 percent and the masking fold 47 percent,
+the circuit itself a few percent. The mask-width sweep leaves `qk` out (its optimum is no
+transaction's; the transaction-sized applications' optima are 32 to 130 at the page's
+sampler). Claims: `leansphincs_keccak_dearer` (five to eight times), `qk_merge_and_fold`
+(over nine tenths).
+
+Two things the `qk` figure shows, not yet in the model: the merge is the host's work, not the
+device's, so the device's own share is the step and the fold; and the fold is priced at the
+whole accumulator, K × 2^rank = 196k coordinates at rank 15 for a 15k-digit leaf. A mask sized
+to the leaf's occupied digits would cut the fold about thirteenfold, if the handoff can mask
+only what the host learns. And zero knowledge need not come from the fold at all: the page
+masks at the handoff because Ragu's Pedersen-IPA design does, but a leaf this small can be a
+hiding commitment with a direct zero-knowledge proof of its relation, whose verifier the host
+proves, and the fold's cost is gone. The model prices neither yet. Also open: the linking
+commitment's two compressions in `qk`, and a `qk` row for an MPC-in-the-head proof with native
+verification.
