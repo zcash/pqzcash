@@ -193,6 +193,15 @@ external is needed beyond the gate probe.
 each, and take the medians of the whole-path and randomness-alone lines. The `aes` form needs
 macOS (CommonCrypto); the ChaCha20 form is portable.
 
+## The carry-less multiplication
+
+`GF128_MEASURED_NS` is `scripts/clmul-bench.c`'s measurement of a GF(2^128) multiplication by
+PMULL against the model's word multiplication: build it with `cc -O3 -mcpu=native -DCHAINS=16
+-o work/clmul-bench scripts/clmul-bench.c` and run `work/clmul-bench` on one core of an idle
+Apple Silicon machine on mains; take the GF(2^128) line's nanoseconds. The chain count sets how
+many independent multiplications are in flight, and the Goldilocks line is a scalar reference
+whose own rate is below the page's 3e9 a second.
+
 ## The notes' own tables
 
 The tables in `pasta-proof-size.md` §3, §3.1, §6.2 and §6.3 are the planner's figures from

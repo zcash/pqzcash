@@ -732,16 +732,20 @@ BLAKE2S_PIOP = piop_sum(
     (BLAKE2S_ROUNDS * 8 * 4, ADD32_PIOP), (BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP)
 )
 KECCAK_ROUNDS = 24
-KECCAK_ROUND_BITS = 3200 + 1600 + 1600  # theta's XORs; chi's ANDs and XORs
+# Theta's XORs; chi's ANDs and XORs.
+KECCAK_ROUND_BITS = 3200 + 1600 + 1600
 KECCAK_BITS = KECCAK_ROUNDS * KECCAK_ROUND_BITS
 KECCAK_ANDS = KECCAK_ROUNDS * 1600
 KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
-LEANSPHINCS_VERIFY = {"keccak": 408, "blake2s": 462}  # hash calls of one verification
+# Hash calls of one verification of the layered forest key, and that key's signature bytes;
+# sphincs.art's pruned key of lifetime 2^30 with b = 12; Ethereum's provisional FORS set.
+LEANSPHINCS_VERIFY = {"keccak": 408, "blake2s": 462}
 LEANSPHINCS_SIG_BYTES = 6332
-LEANSPHINCS_PRUNED_SIG_BYTES = 4276  # sphincs.art's pruned key of lifetime 2^30, b = 12
+LEANSPHINCS_PRUNED_SIG_BYTES = 4276
 LEANSPHINCS_ETHEREUM_PERMS = 515
 LEANSPHINCS_ETHEREUM_BYTES = 7740
-HASH_UNITS = {  # one call of each hash as prime-field gates, AND gates, and bits or digits
+# One call of each hash as prime-field gates, AND gates, and bits or digits.
+HASH_UNITS = {
     "blake3": {"gates": BLAKE3_GATES, "boolean": BLAKE3_ANDS, "bits": BLAKE3_BITS},
     "blake2s": {"gates": BLAKE2S_BITS, "boolean": BLAKE2S_ANDS, "bits": BLAKE2S_BITS},
     "keccak": {"gates": KECCAK_BITS, "boolean": KECCAK_ANDS, "bits": KECCAK_BITS},
@@ -767,7 +771,8 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
 # that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
 HIDING_PADDING_BITS = 5000
-MASKED_ROWS_Q64 = 1385  # the zero-knowledge note's §5.5 table at the masked bound 2^42.2
+# The zero-knowledge note's §5.5 table at the masked bound 2^42.2.
+MASKED_ROWS_Q64 = 1385
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
@@ -1724,6 +1729,14 @@ CLMULS = {
     192: 8,
     256: 11,
 }  # 64-bit carry-less multiplications per field multiplication: Karatsuba over the limbs, plus the reductions
+# Measured on 2026-11-21 on one core of an M4 Max on mains (scripts/clmul-bench.c): a GF(2^128)
+# multiplication by six PMULL instructions, Karatsuba and a three-step reduction, takes
+# GF128_MEASURED_NS with sixteen independent chains in flight, 2.8 word multiplications at the
+# page's 3e9 a second, against the table's four carry-less multiplications taken as one word
+# multiplication each. The factor scales every width's count to that measurement, so a
+# carry-less multiplication costs 0.7 word multiplications wherever the table prices work.
+GF128_MEASURED_NS = 0.94
+CLMUL_WORD_MULTS = GF128_MEASURED_NS * WORD_MULTS_PER_MS / 1e6 / CLMULS[128]
 # AND gates per field multiplication in a Boolean circuit, a carry-less product of the field's
 # width: Karatsuba at 128 and 256 bits, where its halving is exact; at 192 bits Toom-3 in
 # characteristic 2 (Bodrato, WAIFI 2007), five products in place of a three-limb Karatsuba's
@@ -1808,16 +1821,16 @@ def f2_ops(bits, rate_bits, chal, pack, rounds, twiddle):
     ntt = n * (math.log2(n) - NTT_STAGES_SAVED) / 2 * twiddle
     tree = (first_bytes / 64 + first_bytes / (F2_FIRST_BYTES << rounds[0]["ell"])) * BLAKE3_NATIVE
     packed = bits / pack
-    switch = 2 * bits * limbs(chal) * XOR_WEIGHT + 4 * packed * CLMULS[chal]
-    fold = 3 * packed * CLMULS[chal]
+    switch = 2 * bits * limbs(chal) * XOR_WEIGHT + 4 * packed * CLMULS[chal] * CLMUL_WORD_MULTS
+    fold = 3 * packed * CLMULS[chal] * CLMUL_WORD_MULTS
     for i, r in enumerate(rounds):
         units = 2 ** (r["height"] + r["ell"])  # the round's oracle, in 256-bit units
         if i == 0:
             symbols = units * 256 / pack
-            fold += symbols / 2 * (clmuls(pack, chal) + CLMULS[chal])
+            fold += symbols / 2 * (clmuls(pack, chal) + CLMULS[chal]) * CLMUL_WORD_MULTS
         else:
             fold += (
-                units * CLMULS[chal]
+                units * CLMULS[chal] * CLMUL_WORD_MULTS
                 + (units * elem_bytes(chal) / 64 + units / 2 ** r["ell"]) * BLAKE3_NATIVE
             )
     return dict(ntt=ntt, tree=tree, switch=switch, fold=fold)
@@ -1949,7 +1962,7 @@ def f2_verify(p, grind, chal, zk=None):
         + p["opened"] / 64
         + (2 if grind else 0)
         + (p["zook"][1] if zk == "zook" else 0)
-    ) * BLAKE3_NATIVE + p["field_mults"] * CLMULS[chal]
+    ) * BLAKE3_NATIVE + p["field_mults"] * CLMULS[chal] * CLMUL_WORD_MULTS
 
 
 # A hash-based family's merge also verifies its two inputs' PIOPs. Ragu's PIOP is evaluation
@@ -2775,10 +2788,13 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
 #     field's growth with K, plus the instance. The measured pair a doubling apart differ by
 #     1.8 KB, which would make the proof about 8 KB smaller, but a one-doubling difference
 #     between single runs is not a slope.
-#   - Prover: the measured commit and open times per committed bit, the open time standing
-#     in for the step's share of the fold's sum-checks, which the lattice rows do not count;
-#     at BINARY_THREADS times the measured times for one thread, since BitZ's benchmark gave
-#     four to five times on ten threads of this machine; plus Flock's PIOP. An upper bound.
+#   - Prover: the measured commit time per committed bit, at BINARY_THREADS times the measured
+#     time for one thread, since BitZ's benchmark gave four to five times on ten threads of
+#     this machine; plus Flock's PIOP. The accumulation prover adds the fold's sum-checks over
+#     the K groups of the merge's bits, as the lattice rows count them, at the binary field's
+#     multiplication cost (CLMULS[128] carry-less 64-bit multiplications, one word
+#     multiplication each); the measured open time, which stood in for them before, is the
+#     opening's and is not counted for the lattice rows either.
 #   - Verify: the measured decider scaled to the merge's bits at Akita's single-thread slope.
 #   - Atoms: Akita's at the 128-bit claim width; the transaction measure as the 𝔽₂ family's.
 # Not modelled: zero knowledge (the groups are not hiding) and the higher floor (the q24
@@ -2823,12 +2839,15 @@ K = STAGES + 1
 bits_akita_ands = bits_akita_merge_ands(K, 1, BINARY_MEASURED["field"])
 bits_akita_log = math.log2(bits_akita_ands)
 bits_akita_per_bit = (
-    (BINARY_MEASURED["commit_ms"] + BINARY_MEASURED["prove_ms"])
+    BINARY_MEASURED["commit_ms"]
     * BINARY_THREADS
     * WORD_MULTS_PER_MS
     / 2 ** BINARY_MEASURED["log_bits"]
 )
 bits_akita_prover = bits_akita_ands * bits_akita_per_bit + f2_piop(bits_akita_ands, 128)
+bits_akita_accumulation = bits_akita_prover + accumulation_sumchecks(
+    "fp128", K, bits_akita_log, digits=1, word_mults=CLMULS[128] * CLMUL_WORD_MULTS
+)
 points.append(
     dict(
         family="bits_akita",
@@ -2848,6 +2867,7 @@ points.append(
         ),
         memory=round(K * 2**bits_akita_log / 8),  # the groups' bits, packed
         prover=round(bits_akita_prover),
+        accumulation_prover=round(bits_akita_accumulation),
         step_prover=round(BOOL_STEP_BITS * bits_akita_prover / bits_akita_ands),
         fold=0,
         accumulation=akita_atoms("fp128", K, 1, False),
@@ -3463,6 +3483,7 @@ def define_figures():
 
     # The hardware wallet's part of the Recovery Statement as applications: the device's own
     # statement, and a leanSPHINCS verifier with either hash (the Transaction prover section).
+    fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
     fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
