@@ -3251,3 +3251,54 @@ route alone, and the signature is §2.2 (the user).
 
 STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the 17
 commits after it, this one included, are unpushed. Artifact version 209.
+
+## 2026-11-22 01:36 UTC: the lineage as a sorted tree, the masked bound per row, the §5.8 deferral
+
+Four commits, in the order the user chose: the lineage first, then the deferral, with a digest
+correction and the per-row bound between.
+
+- **The lineage is a sorted Merkle tree** (9fd0791). The user agreed that set polynomials are the
+  wrong tool over digits, so `zoodles_epoch` is the exclusion proof from a sorted tree over the
+  epoch's tachygrams: the builder hashes consecutive pairs into the leaves, and the proof is one
+  leaf (the nullifier's two neighbours) with its path, plus the nullifier derivation, two
+  256-bit comparisons and the epoch range check. The tree holds 2^20 tachygrams an epoch (the
+  user's choice; 256 a block at Tachyon's 4,096-block epoch), 22 hashes, 332,000 Kishu digits,
+  under a sixth of the bucket's 2.10M, which stays as the comparison. Kishu 0.052 s a note an
+  epoch at rank 19, the zero-knowledge spend's own rank (claim zoodles_lineage_rank_is_spends),
+  so the rank coupling is gone; Goldilocks 0.050, BitZ 0.077, Flock 0.169, Pedersen 6.33 s.
+  `tree_path_cost(field, hp, levels)` scales the 32-level path by (levels + 1)/33.
+- **The digest without re-rooting** (cabbd77; the user caught the stale sentence). The fee step
+  hashes the nullifiers and commitments its children's headers carry, as the Merkle variant's
+  did; ZOODLES_SIGHASH_ROOTS went. Built from a saved copy of the model so that it could be a
+  commit of its own.
+- **The masked bound at each row's own N** (cd8c4bb). `masked_log_beta`, `mask_rank` and
+  `ajtai_per_coefficient` take `log_n`; the Akita rows pass their accumulator in digits, Kishu
+  its bits, the width table and the device leaf their rows'. The factor ranges 2.4 to 3.1 over
+  the lattice rows (figures mask_rank_min/max); Kishu's accumulator is just under 2^22 bits, so
+  its masked rate fell from 49.3 to 48.4 word multiplications a digit and the recovery from
+  0.743 to 0.733 s. The note's figures keep MASK_LOG_N = 22.
+- **The §5.8 deferral** (37eaff2). The user's handoff merge is the challenge derivation (the
+  mask's K images and its claim evaluations absorbed), the commitment identity on the images, and
+  the claims' fold, in whole step circuits of the rank at the masked rate (handoff_merge_cost,
+  handoff_merge_digits); the decomposition and the range and norm proofs are the aggregator's
+  first fold's, already in the zk-layer merge. The saving is where the merge spanned several
+  circuits: qk 0.111 → 0.079 s (fold 13%, the host's merge 78%), Zoodles by preimage 0.184 →
+  0.154 s, two tachyactions 0.310 → 0.290. Where one circuit held the merge the handoff still
+  fills a whole circuit, so the recovery stays 0.733 s: the padding to the rank's step is the
+  floor. The wallet's online share is under a tenth of its fold (was a twentieth). The width
+  sweep moved: optima 13 to 130 at the page's sampler, 48 still the minimax (2.8%; 6.4% at 32,
+  11% at 24).
+- **Discussed, not modelled:** leanSPHINCS's verifier hashes split 184 forest / 64 chains / 17
+  leaf / 26 path / 6 other of 298; the WOTS forest beats FORS (184 against about 271 under the
+  same call format); levers are a forest sized to the real lifetime (the Lean lifetime proof is
+  parameterized), or a stateful one-time leaf with indices partitioned by member (about 110
+  compressions; state loss on restore is the hazard); Jive gains nothing with BLAKE2s, a few
+  permutations with Keccak, and in Kishu Poseidon costs about what BLAKE3 does per call. The
+  pruned key's grind is keyed and stays on the wallet.
+
+NEXT: Zoodles' header (does it need 9 elements; the recovery circuit's is six or seven), with a
+node-by-node inventory first; the handoff merge's padding (a smaller rank for the handoff step
+would need a second matrix); the older list.
+
+STATE: main at this entry's commit; everything through 08d9937 was pushed by the user; the 5
+commits after it, this one included, are unpushed.
