@@ -227,10 +227,13 @@ def pedersen_per_coefficient(rank):
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
 # attempts, exp(12/α + 1/(2α²)), each a commitment of a mask of N coordinates under the masked
 # accumulation matrix and N Gaussian samples; N is the accumulator's digits, its coefficients
-# (accumulator_coefficients) in digits (zk-fiat-shamir-with-aborts.md §5.4). The fold's own
-# merge is added at the point. A bare leaf handed over without a fuse (LEAF_HANDOFF) masks its
-# own 2^rank digits instead, the row's fold_leaf. §5.8 of the note moves the attempts off the
-# device's critical path, so this is total work, not latency.
+# (accumulator_coefficients) in digits (zk-fiat-shamir-with-aborts.md §5.4). The handoff's
+# merge is added at the point (handoff_merge_cost, handoff_merge_digits): under the note's §5.8
+# deferral the user's merge checks the challenge derivation, the commitment identity and the
+# claim fold, and the aggregator's first fold does the decomposition and the range and norm
+# proofs. A bare leaf handed over without a fuse (LEAF_HANDOFF) masks its own 2^rank digits
+# instead, the row's fold_leaf. §5.8 also moves the attempts off the device's critical path, so
+# this is total work, not latency.
 #
 # The page's sampler is a rounded continuous Gaussian at MASK_SAMPLE_NS a coordinate, measured
 # with scripts/sampler-bench.c on one core of an Apple M4 Max on mains (2026-11-20, the median
@@ -1676,6 +1679,25 @@ def floor_label(floor):
     return ", 147‑bit" if floor == 147 else ""
 
 
+# The user's handoff merge under the note's §5.8 deferral: its circuit derives the challenge
+# from the mask's K commitment images and the mask's evaluations at the claims' points, checks
+# the commitment identity on the K images, and folds the claims. The decomposition of the
+# response and the range and norm proofs are the aggregator's first fold's, which the
+# zero-knowledge-layer merge that the accumulation prover prices already carries. The circuit
+# takes whole step circuits of the rank at the masked rank's commitment rate.
+def handoff_merge_gates(variant, K, circuits, hp):
+    if hp == "poseidon":
+        hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
+    else:
+        hashing = (K * 128 + circuits * CLAIM_BYTES[variant]) / BLAKE3_BLOCK * BLAKE3_GATES
+    return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
+
+
+def handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n):
+    steps = math.ceil(handoff_merge_gates(variant, K, circuits, hp) / gate_budget(rank))
+    return steps * 2**rank * ajtai_per_coefficient(variant, True, rank_scale, log_n=log_n)
+
+
 # Akita: no cycle, so endoscalings and binders do not exist. The committed groups are the
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
 # from the merge circuit's gate estimate and the rank's budget.
@@ -1749,17 +1771,13 @@ for variant, hp in itertools.product(
                         ),
                         fold=round(
                             mask_fold(variant, accumulator, rank_scale, log_n)
-                            + circuits
-                            * 2**rank
-                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
+                            + handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n)
                         )
                         if zk
                         else 0,
                         fold_leaf=round(
                             mask_fold(variant, 2**rank, rank_scale, log_n)
-                            + circuits
-                            * 2**rank
-                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
+                            + handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n)
                         )
                         if zk
                         else 0,
@@ -3085,6 +3103,22 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
     return circuits
 
 
+def handoff_merge_digits(K, circuits, hp):
+    """Kishu's handoff merge under the note's §5.8 deferral (handoff_merge_gates for the lattice
+    rows): its digits and its PIOP's word multiplications, for the mask's K images and claim
+    evaluations absorbed, the images' reductions, and the claims' fold."""
+    absorbed = K * 128 + circuits * CLAIM_BYTES["kishu"]
+    checked = 0 if hp == "poseidon" else circuits * CLAIM_BYTES["kishu"] / 8
+    mults = CLAIM_GATES * circuits
+    digits = absorb_digits(absorbed, hp, checked) + K * FOLD_GATES_PER_IMAGE + mults * E_MULT_DIGITS
+    piop = piop_sum(
+        (1, absorb_piop(absorbed, hp, checked)),
+        (K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
+        (mults, E_MULT_PIOP),
+    )
+    return digits, piop_word_mults(piop)
+
+
 # Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
 # handoff, whose rejection sampling runs over the accumulator's digits, one per committed bit
@@ -3098,7 +3132,7 @@ def kishu_costs(
     and its overheads in the merge above (the application's constraint PIOP itself is per
     application, DATA.piop). The fold is the expected rejection-sampling attempts, each a
     commitment of a mask of the accumulator's digits under the masked matrix and as many
-    Gaussian samples, plus the fold's own merge; `fold_leaf` masks one step's 2^rank digits
+    Gaussian samples, plus the handoff's merge; `fold_leaf` masks one step's 2^rank digits
     instead, for a bare leaf handed over without a fuse (LEAF_HANDOFF). `alpha` and `sample`
     stand in for the mask's Gaussian width and the sampler's cost, for the page's sweep of the
     two."""
@@ -3119,10 +3153,12 @@ def kishu_costs(
     per_step_digit = per_digit + bool_per_bit
     step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
     attempts = mask_attempts(alpha) if zk else 0
+    handoff_digits, handoff_piop = handoff_merge_digits(K, circuits, hp)
+    handoff = math.ceil(handoff_digits / 2**rank) * 2**rank * per_step_digit + handoff_piop
     parts = dict(
         sampling=attempts * accumulator * sample,
         masks=attempts * accumulator * masked_digit,
-        merge=commitments if zk else 0,
+        merge=handoff if zk else 0,
     )
     fields = dict(
         prover=round(commitments),
@@ -4099,8 +4135,8 @@ def define_figures():
     fig("qk_device_link_pipelined_s", sig(z_bytes / DEVICE_LINK_BYTES_PER_S["pipelined"]))
     claim(
         "qk_device_share_small",
-        "with the host proving the handoff, the wallet's online work for the device statement is under a twentieth of the handoff fold the measure charges the user",
-        device_online < qk_fold / 20,
+        "with the host proving the handoff, the wallet's online work for the device statement is under a tenth of the handoff fold the measure charges the user",
+        device_online < qk_fold / 10,
     )
 
     # For the hardware wallets page: the response's information-content floor (the leaf alone,
