@@ -3302,3 +3302,80 @@ would need a second matrix); the older list.
 
 STATE: main at this entry's commit; everything through 08d9937 was pushed by the user; the 5
 commits after it, this one included, are unpushed.
+
+## 2026-11-22 10:49 UTC: the Boolean step size, the accumulation matrix as the catalog has it, Ragu at ef7668fb
+
+A morning of design discussion with one commit of changes (15a137e); the rest is recorded here
+for the work to come.
+
+- **The Boolean step size.** The user: a fixed step of 2^22 AND gates fails to optimize the
+  step overhead. Why it is fixed: the 𝔽₂ family's and the binary-groups row's configurations
+  are their merge circuits (17 to 77M ANDs), and the step was priced afterwards as 2^22 ANDs at
+  the merge's per-bit rate. For the Ragu-architecture families the step and the merge's
+  circuits share one rank, so the rank is one parameter for both; for the Boolean families the
+  step's witness and the merge's witness are separate commitments, so their sizes are
+  independent (what the user was missing). Constraints on a Boolean step: a power of two of bits
+  (FRI-Binius's code), a power-of-two number of Flock blocks, the optimizer prices any size, and
+  the merge sees the step only through its proof (query count and tree height, logarithmic).
+  Plan: a per-row step log size swept 2^20 to 2^28 for the 𝔽₂ family and the binary groups,
+  priced by `f2_prover(bits, …)` at each size, labels carrying the step, the merge unchanged.
+  "Rank" stays Ragu's name (the trait's doc: the log of the coefficient vector's size; it is
+  not a matrix rank) and "Module-SIS rank" stays as is (the user). Ragu's `Reach.rank` in its
+  fuse randomizer is a third sense, a linear map's rank.
+- **Rows by family.** The 𝔽₂ family has none (hashing); the binary groups' research root
+  (branch specs binary-source-groups.md): a q24 profile, binary ring root of degree 648 at
+  module rank 3 (4 at the larger geometry), about 24-bit modulus, so 1,944 or 2,592 scalar rows,
+  ~47 kbits a column, certificate not issued; Kishu 567 scalar rows at q64 (the fold ledger's
+  bound, not the bits' own), ~1,355 masked.
+- **The accumulation matrix as Akita's catalog has it** (not yet in the model; the user asked
+  for rounding to whole ring rows, and this is what it uncovered). The shipped fp128 schedule's
+  root group: inner (A, accumulation) matrix rank 1 at ring degree 1,024, ℓ∞ route, coefficient
+  bound 27,380,416,308 ≈ 2^34.7, width 4,096 ring elements; outer matrix rank 1 at degree 64,
+  ℓ∞ bound 7; opening by subring coefficient packing, challenge subring dimension 64. The
+  re-plans (estimates/replan-*.tsv policy strings): L0 dA=512 sec=Linf, later levels dA=64. The
+  model prices the accumulation matrix as the Euclidean estimator's scalar rows (143/284/567)
+  as fractional ring rows at degree 64: rows/64 + 3 multiplications a digit. The catalog's shape
+  gives rank + log2(d)/2 = 5.5 (d 512) or 6 (d 1024) a digit for every modulus, against the
+  model's 5.2 Pasta / 7.4 fp128 / 11.9 q64: the 64-bit variants and Kishu are overpriced about
+  2×. The mask: a masked coordinate is ≤ 14σ ≈ 2^26.7, inside the shipped root's 2^34.7 bound,
+  so if the re-plans' bounds are similar the masked witness needs no extra rows and the rows
+  term, most of Kishu's zero-knowledge cost, vanishes. TO DO: re-price the accumulation matrix
+  from the catalog's (rank, degree) per variant, certify the masked bound with the ℓ∞
+  estimator (the re-plans' ranks and bounds still to read; the full schedules are in the 147
+  worktree's artifacts), round to whole ring rows; keep the Euclidean route in the note.
+- **Euclidean against ℓ∞** (explained to the user): same attack and cost model; a solution is
+  an ℓ2 ball against a box; the ℓ∞ estimator (fixed β and ζ, LGSA profile) takes the
+  probability that a reduced vector's coordinates all fall in the box; for digit witnesses the
+  box is the digit size where the ball carries √N, so the ℓ∞ route certifies far fewer rows.
+- **Ragu at ef7668fb** (tachyon-zcash/ragu origin/main, 271 commits past 8109a41c; the user
+  fetched and added a worktree of the checkout at it, beside it). Step 1 done (15a137e): the
+  note's §1.1 and open points 1 and 3 describe the fuse randomizers (two fold randomizers and a
+  batch mask a side, uniform, folded as claims of their own; rerandomization fuses twice with the
+  public bootstrap; the IPA unblinded by design; bootstrap linkability; hiding argued per value
+  with a rank test, unaudited by its book's own word); the page's Pedersen zk paragraph; the
+  Tachyon tree's last two nodes are the rerandomization fuses, each its own step
+  (OWN_LAST_STEPS, DATA.own_last_steps; `zoodles_nodes` drops two). The user's stance, written
+  into open point 1: the study does not adopt Ragu's argument; its route is §4.3's one-fold
+  statement under hiding commitments with a simulator, DL first. The user's two problems with
+  pricing by Ragu's approach: not known to be zk; it penalizes the pq schemes against
+  Pedersen-IPA, whose zk is priced free, which the catalog finding above may largely answer.
+  Facts gathered for steps 2 and 3: the new `values()` formulas (preamble per child HEADER + 1
+  + StepBindingLen + 39 wires + mesh claims + 2 × nested online polys + Present<Native,2>;
+  query: InternalCircuitIndex::num + 1 + 3 + 2 randomizers + 2 × (RxIndex::num + 4) + Present
+  <Nested,2> + PhaseCoordinatesLen<Nested,3>; eval: 2 × (RxIndex::num + 4) + 11 + online Fp
+  queries + 2 × (NUM_BINDERS − 1) + Present<Nested,2>; inner error: groups × error terms + 1;
+  outer error: N − 1 + N + 6 + sponge 5); the pinned circuits at the tests' header 195:
+  Hashes1 1,787, Hashes2 1,873, Collapse 1,603, ComputeV 1,981, BindChallenges 2,031 to 2,047
+  (four), BindBeta 1,888, BindEndoscalar 970, EndoscalingStep 2,004 (last 1,567); nested
+  EndoscalingStep 2,023 (last 712), Collapse 1,714, ComputeV 1,588, Loading 601; the sizes
+  come from `Proof::encoded_len()` and `CompressedProof::encoded_len::<R>()` (wire/format.rs),
+  and the user's branch encoded-len-probe has a probe test to rebase. Steps 2 to 4 remain:
+  stage counts at header 9 from a probe test in the worktree, the proof size and the fuse's
+  commitment count (96 + the six randomizers), then the fuse's time measured on mains.
+
+NEXT, in order: the catalog re-pricing of the accumulation matrix with the ℓ∞ check (it decides
+the page's main comparison); Ragu steps 2 to 4; the Boolean step-size knob; Zoodles' header
+size; the handoff step's padding.
+
+STATE: main at this entry's commit; everything through 46c1d8b was pushed by the user; the 2
+commits after it, this one included, are unpushed. Artifact version 210 (before 15a137e).
