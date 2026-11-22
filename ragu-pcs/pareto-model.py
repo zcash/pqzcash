@@ -1099,12 +1099,11 @@ ZOODLES_SUM_BITS = 64
 # is made outside the proof, so its message must bind the transaction's effecting data: each
 # spend's two epoch nullifiers, each output's commitment, the change commitment, the fee and
 # the epoch (ZOODLES_SIGHASH_BYTES). An output's padding tachygram need not be in it, since
-# the digest is never visible outside the step. The prover passes the digest in a PCD header,
-# each spend verifies its signature over it, and the fee step recomputes it from the
-# tachygrams as a witness, re-rooting them against its children's set products
-# (ZOODLES_SIGHASH_ROOTS more multiplications), which binds the digest to the tree. The
-# Merkle variant has no set polynomials: its headers carry the nullifiers and commitments,
-# which the fee step hashes directly.
+# the digest is never visible outside the step. The digest is a PCD header value: each spend
+# verifies its signature over it, and the fee step recomputes it from the nullifiers and
+# commitments that its children's headers carry, which a small transaction's headers hold
+# (the user's design, 2026-11-21). The Merkle variant's digest is the same over its one
+# nullifier a spend.
 ZOODLES_TACHYGRAM_BITS = 256
 ZOODLES_SIGHASH_BYTES = (
     (2 * ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
@@ -1112,7 +1111,6 @@ ZOODLES_SIGHASH_BYTES = (
     + math.ceil(ZOODLES_EPOCH_BITS / 8)
 )
 ZOODLES_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_SIGHASH_BYTES / BLAKE3_BLOCK)
-ZOODLES_SIGHASH_ROOTS = 2 * (ZOODLES_INPUTS + ZOODLES_OUTPUTS)
 ZOODLES_MERKLE_SIGHASH_BYTES = (
     (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
@@ -1172,8 +1170,7 @@ def zoodles_opening_cost(field, hp):
 def zoodles_node_cost(field, hp, node, auth):
     """One Zoodles node in the unit of `field`'s arithmetization: its BLAKE3 compressions, its
     roots and openings, its bits, and under the signature authorization the leanSPHINCS
-    verifier in a spend's action step and the transaction digest in the fee step, with the
-    tachygrams it hashes re-rooted against the children's set products."""
+    verifier in a spend's action step and the transaction digest in the fee step."""
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     verifier = 0
     if auth == "leansphincs":
@@ -1183,7 +1180,6 @@ def zoodles_node_cost(field, hp, node, auth):
             )
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
-            roots += ZOODLES_SIGHASH_ROOTS
     return (
         hash_app_cost(field, "blake3", blake3)
         + roots * zoodles_root_cost(field)
@@ -1201,7 +1197,6 @@ def zoodles_node_piop(node, auth):
             parts.append((LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
-            roots += ZOODLES_SIGHASH_ROOTS
     claim_bytes = CLAIM_BYTES["kishu"]
     return piop_sum(
         *parts,
@@ -4126,7 +4121,6 @@ def define_figures():
     fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
     fig("zoodles_sighash_bytes", fmt(ZOODLES_SIGHASH_BYTES))
-    fig("zoodles_sighash_roots", ZOODLES_SIGHASH_ROOTS)
     # The digest's hashing against one step at the rank the signature transaction favours.
     p_sig, _ = kishu_best("zoodles_leansphincs", zk=True)
     claim(
