@@ -1257,69 +1257,52 @@ def zoodles_merkle_piop(auth):
 
 
 # ---- Zoodles' lineage: one note advanced one epoch ------------------------------------------
-# The wallet's witness update, Tachyon's UnspentLift (stamp/proof/pool.rs): one step per epoch
-# of ZOODLES_EPOCH_BLOCKS blocks, which takes the epoch's bucket proof as its right input. A
-# bucket is one profile's share of the epoch's tachygrams, partitioned by the quadratic-residue
-# sides of x + R_j at successive discriminants down to at most 2^ZOODLES_BUCKET_LOG members,
-# Tachyon's online polynomial slot at the production rank, and built once per epoch for
-# everyone. The step tests the nullifier's profile against the bucket's, a squaring and a
-# selection at each of QrProfile::MAX_DEPTH positions; opens the bucket's contents at the
-# nullifier and enforces nonzero, a private point, so the merge above evaluates the point's
-# tensor too, two multiplications per variable; appends the member to the elapsed sequence by a
-# product identity at the challenge, two more openings and a root; range-checks the epoch; and
-# derives the epoch's nullifier, one compression. The bind, lift and fuse steps that close a
-# segment run once per spend, not per epoch, and are left out. The bucket's contents are the
-# builder's commitment, but the lattice and hash-based rows fold the whole witness element by
-# element, so the bucket's tachygrams enter the wallet's accumulator as committed elements of
-# the arithmetization and keep its rank there; the step prover's share of the figures then
-# counts committing them, which the builder did once (zoodles_epoch_commit_pct). Pedersen-IPA
-# folds the commitment with one scalar multiplication, so the Pasta unit carries the step's
-# gates alone, which understates Akita's Pasta-claims rows.
+# The wallet's witness update, the shape of Tachyon's UnspentLift (stamp/proof/pool.rs): one
+# step per epoch of ZOODLES_EPOCH_BLOCKS blocks, proving that the note's nullifier for the epoch
+# is not among the epoch's published tachygrams. Tachyon attests that with a bucket, one
+# residue profile's share of the epoch's tachygrams down to at most 2^ZOODLES_BUCKET_LOG members
+# (its online polynomial slot), folded as a set polynomial that the step opens at the
+# nullifier. Over Pedersen a commitment folds in one scalar multiplication; over digits the
+# bucket's tachygrams would enter the wallet's accumulator element by element
+# (ZOODLES_BUCKET_DIGITS, kept as the comparison), so Zoodles uses a sorted Merkle tree instead.
+# The builder sorts the epoch's tachygrams once for everyone and hashes consecutive pairs into
+# the leaves, so an exclusion proof is one leaf, the nullifier's two neighbours, with its path.
+# The step derives the epoch's nullifier (one BLAKE3 compression), hashes the leaf and proves
+# the path (ZOODLES_EPOCH_LOG + 1 hashes, under the page's policy as the Merkle variant's path
+# is), compares the nullifier with both neighbours (two 256-bit comparisons as bits) and
+# range-checks the epoch. The tree's size is the user's choice (2026-11-22): 2^ZOODLES_EPOCH_LOG
+# tachygrams an epoch, 256 a block at Tachyon's epoch, between the bucket's 2^13 and a busy
+# chain's 2^24; a doubling adds one hash to the step, and a shorter epoch adds steps a day. The
+# bind, lift and fuse steps that close a segment run once per spend, not per epoch, and are
+# left out.
 ZOODLES_BUCKET_LOG = 13
-# QrProfile::MAX_DEPTH (primitives/qr.rs); the circuit tests every position.
-ZOODLES_PROFILE_DEPTH = 32
+ZOODLES_BUCKET_DIGITS = 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS
 # Tachyon's EPOCH_SIZE, at the chain's 75-second target spacing.
 ZOODLES_EPOCH_BLOCKS = 4096
 ZOODLES_BLOCK_SECONDS = 75
-# A sorted tree over an epoch of 2^24 tachygrams, the exclusion proof's alternative.
-ZOODLES_EPOCH_TREE_HEIGHT = 24
-# Bits of one committed element where the unit is a field element; the bit arithmetizations
-# and Boolean circuits commit bits.
-FIELD_BITS = {"pasta": 255, "goldilocks": 64, "fp128": 128}
+ZOODLES_EPOCH_LOG = 20
 
 
-def zoodles_epoch_step_cost(field, hp):
-    """The unspent-lift step's own circuit in the unit of `field`'s arithmetization."""
-    private_point = 2 * ZOODLES_BUCKET_LOG * claim_mult_cost(field)
-    return (
-        hash_app_cost(field, "blake3", 1)
-        + ZOODLES_PROFILE_DEPTH * 2 * claim_mult_cost(field)
-        + 3 * zoodles_opening_cost(field, hp)
-        + private_point
-        + zoodles_root_cost(field)
-        + ZOODLES_EPOCH_BITS * BIT_GATE_OFF_PASTA
-    )
-
-
-def zoodles_bucket_units(field):
-    """The bucket's tachygrams as committed elements of `field`'s arithmetization; none in
-    the Pasta unit, where Pedersen-IPA folds the builder's commitment."""
-    if field == "pasta":
-        return 0
-    return 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS / FIELD_BITS.get(field, 1)
+def tree_path_cost(field, hp, levels):
+    """A Merkle path of `levels` levels and its leaf in the unit of `field`'s arithmetization,
+    hashed under policy `hp` where the field has a Poseidon and by BLAKE3 otherwise: the
+    32-level path's cost per hash, each level being one hash of two children."""
+    return path_cost(field, hp) * (levels + 1) / 33
 
 
 def zoodles_epoch_cost(field, hp):
-    return zoodles_epoch_step_cost(field, hp) + zoodles_bucket_units(field)
+    """The lineage step in the unit of `field`'s arithmetization."""
+    return (
+        hash_app_cost(field, "blake3", 1)
+        + tree_path_cost(field, hp, ZOODLES_EPOCH_LOG)
+        + (2 * ZOODLES_TACHYGRAM_BITS + ZOODLES_EPOCH_BITS) * BIT_GATE_OFF_PASTA
+    )
 
 
 def zoodles_epoch_piop():
-    claim_bytes = CLAIM_BYTES["kishu"]
     return piop_sum(
-        (1, BLAKE3_PIOP),
-        (ZOODLES_PROFILE_DEPTH * 2 + 3 * CLAIM_GATES + 2 * ZOODLES_BUCKET_LOG + 3, E_MULT_PIOP),
-        (3, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
-        (ZOODLES_EPOCH_BITS, BIT_CHECK_PIOP),
+        (ZOODLES_EPOCH_LOG + 2, BLAKE3_PIOP),
+        (2 * ZOODLES_TACHYGRAM_BITS + ZOODLES_EPOCH_BITS, BIT_CHECK_PIOP),
     )
 
 
@@ -4226,30 +4209,24 @@ def define_figures():
             and zoodles_plain[app] < tachyon4
             and zoodles_bitz_zk[app] < tachyon4_bitz_zk,
         )
-    # Zoodles' lineage step: the bucket and the step, the families' figures, the builder's
-    # commitment share, the spend at the lineage's rank, and the sorted-tree alternative.
-    bucket_digits = 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS
+    # Zoodles' lineage step: the tree's size and the step, the bucket it replaces, the
+    # families' figures, and the spend at the lineage's rank.
     fig("zoodles_bucket_coeffs", fmt(2**ZOODLES_BUCKET_LOG))
-    fig("zoodles_bucket_digits", millions(bucket_digits, 3))
-    fig("zoodles_profile_depth", ZOODLES_PROFILE_DEPTH)
+    fig("zoodles_bucket_digits", millions(ZOODLES_BUCKET_DIGITS, 3))
     fig("zoodles_epoch_blocks", fmt(ZOODLES_EPOCH_BLOCKS))
     fig("zoodles_epoch_days", sig(ZOODLES_EPOCH_BLOCKS * ZOODLES_BLOCK_SECONDS / 86400, 2))
-    fig(
-        "zoodles_epoch_step_kishu",
-        sig(zoodles_epoch_step_cost("bits_pasta_fingerprint", "blake3"), 3),
-    )
-    fig("app_zoodles_epoch_kishu", millions(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
+    fig("zoodles_epoch_tachygrams", fmt(2**ZOODLES_EPOCH_LOG))
+    fig("zoodles_epoch_per_block", fmt(2**ZOODLES_EPOCH_LOG // ZOODLES_EPOCH_BLOCKS))
+    fig("zoodles_epoch_hashes", ZOODLES_EPOCH_LOG + 2)
+    fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
     claim(
-        "zoodles_epoch_bucket_most",
-        "the bucket is over nine tenths of the lineage step's Kishu digits",
-        bucket_digits > 0.9 * APP["zoodles_epoch"]["bitz"]["blake3"],
+        "zoodles_tree_under_bucket",
+        "the sorted tree's lineage step is under a sixth of the bucket's digits in Kishu",
+        6 * APP["zoodles_epoch"]["bitz"]["blake3"] < ZOODLES_BUCKET_DIGITS,
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))
     fig("tx_zoodles_epoch_kishu_rank", p["rank"])
-    steps = tx_steps(p, "zoodles_epoch", p["hashes"])
-    bucket_share = zoodles_bucket_units(p["arith"]) / (steps * p["step_units"])
-    fig("zoodles_epoch_commit_pct", round(100 * steps * p["step_prover"] * bucket_share / w))
     lineage_rank = p["rank"]
     p, w = best_for("bitz", "zoodles_epoch")
     fig("tx_zoodles_epoch_bitz_s", secs(w))
@@ -4259,15 +4236,13 @@ def define_figures():
     fig("tx_zoodles_epoch_goldilocks_s", secs(w))
     p, w = best_for("pedersen", "zoodles_epoch", "poseidon")
     fig("tx_zoodles_epoch_pedersen_s", secs(w))
+    spend, spend_w = kishu_best("zoodles_preimage", zk=True)
     p, w = kishu_best("zoodles_preimage", zk=True, rank=lineage_rank)
     fig("tx_zoodles_preimage_kishu_zk_lineage_rank_s", secs(w))
-    fig("zoodles_epoch_tree_height", ZOODLES_EPOCH_TREE_HEIGHT)
-    sorted_digits = ZOODLES_EPOCH_TREE_HEIGHT * BLAKE3_BITS
-    fig("zoodles_sorted_tree_digits", sig(sorted_digits, 3))
     claim(
-        "zoodles_sorted_tree_cheaper",
-        "a sorted tree's exclusion proof over an epoch of 2^24 tachygrams is under a fifth of the bucket's digits",
-        5 * sorted_digits < bucket_digits,
+        "zoodles_lineage_rank_is_spends",
+        "the lineage step's best Kishu rank is the zero-knowledge spend's own, so the spend at the lineage's rank costs its least",
+        lineage_rank == spend["rank"] and w == spend_w,
     )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
