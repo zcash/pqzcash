@@ -143,7 +143,9 @@ def accumulator_bytes(variant, coefficients, digits=None):
 # elements. Merges above that layer pay the rank's rows term only.
 #
 # The masked bound follows the note's §5.3: the digit vector has N = 2^22 digits of size at most
-# 4, so ‖s‖₂ ≤ 2^13; a challenge of ℓ1 norm MASK_CHALLENGE_L1 gives ‖cs‖₂ ≤ that times 2^13; the
+# 4, so ‖s‖₂ ≤ 2^13 (the page's rows take their own N, the row's accumulator in digits, in place
+# of the note's MASK_LOG_N, which the note's figures keep); a challenge of ℓ1 norm
+# MASK_CHALLENGE_L1 gives ‖cs‖₂ ≤ that times 2^13; the
 # Gaussian mask has width σ = MASK_ALPHA · ‖cs‖₂, the accepted response ‖z‖₂ ≈ 2σ√N, and the
 # relaxed opening that extraction yields needs binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖₂, with ‖c − c'‖₁
 # at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
@@ -159,16 +161,19 @@ MASK_CHALLENGE_L1 = 20
 MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
 
 
-def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N):
+    """Log of the masked bound for a mask over 2^log_n digits: the note's N by default, a row's
+    own accumulator on the page (accumulator_coefficients in digits), since ‖z‖₂ grows as √N."""
     log_sigma = math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S
-    log_z = 1 + log_sigma + MASK_LOG_N / 2
+    log_z = 1 + log_sigma + log_n / 2
     return 1 + math.log2(2 * c_l1) + 1 + log_z
 
 
-def mask_rank(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+def mask_rank(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N):
     """The masked accumulation matrix's rows over the unmasked, the square of the bounds' log
-    ratio (the note's §5.2); each doubling of α adds one bit to the masked bound."""
-    return (masked_log_beta(alpha, c_l1) / MASK_UNMASKED_LOG_BETA) ** 2
+    ratio (the note's §5.2); each doubling of α adds one bit to the masked bound, and each
+    doubling of the masked vector half a bit."""
+    return (masked_log_beta(alpha, c_l1, log_n) / MASK_UNMASKED_LOG_BETA) ** 2
 
 
 def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
@@ -198,8 +203,8 @@ def peak_fuse_bytes(accumulator_bytes_, digits, table_element_bytes, zk):
     return 2 * accumulator_bytes_ + table + mask
 
 
-def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0, alpha=MASK_ALPHA):
-    rows = ROWS[variant] * (mask_rank(alpha) if zk else 1) * rank_scale
+def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0, alpha=MASK_ALPHA, log_n=MASK_LOG_N):
+    rows = ROWS[variant] * (mask_rank(alpha, log_n=log_n) if zk else 1) * rank_scale
     per_digit = (rows / RING_D + math.log2(RING_D) / 2) * WORD_MULTS[variant]
     return DIGITS[variant] * per_digit
 
@@ -259,9 +264,9 @@ MASK_SAMPLE_WORD_MULTS = round(MASK_SAMPLE_NS * 3)  # at 3 word multiplications 
 KARNEY_SAMPLE_WORD_MULTS = 900
 
 
-def mask_fold(variant, coefficients, rank_scale):
+def mask_fold(variant, coefficients, rank_scale, log_n):
     digits = DIGITS[variant] * coefficients
-    per_digit = ajtai_per_coefficient(variant, True, rank_scale) / DIGITS[variant]
+    per_digit = ajtai_per_coefficient(variant, True, rank_scale, log_n=log_n) / DIGITS[variant]
     return MASK_ATTEMPTS * digits * (per_digit + MASK_SAMPLE_WORD_MULTS)
 
 
@@ -1698,6 +1703,8 @@ for variant, hp in itertools.product(
                 opening = akita_bytes(variant, K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES[variant]
                 accumulator = accumulator_coefficients(variant, rank, circuits)
+                # The masked bound's N is this row's accumulator in digits.
+                log_n = math.log2(accumulator * DIGITS[variant])
                 # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                 # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
                 # commitment variant a decoupled commitment modulus.
@@ -1718,10 +1725,14 @@ for variant, hp in itertools.product(
                         zk=zk,
                         bytes=round(opening + instance),
                         prover=round(
-                            circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
+                            circuits
+                            * 2**rank
+                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
                         ),
                         accumulation_prover=round(
-                            circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
+                            circuits
+                            * 2**rank
+                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
                             + accumulation_sumchecks(variant, accumulator)
                         ),
                         memory=accumulator_bytes(variant, accumulator),
@@ -1733,16 +1744,22 @@ for variant, hp in itertools.product(
                                 zk,
                             )
                         ),
-                        step_prover=round(2**rank * ajtai_per_coefficient(variant, zk, rank_scale)),
+                        step_prover=round(
+                            2**rank * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
+                        ),
                         fold=round(
-                            mask_fold(variant, accumulator, rank_scale)
-                            + circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
+                            mask_fold(variant, accumulator, rank_scale, log_n)
+                            + circuits
+                            * 2**rank
+                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
                         )
                         if zk
                         else 0,
                         fold_leaf=round(
-                            mask_fold(variant, 2**rank, rank_scale)
-                            + circuits * 2**rank * ajtai_per_coefficient(variant, zk, rank_scale)
+                            mask_fold(variant, 2**rank, rank_scale, log_n)
+                            + circuits
+                            * 2**rank
+                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
                         )
                         if zk
                         else 0,
@@ -3090,13 +3107,18 @@ def kishu_costs(
         K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
     )
     rank_scale = RANK_SCALE[floor]["goldilocks"]
-    per_digit = ajtai_per_coefficient("pasta_q64", zk, rank_scale, alpha) / DIGITS["pasta_q64"]
-    masked_digit = ajtai_per_coefficient("pasta_q64", True, rank_scale, alpha) / DIGITS["pasta_q64"]
+    accumulator = accumulator_coefficients("kishu", rank, circuits)
+    log_n = math.log2(accumulator)  # the masked bound's N: this row's accumulator in bits
+    per_digit = (
+        ajtai_per_coefficient("pasta_q64", zk, rank_scale, alpha, log_n) / DIGITS["pasta_q64"]
+    )
+    masked_digit = (
+        ajtai_per_coefficient("pasta_q64", True, rank_scale, alpha, log_n) / DIGITS["pasta_q64"]
+    )
     commitments = circuits * 2**rank * (per_digit + bool_per_bit)
     per_step_digit = per_digit + bool_per_bit
     step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
     attempts = mask_attempts(alpha) if zk else 0
-    accumulator = accumulator_coefficients("kishu", rank, circuits)
     parts = dict(
         sampling=attempts * accumulator * sample,
         masks=attempts * accumulator * masked_digit,
@@ -4040,8 +4062,11 @@ def define_figures():
     sumcheck_rounds = math.ceil(math.log2(leaf + HIDING_PADDING_BITS))
     mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
     device_digits = leaf + HIDING_PADDING_BITS + mask_elements * Q64_DIGITS
+    # The leaf is committed at the masked rank of the device statement's own best row.
+    qk_row = kishu_best("qk", zk=True)[0]
+    qk_log_n = math.log2(accumulator_coefficients("kishu", qk_row["rank"], qk_row["circuits"]))
     masked_digit = (
-        ajtai_per_coefficient("pasta_q64", True, RANK_SCALE[128]["goldilocks"])
+        ajtai_per_coefficient("pasta_q64", True, RANK_SCALE[128]["goldilocks"], log_n=qk_log_n)
         / DIGITS["pasta_q64"]
     )
     device_online = (
@@ -4300,6 +4325,8 @@ def define_figures():
     fig("tx_recovery_kishu_zk_s", secs(w))
     fig("tx_recovery_kishu_zk_rank", p["rank"])
     _, parts = kishu_zk_costs(p)
+    # The masked bound's N at this row, for the per-digit rates the text quotes.
+    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
     fig("tx_recovery_kishu_zk_sampling_s", secs(parts["sampling"]))
     fig("mask_sample_ns", sig(MASK_SAMPLE_NS, 2))
     fig("mask_sample_rng_ns", sig(MASK_SAMPLE_RNG_NS, 2))
@@ -4330,7 +4357,9 @@ def define_figures():
     fig("kishu_digit_mults", sig(ajtai_per_coefficient("pasta_q64") / DIGITS["pasta_q64"], 3))
     fig(
         "kishu_digit_mults_masked",
-        sig(ajtai_per_coefficient("pasta_q64", True) / DIGITS["pasta_q64"], 3),
+        sig(
+            ajtai_per_coefficient("pasta_q64", True, log_n=recovery_log_n) / DIGITS["pasta_q64"], 3
+        ),
     )
     claim(
         "kishu_zk_steps_over_fold",
@@ -4368,13 +4397,14 @@ def define_figures():
     for a in MASK_ALPHAS:
         q, wa = kishu_zk_best("recovery", a)
         sweep[a] = wa
+        q_log_n = math.log2(accumulator_coefficients("kishu", q["rank"], q["circuits"]))
         fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
-        fig(f"mask_rank_factor_alpha{a}", sig(mask_rank(a), 3))
-        fig(f"mask_log_beta_alpha{a}", sig(masked_log_beta(a), 3))
+        fig(f"mask_rank_factor_alpha{a}", sig(mask_rank(a, log_n=q_log_n), 3))
+        fig(f"mask_log_beta_alpha{a}", sig(masked_log_beta(a, log_n=q_log_n), 3))
         fig(f"mask_length_alpha{a}", mask_length(a))
         fig(
             f"kishu_digit_mults_alpha{a}",
-            sig(ajtai_per_coefficient("pasta_q64", True, 1.0, a) / DIGITS["pasta_q64"], 3),
+            sig(ajtai_per_coefficient("pasta_q64", True, 1.0, a, q_log_n) / DIGITS["pasta_q64"], 3),
         )
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
         fig(f"tx_recovery_kishu_zk_alpha{a}_rank", q["rank"])
@@ -5520,6 +5550,20 @@ def define_figures():
     # The zero-knowledge mask's parameters (the zero-knowledge paragraph).
     fig("mask_length", MASK_LENGTH)
     fig("mask_rank", sig(MASK_RANK))
+    # The rank factor at each lattice row's own accumulator, its range over the rows shown.
+    factors = [
+        mask_rank(
+            log_n=math.log2(accumulator_coefficients(v, p["rank"], p["circuits"]) * DIGITS[v])
+        )
+        for v in DIGITS
+        for p in shown(v, "poseidon", zk=True)
+    ] + [
+        mask_rank(log_n=math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"])))
+        for f in KISHU
+        for p in shown(f, "poseidon", zk=True)
+    ]
+    fig("mask_rank_min", sig(min(factors)))
+    fig("mask_rank_max", sig(max(factors)))
     fig("mask_sumcheck_atoms", MASK_SUMCHECK_ATOMS)
     fig("mask_rank_weight32", sig((masked_log_beta(c_l1=32) / MASK_UNMASKED_LOG_BETA) ** 2))
     fig("mask_rank_alpha6", sig(mask_rank(6)))
