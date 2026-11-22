@@ -5839,21 +5839,38 @@ def write_book_files(page, data_json):
         r'<h\1 id="\2"><a class="header" href="#\2">\3</a></h\1>',
         body,
     )
-    # References to the zero-knowledge note's sections link to its chapter in the book; the
-    # standalone page shows them as text. The ids are the ones mdbook gives the note's headings.
-    note = pathlib.Path(__file__).with_name("zk-fiat-shamir-with-aborts.md").read_text()
+    # References to a note's sections link to its chapter in the book; the standalone page shows
+    # them as text. The ids are the ones mdbook gives the note's headings. The zero-knowledge
+    # note is the default; `data-note` names another, by its key in NOTE_CHAPTERS, whose values
+    # are the source file beside this one and the chapter's path from the page's directory.
+    NOTE_CHAPTERS = {
+        "zk": ("zk-fiat-shamir-with-aborts.md", "working-notes/zk-fiat-shamir-with-aborts.html"),
+        "hardware-wallets": ("hardware-wallets.md", "../hardware-wallets.html"),
+    }
     note_ids = {
-        m.group(1): mdbook_id(f"{m.group(1)} {m.group(2)}")
-        for m in re.finditer(r"^#{2,3} (\d+(?:\.\d+)?)\.? (.+)$", note, flags=re.M)
+        name: {
+            m.group(1): mdbook_id(f"{m.group(1)} {m.group(2)}")
+            for m in re.finditer(
+                r"^#{2,4} (\d+(?:\.\d+){0,2})\.? (.+)$",
+                pathlib.Path(__file__).with_name(source).read_text(),
+                flags=re.M,
+            )
+        }
+        for name, (source, _) in NOTE_CHAPTERS.items()
     }
 
     def note_link(m):
-        target = "working-notes/zk-fiat-shamir-with-aborts.html"
-        if m.group(1):
-            target += "#" + note_ids[m.group(1)]
-        return f'<a href="{target}">{m.group(2)}</a>'
+        name = m.group(1) or "zk"
+        target = NOTE_CHAPTERS[name][1]
+        if m.group(2):
+            target += "#" + note_ids[name][m.group(2)]
+        return f'<a href="{target}">{m.group(3)}</a>'
 
-    body = re.sub(r'<span class="noteref" data-section="([\d.]*)">(.*?)</span>', note_link, body)
+    body = re.sub(
+        r'<span class="noteref"(?: data-note="([a-z-]+)")? data-section="([\d.]*)">(.*?)</span>',
+        note_link,
+        body,
+    )
     lines = [ln for ln in body.split("\n") if ln.strip() and not ln.strip().startswith("<h1>")]
     html = (
         '<link rel="stylesheet" href="pareto.css">\n'

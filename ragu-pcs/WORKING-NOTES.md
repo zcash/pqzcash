@@ -3227,10 +3227,27 @@ NEXT, from the user's remarks:
   so re-price zoodles_epoch as the sorted Merkle-tree exclusion proof, two neighbours and their
   paths, with smaller epochs than 2^24 tachygrams (the user's intuition). The trade-off is steps
   per note against tree height.
-- The hardware-wallet material may become its own page later, not now.
+- The frontier page's hardware-wallet paragraphs belong in the hardware-wallets chapter, which
+  exists (the user, on being reminded of it).
 
 Still open: the §5.8 deferral as Kishu's zero-knowledge route; MASK_LOG_N = 22 is the note's N,
 so a per-row N would shave the rank factor for small accumulators; and the older list.
 
 STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the 15
 commits after it, this one included, are unpushed. Artifact version 208; the book builds.
+
+## 2026-11-22 00:26 UTC: the hardware-wallet paragraphs move to the chapter
+
+The frontier page's two hardware-wallet paragraphs (the device statement and the leanSPHINCS
+verifier in detail, the host proving the handoff, the device's share and the transfer) are in
+the hardware-wallets chapter, which already had nearly all of it (the user: the material should
+move there). The page keeps one paragraph: the two applications' costs in each arithmetization
+and a link to the chapter. The claims qk_merge_and_fold, qk_device_share_small and
+leansphincs_keccak_dearer sit in the chapter's sentences now, with the Boolean ratio and the
+zero-knowledge timings. The `noteref` span takes `data-note` (NOTE_CHAPTERS: zk,
+hardware-wallets), so the page links any note's chapter in the book and shows text standalone.
+In the chapter the QR-code section is §2.1.1 under the Kishu leaf, since it applies to that
+route alone, and the signature is §2.2 (the user).
+
+STATE: main at this entry's commit; everything through dde4643 was pushed by the user; the 17
+commits after it, this one included, are unpushed. Artifact version 209.
