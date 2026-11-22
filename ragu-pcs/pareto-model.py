@@ -929,10 +929,12 @@ def absorb_piop(bytes_, hp, checked_words=0):
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
 # `Stamp::prove`). A spend is a SpendBind and a SpendAction step, and an output an OutputBind
 # seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
-# FeeFuse and Ragu's rerandomization. So a transaction of s spends and o outputs is
-# 3s + 3o + 1 nodes. The page re-packs the tree for each rank's step size: a node larger
-# than a step takes whole steps and its remainder joins the rest, which fill steps first-fit
-# decreasing, and the rerandomization, the list's last node, is its own step. At rank 13 over
+# FeeFuse and Ragu's rerandomization, two fuses with the public bootstrap proof as the right
+# child in Ragu at ef7668fb (one in the older Ragu that Tachyon pins). So a transaction of s
+# spends and o outputs is 3s + 3o + 2 nodes. The page re-packs the tree for each rank's step
+# size: a node larger than a step takes whole steps and its remainder joins the rest, which
+# fill steps first-fit decreasing, and each rerandomization fuse, the list's last two nodes,
+# is its own step. At rank 13 over
 # Pasta no two action circuits share a step and the merge rides with the fee step; at rank 15
 # every circuit of two tachyactions fits one step. The circuits were measured on 2026-11-14
 # through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
@@ -988,7 +990,7 @@ def tachyon_nodes(spends, outputs):
         ["SpendBind", "SpendAction"] * spends
         + ["OutputBind", "OutputAction"] * outputs
         + ["ActionMerge"] * (spends + outputs - 1)
-        + ["FeeFuse", "Rerandomize"]
+        + ["FeeFuse", "Rerandomize", "Rerandomize"]
     )
 
 
@@ -1140,8 +1142,9 @@ ZOODLES_ROOT_MULTS = {"pasta": 1, "fp128": 3, "goldilocks": 9}
 
 
 def zoodles_nodes(spends, outputs):
-    """Tachyon's tree without the rerandomization; the fee step is the root and its own step."""
-    return tachyon_nodes(spends, outputs)[:-1]
+    """Tachyon's tree without the two rerandomization fuses; the fee step is the root and its
+    own step."""
+    return tachyon_nodes(spends, outputs)[:-2]
 
 
 def claim_mult_cost(field):
@@ -1415,8 +1418,9 @@ APPLICATION_MULTS = (
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
 )
 # The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
-# is re-packed into steps (DATA.own_last_step); Zoodles has no such node.
-OWN_LAST_STEP = {f"tachyon{n}" for n in TACHYON_TRANSACTIONS}
+# is re-packed into steps (DATA.own_last_steps), and how many such nodes end the list: two for
+# Ragu's two-pass rerandomization. Zoodles has no such node.
+OWN_LAST_STEPS = {f"tachyon{n}": 2 for n in TACHYON_TRANSACTIONS}
 # The applications whose user hands over a bare leaf without a fuse of their own, so that the
 # masking fold covers the leaf's 2^rank digits rather than a chain's accumulator, and the merge
 # that folds the leaf is the host's (DATA.leaf_handoff; the hardware-wallets chapter). Every
@@ -3700,14 +3704,15 @@ def tx_steps(p, app, policy, count=1):
     """The page's txStepsFor (pareto-template.html): the application's units in the row's
     arithmetization under the row's hash policy, or under the page's for a row priced under
     either, in as many steps as the row's step holds, rounded up; a proof tree is re-packed
-    first-fit decreasing, a Tachyon tree's last node, the rerandomization, as its own step."""
+    first-fit decreasing, a Tachyon tree's last nodes, the two rerandomization fuses, as steps
+    of their own."""
     units = APPLICATIONS[app][p["arith"]][policy if p["hashes"] == "any" else p["hashes"]]
     cap = p["step_units"]
     if not isinstance(units, list):
         return math.ceil(units * count / cap)
-    own_last = app in OWN_LAST_STEP
-    steps, items = (1, []) if own_last else (0, [])
-    for node in units[:-1] if own_last else units:
+    own = OWN_LAST_STEPS.get(app, 0)
+    steps, items = own, []
+    for node in units[:-own] if own else units:
         steps += node // cap
         if node % cap:
             items.append(node % cap)
@@ -4569,8 +4574,8 @@ def define_figures():
     rank15 = best_for("pedersen", "tachyon2", "poseidon", rank=15)[0]
     claim(
         "tachyon2_rank15_one_step",
-        "at rank 15 every circuit of two tachyactions fits one step",
-        tx_steps(rank15, "tachyon2", "poseidon") == 2,
+        "at rank 15 every circuit of two tachyactions fits one step beside the two rerandomization fuses",
+        tx_steps(rank15, "tachyon2", "poseidon") == 3,
     )
     w = tx_work(checked_in, "tachyon2", "poseidon")
     tx_checks.append(
@@ -5739,7 +5744,7 @@ data = dict(
     applications=APPLICATIONS,
     piop=PIOP_WORK,
     has_mults=APPLICATION_MULTS,
-    own_last_step=sorted(OWN_LAST_STEP),
+    own_last_steps=OWN_LAST_STEPS,
     leaf_handoff=sorted(LEAF_HANDOFF),
     change_level=CHANGE_LEVEL,
     tachyon_header=TACHYON_HEADER,
