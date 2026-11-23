@@ -6276,7 +6276,7 @@ def write_book_files(page, data_json):
     # note is the default; `data-note` names another, by its key in NOTE_CHAPTERS, whose values
     # are the source file beside this one and the chapter's path from the page's directory.
     NOTE_CHAPTERS = {
-        "zk": ("zk-fiat-shamir-with-aborts.md", "working-notes/zk-fiat-shamir-with-aborts.html"),
+        "zk": ("zk-fiat-shamir-with-aborts.md", "kishu/zk-fiat-shamir-with-aborts.html"),
         "hardware-wallets": ("hardware-wallets.md", "../hardware-wallets.html"),
     }
     note_ids = {
