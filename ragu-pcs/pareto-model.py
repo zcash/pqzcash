@@ -28,6 +28,10 @@ import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, 
 import frib_optimizer as frib
 
 HERE = pathlib.Path(__file__).resolve().parent
+# The page's default security floor, in quantum bits under the ADPS16 core-SVP model (the
+# user, 2026-11-23); FLOORS below lists both. Pedersen-IPA and the binary-groups row exist at
+# the 128-bit floor alone, so their figures name it.
+DEFAULT_FLOOR = 147
 _model = {}
 exec((HERE / "ragu-size-model.py").read_text().split("CHECKED_IN = ")[0], _model)
 size, fixed_counts = _model["size"], _model["fixed_counts"]
@@ -312,7 +316,7 @@ def peak_fuse_bytes(accumulator_bytes_, digits, table_element_bytes, zk, mask_bi
 
 
 def ajtai_per_coefficient(
-    variant, zk=False, floor=128, alpha=MASK_ALPHA, log_n=MASK_LOG_N, digit_max=4
+    variant, zk=False, floor=DEFAULT_FLOOR, alpha=MASK_ALPHA, log_n=MASK_LOG_N, digit_max=4
 ):
     """Word multiplications to commit one coefficient's digits under the accumulation matrix
     that the floor's ℓ∞ table certifies for a vector of 2^log_n digits at the bound in force:
@@ -615,7 +619,7 @@ LABEL = {
 AKITA_MIN_LOG_LEN = 14
 
 
-def akita_bytes(variant, K, log_len, floor=128):
+def akita_bytes(variant, K, log_len, floor=DEFAULT_FLOOR):
     """Opening bytes with K extra committed groups and a batched witness of 2^log_len
     coefficients, from the planner's rows at 2^14 and the per-doubling slope, at the floor's
     plan, and at 2^14 below it."""
@@ -1816,6 +1820,12 @@ WIDTH_SHRINK_147 = {
     },
 }
 FLOORS = (128, 147)
+assert DEFAULT_FLOOR in FLOORS
+# Core-SVP's exponents per BKZ block size under each cost model, and the block size at each
+# floor: the catalog's own check reports 128.26 bits at block 484 (its instances land at 484 to
+# 486), and its rank-one compression maps certify at 147.3 bits, block 556 (the margin section).
+CORE_SVP_EXPONENTS = {"classical": 0.292, "quantum": 0.265, "paranoid": 0.2075}
+BLOCK_SIZES = {128: 484, 147: 556}
 # The share of the opening, and of the verifier's work, that scales with the commitment rank:
 # the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
 # 2^14 geometry (seven blocks of rank 3 over ring dimension 64; pasta-proof-size.md §6.1). The
@@ -2116,11 +2126,11 @@ ARC_ATOMS = 40  # the accumulators' roots and claims, absorbed per merge
 BLAKE3_NATIVE = 200  # word multiplications per compression natively, about 70 ns at 3e9
 
 
-def arc_openings(rate, floor=128, grind=GRIND_DEFAULT):
+def arc_openings(rate, floor=DEFAULT_FLOOR, grind=GRIND_DEFAULT):
     return math.ceil(2 * (floor - grind) / math.log2(int(rate.split("/")[1])))
 
 
-def arc_merge_gates(variant, rate, log_len, floor=128, grind=GRIND_DEFAULT, hp="blake3"):
+def arc_merge_gates(variant, rate, log_len, floor=DEFAULT_FLOOR, grind=GRIND_DEFAULT, hp="blake3"):
     v = hv(variant, hp)
     inv = int(rate.split("/")[1])
     depth = (
@@ -2131,7 +2141,7 @@ def arc_merge_gates(variant, rate, log_len, floor=128, grind=GRIND_DEFAULT, hp="
     return hashes * v["gates"] + 2 * t * 16 + 2000
 
 
-def arc_circuits(variant, rate, rank, floor=128, grind=GRIND_DEFAULT, hp="blake3"):
+def arc_circuits(variant, rate, rank, floor=DEFAULT_FLOOR, grind=GRIND_DEFAULT, hp="blake3"):
     circuits = 1
     for _ in range(30):
         new = math.ceil(
@@ -3904,7 +3914,7 @@ def tx_work(p, app, policy, count=1):
     )
 
 
-def shown(family, policy="blake3", zk=False, floor=128, **where):
+def shown(family, policy="blake3", zk=False, floor=DEFAULT_FLOOR, **where):
     """A family's rows as the page shows them under a hash policy (the arithmetic-hash option
     adds the Poseidon-priced rows to the BLAKE3 ones), a zero-knowledge setting and a floor,
     with the grinding chosen per row; `where` pins further fields."""
@@ -4263,15 +4273,19 @@ def define_figures():
     # constants' comment): its digits, its online and idle work, the response's size, and the
     # times on the assumed devices and link.
     leaf = APP["qk"]["bitz"]["blake3"]
-    # The chapter's figures are at the page's default floor; the 147-bit padding is quoted.
-    padding = HIDING_PADDING_BITS[128]
+    # The chapter's figures are at the page's default floor; the other floor's padding is quoted.
+    padding = HIDING_PADDING_BITS[DEFAULT_FLOOR]
     sumcheck_rounds = math.ceil(math.log2(leaf + padding))
     mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
     device_digits = leaf + padding + mask_elements * Q64_DIGITS
     # The leaf is committed under the masked matrix for the device's own vector.
     masked_digit = (
         ajtai_per_coefficient(
-            "pasta_q64", True, 128, log_n=math.log2(device_digits), digit_max=DIGIT_MAX["kishu"]
+            "pasta_q64",
+            True,
+            DEFAULT_FLOOR,
+            log_n=math.log2(device_digits),
+            digit_max=DIGIT_MAX["kishu"],
         )
         / DIGITS["pasta_q64"]
     )
@@ -4288,7 +4302,7 @@ def define_figures():
     z_bytes = device_digits * z_bits / 8
     fig("qk_sumcheck_mask_elements", mask_elements)
     fig("hiding_padding_bits", fmt(padding))
-    fig("hiding_padding_bits_147", fmt(HIDING_PADDING_BITS[147]))
+    fig("hiding_padding_bits_128", fmt(HIDING_PADDING_BITS[128]))
     # The device's masked matrix at each floor's padding, and the note's leftover-hash padding
     # at its rows.
     device_rows = {}
@@ -4301,10 +4315,10 @@ def define_figures():
             math.log2(digits),
         )
         device_rows[floor] = device_rank * device_degree
-    statistical_padding = device_rows[128] * 64 + 256
-    fig("qk_device_matrix_rows", fmt(device_rows[128]))
+    statistical_padding = device_rows[DEFAULT_FLOOR] * 64 + 256
+    fig("qk_device_matrix_rows", fmt(device_rows[DEFAULT_FLOOR]))
     fig("hiding_padding_attack_bits", round(HIDING_PADDING_SWEEP[padding]))
-    fig("hiding_padding_attack_bits_147", round(HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[147]]))
+    fig("hiding_padding_attack_bits_128", round(HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[128]]))
     fig("hiding_padding_attack_bits_1385", round(HIDING_PADDING_ATTACK_BITS[1385]))
     claim(
         "hiding_padding_secure",
@@ -4418,7 +4432,7 @@ def define_figures():
         fig(f"tx_{app}_kishu_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
-        p, w = best_for("bits_akita", app)
+        p, w = best_for("bits_akita", app, floor=128)
         fig(f"tx_{app}_bits_akita_s", secs(w))
         fig(f"tx_{app}_flock_s", secs(zoodles_flock[app]))
         p, w = best_for("goldilocks", app, "poseidon")
@@ -4442,9 +4456,9 @@ def define_figures():
     p, tachyon4_flock = best_for("flock", "tachyon4")
     fig("tx_tachyon4_flock_s", secs(tachyon4_flock))
     fig("tachyon4_over_zoodles_flock", sig(tachyon4_flock / zoodles_flock["zoodles_preimage"], 2))
-    p, w = best_for("pedersen", "tachyon4", "poseidon")
+    p, w = best_for("pedersen", "tachyon4", "poseidon", floor=128)
     fig("tx_tachyon4_pedersen_s", secs(w))
-    p, w = best_for("pedersen", "zoodles_merkle_preimage", "poseidon")
+    p, w = best_for("pedersen", "zoodles_merkle_preimage", "poseidon", floor=128)
     fig("tx_zoodles_merkle_pedersen_s", secs(w))
     fig(
         "zoodles_preimage_of_tachyon_pct",
@@ -4490,7 +4504,7 @@ def define_figures():
     fig("tx_zoodles_epoch_flock_s", secs(w))
     p, w = best_for("goldilocks", "zoodles_epoch", "poseidon")
     fig("tx_zoodles_epoch_goldilocks_s", secs(w))
-    p, w = best_for("pedersen", "zoodles_epoch", "poseidon")
+    p, w = best_for("pedersen", "zoodles_epoch", "poseidon", floor=128)
     fig("tx_zoodles_epoch_pedersen_s", secs(w))
     spend, spend_w = kishu_best("zoodles_preimage", zk=True)
     p, w = kishu_best("zoodles_preimage", zk=True, rank=lineage_rank)
@@ -4511,7 +4525,7 @@ def define_figures():
 
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
-    checked_in = pick("pedersen", rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
+    checked_in = pick("pedersen", floor=128, rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
     p, w = kishu_best("recovery")
     fig("tx_recovery_kishu_route", p["route"])
     fig("tx_recovery_kishu_s", secs(w))
@@ -4553,7 +4567,7 @@ def define_figures():
             transaction=w,
         )
     )
-    p, w = best_for("pedersen", "recovery", "poseidon")
+    p, w = best_for("pedersen", "recovery", "poseidon", floor=128)
     fig("tx_recovery_pedersen_best_minutes", minutes(w))
     fig("tx_recovery_pedersen_best_rank", p["rank"])
     fig("tx_recovery_pedersen_best_E", p["E"])
@@ -4596,7 +4610,7 @@ def define_figures():
         "kishu_digit_mults",
         sig(
             ajtai_per_coefficient(
-                "pasta_q64", False, 128, log_n=recovery_log_n, digit_max=kishu_bits
+                "pasta_q64", False, DEFAULT_FLOOR, log_n=recovery_log_n, digit_max=kishu_bits
             )
             / DIGITS["pasta_q64"],
             3,
@@ -4606,7 +4620,7 @@ def define_figures():
         "kishu_digit_mults_masked",
         sig(
             ajtai_per_coefficient(
-                "pasta_q64", True, 128, log_n=recovery_log_n, digit_max=kishu_bits
+                "pasta_q64", True, DEFAULT_FLOOR, log_n=recovery_log_n, digit_max=kishu_bits
             )
             / DIGITS["pasta_q64"],
             3,
@@ -4651,14 +4665,14 @@ def define_figures():
         fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
         log_beta = masked_log_beta_inf(a, log_n=q_log_n, digit_max=kishu_bits)
         fig(f"mask_log_beta_alpha{a}", sig(log_beta, 3))
-        _, m_rank, m_degree, _ = accumulation_matrix("pasta_q64", 128, log_beta, q_log_n)
+        _, m_rank, m_degree, _ = accumulation_matrix("pasta_q64", DEFAULT_FLOOR, log_beta, q_log_n)
         fig(f"mask_matrix_alpha{a}", f"{m_rank} × {fmt(m_degree)}")
         fig(f"mask_bits_alpha{a}", mask_coordinate_bits(a, log_n=q_log_n, digit_max=kishu_bits))
         fig(f"mask_length_alpha{a}", mask_length(a, log_n=q_log_n, digit_max=kishu_bits))
         fig(
             f"kishu_digit_mults_alpha{a}",
             sig(
-                ajtai_per_coefficient("pasta_q64", True, 128, a, q_log_n, kishu_bits)
+                ajtai_per_coefficient("pasta_q64", True, DEFAULT_FLOOR, a, q_log_n, kishu_bits)
                 / DIGITS["pasta_q64"],
                 3,
             ),
@@ -4795,7 +4809,7 @@ def define_figures():
         tx_steps(checked_in, "tachyon2", "poseidon")
         == len(tachyon_nodes(*TACHYON_TRANSACTIONS[2])) - 1,
     )
-    rank15 = best_for("pedersen", "tachyon2", "poseidon", rank=15)[0]
+    rank15 = best_for("pedersen", "tachyon2", "poseidon", rank=15, floor=128)[0]
     claim(
         "tachyon2_rank15_one_step",
         "at rank 15 every circuit of two tachyactions fits one step beside the two rerandomization fuses",
@@ -4821,7 +4835,7 @@ def define_figures():
             3,
         ),
     )
-    p, w = best_for("pedersen", "tachyon2", "poseidon", rank=15)
+    p, w = best_for("pedersen", "tachyon2", "poseidon", rank=15, floor=128)
     fig("tx_tachyon2_pedersen15_s", secs(w))
     fig("tx_tachyon2_pedersen15_E", p["E"])
     fig("tx_tachyon2_pedersen15_steps", tx_steps(p, "tachyon2", "poseidon"))
@@ -4866,7 +4880,7 @@ def define_figures():
     )
     fig("tx_tachyon16_pedersen_s", secs(w))
     fig("tx_tachyon16_pedersen_steps", tx_steps(checked_in, "tachyon16", "poseidon"))
-    p, w = best_for("pedersen", "tachyon16", "poseidon", rank=15)
+    p, w = best_for("pedersen", "tachyon16", "poseidon", rank=15, floor=128)
     fig("tx_tachyon16_pedersen15_s", secs(w))
     fig("tx_tachyon16_pedersen15_steps", tx_steps(p, "tachyon16", "poseidon"))
     fig(
@@ -4894,10 +4908,13 @@ def define_figures():
     # The decider's ranges by family group (the axes list), in milliseconds over the rows shown
     # under either hash policy at the default floor.
     def decider_ms(families, hashes=None):
+        """Pedersen-IPA and the binary groups are shown at the 128-bit floor alone."""
         return sorted(
             p["verify"] / WORD_MULTS_PER_MS
             for f in families
-            for p in shown(f, "poseidon")
+            for p in shown(
+                f, "poseidon", floor=128 if f in ("pedersen", "bits_akita") else DEFAULT_FLOOR
+            )
             if hashes is None or p["hashes"] == hashes
         )
 
@@ -4949,11 +4966,11 @@ def define_figures():
     )
     fig(
         "memory_pedersen_rank13",
-        mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["memory"]),
+        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["memory"]),
     )
     fig(
         "memory_pedersen_rank13_3",
-        mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["memory"], 3),
+        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["memory"], 3),
     )
 
     # Peak fuse memory (the axes list): Kishu at rank 21 with and without zero knowledge, Akita
@@ -4964,7 +4981,7 @@ def define_figures():
     fig("peak_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["peak_memory"], 3))
     fig(
         "peak_pedersen_rank13",
-        mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["peak_memory"]),
+        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["peak_memory"]),
     )
     fig("packed_digit_bits", PACKED_DIGIT_BITS - 1)
 
@@ -5005,7 +5022,7 @@ def define_figures():
 
     # Pedersen-IPA's checked-in configuration and the smallest proofs that fit (the Proof bytes
     # item, the Rank paragraph, and pasta-proof-size.md's budget paragraphs).
-    ch = pick("pedersen", rank=13, E=4, binders=4, packing=False)
+    ch = pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)
     fig("pedersen_checked_in_bytes", fmt(ch["bytes"] + 4 * HEADER_ELEMENT_BYTES))
     fig("pedersen_checked_in_wire_bytes", fmt(ch["bytes"] + 4 * HEADER_ELEMENT_BYTES + 28))
     fig("pedersen_checked_in_h2_bytes", fmt(ch["bytes"] + 2 * HEADER_ELEMENT_BYTES))
@@ -5013,10 +5030,14 @@ def define_figures():
     claim(
         "rank14_adds_128_bytes",
         "rank 14 adds 128 bytes to the checked-in proof",
-        pick("pedersen", rank=14, E=4, binders=4, packing=False)["bytes"] - ch["bytes"] == 128,
+        pick("pedersen", floor=128, rank=14, E=4, binders=4, packing=False)["bytes"] - ch["bytes"]
+        == 128,
     )
     least = {
-        r: min(shown("pedersen", "poseidon", rank=r), key=lambda p: (p["bytes"], p["prover"]))
+        r: min(
+            shown("pedersen", "poseidon", rank=r, floor=128),
+            key=lambda p: (p["bytes"], p["prover"]),
+        )
         for r in (14, 15, 16)
     }
     # The note compares these with the checked-in proof at a two-element header.
@@ -5040,7 +5061,7 @@ def define_figures():
             p["bytes"] < ch["bytes"]
             and p["prover"] < ch["prover"]
             and p["accumulation"] < ch["accumulation"]
-            for p in shown("pedersen", "poseidon", rank=14, packing=True)
+            for p in shown("pedersen", "poseidon", rank=14, packing=True, floor=128)
         ),
     )
     claim(
@@ -5063,7 +5084,7 @@ def define_figures():
     claim(
         "rank12_rows",
         "rank 12 has no Pedersen-IPA rows and no Akita rows under BLAKE3",
-        not shown("pedersen", "poseidon", rank=12)
+        not shown("pedersen", "poseidon", rank=12, floor=128)
         and not any(shown(v, rank=12, hashes="blake3") for v in DIGITS),
     )
     fig("bitz_max_rank", BITZ_RANKS[-1])
@@ -5113,12 +5134,12 @@ def define_figures():
         fig(f"{v}_16_blake3_prover", sci(a16[(v, "blake3")]["prover"]))
         fig(f"{v}_16_poseidon_prover", sci(a16[(v, "poseidon")]["prover"]))
     ratio = {v: a16[(v, "blake3")]["prover"] / a16[(v, "poseidon")]["prover"] for v in VARIANTS}
-    for v in ("fp128", "pasta", "pasta_q64"):
+    for v in ("fp128", "goldilocks", "pasta", "pasta_q64"):
         fig(f"{v}_16_prover_ratio", sig(ratio[v]))
     claim(
         "blake3_prover_ratios",
-        "the 128-bit field and Goldilocks have the same BLAKE3-to-Poseidon merge prover ratio, as do the two Pasta-modulus variants; the 64-bit-commitment variant's is higher, since its wider BLAKE3 accumulator takes the matrix to degree 1,024",
-        sig(ratio["goldilocks"]) == sig(ratio["fp128"])
+        "the two Pasta-modulus variants have the same BLAKE3-to-Poseidon merge prover ratio; Goldilocks's is above the 128-bit field's and the 64-bit-commitment variant's above the Pasta-modulus ones', since at the 64-bit modulus the wider BLAKE3 accumulator takes the matrix to degree 1,024",
+        ratio["goldilocks"] > 1.05 * ratio["fp128"]
         and sig(ratio["pasta_sis"]) == sig(ratio["pasta"])
         and ratio["pasta_q64"] > 1.05 * ratio["pasta"],
     )
@@ -5196,6 +5217,16 @@ def define_figures():
         all(d >= 512 for s in WIDTH_SHRINK_147.values() for d, (m, _) in s.items() if m >= 30),
     )
     fig("rank_instances", RANK_INSTANCES)
+    # The cost models' bits at each floor's block size (the cost-model table).
+    for floor in FLOORS:
+        fig(f"block_{floor}", BLOCK_SIZES[floor])
+        for model, exponent in CORE_SVP_EXPONENTS.items():
+            fig(f"bits_{model}_{floor}", round(exponent * BLOCK_SIZES[floor]))
+    claim(
+        "floors_block_sizes",
+        "each floor's block size gives the floor's bits under quantum sieving",
+        all(round(CORE_SVP_EXPONENTS["quantum"] * BLOCK_SIZES[f]) == f for f in FLOORS),
+    )
     for m, (low, high, moves) in RANK_SUMS_147.items():
         fig(f"rank_sum_{m}_128", low)
         fig(f"rank_sum_{m}_147", high)
@@ -5247,6 +5278,8 @@ def define_figures():
         0.5 < rec8["bytes"] / whir8["bytes"] < 0.62,
     )
     fig("arc_openings_1_8", round(arc_openings("1/8", 128, 0)))
+    # The frontier page's own ARC comparisons run at its default floor.
+    fig("arc_openings_1_8_default", round(arc_openings("1/8", DEFAULT_FLOOR, 0)))
     for rate in ("1/2", "1/4"):
         fig(f"arc_openings_{rate.replace('/', '_')}", round(arc_openings(rate, 128, 0)))
     claim(
@@ -5406,7 +5439,7 @@ def define_figures():
     f8 = f192["1/8"]
     fig("f2_gates_min", mil(min(p["gates"] for p in f192.values())))
     fig("f2_gates_max", mil(max(p["gates"] for p in f192.values())))
-    hashes_8, ands_8 = f2_merge("1/8", 128, GRIND_DEFAULT, 128)
+    hashes_8, ands_8 = f2_merge("1/8", DEFAULT_FLOOR, GRIND_DEFAULT, 128)
     f2_piop_mults = f2_piop_verifier_mults(math.log2(ands_8))
     f2_piop_ands = 2 * f2_piop_mults * CLMUL_ANDS[128]
     fig("f2_piop_mults", fmt(round(f2_piop_mults, -1)))
@@ -5417,10 +5450,10 @@ def define_figures():
         "the F2 family's PIOP verifiers are under a fifth of its merge at every rate",
         all(
             2 * f2_piop_verifier_mults(math.log2(a)) * CLMUL_ANDS[128] < a / 5
-            for a in (f2_merge(r, 128, GRIND_DEFAULT, 128)[1] for r in RATES)
+            for a in (f2_merge(r, DEFAULT_FLOOR, GRIND_DEFAULT, 128)[1] for r in RATES)
         ),
     )
-    bitz17 = bitz_point("arc", "1/8", 17, 128)
+    bitz17 = bitz_point("arc", "1/8", 17, DEFAULT_FLOOR)
     bitz_bits = 2**17 + bitz17["gates"]
     bitz_piop_mults = bitz_piop_verifier_mults(math.log2(bitz_bits))
     bitz_piop_bits = 2 * bitz_piop_mults * BITZ_FIELD_BITS
@@ -5596,7 +5629,7 @@ def define_figures():
     b13z = pick("bitz", rank=13, rate="1/8", zk=True)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"]))
     fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))
-    ba = pick("bits_akita")
+    ba = pick("bits_akita", floor=128)
     fig("bits_akita_decider_ms", sig(ba["verify"] / WORD_MULTS_PER_MS, 3))
     fig("bits_akita_gates", millions(ba["gates"]))
     fig("bits_akita_kb", kb(ba["bytes"]))
