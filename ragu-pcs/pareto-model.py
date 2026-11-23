@@ -954,6 +954,31 @@ KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
 # hardware-wallet benchmark, for the grinding's time there.
 LEANSPHINCS_VERIFY = {"keccak": 262, "blake2s": 298}
 LEANSPHINCS_SIG_BYTES = 4276
+# CAPSS (ePrint 2025/061), typed from its Tables 2, 3, and 6, over a 256-bit field at 128 bits
+# unless said: signature bytes and the verifier's R1CS constraints of the instances the CAPSS
+# page quotes, the permutation calls of verifying and signing (Anemoi-3 and Poseidon-3 at the
+# default trade-off, the latter summed over its three widths), the Goldilocks instance's
+# figures, the paper's estimate for a 64-bit field, and the factor it implies. The page's Kishu
+# estimates take the Poseidon call counts at Q64_POSEIDON_MULTS a permutation and Q64_DIGITS a
+# wire.
+CAPSS_BYTES = {
+    "anemoi3_short": 9504,
+    "anemoi3_default": 12640,
+    "poseidon3_default": 19616,
+    "poseidon5_fast": 25824,
+}
+CAPSS_R1CS = {
+    "griffin3_short": 20717,
+    "anemoi3_default": 23484,
+    "poseidon3_default": 46567,
+    "poseidon5_fast": 71145,
+}
+CAPSS_ANEMOI_CALLS = {"verify": 173, "sign": 13902}
+CAPSS_POSEIDON_CALLS = {"verify": 85 + 10 + 48, "sign": 1936 + 286 + 7790}
+CAPSS_GOLDILOCKS = {"bytes": 9715, "sign_ms": 101, "verify_ms": 1.4}
+CAPSS_GOLDILOCKS_R1CS = (80_000, 100_000)
+CAPSS_BN254_SIGN_MS = 2460
+CAPSS_FIELD_FACTOR = 4
 LEANSPHINCS_GRIND = 2 ** (26 - 12)
 LEANSPHINCS_LIFETIME = 126_900
 LEANSPHINCS_LAYERED_VERIFY = {"keccak": 408, "blake2s": 462}
@@ -4278,6 +4303,38 @@ def define_figures():
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
     fig("leansphincs_sig_bytes", fmt(LEANSPHINCS_SIG_BYTES))
     fig("leansphincs_ethereum_perms", LEANSPHINCS_ETHEREUM_PERMS)
+    # The CAPSS page: the paper's figures, and the Kishu estimates at the model's rates.
+    fig("capss_short_bytes_min", fmt(min(CAPSS_BYTES.values())))
+    fig("capss_fast_bytes_max", fmt(max(CAPSS_BYTES.values())))
+    fig("capss_r1cs_min", fmt(min(CAPSS_R1CS.values())))
+    fig("capss_r1cs_max", fmt(max(CAPSS_R1CS.values())))
+    fig("capss_anemoi_default_bytes", fmt(CAPSS_BYTES["anemoi3_default"]))
+    fig("capss_anemoi_default_r1cs", fmt(CAPSS_R1CS["anemoi3_default"]))
+    fig("capss_poseidon_default_bytes", fmt(CAPSS_BYTES["poseidon3_default"]))
+    fig("capss_poseidon_default_r1cs", fmt(CAPSS_R1CS["poseidon3_default"]))
+    fig("capss_verify_calls", CAPSS_ANEMOI_CALLS["verify"])
+    fig("capss_sign_calls", sig(CAPSS_ANEMOI_CALLS["sign"], 3))
+    fig("capss_poseidon_verify_calls", CAPSS_POSEIDON_CALLS["verify"])
+    fig("capss_poseidon_sign_calls", sig(CAPSS_POSEIDON_CALLS["sign"], 2))
+    fig("capss_goldilocks_bytes", fmt(CAPSS_GOLDILOCKS["bytes"]))
+    fig("capss_goldilocks_sign_ms", CAPSS_GOLDILOCKS["sign_ms"])
+    fig("capss_goldilocks_verify_ms", CAPSS_GOLDILOCKS["verify_ms"])
+    fig("capss_goldilocks_r1cs_min", fmt(CAPSS_GOLDILOCKS_R1CS[0]))
+    fig("capss_goldilocks_r1cs_max", fmt(CAPSS_GOLDILOCKS_R1CS[1]))
+    fig("capss_bn254_sign_ms", fmt(CAPSS_BN254_SIGN_MS))
+    fig("capss_field_factor", CAPSS_FIELD_FACTOR)
+    fig("capss_kishu_digits_est", millions(CAPSS_GOLDILOCKS_R1CS[1] * Q64_DIGITS, 2))
+    capss_verify_64 = CAPSS_POSEIDON_CALLS["verify"] * CAPSS_FIELD_FACTOR
+    fig(
+        "capss_kishu_poseidon_digits_est",
+        millions(capss_verify_64 * Q64_POSEIDON_MULTS * Q64_DIGITS, 3),
+    )
+    capss_sign_64 = CAPSS_POSEIDON_CALLS["sign"] * CAPSS_FIELD_FACTOR
+    fig("capss_kishu_poseidon_sign_calls", sig(capss_sign_64, 2))
+    fig(
+        "capss_device_sign_s_est",
+        sig(capss_sign_64 * Q64_POSEIDON_MULTS / DEVICE_WORD_MULTS_PER_S["mcu"], 2),
+    )
     fig("keccak_bits", sig(KECCAK_BITS, 3))
     fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
     keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
@@ -6169,6 +6226,7 @@ PROSE_FILES = (
     "spend-authorization.md",
     "auth-preimage.md",
     "auth-leansphincs.md",
+    "auth-capss.md",
     "recovery-ironwood.md",
     "recovery-tachyon.md",
 )
@@ -6368,7 +6426,10 @@ def write_book_files(page, data_json):
     # are the source file beside this one and the chapter's path from the page's directory.
     NOTE_CHAPTERS = {
         "zk": ("zk-fiat-shamir-with-aborts.md", "kishu/zk-fiat-shamir-with-aborts.html"),
-        "hardware-wallets": ("hardware-wallets.md", "../zoodles/spend-authorization/hardware-wallets.html"),
+        "hardware-wallets": (
+            "hardware-wallets.md",
+            "../zoodles/spend-authorization/hardware-wallets.html",
+        ),
         "spend-authorization": ("spend-authorization.md", "../zoodles/spend-authorization.html"),
     }
     note_ids = {
