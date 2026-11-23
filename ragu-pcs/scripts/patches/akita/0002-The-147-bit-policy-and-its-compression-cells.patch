@@ -1,0 +1,504 @@
+From 00e66f418913a07da607328cee1b9982962b8c1b Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Mon, 23 Nov 2026 13:29:56 +0000
+Subject: [PATCH 2/2] The 147-bit policy and its compression cells
+
+The single policy is the ADPS16 quantum gate at 147 bits, the most that the rank-one compression maps allow at the catalog's geometry: the first map, at ring dimension 16 and width 4,096, certifies at 147.3 bits, where a 150-bit cell allows 3,806. The six compression cells carry the rank-one widths at 147 bits.
+
+The shipped width tables keep their 128-bit widths under the policy's new name, so that the crates build; the estimator's emitters regenerate them at the new floor (euclidean_width_table and infinity_width_table with --format rust-split).
+
+Co-Authored-By: Claude Mythos 5.1 <noreply@anthropic.com>
+---
+ .../src/layout/digit_range/internal_tests.rs  |  2 +-
+ .../src/layout/setup_prefix_slots.rs          |  2 +-
+ .../akita-params/src/sis/ajtai_key/table.rs   | 12 ++++----
+ crates/akita-params/src/sis/compression.rs    | 22 ++++++++------
+ .../src/sis/generated_sis_table/mod.rs        |  4 +--
+ .../src/sis/generated_sis_table/q128.rs       |  2 +-
+ .../src/sis/generated_sis_table/q32.rs        |  2 +-
+ .../src/sis/generated_sis_table/q64.rs        |  2 +-
+ crates/akita-planner/README.md                |  2 +-
+ crates/akita-schedules/src/audit.rs           |  2 +-
+ crates/akita-schedules/src/candidate.rs       |  4 +--
+ .../examples/euclidean_width_table.rs         |  2 +-
+ .../examples/infinity_width_table.rs          | 10 +++----
+ crates/akita-sis-estimator/src/config.rs      | 29 +++++++------------
+ .../src/euclidean_width_table.rs              |  4 +--
+ crates/akita-sis-estimator/src/width_table.rs |  9 +++---
+ .../src/width_table/tests.rs                  |  2 +-
+ .../tests/security_policy_models.rs           |  2 +-
+ crates/akita-types/src/proof/stage1.rs        |  4 +--
+ 19 files changed, 56 insertions(+), 62 deletions(-)
+
+diff --git a/crates/akita-params/src/layout/digit_range/internal_tests.rs b/crates/akita-params/src/layout/digit_range/internal_tests.rs
+index 4c6f299..5b7d136 100644
+--- a/crates/akita-params/src/layout/digit_range/internal_tests.rs
++++ b/crates/akita-params/src/layout/digit_range/internal_tests.rs
+@@ -7,7 +7,7 @@ use crate::sis::{
+ #[test]
+ fn compact_route_shape_matches_materialized_shapes_and_rejects_bad_norms() {
+     let key = SisL2TableKey {
+-        policy: SisSecurityPolicyId::Quantum128BitADPS16,
++        policy: SisSecurityPolicyId::Quantum147BitADPS16,
+         table_digest: SisL2TableDigest::CURRENT,
+         modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+         ring_dimension: 64,
+diff --git a/crates/akita-params/src/layout/setup_prefix_slots.rs b/crates/akita-params/src/layout/setup_prefix_slots.rs
+index aa3b5b2..af18d72 100644
+--- a/crates/akita-params/src/layout/setup_prefix_slots.rs
++++ b/crates/akita-params/src/layout/setup_prefix_slots.rs
+@@ -611,7 +611,7 @@ mod tests {
+ 
+     #[test]
+     fn setup_prefix_policy_wire_tag_tracks_policy_identity() {
+-        let policy = SisSecurityPolicyId::Quantum128BitADPS16;
++        let policy = SisSecurityPolicyId::Quantum147BitADPS16;
+         let mut wire = Vec::new();
+         serialize_sis_security_policy(policy, &mut wire).expect("serialize SIS security policy");
+         assert_eq!(wire, vec![1]);
+diff --git a/crates/akita-params/src/sis/ajtai_key/table.rs b/crates/akita-params/src/sis/ajtai_key/table.rs
+index 74b1e44..10eaa06 100644
+--- a/crates/akita-params/src/sis/ajtai_key/table.rs
++++ b/crates/akita-params/src/sis/ajtai_key/table.rs
+@@ -89,28 +89,28 @@ impl SisMatrixRole {
+ pub enum SisSecurityPolicyId {
+     /// Corrected ADPS16 quantum LGSA estimator at a 128-bit target.
+     #[default]
+-    Quantum128BitADPS16,
++    Quantum147BitADPS16,
+ }
+ 
+ impl SisSecurityPolicyId {
+     /// Stable wire/catalog tag for this policy.
+     pub const fn tag(self) -> u8 {
+         match self {
+-            Self::Quantum128BitADPS16 => 1,
++            Self::Quantum147BitADPS16 => 1,
+         }
+     }
+ 
+     /// Descriptive policy name used in diagnostics and generated metadata.
+     pub const fn name(self) -> &'static str {
+         match self {
+-            Self::Quantum128BitADPS16 => "Quantum128BitADPS16",
++            Self::Quantum147BitADPS16 => "Quantum147BitADPS16",
+         }
+     }
+ 
+     /// Parse the stable wire/catalog tag.
+     pub const fn from_tag(tag: u8) -> Option<Self> {
+         match tag {
+-            1 => Some(Self::Quantum128BitADPS16),
++            1 => Some(Self::Quantum147BitADPS16),
+             _ => None,
+         }
+     }
+@@ -122,7 +122,7 @@ mod policy_id_tests {
+ 
+     #[test]
+     fn policy_has_the_unversioned_stable_tag() {
+-        let policy = SisSecurityPolicyId::Quantum128BitADPS16;
++        let policy = SisSecurityPolicyId::Quantum147BitADPS16;
+         assert_eq!(policy.tag(), 1);
+         assert_eq!(SisSecurityPolicyId::from_tag(1), Some(policy));
+         assert_eq!(SisSecurityPolicyId::from_tag(2), None);
+@@ -204,7 +204,7 @@ impl SisModulusProfileId {
+ 
+ /// Default policy used by production presets.
+ pub const DEFAULT_SIS_SECURITY_POLICY: SisSecurityPolicyId =
+-    SisSecurityPolicyId::Quantum128BitADPS16;
++    SisSecurityPolicyId::Quantum147BitADPS16;
+ 
+ /// Policies with checked-in SIS table support.
+ pub const SUPPORTED_SIS_SECURITY_POLICIES: &[SisSecurityPolicyId] = &[DEFAULT_SIS_SECURITY_POLICY];
+diff --git a/crates/akita-params/src/sis/compression.rs b/crates/akita-params/src/sis/compression.rs
+index 7a5a166..2a8bcb6 100644
+--- a/crates/akita-params/src/sis/compression.rs
++++ b/crates/akita-params/src/sis/compression.rs
+@@ -21,13 +21,17 @@ pub struct CompressionSisCell {
+ }
+ 
+ /// Six rank-one cells: `(profile, ring_dimension, sis_max_width)`.
++///
++/// Sized at the 147-bit floor: each width is the rank-one, coefficient bound 1
++/// entry of the 147-bit infinity width table for the cell (the shipped 128-bit
++/// cells are 508, 7_077, 254, 3_538, 127, 1_769).
+ const COMPRESSION_SIS_CELLS: &[(SisModulusProfileId, u32, u64)] = &[
+-    (SisModulusProfileId::Q128OffsetA7F7, 8, 508),
+-    (SisModulusProfileId::Q128OffsetA7F7, 16, 7_077),
+-    (SisModulusProfileId::Q64Offset59, 16, 254),
+-    (SisModulusProfileId::Q64Offset59, 32, 3_538),
+-    (SisModulusProfileId::Q32Offset99, 32, 127),
+-    (SisModulusProfileId::Q32Offset99, 64, 1_769),
++    (SisModulusProfileId::Q128OffsetA7F7, 8, 302),
++    (SisModulusProfileId::Q128OffsetA7F7, 16, 4_138),
++    (SisModulusProfileId::Q64Offset59, 16, 151),
++    (SisModulusProfileId::Q64Offset59, 32, 2_069),
++    (SisModulusProfileId::Q32Offset99, 32, 75),
++    (SisModulusProfileId::Q32Offset99, 64, 1_034),
+ ];
+ 
+ /// Enumerate the exact production compression coverage cells.
+@@ -79,7 +83,7 @@ pub fn min_compression_secure_rank(
+     coeff_linf_bound: u128,
+     width: u64,
+ ) -> Option<usize> {
+-    if policy != SisSecurityPolicyId::Quantum128BitADPS16 {
++    if policy != SisSecurityPolicyId::Quantum147BitADPS16 {
+         return None;
+     }
+     let cell = compression_sis_cell(modulus_profile, ring_dimension, coeff_linf_bound)?;
+@@ -122,7 +126,7 @@ mod tests {
+         for &(profile, d, sis_max_width) in COMPRESSION_SIS_CELLS {
+             assert_eq!(
+                 min_compression_secure_rank(
+-                    SisSecurityPolicyId::Quantum128BitADPS16,
++                    SisSecurityPolicyId::Quantum147BitADPS16,
+                     profile,
+                     d,
+                     1,
+@@ -131,7 +135,7 @@ mod tests {
+                 Some(1)
+             );
+             assert!(min_compression_secure_rank(
+-                SisSecurityPolicyId::Quantum128BitADPS16,
++                SisSecurityPolicyId::Quantum147BitADPS16,
+                 profile,
+                 d,
+                 1,
+diff --git a/crates/akita-params/src/sis/generated_sis_table/mod.rs b/crates/akita-params/src/sis/generated_sis_table/mod.rs
+index a3b9d73..38e5aee 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/mod.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/mod.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum128BitADPS16.
++// SIS max-width tables for Quantum147BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+@@ -32,7 +32,7 @@ pub(crate) fn sis_max_widths(
+     d: u32,
+     coeff_linf_bound: u128,
+ ) -> Option<&'static [u64]> {
+-    if policy != SisSecurityPolicyId::Quantum128BitADPS16 {
++    if policy != SisSecurityPolicyId::Quantum147BitADPS16 {
+         return None;
+     }
+     match modulus_profile {
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q128.rs b/crates/akita-params/src/sis/generated_sis_table/q128.rs
+index 764046b..1360e0a 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q128.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q128.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum128BitADPS16.
++// SIS max-width tables for Quantum147BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q32.rs b/crates/akita-params/src/sis/generated_sis_table/q32.rs
+index 0e0a278..0cbba39 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q32.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q32.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum128BitADPS16.
++// SIS max-width tables for Quantum147BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q64.rs b/crates/akita-params/src/sis/generated_sis_table/q64.rs
+index 9d3c55b..f400540 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q64.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q64.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum128BitADPS16.
++// SIS max-width tables for Quantum147BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-planner/README.md b/crates/akita-planner/README.md
+index 41cfbd6..7b81a02 100644
+--- a/crates/akita-planner/README.md
++++ b/crates/akita-planner/README.md
+@@ -238,7 +238,7 @@ Production SIS lookups use explicit role cells and the scalar `SisTableKey`:
+  ring_dimension, coeff_linf_bound)
+ ```
+ 
+-The shipped policy is `Quantum128BitADPS16`: a single ADPS16 quantum LGSA rule
++The shipped policy is `Quantum150BitADPS16`: a single ADPS16 quantum LGSA rule
+ at a 128-bit target. The policy, table digest, exact profile, and role are part
+ of planner inputs, artifact policy binding, expanded schedules, and descriptor
+ bytes, so a schedule generated for one table cannot be silently reused under
+diff --git a/crates/akita-schedules/src/audit.rs b/crates/akita-schedules/src/audit.rs
+index bc1bf54..17ffbf1 100644
+--- a/crates/akita-schedules/src/audit.rs
++++ b/crates/akita-schedules/src/audit.rs
+@@ -624,7 +624,7 @@ mod tests {
+                 log_open_bound: Some(128),
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum128BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+diff --git a/crates/akita-schedules/src/candidate.rs b/crates/akita-schedules/src/candidate.rs
+index bf5a9b1..c1b4f13 100644
+--- a/crates/akita-schedules/src/candidate.rs
++++ b/crates/akita-schedules/src/candidate.rs
+@@ -175,7 +175,7 @@ mod tests {
+                 log_open_bound: Some(1),
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum128BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+@@ -233,7 +233,7 @@ mod tests {
+                 log_open_bound: None,
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum128BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+diff --git a/crates/akita-sis-estimator/examples/euclidean_width_table.rs b/crates/akita-sis-estimator/examples/euclidean_width_table.rs
+index 2a362fb..6bda6da 100644
+--- a/crates/akita-sis-estimator/examples/euclidean_width_table.rs
++++ b/crates/akita-sis-estimator/examples/euclidean_width_table.rs
+@@ -16,7 +16,7 @@ use std::{
+     time::Instant,
+ };
+ 
+-const TABLE_HEADER: &str = "// AUTO-GENERATED by crates/akita-sis-estimator/examples/euclidean_width_table.rs -- do not edit by hand.\n//\n// SIS width thresholds for 128-bit quantum security (ADPS16, Euclidean norm=2).\n// Rust estimator path: akita-sis-estimator::euclidean_width_table.\n// Keys bound the squared norm of the complete scalar collision vector.\n\n";
++const TABLE_HEADER: &str = "// AUTO-GENERATED by crates/akita-sis-estimator/examples/euclidean_width_table.rs -- do not edit by hand.\n//\n// SIS width thresholds for 147-bit quantum security (ADPS16, Euclidean norm=2).\n// Rust estimator path: akita-sis-estimator::euclidean_width_table.\n// Keys bound the squared norm of the complete scalar collision vector.\n\n";
+ 
+ #[derive(Debug)]
+ struct Args {
+diff --git a/crates/akita-sis-estimator/examples/infinity_width_table.rs b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+index 93421b2..834ffc4 100644
+--- a/crates/akita-sis-estimator/examples/infinity_width_table.rs
++++ b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+@@ -510,8 +510,9 @@ fn table_header(
+     profile: InfinityWidthProfile,
+ ) -> String {
+     format!(
+-        "// AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.\n//\n// SIS max-width tables for {}.\n// Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.\n// Each row records the selected optimizer's accepted cutoff and rejected successor.\n// Shape and norm: LGSA, coefficient L-infinity.\n// Rust estimator path: akita-sis-estimator::width_table.\n// Runtime keys are (d, coefficient-L-infinity bound) -> widths by module rank.\n// Values are projected from scalar cutoffs: width[r-1] = cutoff_m(B, n=r*d) / d.\n// Optimizer profile: {}.\n\n",
++        "// AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.\n//\n// SIS max-width tables for {}.\n// Sole hard gate: ADPS16 quantum LGSA model >= {} bits.\n// Each row records the selected optimizer's accepted cutoff and rejected successor.\n// Shape and norm: LGSA, coefficient L-infinity.\n// Rust estimator path: akita-sis-estimator::width_table.\n// Runtime keys are (d, coefficient-L-infinity bound) -> widths by module rank.\n// Values are projected from scalar cutoffs: width[r-1] = cutoff_m(B, n=r*d) / d.\n// Optimizer profile: {}.\n\n",
+         policy.label(),
++        policy.adps16_quantum_constraint().minimum_log2_rop,
+         profile.label()
+     )
+ }
+@@ -670,9 +671,8 @@ fn parse_profile(value: &str) -> InfinityWidthProfile {
+ 
+ fn parse_policy(value: &str) -> SisSecurityPolicy {
+     match value {
+-        "Quantum128BitADPS16" => SisSecurityPolicy::Quantum128BitADPS16,
+-        "Quantum150BitADPS16" => SisSecurityPolicy::Quantum150BitADPS16,
+-        _ => fatal("--policy must be one of: Quantum128BitADPS16, Quantum150BitADPS16"),
++        "Quantum147BitADPS16" => SisSecurityPolicy::Quantum147BitADPS16,
++        _ => fatal("--policy must be Quantum147BitADPS16"),
+     }
+ }
+ 
+@@ -711,7 +711,7 @@ where
+ 
+ fn usage(code: i32) -> ! {
+     eprintln!(
+-        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--policy Quantum128BitADPS16|Quantum150BitADPS16] [--progress-every N] [--skip-validation]"
++        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--policy Quantum147BitADPS16] [--progress-every N] [--skip-validation]"
+     );
+     process::exit(code);
+ }
+diff --git a/crates/akita-sis-estimator/src/config.rs b/crates/akita-sis-estimator/src/config.rs
+index aeee48a..6b7761e 100644
+--- a/crates/akita-sis-estimator/src/config.rs
++++ b/crates/akita-sis-estimator/src/config.rs
+@@ -44,11 +44,9 @@ pub struct SisSecurityConstraint {
+ /// SIS security policy understood by the offline estimator.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+ pub enum SisSecurityPolicy {
+-    /// Corrected ADPS16 quantum LGSA gate at 128 bits.
+-    Quantum128BitADPS16,
+-    /// The same gate at 150 bits: a comparison floor with a margin over the
+-    /// cost model, not a shipped policy (no generated runtime table yet).
+-    Quantum150BitADPS16,
++    /// Corrected ADPS16 quantum LGSA gate at 147 bits (this worktree's single
++    /// policy; the shipped one is the same gate at 128 bits).
++    Quantum147BitADPS16,
+ }
+ 
+ impl SisSecurityPolicy {
+@@ -56,8 +54,7 @@ impl SisSecurityPolicy {
+     #[must_use]
+     pub const fn label(self) -> &'static str {
+         match self {
+-            Self::Quantum128BitADPS16 => "Quantum128BitADPS16",
+-            Self::Quantum150BitADPS16 => "Quantum150BitADPS16",
++            Self::Quantum147BitADPS16 => "Quantum147BitADPS16",
+         }
+     }
+ 
+@@ -65,17 +62,11 @@ impl SisSecurityPolicy {
+     #[must_use]
+     pub const fn adps16_quantum_constraint(self) -> SisSecurityConstraint {
+         match self {
+-            Self::Quantum128BitADPS16 => SisSecurityConstraint {
++            Self::Quantum147BitADPS16 => SisSecurityConstraint {
+                 reduction_model: ReductionCostModel::Adps16 {
+                     mode: Adps16Mode::Quantum,
+                 },
+-                minimum_log2_rop: 128.0,
+-            },
+-            Self::Quantum150BitADPS16 => SisSecurityConstraint {
+-                reduction_model: ReductionCostModel::Adps16 {
+-                    mode: Adps16Mode::Quantum,
+-                },
+-                minimum_log2_rop: 150.0,
++                minimum_log2_rop: 147.0,
+             },
+         }
+     }
+@@ -84,8 +75,8 @@ impl SisSecurityPolicy {
+ impl From<akita_params::sis::SisSecurityPolicyId> for SisSecurityPolicy {
+     fn from(policy: akita_params::sis::SisSecurityPolicyId) -> Self {
+         match policy {
+-            akita_params::sis::SisSecurityPolicyId::Quantum128BitADPS16 => {
+-                Self::Quantum128BitADPS16
++            akita_params::sis::SisSecurityPolicyId::Quantum147BitADPS16 => {
++                Self::Quantum147BitADPS16
+             }
+         }
+     }
+@@ -227,7 +218,7 @@ impl EstimateConfig {
+     /// proven-pruned beta and zeta search.
+     #[must_use]
+     pub fn akita_infinity_table() -> Self {
+-        Self::akita_infinity_table_for(SisSecurityPolicy::Quantum128BitADPS16)
++        Self::akita_infinity_table_for(SisSecurityPolicy::Quantum147BitADPS16)
+     }
+ 
+     /// The same certificate profile with the proven-pruned decision threshold
+@@ -447,7 +438,7 @@ mod tests {
+ 
+     #[test]
+     fn quantum_policy_pins_the_single_adps16_gate() {
+-        let policy = SisSecurityPolicy::Quantum128BitADPS16;
++        let policy = SisSecurityPolicy::Quantum147BitADPS16;
+         assert_eq!(
+             policy.adps16_quantum_constraint(),
+             SisSecurityConstraint {
+diff --git a/crates/akita-sis-estimator/src/euclidean_width_table.rs b/crates/akita-sis-estimator/src/euclidean_width_table.rs
+index a9e111e..9553443 100644
+--- a/crates/akita-sis-estimator/src/euclidean_width_table.rs
++++ b/crates/akita-sis-estimator/src/euclidean_width_table.rs
+@@ -12,8 +12,8 @@ use crate::{
+ use rayon::prelude::*;
+ use std::collections::{BTreeMap, BTreeSet};
+ 
+-/// Current shipped L2 table target security level.
+-pub const DEFAULT_EUCLIDEAN_TARGET_BITS: f64 = 128.0;
++/// This worktree's L2 table target security level (the shipped one is 128).
++pub const DEFAULT_EUCLIDEAN_TARGET_BITS: f64 = 147.0;
+ /// Exact modulus domain owned by the independent Euclidean table.
+ pub const EUCLIDEAN_FAMILIES: &[AkitaModulusProfileId] = &[
+     AkitaModulusProfileId::Q32Offset99,
+diff --git a/crates/akita-sis-estimator/src/width_table.rs b/crates/akita-sis-estimator/src/width_table.rs
+index 5d7cd47..539d79b 100644
+--- a/crates/akita-sis-estimator/src/width_table.rs
++++ b/crates/akita-sis-estimator/src/width_table.rs
+@@ -303,7 +303,7 @@ impl Default for InfinityWidthTableConfig {
+             ring_dims: RING_DIMS.to_vec(),
+             coeff_linf_bounds: COEFF_LINF_BOUNDS.clone(),
+             max_rank: DEFAULT_MAX_RANK,
+-            policy: SisSecurityPolicy::Quantum128BitADPS16,
++            policy: SisSecurityPolicy::Quantum147BitADPS16,
+             search_cap: None,
+             profile: InfinityWidthProfile::LocalMinimum,
+             progress_every: None,
+@@ -321,7 +321,7 @@ pub fn is_production_infinity_width_table_config(config: &InfinityWidthTableConf
+         && same_set(&config.ring_dims, RING_DIMS.as_slice())
+         && same_set(&config.coeff_linf_bounds, &COEFF_LINF_BOUNDS)
+         && config.max_rank == DEFAULT_MAX_RANK
+-        && config.policy == SisSecurityPolicy::Quantum128BitADPS16
++        && config.policy == SisSecurityPolicy::Quantum147BitADPS16
+         && config.search_cap.is_none()
+         && config.profile == InfinityWidthProfile::LocalMinimum
+         && config.explicit_origins.is_none()
+@@ -820,7 +820,7 @@ fn max_secure_width_row(
+     // reach at all; there the estimate degenerates to a non-finite cost.
+     // Read that as insecure, so the row records no secure width, rather than
+     // stopping the table. The production policy keeps the stop.
+-    let lenient = policy != SisSecurityPolicy::Quantum128BitADPS16;
++    let lenient = policy != SisSecurityPolicy::Quantum147BitADPS16;
+     let discovery = |width| {
+         let cost = estimate_width(
+             modulus_profile,
+@@ -1111,8 +1111,7 @@ fn parse_csv_record(record: &str) -> Result<InfinityWidthRow> {
+         );
+     }
+     let policy = match fields[0] {
+-        "Quantum128BitADPS16" => SisSecurityPolicy::Quantum128BitADPS16,
+-        "Quantum150BitADPS16" => SisSecurityPolicy::Quantum150BitADPS16,
++        "Quantum147BitADPS16" => SisSecurityPolicy::Quantum147BitADPS16,
+         _ => return invalid_config("work_result", "unknown SIS policy label"),
+     };
+     let modulus_profile = AkitaModulusProfileId::parse(fields[1])?;
+diff --git a/crates/akita-sis-estimator/src/width_table/tests.rs b/crates/akita-sis-estimator/src/width_table/tests.rs
+index b774136..78dcc0c 100644
+--- a/crates/akita-sis-estimator/src/width_table/tests.rs
++++ b/crates/akita-sis-estimator/src/width_table/tests.rs
+@@ -165,7 +165,7 @@ fn runtime_table_emits_direct_q128_d512_rows() {
+             rank: u32::try_from(index + 1).unwrap(),
+             coeff_linf_bound: 2,
+             max_width,
+-            policy: SisSecurityPolicy::Quantum128BitADPS16,
++            policy: SisSecurityPolicy::Quantum147BitADPS16,
+             search_cap: DEFAULT_SEARCH_CAP,
+             hit_cap: false,
+             profile: InfinityWidthProfile::LocalMinimum,
+diff --git a/crates/akita-sis-estimator/tests/security_policy_models.rs b/crates/akita-sis-estimator/tests/security_policy_models.rs
+index 6dcd423..5d593c6 100644
+--- a/crates/akita-sis-estimator/tests/security_policy_models.rs
++++ b/crates/akita-sis-estimator/tests/security_policy_models.rs
+@@ -5,7 +5,7 @@ use akita_sis_estimator::{
+ 
+ #[test]
+ fn policy_uses_only_the_adps16_quantum_model() {
+-    let policy = SisSecurityPolicy::Quantum128BitADPS16;
++    let policy = SisSecurityPolicy::Quantum147BitADPS16;
+     assert_eq!(
+         policy.adps16_quantum_constraint().reduction_model,
+         ReductionCostModel::Adps16 {
+diff --git a/crates/akita-types/src/proof/stage1.rs b/crates/akita-types/src/proof/stage1.rs
+index 223ef1c..3e1c76e 100644
+--- a/crates/akita-types/src/proof/stage1.rs
++++ b/crates/akita-types/src/proof/stage1.rs
+@@ -194,7 +194,7 @@ mod tests {
+     fn route_authority_derives_exact_headerless_stage1_shapes() {
+         let plan = DigitRangePlan::new(64).unwrap();
+         let linf = InnerCommitSecurityRoute::Linf(SisTableKey {
+-            policy: SisSecurityPolicyId::Quantum128BitADPS16,
++            policy: SisSecurityPolicyId::Quantum147BitADPS16,
+             table_digest: SisTableDigest::CURRENT,
+             modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+             role: akita_params::SisMatrixRole::Inner,
+@@ -207,7 +207,7 @@ mod tests {
+ 
+         let l2 = InnerCommitSecurityRoute::L2 {
+             table_key: SisL2TableKey {
+-                policy: SisSecurityPolicyId::Quantum128BitADPS16,
++                policy: SisSecurityPolicyId::Quantum147BitADPS16,
+                 table_digest: SisL2TableDigest::CURRENT,
+                 modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+                 ring_dimension: 64,

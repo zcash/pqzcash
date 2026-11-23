@@ -3,7 +3,9 @@
 # that its rank-one compression maps allow at the catalog's geometry (the d=16 map at width
 # 4,096 certifies at 147.34 bits; see WORKING-NOTES.md, 2026-11-12 04:40 UTC), regenerate its
 # runtime width tables at that floor, re-size the six compression cells from them, rebuild,
-# and run the re-plan. Each step is logged under OUT (default work/akita-147-out) and the
+# and run the re-plan. On the worktree that scripts/akita-checkout.sh makes, which is on the
+# branch pasta-widths-147 with the 147-bit policy already applied, the script starts at the
+# table regeneration. Each step is logged under OUT (default work/akita-147-out) and the
 # script stops at the first failure:
 #   scripts/akita-147-pipeline.sh
 set -u -o pipefail

@@ -1,3 +1,21 @@
+From 8d17a64efeab5d9cb7d0d4dac520a0bfa0bec3f4 Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Mon, 23 Nov 2026 13:30:16 +0000
+Subject: [PATCH] A counting driver for the mock's steps
+
+src/mock/counting.rs: StepCircuit synthesizes a mock Step through an adapter shaped as ragu_pcd's, which reserves the application stage, binds the staged values to it, allocates the oracles, runs the step's witness, opens the slots that the step did not query at zeta, and writes the instance, so that ragu_circuits' synthesis analysis counts for a mock step what the real adapter's circuit would contain. step_synthesis_counts returns a step's gate and constraint counts at a header size. The mock's test-utils feature forwards to ragu_circuits' for the analysis.
+
+Co-Authored-By: Claude Mythos 5.1 <noreply@anthropic.com>
+---
+ Cargo.toml                                   |   2 +-
+ crates/ragu_pcd/src/step/internal/adapter.rs |  12 +
+ src/lib.rs                                   |   4 +-
+ src/mock/counting.rs                         | 258 +++++++++++++++++++
+ src/mock/mod.rs                              |   2 +
+ src/mock/step/oracles.rs                     |  38 ++-
+ 6 files changed, 307 insertions(+), 9 deletions(-)
+ create mode 100644 src/mock/counting.rs
+
 diff --git a/Cargo.toml b/Cargo.toml
 index 72c15442..5d16e5fa 100644
 --- a/Cargo.toml
