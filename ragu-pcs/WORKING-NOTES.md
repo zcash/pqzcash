@@ -3588,3 +3588,59 @@ their prover.
 STATE: branch akita-checkout-script at this entry's commit, on 94d1383, the tip of #3 before
 its merge; to be rebased onto main after a fetch, then pushed by the user and opened as a
 draft PR; the book builds and its links check.
+
+## 2026-11-23 20:24 UTC: the book by scheme, a Zoodles page, the soundness notes split, the citations linked
+
+PR #4 (branch akita-checkout-script) is open; this branch is stacked on it.
+
+- **Sections** (8cc5f66, 42028db, 2b786a8): 1.3 Kishu with the zero-knowledge note and Kishu's
+  soundness statements under it, 1.4 Other Schemes with the Pasta proof-size note and the
+  Pasta-claims variant's statement, 2 Zoodles, 3 Hardware Wallets and the Recovery Statement (its
+  page's title); "Working Notes" is gone and its two addresses redirect. Both new sections have
+  pages, since a page-less section renders in mdbook's draft colour, which sits near the sidebar's
+  background in every theme (1.6:1 on the rust theme); the colour is now derived from the
+  sidebar's text for any future draft.
+- **The soundness note is two pages** (b39849a; the user's request): `kishu-soundness.md` and
+  `pasta-q64-soundness.md`, the statements unchanged, Lemma L on both with a note that it is the
+  same.
+- **The Kishu page** (af8a1a4) says what Kishu is made of and carries the acknowledgement
+  paragraph in the user's exact words (the designers of Akita and BitZ; Quang Dao, Albert
+  Garreta, Tal Derei; Ulrich Haböck's suggestions).
+- **Zoodles** (2b786a8, 7b7a7b6): `ragu-pcs/zoodles.md`, a prose file with figure markers, from
+  the user's thoughts.md text expanded section by section, with the Tachyon team's
+  acknowledgement; marked in progress. The user corrected the tree sentence: Kishu's step holds
+  as many spends and outputs as fit in the same step as the fee, which is what `tx_steps` packs
+  (first-fit decreasing); Tachyon as built gives each circuit a step at rank 13 (all 39 circuits
+  under 2,048 gates), so the packing is the design's, and the packed step's interface is an open
+  point on the page. Figures `tx_zoodles_*_kishu_zk_steps`.
+- **A marker never starts a line** (8830f4f). CommonMark starts an HTML block at a line beginning
+  with `<!--`, inside a paragraph too, and renders the rest literally: the zero-knowledge note's
+  §5.8 paragraph began with its claim marker, which is why the user saw `[§3](…)` and `[§5.4](…)`
+  as text. The marker follows the first word now; the model fails on any note line that begins
+  with a marker; `work/rewrap-markers.py` refills a hard-wrapped note with markers glued to the
+  word before.
+- **The zero-knowledge note cites every paper it names** (5810b06; the user: all the papers need
+  to be referenced/linked): links to anchored References entries, five entries added (Dilithium's
+  specification, Hülsing–Lange–Smeets, Jeudy, Karney, Du–Fan–Wei), and §5.2 gives the 147-bit
+  target first (block size 556, log₂ δ 0.00454, against 484 and 0.00502).
+- **Preprocessor** (d86a252): an included note's `../book/src/…` link is written relative to the
+  chapter, so the Zoodles page links the Kishu page.
+- **Answered in chat.** Akita's committed digits are balanced base 8 catalog-wide (every
+  proof-optimized preset has `log_basis = 3`; the compression levels use binary digits), so the
+  zk note's sentence holds for every variant. The sampling attempts cannot share the mask or its
+  commitment (a mask derived from a rejected attempt is correlated with the secret through the
+  test), but masks are independent of the secret, so a stock of them can be drawn and committed
+  in idle time and consumed once each, which is what §5.8 relies on.
+
+Decided (the user): the online/offline split of the prover is shown as a MEASURE, "transaction
+prover (online)", the total less the fold's offline share (the mask sampling and commitments of
+the expected attempts; for the leaf handoff the leaf's), plottable against the transaction prover
+for the same application; Flock's zero-knowledge mask split is wanted, WHIR's only if cheap.
+
+NEXT: the online measure, on its own branch; then the queue as before: the Zoodles lineage both
+ways; Ragu steps 2 to 4; the Boolean step-size knob; Zoodles' header size; the handoff step's
+padding; the ledger decision; the user's calls on the mask's width and the sidebar's threshold;
+and, low priority, the native Pasta profile.
+
+STATE: branch book-reorganization at this entry's commit, stacked on akita-checkout-script (PR #4,
+open), pushed by the user up to the commit before this one; the book builds, 655 links check.
