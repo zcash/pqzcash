@@ -24,7 +24,7 @@ data define them. The numbers come from:
 Writes pareto.html next to this script: a self-contained page with the data inlined.
 """
 
-import functools, hashlib, itertools, json, math, pathlib, re, statistics, sys
+import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, sys
 import frib_optimizer as frib
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -96,15 +96,78 @@ DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "past
 # earlier estimate, 11 field multiplications of 32 word multiplications per addition, gave
 # 6,900, 24 percent more.
 #
-# Ajtai over R_q with ring dimension d and scalar_rows rows, by NTT: per digit about
-# scalar_rows/d pointwise multiplications plus log2(d)/2 for the digit's share of the NTT,
-# each at the modulus width: 32 word multiplications at 255 bits, 8 at 128, 2 at 64 (and
-# Goldilocks's reduction is cheaper still, taken as 1.5). Rows are Akita's estimator at the
-# unmasked collision bound (pasta-proof-size.md §5.5): 143 at Pasta, 284 at 128 bits, 567 at
-# 64 bits, the same bits throughout. Per coefficient: digits * that.
-RING_D = 64
-ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pasta": 143}
+# Ajtai over R_q = Z_q[X]/(X^d + 1) by NTT, with the accumulation matrix shaped as Akita's
+# catalog shapes its own: a module of `rank` rows over a ring of degree d, 512 or 1024 (the
+# catalog's accumulation matrix is rank one at degree 512 at the 2^14 geometry and 1024 above
+# it, its bound certified on the coefficient ℓ∞ route). Per digit: `rank` pointwise ring
+# products and log2(d)/2 butterflies for the digit's share of the transform, each a
+# multiplication at the modulus width: 32 word multiplications at 255 bits, 8 at 128, 2 at 64
+# (Goldilocks's reduction is cheaper still, taken as 1.5). The rank and degree are the
+# cheapest that Akita's ℓ∞ estimator certifies at the floor for the row's bound and width,
+# accumulation_matrix below, from the estimator's tables at the catalog's bound ladder
+# (estimates/linf-accumulation-widths.tsv, written by scripts/linf-accumulation-widths.py;
+# REGENERATING.md). The 64-bit commitment and Goldilocks variants read the 64-bit modulus's
+# table, which the Goldilocks table coincides with. The Euclidean route of the zero-knowledge
+# note's §5.5, 143, 284 and 567 scalar rows at the 2^27 bound, stays as ROWS for the note's
+# own figures.
 WORD_MULTS = {"fp128": 8, "goldilocks": 1.5, "pasta_sis": 32, "pasta_q64": 2, "pasta": 32}
+ROWS = {"fp128": 284, "goldilocks": 567, "pasta_q64": 567, "pasta_sis": 143, "pasta": 143}
+MODULUS = {
+    "fp128": "q128",
+    "goldilocks": "q64",
+    "pasta_q64": "q64",
+    "pasta_sis": "pallas",
+    "pasta": "pallas",
+}
+ACCUMULATION_DEGREES = (512, 1024)
+ACCUMULATION_MAX_RANK = 6
+
+
+def load_linf_widths():
+    """{(modulus, floor): {(degree, rank): [(bound, width), ...]}}: the largest width in ring
+    elements that the ℓ∞ estimator certifies at each bound of the ladder, in bound order."""
+    table = {}
+    with (HERE / "estimates" / "linf-accumulation-widths.tsv").open() as f:
+        for r in csv.DictReader(f, delimiter="\t"):
+            cells = table.setdefault((r["modulus"], int(r["floor"])), {})
+            cells.setdefault((int(r["d"]), int(r["rank"])), []).append(
+                (int(r["bound"]), int(r["max_width"]))
+            )
+    for cells in table.values():
+        for ladder in cells.values():
+            ladder.sort()
+    return table
+
+
+LINF_WIDTHS = load_linf_widths()
+
+
+@functools.lru_cache(maxsize=None)
+def accumulation_matrix(variant, floor, log_beta, log_n):
+    """The cheapest accumulation matrix that Akita's ℓ∞ estimator certifies at `floor` as
+    binding at the coefficient bound 2^log_beta for vectors of 2^log_n digits: its field
+    multiplications a digit, rank + log2(d)/2, its rank, its degree, and the ladder bound it is
+    certified at, the first at or above the bound."""
+    cells = LINF_WIDTHS[(MODULUS[variant], floor)]
+    best = None
+    for d in ACCUMULATION_DEGREES:
+        width = 2**log_n / d
+        for rank in range(1, ACCUMULATION_MAX_RANK + 1):
+            bound, certified = next(
+                ((b, w) for b, w in cells[(d, rank)] if b >= 2**log_beta), (None, 0)
+            )
+            if bound is None:
+                raise ValueError(f"a bound of 2^{log_beta:.1f} is beyond the estimator's ladder")
+            if certified >= width:
+                cost = rank + math.log2(d) / 2
+                if best is None or cost < best[0]:
+                    best = (cost, rank, d, bound)
+                break
+    if best is None:
+        raise ValueError(f"no accumulation matrix of rank up to {ACCUMULATION_MAX_RANK}: {variant}")
+    return best
+
+
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
 # lattice rows it is the folded digit vector, the accumulator's coefficients (the batch group's
 # circuits × 2^rank and the stage groups' values, accumulator_coefficients below) in digits, each
@@ -128,85 +191,139 @@ def accumulator_bytes(variant, coefficients, digits=None):
 
 
 # The zero-knowledge option masks the accumulator witness by rejection sampling at the user's
-# fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is about nine
-# times longer, and the accumulation matrix's Module-SIS rank is about 2.4 times higher, since
-# the note's extraction argument needs that matrix binding at the masked bound and every
-# accumulator is committed under it. Akita's internal fold levels and its terminal commit the
-# final accumulator's ordinary witness under their own matrices, whose bounds the mask does
-# not change, so the opening proof is nearly unaffected: the accumulation matrix's larger
-# images enter the first level only as lower-order auxiliary digits. The length stays at the
+# fold (zk-fiat-shamir-with-aborts.md §5): the one accumulator that fold produces is several
+# times longer, nine slices a coordinate at the note's parameters, and the accumulation matrix
+# must be binding at the masked bound, since the note's extraction argument needs it there and
+# every accumulator is committed under it; where that bound and the row's width ask for it, the
+# ℓ∞ estimator gives the masked matrix a rank or a degree above the unmasked one's
+# (accumulation_matrix). Akita's internal fold levels and its terminal commit the final
+# accumulator's ordinary witness under their own matrices, whose bounds the mask does not
+# change, so the opening proof is nearly unaffected: the accumulation matrix's larger images
+# enter the first level only as lower-order auxiliary digits. The length stays at the
 # zero-knowledge layer: the aggregator's first fold on a masked accumulator range-checks its
-# nine digit slices and folds them back to the ordinary length with its other inputs, as every
+# digit slices and folds them back to the ordinary length with its other inputs, as every
 # lattice fold decomposes and folds, so the merges above and the decider's opening see witnesses
 # of the usual size. The merge priced here is one at the zero-knowledge layer, the costlier
 # kind: each of its two sum-checks gains three rounds (log2 of the length factor) of three
-# elements. Merges above that layer pay the rank's rows term only.
+# elements. Merges above that layer pay the masked matrix's rate only.
 #
-# The masked bound follows the note's §5.3: the digit vector has N = 2^22 digits of size at most
-# 4, so ‖s‖₂ ≤ 2^13 (the page's rows take their own N, the row's accumulator in digits, in place
-# of the note's MASK_LOG_N, which the note's figures keep); a challenge of ℓ1 norm
-# MASK_CHALLENGE_L1 gives ‖cs‖₂ ≤ that times 2^13; the
-# Gaussian mask has width σ = MASK_ALPHA · ‖cs‖₂, the accepted response ‖z‖₂ ≈ 2σ√N, and the
-# relaxed opening that extraction yields needs binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖₂, with ‖c − c'‖₁
-# at most twice the challenge's norm. The rank grows as the square of log2 of that bound against
-# the unmasked 2^27 (§5.2, §5.5). The page takes α = 48 with weight-20 ternary challenges in the
-# accumulation matrix's ring dimension of 512 (‖c‖₁ = 20), which give 2^42.2 and a factor of
-# 2.45: the widest of the sweep's widths with nine slices a coordinate, and within three percent
-# of the least user transaction at the page's sampler for every application (the zero-knowledge
-# section; the sweep is in define_figures). The note's §5.3 example used α = 12 and weight 32
-# in dimension 128, 2.37, before it took the page's parameters; its §5.6 prices the alternatives. The masked coordinates are at most 14σ, which sets the slices: base-8 digits per
-# coordinate.
+# The mask and the bounds follow the note's §5.1 to §5.3 at each row's own accumulator, its
+# coefficients (accumulator_coefficients) in digits; MASK_LOG_N = 22 is the note's N, for the
+# note's own figures. The digits are at most DIGIT_MAX in size, balanced base 8 for the Akita
+# variants and bits for Kishu, so ‖s‖₂ ≤ DIGIT_MAX √N; a challenge of ℓ1 norm MASK_CHALLENGE_L1
+# gives ‖cs‖₂ ≤ that times ‖s‖₂; the Gaussian mask has width σ = MASK_ALPHA ‖cs‖₂; and the
+# accepted response's coordinates are at most MASK_TAIL σ, which sets the bits a coordinate is
+# stored in and the base-8 slices it is handed over as. The relaxed opening that extraction
+# yields needs the matrix binding at 2 · ‖c − c'‖₁ · 2 · ‖z‖, with ‖c − c'‖₁ at most twice the
+# challenge's norm (§5.2): on the coefficient ℓ∞ route that is EXTRACTION_SLACK · ‖z‖∞, where
+# ‖z‖∞ is the response's MASK_TAIL σ under the mask, and without it a fold's output, the two
+# children at the challenge's weight and the step's own digits. The page's α = 48 with
+# weight-20 ternary challenges in the accumulation matrix's ring, 2^138 challenges in degree
+# 512, is the page's choice: the zero-knowledge section's sweep shows that the matrix does
+# not move across its widths, so the width trades attempts against the coordinates' bits and
+# slices, which the transaction measure does not price; the note's §5.6 prices the
+# alternatives. The note's own Euclidean route (masked_log_beta, mask_rank), where the rank
+# grows as the square of the bound's log against the unmasked 2^27, stays for its figures.
 MASK_ALPHA = 48
 MASK_CHALLENGE_L1 = 20
-MASK_LOG_S, MASK_LOG_N, MASK_UNMASKED_LOG_BETA = 13, 22, 27
+MASK_TAIL = 14
+MASK_LOG_N = 22
+DIGIT_MAX = {v: 4 for v in DIGITS} | {"kishu": 1}
+EXTRACTION_SLACK = 2 * (2 * MASK_CHALLENGE_L1) * 2
+
+
+def log_s2(log_n, digit_max=4):
+    """Log of the ℓ2 norm of 2^log_n digits of size at most digit_max."""
+    return math.log2(digit_max) + log_n / 2
+
+
+def mask_log_sigma(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
+    return math.log2(alpha) + math.log2(c_l1) + log_s2(log_n, digit_max)
+
+
+def masked_log_beta_inf(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
+    """Log of the coefficient ℓ∞ bound the masked accumulation matrix must be binding at."""
+    return (
+        math.log2(EXTRACTION_SLACK)
+        + math.log2(MASK_TAIL)
+        + mask_log_sigma(alpha, c_l1, log_n, digit_max)
+    )
+
+
+def unmasked_log_beta_inf(c_l1=MASK_CHALLENGE_L1, digit_max=4):
+    """Log of the coefficient ℓ∞ bound the unmasked accumulation matrix must be binding at."""
+    return math.log2(EXTRACTION_SLACK) + math.log2((2 * c_l1 + 1) * digit_max)
+
+
+def mask_coordinate_bits(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
+    """Bits of a masked coordinate stored compactly, its width MASK_TAIL σ."""
+    return math.ceil(math.log2(MASK_TAIL) + mask_log_sigma(alpha, c_l1, log_n, digit_max))
+
+
+def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
+    """Base-8 slices per masked coordinate."""
+    return math.ceil(mask_coordinate_bits(alpha, c_l1, log_n, digit_max) / 3)
+
+
+def mask_sumcheck_atoms(slices):
+    """The zk-layer merge's extra sum-check elements: three rounds of three in each of the
+    fold's two sum-checks, for six to eleven slices a coordinate."""
+    rounds = round(math.log2(slices))
+    assert rounds == 3, slices
+    return 2 * rounds * 3
+
+
+# The zero-knowledge note's own example, N = 2^22 base-8 digits with ‖s‖₂ ≤ 2^13, on the
+# Euclidean route of its §5.2, where the rank grows as the square of the bound's log against
+# the unmasked 2^27.
+MASK_LOG_S = log_s2(MASK_LOG_N)
+MASK_UNMASKED_LOG_BETA = 27
 
 
 def masked_log_beta(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N):
-    """Log of the masked bound for a mask over 2^log_n digits: the note's N by default, a row's
-    own accumulator on the page (accumulator_coefficients in digits), since ‖z‖₂ grows as √N."""
-    log_sigma = math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S
-    log_z = 1 + log_sigma + log_n / 2
+    """Log of the note's Euclidean masked bound for a mask over 2^log_n digits at the note's
+    σ, since ‖z‖₂ ≈ 2σ√N (its §5.3)."""
+    log_z = 1 + mask_log_sigma(alpha, c_l1) + log_n / 2
     return 1 + math.log2(2 * c_l1) + 1 + log_z
 
 
 def mask_rank(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N):
-    """The masked accumulation matrix's rows over the unmasked, the square of the bounds' log
-    ratio (the note's §5.2); each doubling of α adds one bit to the masked bound, and each
-    doubling of the masked vector half a bit."""
+    """The note's masked rows over its unmasked, the square of the bounds' log ratio (§5.2)."""
     return (masked_log_beta(alpha, c_l1, log_n) / MASK_UNMASKED_LOG_BETA) ** 2
-
-
-def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
-    """Base-8 digits per masked coordinate, whose width is 14σ."""
-    return math.ceil((math.log2(14) + math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S) / 3)
 
 
 MASK_RANK = mask_rank()
 MASK_LENGTH = mask_length()
-MASK_SUMCHECK_ATOMS = 2 * round(math.log2(MASK_LENGTH)) * 3
-# Bits of a masked coordinate stored compactly, its width 14σ (the note's z∞ bits).
-MASK_COORDINATE_BITS = math.ceil(
-    math.log2(14) + math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + MASK_LOG_S
-)
+MASK_SUMCHECK_ATOMS = mask_sumcheck_atoms(MASK_LENGTH)
+MASK_COORDINATE_BITS = mask_coordinate_bits()
 
 
 # The peak fuse memory measure: what a fuse holds at its peak, in bytes. For the lattice rows
 # it is the two children's accumulators, with the output overwriting one of them as the linear
 # combination is computed; the fold's second-round sum-check table, half the accumulator's
 # digits as claim-field elements, since the first round can stream over the packed digits; and
-# under zero knowledge the mask, the accumulator's digits at MASK_COORDINATE_BITS each. The new
-# step's witness and the commitment's working set are small beside these. The other rows hold
-# two accumulators (the default below the points).
-def peak_fuse_bytes(accumulator_bytes_, digits, table_element_bytes, zk):
+# under zero knowledge the mask, the accumulator's digits at the row's coordinate width
+# (mask_coordinate_bits) each. The new step's witness and the commitment's working set are
+# small beside these. The other rows hold two accumulators (the default below the points).
+def peak_fuse_bytes(accumulator_bytes_, digits, table_element_bytes, zk, mask_bits):
     table = digits / 2 * table_element_bytes
-    mask = digits * MASK_COORDINATE_BITS / 8 if zk else 0
+    mask = digits * mask_bits / 8 if zk else 0
     return 2 * accumulator_bytes_ + table + mask
 
 
-def ajtai_per_coefficient(variant, zk=False, rank_scale=1.0, alpha=MASK_ALPHA, log_n=MASK_LOG_N):
-    rows = ROWS[variant] * (mask_rank(alpha, log_n=log_n) if zk else 1) * rank_scale
-    per_digit = (rows / RING_D + math.log2(RING_D) / 2) * WORD_MULTS[variant]
-    return DIGITS[variant] * per_digit
+def ajtai_per_coefficient(
+    variant, zk=False, floor=128, alpha=MASK_ALPHA, log_n=MASK_LOG_N, digit_max=4
+):
+    """Word multiplications to commit one coefficient's digits under the accumulation matrix
+    that the floor's ℓ∞ table certifies for a vector of 2^log_n digits at the bound in force:
+    the masked bound at α under zero knowledge, the fold's otherwise."""
+    log_beta = (
+        masked_log_beta_inf(alpha, MASK_CHALLENGE_L1, log_n, digit_max)
+        if zk
+        else unmasked_log_beta_inf(MASK_CHALLENGE_L1, digit_max)
+    )
+    cost = accumulation_matrix(variant, floor, log_beta, log_n)[0]
+    return DIGITS[variant] * cost * WORD_MULTS[variant]
 
 
 PEDERSEN_FUSE_SECONDS = 1.46  # Ragu's fuse at the checked-in configuration, one core, no assembly
@@ -267,9 +384,13 @@ MASK_SAMPLE_WORD_MULTS = round(MASK_SAMPLE_NS * 3)  # at 3 word multiplications 
 KARNEY_SAMPLE_WORD_MULTS = 900
 
 
-def mask_fold(variant, coefficients, rank_scale, log_n):
+def mask_fold(variant, coefficients, floor):
+    """The masking fold over `coefficients` of the variant: the masked vector's digits set
+    its own σ and bound."""
     digits = DIGITS[variant] * coefficients
-    per_digit = ajtai_per_coefficient(variant, True, rank_scale, log_n=log_n) / DIGITS[variant]
+    per_digit = (
+        ajtai_per_coefficient(variant, True, floor, log_n=math.log2(digits)) / DIGITS[variant]
+    )
     return MASK_ATTEMPTS * digits * (per_digit + MASK_SAMPLE_WORD_MULTS)
 
 
@@ -854,17 +975,17 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # and commits the mask in idle time, and computes the response z = y + cs with the rejection
 # test. The padding is computational. Aρ for ρ of HIDING_PADDING_BITS uniform bits is
 # pseudorandom if knapsack-LWE is hard at the commitment's rows, which by the Micciancio–Mol
-# duality is LWE of dimension bits − rows with binary error at the 64-bit modulus. The primal
-# uSVP estimate at block 484 and root Hermite factor 1.0035 needs about 3,300 dimensions
-# against the masked matrix's 1,385 rows at q64, so 5,000 bits leaves a margin. The lattice
-# estimator should confirm it. The note's leftover-hash padding would be rows × 64 + 256 bits.
+# duality is LWE of dimension bits − rows with rows samples and binary secret and error at the
+# 64-bit modulus. The primal uSVP estimate at block 484 and root Hermite factor 1.0035 needs
+# about 3,300 dimensions against 1,385 rows, the zero-knowledge note's Euclidean masked matrix
+# at q64; the ℓ∞ route's matrix for the device's vector has fewer rows (accumulation_matrix,
+# qk_device_matrix_rows), which asks less, so 5,000 bits leaves a margin. The lattice estimator
+# should confirm it. The note's leftover-hash padding would be rows × 64 + 256 bits.
 # Device rates are assumptions scaled from sphincs.art's hardware-wallet benchmark. A Ledger
 # Nano S+ hashes BLAKE2s about 500 times below a laptop core and a Trezor Safe 3 about 200
 # times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
 # that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
 HIDING_PADDING_BITS = 5000
-# The zero-knowledge note's §5.5 table at the masked bound 2^42.2.
-MASKED_ROWS_Q64 = 1385
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
@@ -1697,9 +1818,9 @@ def handoff_merge_gates(variant, K, circuits, hp):
     return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
 
 
-def handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n):
+def handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n):
     steps = math.ceil(handoff_merge_gates(variant, K, circuits, hp) / gate_budget(rank))
-    return steps * 2**rank * ajtai_per_coefficient(variant, True, rank_scale, log_n=log_n)
+    return steps * 2**rank * ajtai_per_coefficient(variant, True, floor, log_n=log_n)
 
 
 # Akita: no cycle, so endoscalings and binders do not exist. The committed groups are the
@@ -1721,16 +1842,20 @@ for variant, hp in itertools.product(
                     circuits
                 )  # the decider's accumulator is at the ordinary length, masked or not
                 rank_scale = RANK_SCALE[floor][variant]
-                # The opening is the floor's own plan; the floor's rank factor enters the
-                # verifier through the inner images' share. The masked rank enters neither:
-                # it binds the accumulation matrix, whose rows term the prover pays in
-                # ajtai_per_coefficient, while the terminal's images are under the terminal's
-                # own matrix (see MASK_RANK).
+                # The opening is the floor's own plan; the floor's rank growth over the
+                # catalog's own matrices enters the verifier through the inner images' share.
+                # The accumulation matrix is the floor's ℓ∞ table's, masked or not
+                # (ajtai_per_coefficient); the terminal's images are under the terminal's own
+                # matrix.
                 opening = akita_bytes(variant, K - 1, log_len, floor)
                 instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES[variant]
                 accumulator = accumulator_coefficients(variant, rank, circuits)
-                # The masked bound's N is this row's accumulator in digits.
+                # The bounds' N is this row's accumulator in digits, and the mask's
+                # coordinates are stored at their own width.
                 log_n = math.log2(accumulator * DIGITS[variant])
+                mask_bits = mask_coordinate_bits(log_n=log_n)
+                mask_sumcheck_atoms(mask_length(log_n=log_n))
+                per_coefficient = ajtai_per_coefficient(variant, zk, floor, log_n=log_n)
                 # The 128-bit and Goldilocks variants are Akita's published parameter sets;
                 # the Pasta variants need a modulus profile Akita lacks, and the 64-bit
                 # commitment variant a decoupled commitment modulus.
@@ -1750,15 +1875,9 @@ for variant, hp in itertools.product(
                         change=change,
                         zk=zk,
                         bytes=round(opening + instance),
-                        prover=round(
-                            circuits
-                            * 2**rank
-                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
-                        ),
+                        prover=round(circuits * 2**rank * per_coefficient),
                         accumulation_prover=round(
-                            circuits
-                            * 2**rank
-                            * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
+                            circuits * 2**rank * per_coefficient
                             + accumulation_sumchecks(variant, accumulator)
                         ),
                         memory=accumulator_bytes(variant, accumulator),
@@ -1768,20 +1887,19 @@ for variant, hp in itertools.product(
                                 accumulator * DIGITS[variant],
                                 CLAIM_BYTES[variant],
                                 zk,
+                                mask_bits,
                             )
                         ),
-                        step_prover=round(
-                            2**rank * ajtai_per_coefficient(variant, zk, rank_scale, log_n=log_n)
-                        ),
+                        step_prover=round(2**rank * per_coefficient),
                         fold=round(
-                            mask_fold(variant, accumulator, rank_scale, log_n)
-                            + handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n)
+                            mask_fold(variant, accumulator, floor)
+                            + handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n)
                         )
                         if zk
                         else 0,
                         fold_leaf=round(
-                            mask_fold(variant, 2**rank, rank_scale, log_n)
-                            + handoff_merge_cost(variant, K, circuits, rank, hp, rank_scale, log_n)
+                            mask_fold(variant, 2**rank, floor)
+                            + handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n)
                         )
                         if zk
                         else 0,
@@ -3144,14 +3262,18 @@ def kishu_costs(
     digits, merge_piop = frontend_merge(
         K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
     )
-    rank_scale = RANK_SCALE[floor]["goldilocks"]
     accumulator = accumulator_coefficients("kishu", rank, circuits)
-    log_n = math.log2(accumulator)  # the masked bound's N: this row's accumulator in bits
+    log_n = math.log2(accumulator)  # the bounds' N: this row's accumulator in bits
+    bits = DIGIT_MAX["kishu"]
     per_digit = (
-        ajtai_per_coefficient("pasta_q64", zk, rank_scale, alpha, log_n) / DIGITS["pasta_q64"]
+        ajtai_per_coefficient("pasta_q64", zk, floor, alpha, log_n, bits) / DIGITS["pasta_q64"]
     )
     masked_digit = (
-        ajtai_per_coefficient("pasta_q64", True, rank_scale, alpha, log_n) / DIGITS["pasta_q64"]
+        ajtai_per_coefficient("pasta_q64", True, floor, alpha, log_n, bits) / DIGITS["pasta_q64"]
+    )
+    # A bare leaf's mask has the leaf's own σ and bound.
+    leaf_masked_digit = (
+        ajtai_per_coefficient("pasta_q64", True, floor, alpha, rank, bits) / DIGITS["pasta_q64"]
     )
     commitments = circuits * 2**rank * (per_digit + bool_per_bit)
     per_step_digit = per_digit + bool_per_bit
@@ -3180,7 +3302,7 @@ def kishu_costs(
             else 0
         ),
         fold=round(sum(parts.values())),
-        fold_leaf=round(attempts * 2**rank * (sample + masked_digit) + parts["merge"]),
+        fold_leaf=round(attempts * 2**rank * (sample + leaf_masked_digit) + parts["merge"]),
         gates=round(digits),
     )
     return fields, parts
@@ -3233,6 +3355,9 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                                     accumulator,
                                     CLAIM_BYTES["kishu"],
                                     zk,
+                                    mask_coordinate_bits(
+                                        log_n=math.log2(accumulator), digit_max=DIGIT_MAX["kishu"]
+                                    ),
                                 )
                             ),
                             accumulation=atoms,
@@ -3377,7 +3502,7 @@ points.append(
         memory=round(bits_akita_accumulator / 8),  # the accumulator's bits, packed
         peak_memory=round(
             peak_fuse_bytes(
-                bits_akita_accumulator / 8, bits_akita_accumulator, CLAIM_BYTES["fp128"], False
+                bits_akita_accumulator / 8, bits_akita_accumulator, CLAIM_BYTES["fp128"], False, 0
             )
         ),
         prover=round(bits_akita_prover),
@@ -3796,7 +3921,8 @@ def kishu_zk_costs(p, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS):
     """A Kishu zero-knowledge row's costs and fold parts at another Gaussian width or sampler
     cost: the row's circuits stay, since the zk-layer merge's extra atoms depend only on the
     rounded log of the mask's length, which is 3 for 6 to 11 slices a coordinate."""
-    assert round(math.log2(mask_length(alpha))) == round(math.log2(MASK_LENGTH)), alpha
+    log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
+    mask_sumcheck_atoms(mask_length(alpha, log_n=log_n, digit_max=DIGIT_MAX["kishu"]))
     return kishu_costs(
         p["groups"],
         p["circuits"],
@@ -3855,12 +3981,7 @@ KARNEY_MSAMPLES_PER_S = (2.109, 3.502)  # Karney's RandomLib sampler, million a 
 NOTE_MASKED_ROWS = 349
 HLS18_CYCLES_PER_SAMPLE = (27672 / 1024, 47576 / 1024)  # without and with randomness, at 3.5 GHz
 HLS18_GHZ = 3.5
-MASK_TAIL = 14  # the masked coordinates are at most 14σ (the slices above)
 DOUBLE_MANTISSA_BITS = 53
-
-
-def mask_log_sigma(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
-    return math.log2(alpha) + math.log2(c_l1) + MASK_LOG_S
 
 
 def rounded_gaussian_log_divergence(alpha=MASK_ALPHA, order=2):
@@ -4005,7 +4126,13 @@ def define_figures():
     fig("nonzero_small_mults", NONZERO_SMALL_WORD_MULTS)
     fig("nonzero_field_mults", NONZERO_FIELD_WORD_MULTS)
     per_digit_default = (
-        ajtai_per_coefficient("pasta_q64") / DIGITS["pasta_q64"] + BOOL_CHECK["sumcheck"][0]
+        ajtai_per_coefficient(
+            "pasta_q64",
+            log_n=math.log2(accumulator_coefficients("kishu", 21, 1)),
+            digit_max=DIGIT_MAX["kishu"],
+        )
+        / DIGITS["pasta_q64"]
+        + BOOL_CHECK["sumcheck"][0]
     )
     blake3_64b = (BLAKE3_BITS + 8 * RANGE_CHECK_DIGITS) * per_digit_default + piop_word_mults(
         piop_sum((1, BLAKE3_PIOP), (8, RANGE_CHECK_PIOP))
@@ -4100,14 +4227,15 @@ def define_figures():
     # constants' comment): its digits, its online and idle work, the response's size, and the
     # times on the assumed devices and link.
     leaf = APP["qk"]["bitz"]["blake3"]
-    sumcheck_rounds = math.ceil(math.log2(leaf + HIDING_PADDING_BITS))
+    padding = HIDING_PADDING_BITS
+    sumcheck_rounds = math.ceil(math.log2(leaf + padding))
     mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
-    device_digits = leaf + HIDING_PADDING_BITS + mask_elements * Q64_DIGITS
-    # The leaf is committed at the masked rank of the device statement's own best row.
-    qk_row = kishu_best("qk", zk=True)[0]
-    qk_log_n = math.log2(accumulator_coefficients("kishu", qk_row["rank"], qk_row["circuits"]))
+    device_digits = leaf + padding + mask_elements * Q64_DIGITS
+    # The leaf is committed under the masked matrix for the device's own vector.
     masked_digit = (
-        ajtai_per_coefficient("pasta_q64", True, RANK_SCALE[128]["goldilocks"], log_n=qk_log_n)
+        ajtai_per_coefficient(
+            "pasta_q64", True, 128, log_n=math.log2(device_digits), digit_max=DIGIT_MAX["kishu"]
+        )
         / DIGITS["pasta_q64"]
     )
     device_online = (
@@ -4122,8 +4250,19 @@ def define_figures():
     z_bits = math.ceil(math.log2(MASK_TAIL) + device_log_sigma)
     z_bytes = device_digits * z_bits / 8
     fig("qk_sumcheck_mask_elements", mask_elements)
-    fig("hiding_padding_bits", fmt(HIDING_PADDING_BITS))
-    fig("hiding_padding_statistical_kbits", round((MASKED_ROWS_Q64 * 64 + 256) / 1000))
+    fig("hiding_padding_bits", fmt(padding))
+    # The device's masked matrix, and the note's leftover-hash padding at its rows.
+    _, device_rank, device_degree, _ = accumulation_matrix(
+        "pasta_q64",
+        128,
+        masked_log_beta_inf(log_n=math.log2(device_digits), digit_max=DIGIT_MAX["kishu"]),
+        math.log2(device_digits),
+    )
+    device_rows = device_rank * device_degree
+    statistical_padding = device_rows * 64 + 256
+    fig("qk_device_matrix_rows", fmt(device_rows))
+    fig("hiding_padding_statistical_kbits", round(statistical_padding / 1000))
+    fig("hiding_padding_statistical_over_statement", sig(statistical_padding / leaf))
     fig("qk_device_digits", sig(device_digits, 3))
     fig("qk_device_online_ms", millis(device_online))
     fig("qk_device_idle_ms", millis(device_idle))
@@ -4395,11 +4534,25 @@ def define_figures():
     plain_steps = tx_steps(plain, "recovery", "poseidon")
     plain_per_step = plain["step_prover"] + plain["accumulation_prover"] + plain["route_step"]
     fig("tx_recovery_kishu_steps_s", secs(plain_steps * plain_per_step))
-    fig("kishu_digit_mults", sig(ajtai_per_coefficient("pasta_q64") / DIGITS["pasta_q64"], 3))
+    kishu_bits = DIGIT_MAX["kishu"]
+    fig(
+        "kishu_digit_mults",
+        sig(
+            ajtai_per_coefficient(
+                "pasta_q64", False, 128, log_n=recovery_log_n, digit_max=kishu_bits
+            )
+            / DIGITS["pasta_q64"],
+            3,
+        ),
+    )
     fig(
         "kishu_digit_mults_masked",
         sig(
-            ajtai_per_coefficient("pasta_q64", True, log_n=recovery_log_n) / DIGITS["pasta_q64"], 3
+            ajtai_per_coefficient(
+                "pasta_q64", True, 128, log_n=recovery_log_n, digit_max=kishu_bits
+            )
+            / DIGITS["pasta_q64"],
+            3,
         ),
     )
     claim(
@@ -4413,7 +4566,6 @@ def define_figures():
         p["rank"] == plain["rank"] and zk_steps == plain_steps,
     )
     fig("mask_alpha", MASK_ALPHA)
-    fig("mask_rank_alpha12", sig(mask_rank(12)))
     fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
     fig("hls18_sample_ns_max", sig(HLS18_CYCLES_PER_SAMPLE[1] / HLS18_GHZ))
     fig("mask_rounded_divergence", tex_pow2(round(rounded_gaussian_log_divergence())))
@@ -4440,22 +4592,51 @@ def define_figures():
         sweep[a] = wa
         q_log_n = math.log2(accumulator_coefficients("kishu", q["rank"], q["circuits"]))
         fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
-        fig(f"mask_rank_factor_alpha{a}", sig(mask_rank(a, log_n=q_log_n), 3))
-        fig(f"mask_log_beta_alpha{a}", sig(masked_log_beta(a, log_n=q_log_n), 3))
-        fig(f"mask_length_alpha{a}", mask_length(a))
+        log_beta = masked_log_beta_inf(a, log_n=q_log_n, digit_max=kishu_bits)
+        fig(f"mask_log_beta_alpha{a}", sig(log_beta, 3))
+        _, m_rank, m_degree, _ = accumulation_matrix("pasta_q64", 128, log_beta, q_log_n)
+        fig(f"mask_matrix_alpha{a}", f"{m_rank} × {fmt(m_degree)}")
+        fig(f"mask_bits_alpha{a}", mask_coordinate_bits(a, log_n=q_log_n, digit_max=kishu_bits))
+        fig(f"mask_length_alpha{a}", mask_length(a, log_n=q_log_n, digit_max=kishu_bits))
         fig(
             f"kishu_digit_mults_alpha{a}",
-            sig(ajtai_per_coefficient("pasta_q64", True, 1.0, a, q_log_n) / DIGITS["pasta_q64"], 3),
+            sig(
+                ajtai_per_coefficient("pasta_q64", True, 128, a, q_log_n, kishu_bits)
+                / DIGITS["pasta_q64"],
+                3,
+            ),
         )
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
         fig(f"tx_recovery_kishu_zk_alpha{a}_rank", q["rank"])
     assert sweep[MASK_ALPHA] == w
     claim(
         "kishu_zk_falls_with_alpha",
-        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 24, and is within one percent of the least at 48 and three percent at 96",
-        all(sweep[a] > sweep[2 * a] for a in (6, 12))
-        and sweep[48] < 1.01 * sweep[24]
-        and sweep[96] < 1.03 * sweep[24],
+        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 96, by under two percent from 48 to 96",
+        all(sweep[a] > sweep[2 * a] for a in (6, 12, 24, 48)) and sweep[96] > 0.98 * sweep[48],
+    )
+    # The widest and the narrowest masks the table's rows take, and the slices' thresholds on
+    # the sweep's grid at the recovery row (the width paragraph).
+    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
+    fig(
+        "mask_bits_alpha1024",
+        mask_coordinate_bits(max(MASK_ALPHA_GRID), log_n=recovery_log_n, digit_max=kishu_bits),
+    )
+    nine = [
+        a
+        for a in MASK_ALPHA_GRID
+        if mask_length(a, log_n=recovery_log_n, digit_max=kishu_bits) == 9
+    ]
+    fig("mask_nine_slices_alpha", sig(max(nine)))
+    fig("mask_attempts_nine_slices", sig(mask_attempts(max(nine)), 3))
+    fig(
+        "mask_tenth_slice_alpha",
+        sig(
+            min(
+                a
+                for a in MASK_ALPHA_GRID
+                if mask_length(a, log_n=recovery_log_n, digit_max=kishu_bits) >= 10
+            )
+        ),
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
@@ -4467,53 +4648,39 @@ def define_figures():
         close = [a for a in MASK_ALPHA_GRID if kishu_zk_best(app, a, sample, n)[1] < 1.02 * least]
         return min(close), max(close)
 
-    excess = {}
+    excess, optima = {}, {}
     for name, sample in SAMPLER_RATES.items():
-        found, worst = {}, 0
+        worst = 0
         for app, n in PAGE_APPLICATIONS:
             a, q, wo = kishu_zk_optimum(app, n, sample)
             w_page = kishu_zk_best(app, MASK_ALPHA, sample, n)[1]
             if (
                 app != "qk"
             ):  # the device's statement alone is one compression: its transaction is its merges, and its optimum is no transaction's
-                found[(app, n)] = a
+                optima[(name, app, n)] = a
                 worst = max(worst, w_page / wo - 1)
             KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
                 alpha=round(a, 1), rank=q["rank"], zk_s=secs(wo), page_alpha_s=secs(w_page)
             )
-            if name == "page" and (app, n) == ("recovery", 1):
-                fig("kishu_zk_alpha_optimum_recovery", sig(a))
-                fig("tx_recovery_kishu_zk_optimum_s", secs(wo))
         excess[name] = worst
-        if name != "fast":  # the prose quotes the page's, Karney's and the free sampler's
-            fig(f"kishu_zk_alpha_optimum_{name}_min", sig(min(found.values())))
-            fig(f"kishu_zk_alpha_optimum_{name}_max", sig(max(found.values())))
     lo, hi = band("recovery", 1, MASK_SAMPLE_WORD_MULTS)
     fig("kishu_zk_alpha_recovery_band_min", sig(lo))
-    fig("kishu_zk_alpha_recovery_band_max", sig(hi))
+    fig("kishu_zk_alpha_grid_top", fmt(round(max(MASK_ALPHA_GRID))))
     fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
     fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
-    # The page's width against the narrower widths with nine slices: the worst application's
-    # excess over its own optimum at each, at the page's sampler (the width paragraph).
-    excess_at = {}
-    for a in (24, 32):
-        excess_at[a] = max(
-            kishu_zk_best(app, a, MASK_SAMPLE_WORD_MULTS, n)[1]
-            / kishu_zk_optimum(app, n, MASK_SAMPLE_WORD_MULTS)[2]
-            - 1
-            for app, n in PAGE_APPLICATIONS
-            if app != "qk"
-        )
-        fig(f"kishu_zk_alpha{a}_excess_pct", sig(100 * excess_at[a]))
     claim(
-        "alpha_page_minimax",
-        "among the widths with nine slices a coordinate, the page's 48 has the least worst-case excess over the applications' optima at the page's sampler, below 32's and 24's",
-        excess["page"] < excess_at[32] < excess_at[24],
+        "alpha_optimum_at_grid_top",
+        "the transaction measure's least zero-knowledge work is at the top of the width grid for every transaction-sized application at every sampler rate, since the masked matrix does not move across the grid",
+        all(a == max(MASK_ALPHA_GRID) for a in optima.values())
+        and hi == max(MASK_ALPHA_GRID)
+        and len({FIGURES[f"mask_matrix_alpha{a}"] for a in MASK_ALPHAS}) == 1,
     )
     claim(
-        "alpha_page_near_optimum",
-        "the page's mask width keeps nine slices a coordinate, which 64 would not, and is within three percent of the least zero-knowledge transaction for every transaction-sized application at the page's sampler",
-        MASK_LENGTH == 9 and mask_length(64) == 10 and excess["page"] < 0.03,
+        "alpha_page_excess",
+        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application at the page's sampler, and within thirty at Karney's rate",
+        mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9
+        and excess["page"] < 0.10
+        and excess["karney"] < 0.30,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
@@ -4742,7 +4909,6 @@ def define_figures():
         "peak_pedersen_rank13",
         mb(pick("pedersen", rank=13, E=4, binders=4, packing=False)["peak_memory"]),
     )
-    fig("mask_coordinate_bits", MASK_COORDINATE_BITS)
     fig("packed_digit_bits", PACKED_DIGIT_BITS - 1)
 
     # The circuit budget table: the rows of its body.
@@ -4889,23 +5055,15 @@ def define_figures():
     for v in ("fp128", "goldilocks"):
         fig(f"{v}_16_blake3_prover", sci(a16[(v, "blake3")]["prover"]))
         fig(f"{v}_16_poseidon_prover", sci(a16[(v, "poseidon")]["prover"]))
-    for v in ("fp128", "pasta_q64"):
-        fig(
-            f"{v}_16_prover_ratio",
-            sig(a16[(v, "blake3")]["prover"] / a16[(v, "poseidon")]["prover"]),
-        )
+    ratio = {v: a16[(v, "blake3")]["prover"] / a16[(v, "poseidon")]["prover"] for v in VARIANTS}
+    for v in ("fp128", "pasta", "pasta_q64"):
+        fig(f"{v}_16_prover_ratio", sig(ratio[v]))
     claim(
         "blake3_prover_ratios",
-        "the 128-bit field and Goldilocks have the same BLAKE3-to-Poseidon merge prover ratio, and so do the Pasta variants",
-        sig(a16[("goldilocks", "blake3")]["prover"] / a16[("goldilocks", "poseidon")]["prover"])
-        == FIGURES["fp128_16_prover_ratio"]
-        and len(
-            {
-                sig(a16[(v, "blake3")]["prover"] / a16[(v, "poseidon")]["prover"])
-                for v in PASTA_VARIANTS
-            }
-        )
-        == 1,
+        "the 128-bit field and Goldilocks have the same BLAKE3-to-Poseidon merge prover ratio, as do the two Pasta-modulus variants; the 64-bit-commitment variant's is higher, since its wider BLAKE3 accumulator takes the matrix to degree 1,024",
+        sig(ratio["goldilocks"]) == sig(ratio["fp128"])
+        and sig(ratio["pasta_sis"]) == sig(ratio["pasta"])
+        and ratio["pasta_q64"] > 1.05 * ratio["pasta"],
     )
     more_bytes = {v: a16[(v, "blake3")]["bytes"] - a16[(v, "poseidon")]["bytes"] for v in VARIANTS}
     fig(
@@ -5270,10 +5428,14 @@ def define_figures():
         "f2_over_gold_poseidon",
         sig(f_least["prover"] / a16[("goldilocks", "poseidon")]["prover"], 1),
     )
+    fig(
+        "f2_over_gold_blake3",
+        sig(f_least["prover"] / a16[("goldilocks", "blake3")]["prover"]),
+    )
     claim(
-        "f2_prover_third_of_gold_blake3",
-        "the 𝔽₂ family's least prover is about a third of Akita over Goldilocks's with BLAKE3",
-        0.28 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.4,
+        "f2_prover_fraction_of_gold_blake3",
+        "the 𝔽₂ family's least prover is between two thirds and nine tenths of Akita over Goldilocks's with BLAKE3",
+        2 / 3 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.9,
     )
     fig("f2_1_8_prover", sci(f8["prover"]))
     fig("f2_1_8_kb", kb(f8["bytes"]))
@@ -5588,26 +5750,152 @@ def define_figures():
         and PASTA_COUNTS == ("native", "relation"),
     )
 
-    # The zero-knowledge mask's parameters (the zero-knowledge paragraph).
-    fig("mask_length", MASK_LENGTH)
+    # The zero-knowledge mask's parameters (the zero-knowledge paragraph): the note's slices
+    # and its Euclidean factor; and over every lattice row shown at either floor, under both
+    # policies with zero knowledge on and off, the ℓ∞ route's accumulation matrices: the
+    # masked over the unmasked rate, the bits above the unmasked bound, the bits a coordinate
+    # and the slices, and how the matrices move with the floor (the margin section).
     fig("mask_rank", sig(MASK_RANK))
-    # The rank factor at each lattice row's own accumulator, its range over the rows shown.
-    factors = [
-        mask_rank(
-            log_n=math.log2(accumulator_coefficients(v, p["rank"], p["circuits"]) * DIGITS[v])
-        )
-        for v in DIGITS
-        for p in shown(v, "poseidon", zk=True)
-    ] + [
-        mask_rank(log_n=math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"])))
-        for f in KISHU
-        for p in shown(f, "poseidon", zk=True)
-    ]
-    fig("mask_rank_min", sig(min(factors)))
-    fig("mask_rank_max", sig(max(factors)))
     fig("mask_sumcheck_atoms", MASK_SUMCHECK_ATOMS)
-    fig("mask_rank_weight32", sig((masked_log_beta(c_l1=32) / MASK_UNMASKED_LOG_BETA) ** 2))
-    fig("mask_rank_alpha6", sig(mask_rank(6)))
+
+    def lattice_rows(floor):
+        """(key, variant, log_n, digit size, zk) of every lattice row shown at `floor`: the
+        Akita variants under both policies, Kishu under the arithmetic-hash option."""
+        rows = []
+        for v in DIGITS:
+            for hp in HASH_POLICIES:
+                for zk in (False, True):
+                    for p in shown(v, hp, zk=zk, floor=floor, hashes=hp):
+                        n = accumulator_coefficients(v, p["rank"], p["circuits"]) * DIGITS[v]
+                        rows.append(((v, hp, zk, p["rank"]), v, math.log2(n), DIGIT_MAX[v], zk))
+        for f in KISHU:
+            for zk in (False, True):
+                for p in shown(f, "poseidon", zk=zk, floor=floor):
+                    n = accumulator_coefficients("kishu", p["rank"], p["circuits"])
+                    key = (f, p["check"], p["route"], zk, p["rank"])
+                    rows.append((key, "pasta_q64", math.log2(n), DIGIT_MAX["kishu"], zk))
+        return rows
+
+    def matrices(variant, table_floor, log_n, digit_max):
+        """The unmasked and the masked matrix a row gets from a floor's table, as (rank, degree),
+        with their rates."""
+        unmasked = accumulation_matrix(
+            variant, table_floor, unmasked_log_beta_inf(digit_max=digit_max), log_n
+        )
+        masked = accumulation_matrix(
+            variant, table_floor, masked_log_beta_inf(log_n=log_n, digit_max=digit_max), log_n
+        )
+        return unmasked, masked
+
+    shapes = {}  # (floor, key) -> the row's two matrices at its floor's table
+    for floor in FLOORS:
+        for key, v, log_n, dm, zk in lattice_rows(floor):
+            shapes[(floor, key)] = (*matrices(v, floor, log_n, dm), log_n, dm)
+    zk_shapes = [s for (fl, key), s in shapes.items() if key[-2]]
+    factors = [m[0] / u[0] for u, m, _, _ in zk_shapes]
+    kishu_factor = FIGURES["kishu_digit_mults_masked"], FIGURES["kishu_digit_mults"]
+    fig("mask_cost_factor_min", sig(min(factors)))
+    fig("mask_cost_factor_max", sig(max(factors), 3))
+    fig("kishu_mask_cost_factor", sig(float(kishu_factor[0]) / float(kishu_factor[1]), 3))
+    fig(
+        "mask_bits_min",
+        min(mask_coordinate_bits(log_n=lg, digit_max=dm) for _, _, lg, dm in zk_shapes),
+    )
+    fig(
+        "mask_bits_max",
+        max(mask_coordinate_bits(log_n=lg, digit_max=dm) for _, _, lg, dm in zk_shapes),
+    )
+    fig("mask_slices_min", min(mask_length(log_n=lg, digit_max=dm) for _, _, lg, dm in zk_shapes))
+    fig("mask_slices_max", max(mask_length(log_n=lg, digit_max=dm) for _, _, lg, dm in zk_shapes))
+    extra = [
+        masked_log_beta_inf(log_n=lg, digit_max=dm) - unmasked_log_beta_inf(digit_max=dm)
+        for _, _, lg, dm in zk_shapes
+    ]
+    fig("mask_extra_bits_min", round(min(extra)))
+    fig("mask_extra_bits_max", round(max(extra)))
+    plain_rates = sorted({u[0] for u, _, _, _ in shapes.values()})
+    fig("ajtai_plain_mults", sig(plain_rates[0]))
+    fig("ajtai_plain_mults_1024", sig(plain_rates[-1]))
+    claim(
+        "accumulation_unmasked_rank1",
+        "every lattice row's unmasked accumulation matrix is rank 1, at degree 512 or 1,024",
+        all(u[1] == 1 and u[2] in ACCUMULATION_DEGREES for u, _, _, _ in shapes.values())
+        and plain_rates == [1 + math.log2(d) / 2 for d in ACCUMULATION_DEGREES],
+    )
+    claim(
+        "mask_cost_factor",
+        "the masked accumulation matrix's rate is 1.0 to 1.4 times the unmasked one's across the lattice rows, with a rank and a degree more at most, and 14/11 on Kishu's rows",
+        min(factors) >= 1.0
+        and max(factors) < 1.4
+        and all(m[1] <= u[1] + 2 and m[2] >= u[2] for u, m, _, _ in zk_shapes)
+        and abs(float(kishu_factor[0]) / float(kishu_factor[1]) - 14 / 11) < 0.01,
+    )
+    # How the matrices move with the floor: the rows shown at both floors, those whose rank
+    # or degree differs between the 128-bit and 147-bit tables, and those that would move at
+    # a 150-bit table.
+    shape = lambda m: m[1:3]
+
+    def in_force(key, pair):
+        """The (rank, degree) of the matrix a row commits under: the masked one for a
+        zero-knowledge row (the flag is the key's second-last field), the unmasked otherwise."""
+        return shape(pair[1] if key[-2] else pair[0])
+
+    common = [key for (fl, key) in shapes if fl == 128 and (147, key) in shapes]
+    moves147 = [
+        key
+        for key in common
+        if in_force(key, shapes[(128, key)]) != in_force(key, shapes[(147, key)])
+    ]
+    at150 = {key: matrices(v, 150, lg, dm) for key, v, lg, dm, _ in lattice_rows(147)}
+    moves150 = [
+        key for key in at150 if in_force(key, at150[key]) != in_force(key, shapes[(147, key)])
+    ]
+    fig("matrix_rows_both_floors", len(common))
+    fig("matrix_moves_147", len(moves147))
+    fig("matrix_moves_150", len(moves150))
+    claim(
+        "matrix_moves_147_blake3_wide",
+        "the rows whose accumulation matrix grows from the 128-bit floor to the 147-bit one are all BLAKE3 rows of the Akita variants, and none is a Kishu row",
+        bool(moves147) and all(len(key) == 4 and key[1] == "blake3" for key in moves147),
+    )
+    claim(
+        "kishu_matrix_same_at_150",
+        "Kishu's accumulation matrices are the same at 128, 147, and 150 bits",
+        all(
+            shape(shapes[(128, key)][0]) == shape(shapes[(147, key)][0]) == shape(at150[key][0])
+            and shape(shapes[(128, key)][1]) == shape(shapes[(147, key)][1]) == shape(at150[key][1])
+            for key in common
+            if key[0] in KISHU
+        ),
+    )
+    claim(
+        "matrix_moves_150_q64_plain",
+        "at a 150-bit floor the only accumulation matrices to move are the unmasked ones of the Pasta-claims rows with 64-bit commitments, from degree 512 to 1,024",
+        bool(moves150)
+        and all(
+            len(key) == 4
+            and key[0] == "pasta_q64"
+            and not key[2]
+            and shape(shapes[(147, key)][0]) == (1, 512)
+            and shape(at150[key][0]) == (1, 1024)
+            for key in moves150
+        ),
+    )
+    # The ℓ∞ route at the note's own example, N = 2^22 base-8 digits (its §5.5).
+    note_beta_inf = masked_log_beta_inf()
+    fig("note_linf_masked_beta", tex_pow2(sig(note_beta_inf, 3)))
+    fig("note_linf_unmasked_beta", tex_pow2(sig(unmasked_log_beta_inf(), 3)))
+    u, m = matrices("pasta_sis", 128, MASK_LOG_N, 4)
+    fig("note_linf_pasta_masked", f"rank {m[1]} at degree {fmt(m[2])}")
+    claim(
+        "note_linf_pasta_unchanged",
+        "on the ℓ∞ route the note's example over the Pasta modulus has the same accumulation matrix masked and unmasked",
+        shape(u) == shape(m),
+    )
+    u, m = matrices("pasta_q64", 128, MASK_LOG_N, 4)
+    fig("note_linf_q64_plain", f"rank {u[1]} at degree {fmt(u[2])}")
+    fig("note_linf_q64_masked", f"rank {m[1]} at degree {fmt(m[2])}")
+    fig("note_linf_q64_factor", sig(m[0] / u[0], 3))
     # The accumulator's digit vector, N base-8 digits, and the masked one's MASK_LENGTH slices.
     unmasked_bytes = 2**MASK_LOG_N * 3 / 8
     fig("accumulator_mb", mb(unmasked_bytes))

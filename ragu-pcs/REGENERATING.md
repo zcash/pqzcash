@@ -124,6 +124,25 @@ for long-running jobs to run under `caffeinate -i` to stop the machine from slee
       goldilocks=estimates/linf-width-table-goldilocks.csv:work/akita-147-out/linf-width-table-147-goldilocks.csv
   ```
 
+- **The accumulation matrix** (`LINF_WIDTHS`, `estimates/linf-accumulation-widths.tsv`): the
+  largest width that Akita's ℓ∞ estimator certifies at each module rank and each bound of the
+  catalog's ladder, at ring degrees 512 and 1024, for the Pallas, 64-bit and 128-bit moduli at
+  both floors. The 64-bit and 128-bit moduli come from the production tables the estimator writes
+  into `akita-params` (`generated_sis_table/q64.rs`, `q128.rs`, in the pinned checkout at 128 bits
+  and the 147-bit worktree at 147), Pallas from the CSV width tables above; the Goldilocks CSV
+  tables are checked to coincide with the 64-bit modulus's rows, which the Goldilocks variant
+  reads. The estimator evaluates only the catalog's own cells, so a bound is rounded up to the
+  ladder:
+
+  ```
+  python scripts/linf-accumulation-widths.py \
+      128 work/akita-src/crates/akita-params/src/sis/generated_sis_table \
+          estimates/linf-width-table-pallas.csv estimates/linf-width-table-goldilocks.csv \
+      147 work/akita-src-150/crates/akita-params/src/sis/generated_sis_table \
+          work/akita-147-out/linf-width-table-147-pallas.csv work/akita-147-out/linf-width-table-147-goldilocks.csv \
+      > estimates/linf-accumulation-widths.tsv
+  ```
+
 - **Typed from the paper and the notes**: the verifier times (`AKITA_VERIFY_MS`, Table 16), the
   terminal's inner-image coordinates (`IMAGE_COORDS`, pasta-proof-size.md §6.1), and the mask's
   parameters (`MASK_*`, the zero-knowledge note's §5).
