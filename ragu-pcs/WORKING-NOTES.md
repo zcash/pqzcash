@@ -3682,3 +3682,56 @@ before.
 
 STATE: branch book-reorganization at this entry's commit, two commits beyond PR #5's pushed tip
 aaa9fd2; the book builds, 682 links check.
+
+## 2026-11-23 23:20 UTC: Spend Authorization under Zoodles, CAPSS, ZIP 2005's qk derivation in all three protocols
+
+PR #5 (book-reorganization, a draft) carries this entry's work; its pushed tip is 9e3bce6, and the
+commits after it are the section, the derivation and binding, CAPSS, and this one.
+
+- **Spend Authorization** (the user's reorganization: most of the hardware-wallets
+  chapter was about the two authorization methods, which are not recovery-specific). Section
+  2.2 has a page that motivates the two methods (the preimage is ZIP 2005's and much the
+  cheaper for a signer with no key separation or no bandwidth or memory constraint; leanSPHINCS
+  reaches a wider range of devices and may be compatible with Ethereum's choice) and defines
+  quantum recovery for Ironwood and Tachyon alike, and under it Hash Preimage (with the
+  signature-of-knowledge argument), leanSPHINCS, CAPSS, Recovery from Ironwood, Recovery from
+  Tachyon, and Hardware Wallets (the device split, the Kishu leaf and the QR channel, the
+  signature on the device). The figures and claims moved with their sentences, the old chapter
+  address redirects, and the frontier page refers to the section (`NOTE_CHAPTERS`
+  "spend-authorization").
+- **Recovery from Tachyon.** Tachyon's owner field is $\mathsf{pk} = \mathsf{Com}(\mathsf{ak},
+  \mathsf{nk})$ (its book, revisit.html#payment-key), so its recovery witness is viewing-key
+  material: no counterpart of ZIP 2005's $\mathsf{qsk}$, hence no threshold-held recovery secret
+  for a FROST group and viewing keys that spend after the break. The user calls it a regression
+  and easily fixable: the proof-authorizing key $(\mathsf{ak}, \mathsf{nk}, \mathsf{qk})$ with
+  $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$. The migration transaction is a recovery spend
+  of a Tachyon note plus a Zoodles output, queued as an application; the frontier page's
+  sentence that Tachyon's circuits in a post-quantum proof system are not a useful deployment is
+  to be revised. Tachyon's book sketches the post-quantum upgrade and leaves it there; Zoodles
+  is that upgrade. The book's URL is tachyon.z.cash/book/revisit.html.
+- **ZIP 2005's qk derivation in all three protocols** (the user: it is $\mathsf{H^{qk}}$ that
+  is the same, not the keys). The preimage method's image is derived from its preimage by the
+  ZIP's $\mathsf{H^{qk}}$, whose personalization names no pool on purpose (any domain
+  separation between the protocols affects how $\mathsf{qsk}$ is obtained, not the derivation;
+  a footnote on the page), so a native Zoodles spend, an Ironwood recovery on the
+  $\mathsf{use\_qsk}$ path, and a Tachyon recovery make the same check with keys of their own. What binds a Zoodles
+  note to its action without Tachyon's randomizer (the user's question from the book's
+  #pq-rerand): every published value is derived in the step that opens the note, the lineage's
+  attestation arrives as a header the step checks, and the tree and the digest carry the rest.
+- **CAPSS** (the user: worth analysing as a third option). ePrint 2025/061 read from
+  keep/2025-061.pdf; its Tables 2, 3, and 6 typed as `CAPSS_*`. Anemoi is set aside for the
+  FreeLunch attacks (CRYPTO 2024, keep/crypto-2024.pdf) and Campa–Roy's Gröbner-basis
+  cryptanalysis (ePrint 2025/814, keep/2025-814.pdf), the Poseidon instances read; the
+  framework takes any permutation cheap in the proof system at hand (the user), so a Poseidon
+  instance over Kishu's field is estimated at the model's rates: a verifier of about 10.1
+  million digits by the call counts or 6.4 million by the paper's constraint estimate, against
+  leanSPHINCS's 6.39 million; signing about 40,000 permutations, 1.1 s at the MCU rate; about
+  20 kbytes. Not adopted: the method for a prime-field proof system; a row would be a day's
+  work.
+
+NEXT: the Zoodles statements page (the user: a page giving the Zoodles statements, in the
+style of Tachyon's proof-statement section); the online measure; the Tachyon → Zoodles
+application; the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, five commits beyond PR #5's pushed
+tip 9e3bce6; the book builds, 771 links check.
