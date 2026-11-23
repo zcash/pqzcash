@@ -1457,6 +1457,49 @@ def tree_path_cost(field, hp, levels):
     return path_cost(field, hp) * (levels + 1) / 33
 
 
+# A bucketed table for an epoch's tachygram set, the non-membership accumulator of
+# zcash/zcash#4062, priced beside the sorted tree on the epoch-set page: m tachygrams of
+# ZOODLES_TACHYGRAM_BITS go to 2^B buckets by prefix, a bucket holding up to K suffixes, and an
+# honest note is lost when its bucket overflows, so K is the least that bounds the overflow
+# probability below 2^-lambda, by a union bound over the buckets of the Poisson tail of a
+# bucket's load (its mean m / 2^B). The exclusion proof is the B path hashes and the bucket's
+# contents at BLAKE3's block.
+BUCKET_TABLE_ROWS = ((20, 16), (20, 18), (20, 20), (34, 32), (34, 34))  # (log2 m, B)
+BUCKET_TABLE_LAMBDAS = (64, 128)
+
+
+def log2_poisson_tail(mu, k):
+    """log2 of P[Poisson(mu) >= k], the terms summed in log space."""
+    first = (-mu + k * math.log(mu) - math.lgamma(k + 1)) / math.log(2)
+    total, term, j = 0.0, 1.0, k
+    while term > 1e-30:
+        total += term
+        j += 1
+        term *= mu / j
+    return first + math.log2(total)
+
+
+def bucket_capacity(log_m, B, lam):
+    """The least bucket capacity K with 2^B * P[load >= K + 1] <= 2^-lam."""
+    mu = 2**log_m / 2**B
+    K = max(1, int(mu))
+    while B + log2_poisson_tail(mu, K + 1) > -lam:
+        K += 1
+    return K
+
+
+def bucket_proof_hashes(B, K, tag_bits=None):
+    """The exclusion proof's hashes: the path and the bucket's K entries, full suffixes or
+    `tag_bits`-bit tags, at 512 bits a compression."""
+    bits = K * (tag_bits if tag_bits else ZOODLES_TACHYGRAM_BITS - B)
+    return B + math.ceil(bits / (8 * BLAKE3_BLOCK))
+
+
+def bucket_tag_bits(log_m, B, lam):
+    """Tags of T bits add a within-bucket collision term of about m * mu / 2^(T + 1)."""
+    return log_m + (log_m - B) - 1 + lam
+
+
 def zoodles_epoch_cost(field, hp):
     """The lineage step in the unit of `field`'s arithmetization."""
     return (
@@ -4489,6 +4532,28 @@ def define_figures():
     fig("zoodles_epoch_tachygrams", fmt(2**ZOODLES_EPOCH_LOG))
     fig("zoodles_epoch_per_block", fmt(2**ZOODLES_EPOCH_LOG // ZOODLES_EPOCH_BLOCKS))
     fig("zoodles_epoch_hashes", ZOODLES_EPOCH_LOG + 2)
+    # The epoch-set page's comparison of the bucketed table with the sorted tree, whose
+    # exclusion proof is the path and the leaf, log2 m + 1 hashes.
+    gaps = []
+    for log_m in sorted({row[0] for row in BUCKET_TABLE_ROWS}):
+        fig(f"tree_hashes_{log_m}", log_m + 1)
+    for log_m, B in BUCKET_TABLE_ROWS:
+        for lam in BUCKET_TABLE_LAMBDAS:
+            fig(f"bucket_k{lam}_{log_m}_{B}", bucket_capacity(log_m, B, lam))
+        hashes = bucket_proof_hashes(B, bucket_capacity(log_m, B, 64))
+        fig(f"bucket_hashes_{log_m}_{B}", hashes)
+        gaps.append(hashes - (log_m + 1))
+    fig("bucket_tag_bits_20_16", bucket_tag_bits(20, 16, 64))
+    fig(
+        "bucket_tag_hashes_20_16",
+        bucket_proof_hashes(16, bucket_capacity(20, 16, 64), bucket_tag_bits(20, 16, 64)),
+    )
+    fig("bucket_mu_20_16", 2**20 // 2**16)
+    claim(
+        "bucket_table_dearer",
+        "in every row of the epoch-set page's table the bucketed table's exclusion proof takes at least ten more hashes than the sorted tree's",
+        min(gaps) >= 10,
+    )
     fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
     claim(
         "zoodles_tree_under_bucket",
@@ -6082,6 +6147,7 @@ PROSE_FILES = (
     "zk-fiat-shamir-with-aborts.md",
     "hardware-wallets.md",
     "zoodles.md",
+    "zoodles-epoch-set.md",
 )
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # A claim's sentence sits between `<!--claim:names:hash-->` and `<!--/claim-->`, the names

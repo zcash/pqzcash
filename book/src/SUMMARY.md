@@ -12,4 +12,5 @@
     - [The Pasta-Claims Variant's Soundness Obligation](proof-systems/other-schemes/pasta-q64-soundness.md)
   - [Regenerating the Study's Numbers](proof-systems/regenerating.md)
 - [Zoodles](zoodles.md) <!-- todo -->
+  - [The Epoch's Tachygram Set](zoodles/epoch-set.md)
 - [Hardware Wallets and the Recovery Statement](hardware-wallets.md)

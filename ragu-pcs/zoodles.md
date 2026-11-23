@@ -14,8 +14,9 @@ straightforward. They just drop all uses of Pasta outside the Ironwood/Tachyon r
   signature verified in zk. The latter requires many PCD steps to verify, but the overall
   performance is entirely practical both on a hardware wallet and on the host wallet.
   Multisignatures are also feasible.
-- The epoch tachygram set accumulators are replaced by either Kishu's PCS (Akita) or Merkle trees.
-  (It is not entirely clear which is more efficient for this usage.)
+- The epoch tachygram set accumulators are replaced by sorted Merkle trees rather than by set
+  polynomials in Kishu's PCS (Akita); [The epoch's tachygram set](zoodles-epoch-set.md) compares the
+  two, and a bucketed table.
 - The PCD step size is reoptimized for Kishu. It ends up committing between a quarter and the same
   step circuit witness size as Ragu, but as bits rather than Pallas field elements.
 
@@ -99,8 +100,8 @@ check: <!--fig:app_zoodles_epoch_kishu-->332,000<!--/fig--> Kishu digits,
 and <!--fig:tx_zoodles_epoch_kishu_s-->0.0395<!--/fig--> s a note an epoch at
 rank <!--fig:tx_zoodles_epoch_kishu_rank-->19<!--/fig--> on one core, without zero knowledge, since
 the lineage never leaves the wallet. On that count the tree is well ahead; the bucket route as
-Tachyon folds it, at a capacity chosen for digits, is still to be priced beside it, which is the
-open question of the fourth bullet above.
+Tachyon folds it, at a capacity chosen for digits, is still to be priced beside it; [The epoch's
+tachygram set](zoodles-epoch-set.md) compares the representations.
 
 ## Cost
 
