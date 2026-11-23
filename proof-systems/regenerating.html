@@ -1,0 +1,481 @@
+<!DOCTYPE HTML>
+<html lang="en" class="rust sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Regenerating the Study&#x27;s Numbers - Post-Quantum Zcash</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Design work towards post-quantum security for Zcash.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-a8328095.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "rust";
+            const default_dark_theme = "rust";
+            window.path_to_searchindex_js = "../searchindex-59efae2d.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-326f7d0c.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('rust')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Post-Quantum Zcash</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+<h1 id="regenerating-the-studys-numbers"><a class="header" href="#regenerating-the-studys-numbers">Regenerating the study’s numbers</a></h1>
+<p>Every number on the PCS frontier page and in the two notes comes from one of three places: a
+constant in <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/pareto-model.py"><code>pareto-model.py</code></a> typed from a paper or a
+specification; a constant computed by a script in <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/scripts"><code>scripts/</code></a> from an
+external checkout; or the model’s own arithmetic. This file says how to redo the first two kinds.
+Paths are relative to <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs"><code>ragu-pcs/</code></a>.</p>
+<h2 id="the-pages-figures-and-claims"><a class="header" href="#the-pages-figures-and-claims">The page’s figures and claims</a></h2>
+<p><code>python pareto-model.py</code> writes <code>pareto.html</code>, the standalone page, and the same page for the book
+in four files that the book’s chapter includes and serves: <code>pareto-book.html</code> (the text),
+<code>pareto.css</code> (scoped to the page and coloured from mdbook’s theme, with the plot and controls kept
+dark), <code>pareto.js</code> and <code>pareto-data.js</code>. Every figure that the text quotes sits between markers in
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/pareto-template.html"><code>pareto-template.html</code></a>, in the two notes,
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/pasta-proof-size.md"><code>pasta-proof-size.md</code></a> and
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/zk-fiat-shamir-with-aborts.md"><code>zk-fiat-shamir-with-aborts.md</code></a>, and in the
+hardware wallets page, <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/hardware-wallets.md"><code>hardware-wallets.md</code></a>, as
+<code>&lt;!--fig:NAME--&gt;value&lt;!--/fig--&gt;</code>, and the model fills them when it writes the page. A qualitative
+statement that the model can check is a named <code>claim(name, text, holds)</code> in <code>define_figures()</code>, and
+the sentence it guards sits between <code>&lt;!--claim:NAME:HASH--&gt;</code> and <code>&lt;!--/claim--&gt;</code>, the hash the first
+six hex digits of SHA-256 over the claim’s text; a sentence that carries several claims names them
+with commas. The run fails, and so does the book build, which runs the model, when any of these
+holds:</p>
+<ul>
+<li>a figure’s value in a tracked file differs from the model’s;</li>
+<li>a claim no longer holds;</li>
+<li>a claim’s hash in a marker differs from its text’s, which means the claim was reworded and the
+sentence must be read again;</li>
+<li>a claim has no marker in any file, or a marker names no claim.</li>
+</ul>
+<p>Commands:</p>
+<pre><code>python pareto-model.py            # write pareto.html; fail on a stale figure or marker, or a failed claim
+python pareto-model.py --fill     # also write the current values and hashes back into the tracked files
+python pareto-model.py --figures  # list every figure and every claim
+</code></pre>
+<p>A new number in the text gets a <code>fig()</code> in <code>define_figures()</code> and a marker where it is quoted; a
+qualitative statement that the model can check gets a <code>claim()</code> and a marker around its sentence.
+<code>--fill</code> prints each changed figure as old → new and each changed claim with its new text, which is
+the list of sentences to read before committing. A constant that a script computes goes in the model
+with a comment naming the script and its inputs, as <code>RANK_SUMS_147</code>, <code>WIDTH_SHRINK_147</code> and
+<code>WHIR_147</code> do.</p>
+<h2 id="external-checkouts"><a class="header" href="#external-checkouts">External checkouts</a></h2>
+<p>The scripts expect the checkouts and their outputs under <code>work/</code>, which git ignores, or under the
+directory that <code>RAGU_PCS_WORK</code> names. The tracked outputs are under
+<a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/</code></a>. The local changes are patches under
+<a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/scripts/patches"><code>scripts/patches/</code></a>, one directory per repository, numbered in
+the order they apply as <code>git format-patch</code> names them, and applied with <code>git am</code>.
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-checkout.sh"><code>scripts/akita-checkout.sh</code></a> makes the two Akita
+checkouts: it clones the pinned revision, initialises the lattice-estimator submodule, and applies
+<code>0001</code> in the clone and <code>0001</code> then <code>0002</code> in the worktree.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Directory</th><th>Source</th><th>Local changes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>work/akita-src</code></td><td>LayerZero-Labs/akita at 60b82bc30f4f8f1130ccd71fe10b0b9bed909ab9, branch <code>pasta-widths</code></td><td><a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/patches/akita/0001-Pallas-and-Goldilocks-moduli-width-re-pricing.patch"><code>scripts/patches/akita/0001-*</code></a>: estimator-only Pallas and Goldilocks moduli, the <code>pasta_rank</code> and <code>catalog_reprice</code> examples, the pricing-width override</td></tr>
+<tr><td><code>work/akita-src-150</code></td><td>a worktree of the same clone, branch <code>pasta-widths-147</code></td><td><code>0001-*</code> and <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/patches/akita/0002-The-147-bit-policy-and-its-compression-cells.patch"><code>scripts/patches/akita/0002-*</code></a>: the 147-bit policy and the re-sized compression cells; its width tables are regenerated by the pipeline, not patched</td></tr>
+<tr><td><code>work/whir-src</code></td><td>WizardOfMenlo/whir at afec1fa, <code>cargo build --release</code></td><td>none</td></tr>
+<tr><td><code>work/bitz-poc</code></td><td>albert-garreta/BitZ-PoC at 8ced3b985</td><td>none; built by <code>scripts/bitz-rerun.sh build</code></td></tr>
+<tr><td><code>work/plonky3-src</code></td><td>Plonky3/Plonky3 at f98331687e47106a64ab82a77e2e1d0d66c9161b</td><td>none</td></tr>
+<tr><td>a Ragu checkout</td><td>tachyon-zcash/ragu at 8109a41c, and a worktree at a1395401, the revision Tachyon pins</td><td><a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/patches/ragu/0001-A-counting-driver-for-the-mock-s-steps.patch"><code>scripts/patches/ragu/0001-*</code></a> on a1395401: a counting driver for the mock’s steps</td></tr>
+<tr><td>a Tachyon checkout</td><td>tachyon-zcash/tachyon at 73031f7</td><td><a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/scripts/tachyon-gates"><code>scripts/tachyon-gates/</code></a>, copied to <code>work/gates/</code> there</td></tr>
+<tr><td>an Orchard benchmark crate</td><td>a crate depending on the orchard 0.16.0 release from crates.io, running its <code>benches/circuit.rs</code></td><td>the profiler removed, the recipient counts widened to 1, 2, 4, 8, 16, and <code>pasta_curves</code> 0.6.1 with its <code>asm</code> feature</td></tr>
+</tbody>
+</table>
+</div>
+<p>Akita’s crates build with <code>RUSTUP_TOOLCHAIN=1.96.0</code>, which the scripts set. The Akita runs take
+hours, and the benchmarks need an otherwise idle machine. Note: on a MacBook, it may be helpful for
+long-running jobs to run under <code>caffeinate -i</code> to stop the machine from sleeping.</p>
+<h2 id="pedersen-ipa"><a class="header" href="#pedersen-ipa">Pedersen-IPA</a></h2>
+<ul>
+<li><strong>The proof size and the circuit budget</strong>
+(<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/ragu-size-model.py"><code>ragu-size-model.py</code></a>): the component structure is Ragu’s
+wire format, and the gate and constraint counts are the ones that ragu_pcd’s internal tests pin
+(<code>crates/ragu_pcd/src/internal/tests.rs</code> at 8109a41c). <code>python ragu-size-model.py</code> prints the
+checked-in proof, 7,908 bytes, and <code>python ragu-size-model.py budget</code> the budget table. After a
+Ragu change, read the pinned counts off those tests and update the constants at the top of the
+size model.</li>
+<li><strong>The fuse</strong> (<code>PEDERSEN_FUSE_SECONDS</code>): in the Ragu checkout, <code>cargo bench -p ragu_pcd --features multicore --bench criterion_fuse</code>, the Merge2 step at the production rank with one worker, on one
+core, no assembly. The model calibrates the Pedersen prover to it.</li>
+<li><strong>Tachyon’s circuits</strong> (<code>TACHYON_STEPS</code>): apply the patch under
+<a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/scripts/patches/ragu"><code>scripts/patches/ragu/</code></a> with <code>git am</code> to the Ragu
+worktree at a1395401, copy <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/scripts/tachyon-gates"><code>scripts/tachyon-gates/</code></a> to
+<code>work/gates/</code> in the Tachyon checkout (its manifest points at <code>../../crates/tachyon</code> and at the
+worktree beside the checkout), and <code>cargo run</code> there. It prints each step’s gates and constraints
+at header 9.</li>
+<li><strong>Halo 2</strong> (<code>HALO2_SECONDS</code>): Orchard 0.16.0’s <code>benches/circuit.rs</code> proving group with the
+recipient counts widened, built with rustc 1.100.0 and <code>pasta_curves</code> 0.6.1 with <code>asm</code>; the
+two-action and sixteen-action times on one thread.</li>
+</ul>
+<h2 id="akita"><a class="header" href="#akita">Akita</a></h2>
+<ul>
+<li>
+<p><strong>Openings, slopes, rows and the catalog report</strong> (<code>AKITA_128</code>, <code>SLOPE[128]</code>, <code>ROWS</code>,
+<a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/</code></a>):
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-pasta-estimates.sh"><code>scripts/akita-pasta-estimates.sh</code></a> builds
+the patched Akita and runs the rank ladder
+(<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/estimates/pasta-rank.csv"><code>pasta-rank.csv</code></a>), the catalog re-pricing, the
+re-plans under each pricing override, and the 128-bit width tables for Pallas and Goldilocks. It
+writes the TSVs and CSVs that <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/</code></a> holds. The catalog
+security report there is <code>gen_schedule_artifacts --catalog-report</code> over the shipped families,
+built with the <code>catalog-security</code> feature, as the re-plan scripts run it. The per-K group runs
+behind the opening tables are not kept under <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/</code></a>; the
+re-plan scripts reproduce them.</p>
+</li>
+<li>
+<p><strong>The 147-bit floor</strong> (<code>AKITA_147</code>, <code>SLOPE[147]</code>):
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-147-pipeline.sh"><code>scripts/akita-147-pipeline.sh</code></a>, on the
+worktree that the checkout script made, regenerates its width tables at 147 bits (hours;
+<code>SKIP_TABLES=1</code> resumes), re-sizes the compression cells, rebuilds and runs
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-147-replan.sh"><code>scripts/akita-147-replan.sh</code></a>; then <code>python scripts/akita-150-page-inputs.py work/akita-147-out/replan</code> prints the two dicts in the model’s
+shape. <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-150-tables.sh"><code>scripts/akita-150-tables.sh</code></a> writes CSV
+width tables at a given floor for every modulus, and the Pallas table alone is
+<code>infinity_width_table --policy Quantum147BitADPS16 --profiles pallas --format csv --profile local-minimum --output ...</code> in the worktree: 5.5 hours with the estimator built without its
+<code>parallel</code> feature.</p>
+</li>
+<li>
+<p><strong>Rank growth</strong> (<code>RANK_SUMS_147</code>): over the weakest instance of each of the catalog report’s 115
+schedules, the least module rank that covers its width at each floor, mapped through each
+variant’s modulus:</p>
+<pre><code>python scripts/rank-scale.py estimates/catalog-security.tsv \
+    work/akita-src/crates/akita-params/src/sis/generated_sis_table \
+    work/akita-src-150/crates/akita-params/src/sis/generated_sis_table \
+    estimates/linf-width-table-goldilocks.csv work/akita-147-out/linf-width-table-147-goldilocks.csv \
+    estimates/linf-width-table-pallas.csv work/akita-147-out/linf-width-table-147-pallas.csv
+</code></pre>
+</li>
+<li>
+<p><strong>Width shrink</strong> (<code>WIDTH_SHRINK_147</code>): the median of the 128-bit width over the 147-bit one, per
+modulus and ring dimension, over the cells where neither width is at the estimator’s search cap
+and the width falls. The shipped moduli come from the production table’s policy audit at each
+floor, Pallas and Goldilocks from the CSV tables:</p>
+<pre><code>python scripts/width-shrink.py 147 \
+    work/akita-src/crates/akita-params/src/sis/generated_sis_table/policy_audit.csv \
+    work/akita-src-150/crates/akita-params/src/sis/generated_sis_table/policy_audit.csv \
+    pallas=estimates/linf-width-table-pallas.csv:work/akita-147-out/linf-width-table-147-pallas.csv \
+    goldilocks=estimates/linf-width-table-goldilocks.csv:work/akita-147-out/linf-width-table-147-goldilocks.csv
+</code></pre>
+</li>
+<li>
+<p><strong>The accumulation matrix</strong> (<code>LINF_WIDTHS</code>,
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/estimates/linf-accumulation-widths.tsv"><code>estimates/linf-accumulation-widths.tsv</code></a>):
+the largest width that Akita’s ℓ∞ estimator certifies at each module rank and each bound of the
+catalog’s ladder, at ring degrees 512 and 1024, for the Pallas, 64-bit and 128-bit moduli at both
+floors. The 64-bit and 128-bit moduli come from the production tables the estimator writes into
+<code>akita-params</code> (<code>generated_sis_table/q64.rs</code>, <code>q128.rs</code>, in the pinned checkout at 128 bits and
+the 147-bit worktree at 147), Pallas from the CSV width tables above; the Goldilocks CSV tables
+are checked to coincide with the 64-bit modulus’s rows, which the Goldilocks variant reads. The
+estimator evaluates only the catalog’s own cells, so a bound is rounded up to the ladder:</p>
+<pre><code>python scripts/linf-accumulation-widths.py \
+    128 work/akita-src/crates/akita-params/src/sis/generated_sis_table \
+        estimates/linf-width-table-pallas.csv estimates/linf-width-table-goldilocks.csv \
+    147 work/akita-src-150/crates/akita-params/src/sis/generated_sis_table \
+        work/akita-147-out/linf-width-table-147-pallas.csv work/akita-147-out/linf-width-table-147-goldilocks.csv \
+    &gt; estimates/linf-accumulation-widths.tsv
+</code></pre>
+</li>
+<li>
+<p><strong>The hiding padding’s hardness</strong> (<code>HIDING_PADDING_ATTACK_BITS</code>, <code>HIDING_PADDING_SWEEP</code>): the
+pinned lattice estimator in Akita’s <code>third_party</code> submodule, which the checkout script
+initialises, under Sage, costs every LWE attack on the knapsack-LWE instance behind the hardware
+wallet’s padding at 5,000 bits and 1,024, 1,385, and 2,048 rows, then sweeps the padding from
+3,500 to 6,000 bits at the device’s 1,024 rows, by 250 and by 50 where the floors are crossed,
+under the ADPS16 quantum model: <code>sage scripts/knapsack-lwe-check.py</code> from <code>ragu-pcs</code>, about an
+hour.</p>
+</li>
+<li>
+<p><strong>Typed from the paper and the notes</strong>: the verifier times (<code>AKITA_VERIFY_MS</code>, Table 16), the
+terminal’s inner-image coordinates (<code>IMAGE_COORDS</code>, pasta-proof-size.md §6.1), and the mask’s
+parameters (<code>MASK_*</code>, the zero-knowledge note’s §5).</p>
+</li>
+</ul>
+<h2 id="whir-fri-and-the-limb-hybrid"><a class="header" href="#whir-fri-and-the-limb-hybrid">WHIR, FRI and the limb hybrid</a></h2>
+<ul>
+<li>
+<p><strong>The sweeps</strong> (<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/estimates/whir-sweep.tsv"><code>estimates/whir-sweep.tsv</code></a>,
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/estimates/whir-sweep-grind.tsv"><code>estimates/whir-sweep-grind.tsv</code></a>): the
+reference binary at 2^17, 2^18 and 2^20 variables over <code>Field256</code> and <code>Goldilocks3</code>, rates 1/2 to
+1/64, maximum proof of work 0, 16, 20 and 24 bits, 128 bits in the Johnson regime, three verifier
+repetitions:</p>
+<pre><code>target/release/main -l 128 -d 17 -r 3 -f Field256 -p 20 --reps 3
+</code></pre>
+</li>
+</ul>
+<p>Each run prints <code>Proof size</code>, <code>Average hashes</code> and <code>Prover time</code>, which are the TSV’s <code>proof_KiB</code>,
+<code>verifier_khashes</code> and <code>prover_ms</code>; <code>first_samples</code> and <code>queries</code> are the first round’s sample count
+and the sum over rounds from its <code>commit ... samples N</code> lines.</p>
+<ul>
+<li><strong>The higher floor</strong> (<code>WHIR_147</code>):
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/whir-sweep-147.sh"><code>scripts/whir-sweep-147.sh</code></a> runs the same binary at
+128 and 147 bits over both fields at rates 1/2 to 1/8; the model takes the mean ratios.</li>
+<li><strong>Zero knowledge</strong> (<code>ZK_BYTES</code>, <code>ZK_HASHES</code>, <code>ZK_PROVER</code>): Plonky3’s HVZK-WHIR benchmark,
+<code>RUSTFLAGS="-Ctarget-cpu=native" cargo bench --bench zk_overhead -p p3-whir -- whir_zk_overhead</code>
+in <code>work/plonky3-src</code>.</li>
+<li><strong>FRI’s factors</strong> over WHIR (1.95 on the proof, 2.07 on the hashes) are the WHIR paper’s
+measurements, typed.</li>
+</ul>
+<h2 id="the-𝔽₂-family"><a class="header" href="#the-𝔽₂-family">The 𝔽₂ family</a></h2>
+<p><a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/frib_optimizer.py"><code>frib_optimizer.py</code></a> is the tracked port of Ulrich Haböck’s
+FRI-Binius proof-size optimizer and runs inside the model. Its calibration (<code>FRIB_MEASURED_MS</code>) and
+Flock’s throughput and shares are typed from the two papers.</p>
+<h2 id="bitz"><a class="header" href="#bitz">BitZ</a></h2>
+<p><code>BITZ_T10</code> is the paper’s Table 10, typed. The scalings measured with the proof of concept
+(<code>BITZ_128</code>, <code>BITZ_RATE</code>, <code>BITZ_PHASES</code>) come from <code>scripts/bitz-rerun.sh build</code>, then
+<code>scripts/bitz-rerun.sh &lt;profile&gt; 25-28 5</code> for the three profiles: <code>custom:1:4</code>, Table 10’s rate 1/2
+at 100 bits; <code>udrg:1:4:128</code>, rate 1/2 at 128 bits in the unique-decoding regime with grinding; and
+<code>udrg:3:4:128</code>, rate 1/8 at 128 bits. Then <code>python scripts/bitz-summary.py work/bitz-out/rerun/*.log</code> for the table of commit, grand-product, Ligerito and verifier times and
+proof bytes. <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/bitz-pcs-sweep.sh"><code>scripts/bitz-pcs-sweep.sh</code></a> and
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/bitz-overnight.sh"><code>scripts/bitz-overnight.sh</code></a> are the single-thread and
+ten-thread sweeps of the same benchmark.</p>
+<h2 id="kishu"><a class="header" href="#kishu">Kishu</a></h2>
+<p><code>BOOL_CHECK</code> holds the Booleanity draft’s measured reduction (prover and verifier times, payloads,
+the projection’s scan). <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/spike"><code>spike/</code></a> models the protocol and is not a source
+of page numbers.</p>
+<h2 id="akitas-binary-groups"><a class="header" href="#akitas-binary-groups">Akita’s binary groups</a></h2>
+<p><code>BINARY_MEASURED</code> is the Akita development branch’s measurement of a binary-claim opening
+(LayerZero-Labs/akita#285, <code>scripts/binary-full-size.sh</code> there at 8046b4cd2, the P128 root), typed.</p>
+<h2 id="the-applications"><a class="header" href="#the-applications">The applications</a></h2>
+<p>The recovery circuit’s and the Merkle path’s costs in each arithmetization (<code>RECOVERY_*</code>,
+<code>RECOVERY_PATH_*</code>, <code>BOOL_*</code>) are derived in the model’s comments from ZIP 2005’s cost section and
+the arithmetizations’ own gate costs; Tachyon’s nodes are the measured circuits above. Nothing
+external is needed beyond the gate probe.</p>
+<h2 id="the-sampler"><a class="header" href="#the-sampler">The sampler</a></h2>
+<p><code>MASK_SAMPLE_NS</code> and its companions are
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/sampler-bench.c"><code>scripts/sampler-bench.c</code></a>’s measurement: build it with
+<code>clang -O3 -o work/sampler-bench scripts/sampler-bench.c -lm</code> and run <code>work/sampler-bench 22 32 22.9 aes</code> and <code>work/sampler-bench 22 32</code> on one core of an idle machine on mains, three times each, and
+take the medians of the whole-path and randomness-alone lines. The <code>aes</code> form needs macOS
+(CommonCrypto); the ChaCha20 form is portable.</p>
+<h2 id="the-carry-less-multiplication"><a class="header" href="#the-carry-less-multiplication">The carry-less multiplication</a></h2>
+<p><code>GF128_MEASURED_NS</code> is <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/clmul-bench.c"><code>scripts/clmul-bench.c</code></a>’s
+measurement of a GF(2^128) multiplication by PMULL against the model’s word multiplication: build it
+with <code>cc -O3 -mcpu=native -DCHAINS=16 -o work/clmul-bench scripts/clmul-bench.c</code> and run
+<code>work/clmul-bench</code> on one core of an idle Apple Silicon machine on mains; take the GF(2^128) line’s
+nanoseconds. The chain count sets how many independent multiplications are in flight, and the
+Goldilocks line is a scalar reference whose own rate is below the page’s 3e9 a second.</p>
+<h2 id="the-notes-own-tables"><a class="header" href="#the-notes-own-tables">The notes’ own tables</a></h2>
+<p>The tables in <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/pasta-proof-size.md"><code>pasta-proof-size.md</code></a> §3, §3.1, §6.2 and §6.3
+are the planner’s figures from
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/estimates/catalog-reprice.tsv"><code>estimates/catalog-reprice.tsv</code></a> and
+<a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/reprice-*.tsv</code></a>, which
+<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-pasta-estimates.sh"><code>scripts/akita-pasta-estimates.sh</code></a> writes; the
+Pedersen figures there are <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/ragu-size-model.py"><code>ragu-size-model.py</code></a>’s. The
+figures that the model also computes carry markers and refill with <code>--fill</code>.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../proof-systems/working-notes/zk-fiat-shamir-with-aborts.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../hardware-wallets.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../proof-systems/working-notes/zk-fiat-shamir-with-aborts.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../hardware-wallets.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-eefea253.min.js"></script>
+        <script src="../mermaid-init-d0d5e6a7.js"></script>
+        <script src="../todo-e74d2c27.js"></script>
+
+
+
+    </div>
+    </body>
+</html>
