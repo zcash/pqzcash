@@ -475,3 +475,13 @@ em {
 [dir=rtl] .previous {
     left: unset;
 }
+
+/* ==================== */
+/* A section without a page of its own renders as a draft in the sidebar, in mdbook's draft
+   colour, which is near the background in every theme. Derive it from the sidebar's text
+   instead, so that a draft entry stays readable. */
+/* ==================== */
+
+:root, .light, .rust, .coal, .navy, .ayu {
+    --sidebar-non-existant: color-mix(in srgb, var(--sidebar-fg) 65%, var(--sidebar-bg));
+}
