@@ -31,11 +31,18 @@ rather than by a Merkle path in the spend. The published tachygrams are what the
 spend's two epoch nullifiers, an output's commitment and its padding, and the fee circuit's change
 commitment. The fee circuit fixes the fee last and hashes the change note, the maximum-fee note's
 value less the fee, as Tachyon's does. What changes in the tree is the packing: Tachyon gives each
-circuit a step of its own, where Kishu's step is large enough to hold as many spends and outputs as
-fit in the same step as the fee. A transaction of two inputs and two outputs
-is <!--fig:zoodles_nodes-->12<!--/fig--> circuits, and at
+circuit a step of its own, where a Kishu step of $2^{\mathrm{rank}}$ digits holds the fee
+circuit, <!--fig:zoodles_fee_digits-->39,557<!--/fig--> digits, and with it as many
+spends, <!--fig:zoodles_spend_digits-->50,461<!--/fig--> digits each, and
+outputs, <!--fig:zoodles_output_digits-->65,513<!--/fig-->, as fit, each with its merge
+of <!--fig:zoodles_merge_digits-->13,666<!--/fig-->: <!--fig:zoodles_actions_per_step_17-->1<!--/fig-->
+action at rank 17, <!--fig:zoodles_actions_per_step_19-->6<!--/fig--> at rank 19,
+and <!--fig:zoodles_actions_per_step_21-->28<!--/fig--> at rank 21. A transaction of two inputs and
+two outputs is <!--fig:zoodles_nodes-->12<!--/fig--> circuits, and at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->19<!--/fig--> they fit
-in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step.
+in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. A spend authorized by leanSPHINCS
+is <!--fig:zoodles_leansphincs_spend_digits-->6.44 million<!--/fig--> digits and takes several steps
+by itself.
 
 What changes is the arithmetic inside the nodes. In Tachyon the set polynomials are Pedersen vector
 commitments and the bridge hash is a Pedersen hash onto Pallas. In Zoodles the set polynomials are

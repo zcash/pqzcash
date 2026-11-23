@@ -4532,6 +4532,24 @@ def define_figures():
     fig("zoodles_epoch_tachygrams", fmt(2**ZOODLES_EPOCH_LOG))
     fig("zoodles_epoch_per_block", fmt(2**ZOODLES_EPOCH_LOG // ZOODLES_EPOCH_BLOCKS))
     fig("zoodles_epoch_hashes", ZOODLES_EPOCH_LOG + 2)
+    # The Zoodles page's packing in numbers: the nodes' digits by kind, and how many actions a
+    # step holds beside the fee, each action a spend or an output with its merge.
+    node_names = tachyon_nodes(2, 2)[:-2]
+    node_digits = dict(zip(node_names, APP["zoodles_preimage"]["bitz"]["blake3"]))
+    spend_digits = node_digits["SpendBind"] + node_digits["SpendAction"]
+    output_digits = node_digits["OutputBind"] + node_digits["OutputAction"]
+    fig("zoodles_spend_digits", fmt(spend_digits))
+    fig("zoodles_output_digits", fmt(output_digits))
+    fig("zoodles_merge_digits", fmt(node_digits["ActionMerge"]))
+    fig("zoodles_fee_digits", fmt(node_digits["FeeFuse"]))
+    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs"]["bitz"]["blake3"]))
+    fig(
+        "zoodles_leansphincs_spend_digits",
+        millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
+    )
+    action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
+    for rank in (17, 19, 21):
+        fig(f"zoodles_actions_per_step_{rank}", int((2**rank - node_digits["FeeFuse"]) // action))
     # The epoch-set page's comparison of the bucketed table with the sorted tree, whose
     # exclusion proof is the path and the leaf, log2 m + 1 hashes.
     gaps = []
