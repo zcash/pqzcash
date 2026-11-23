@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
           # On a push, paths-filter diffs against the previous push's commit, which a depth-1
-          # checkout lacks; fetching it afterwards fails without credentials in a private repository.
+          # checkout lacks.
           fetch-depth: 0
       # dorny/paths-filter compiles each rule to its own picomatch matcher and
       # ORs them, so a change is Lean-relevant iff some changed file is either
