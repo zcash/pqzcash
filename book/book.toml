@@ -16,6 +16,10 @@ command = "mdbook-mermaid"
 command = "python3 preprocessor-todo.py"
 after = ["links"]
 
+[preprocessor.repo-links]
+command = "python3 preprocessor-repo-links.py"
+after = ["links"]
+
 [output]
 
 [output.html]

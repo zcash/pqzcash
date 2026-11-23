@@ -57,7 +57,8 @@ def main():
         script_tag = (
             f'\n<script class="todo-data" type="application/json">{data}</script>\n'
         )
-        inject_todo_data(book["sections"], script_tag)
+        # mdBook 0.5 calls the book's top-level list `items`; earlier versions called it `sections`.
+        inject_todo_data(book.get("items", book.get("sections", [])), script_tag)
 
     print(json.dumps(book))
 
