@@ -6337,10 +6337,18 @@ if "--figures" in sys.argv:
         print(f"claim {name}: {text}")
     for app, row in KISHU_ZK_ALPHA.items():
         print(f"kishu zk optimum {app}: {row}")
-used, marked, stale, stale_claims, dangling = set(), set(), [], [], []
+used, marked, stale, stale_claims, dangling, marker_led = set(), set(), [], [], [], []
 for name in PROSE_FILES:
     path = HERE / name
     text = path.read_text()
+    if name.endswith(".md"):
+        # CommonMark starts an HTML block at a line beginning with `<!--`, even inside a
+        # paragraph, which would render the rest of the paragraph literally.
+        marker_led += [
+            f"{name}:{n}"
+            for n, line in enumerate(text.split("\n"), 1)
+            if line.lstrip().startswith("<!--")
+        ]
     new = filled_claims(filled(text, used), marked)
     stale += [
         (name, m.group(1), m.group(2), n.group(2))
@@ -6376,12 +6384,17 @@ if unmarked:
     print(f"claims with no marked sentence in any file: {', '.join(unmarked)}", file=sys.stderr)
 for name in dangling:
     print(f"{name}: unbalanced claim markers", file=sys.stderr)
+for where in marker_led:
+    print(
+        f"{where}: a marker starts the line, which Markdown renders as an HTML block",
+        file=sys.stderr,
+    )
 if (stale or stale_claims) and not fill:
     print(
         f"{len(stale)} stale figures and {len(stale_claims)} stale claim markers in the tracked files; run `python pareto-model.py --fill` to update them",
         file=sys.stderr,
     )
-if failed or unmarked or dangling or ((stale or stale_claims) and not fill):
+if failed or unmarked or dangling or marker_led or ((stale or stale_claims) and not fill):
     sys.exit(1)
 pre = [p for p in points if not p["pq"]]
 post = [p for p in points if p["pq"] and p["zk"] is not True and p["floor"] == 128]
