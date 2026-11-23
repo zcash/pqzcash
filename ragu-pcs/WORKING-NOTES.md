@@ -3379,3 +3379,99 @@ size; the handoff step's padding.
 
 STATE: main at this entry's commit; everything through 46c1d8b was pushed by the user; the 2
 commits after it, this one included, are unpushed. Artifact version 210 (before 15a137e).
+
+## 2026-11-23 04:39 UTC: the accumulation matrix on Akita's ℓ∞ route, the mask per row, the hiding padding checked, the 147-bit default
+
+Four commits after 9e29be5: 8035755 (the width table and its script), 23d23c4 (the
+re-pricing), 2da6558 (the padding check), and 37e9684 (the 147-bit default). The user's
+thoughts note was checked against the model in chat, before and after.
+
+- **The accumulation matrix is priced as Akita's catalog shapes it** (23d23c4). A module of
+  `rank` rows over a ring of degree 512 or 1,024, the catalog's accumulation degrees, at
+  rank + log2(d)/2 field multiplications a digit. The rank and degree are the cheapest that
+  Akita's ℓ∞ estimator certifies at the floor for the row's bound and its accumulator's width
+  (`accumulation_matrix`, `LINF_WIDTHS`). The table, `estimates/linf-accumulation-widths.tsv`,
+  is extracted by `scripts/linf-accumulation-widths.py` from the estimator's own tables: the
+  64-bit and 128-bit moduli's production tables at 128 and 147 and their CSVs at 150, Pallas's
+  CSVs, and the Goldilocks CSVs, checked to coincide with the 64-bit modulus's to a tenth of a
+  percent. The estimator evaluates only the catalog's own cells, so a bound is rounded up to
+  the ladder. The bounds are the note's extraction argument's on the coefficient ℓ∞ norm.
+  Without the mask the bound is a fold's output, two children at the challenge's weight plus
+  the step's digits, times the slack 2 · 2‖c‖₁ · 2: 2^14.6 for base-8 digits, 2^12.6 for
+  Kishu's bits. With the mask it is the slack times 14σ, with σ = α‖c‖₁‖s‖₂ at the row's own
+  ‖s‖₂ = DIGIT_MAX √N. Before, the rows were the Euclidean estimator's scalar rows at the ℓ2 bound 2^27 spread over
+  degree 64, rows/64 + 3 a digit, times the (log β)² rule under the mask and the planner's
+  rank growth at 147. Now every unmasked row is rank 1, 5.5 multiplications a digit at degree
+  512 or 6.0 at 1,024 (the widest 64-bit-modulus accumulators); the mask costs a factor of 1.0
+  to 1.33 on the rate, 14/11 for Kishu (rank 2 at 1,024 against rank 1 at 512), where the
+  Euclidean route charged 2.4 to 3.1. Per digit in word multiplications, plain and masked:
+  Pasta modulus 167/410 → 176/176; 128-bit 60/146 → 44/48; 64-bit Pasta claims 23.7/58 →
+  11.0/14.0; Goldilocks 17.8/44 → 8.2/10.5; Kishu per bit 23.7/48.4 → 11.0/14.0. The 147-bit
+  floor's rank-growth factor now scales the verifier's inner-image share only.
+- **Figures that moved.** Kishu's recovery 0.399 → 0.283 s plain and 0.733 → 0.370 s with
+  zero knowledge, the same at both floors since the matrices coincide; Zoodles by preimage
+  0.154 → 0.0824 s zk; four tachyactions 0.481 → 0.241 s; qk 0.0790 → 0.0456 s; leanSPHINCS
+  with BLAKE2s 0.561 → 0.297 s; the 64-bit variants' provers halve and the Pasta modulus's
+  rise 5 percent; Kishu against BitZ's merge prover 2.9–3.3 → 4.7–5.3; the 𝔽₂ family's least
+  prover is 0.81 of Akita over Goldilocks's with BLAKE3 at the 147-bit default (was a third
+  at 128 before the re-pricing). Claims reworded: blake3_prover_ratios,
+  f2_prover_fraction_of_gold_blake3.
+- **The floor.** Of the 186 lattice rows shown at both floors, 10 take a larger matrix at 147
+  than at 128, all BLAKE3 rows (the widest accumulators); Kishu's rows keep theirs at 128,
+  147, and 150; at 150 the unmasked matrix of the Pasta-claims rows with 64-bit commitments
+  would move from degree 512 to 1,024 (the 150-bit tables are in the TSV for this). So the
+  accumulation matrix agrees with the compression maps about where the floor's cost begins,
+  which the margin section now says with claims. The 147 explanation stands: the rank-one
+  compression maps certify at 147.3 bits, block size 556.
+- **The mask per row.** σ, the coordinate width (25 to 32 bits across the rows; the note's
+  27 at its N = 2^22), the slices (9 to 11), and the peak memory's mask term follow each row's
+  accumulator, with Kishu's digits as bits. The width sweep changed character: Kishu's masked
+  matrix is rank 2 at degree 1,024 from α = 4 to 1,024, so the measure's optimum is the
+  grid's top for every application at every sampler rate, and 48 is 9.1 percent off it (25 at
+  Karney's rate). The page keeps 48 (nine slices to about α = 300, where the attempts are
+  1.04; a tenth slice from about 360); what a wider mask costs is outside the measure: the
+  coordinate bits (25 at 48, 29 at 1,024), the tenth slice, and the public merges' rate, which
+  does not move. The user may widen within nine slices; the width paragraph and its claims
+  (alpha_optimum_at_grid_top, alpha_page_excess) say this.
+- **The hiding padding checked** (2da6558). Aρ pseudorandom is knapsack-LWE, which is LWE of
+  dimension bits − rows with rows samples and binary secret and error by Micciancio and Mol's
+  change of coordinates, with no loss (the note's new §5.10 writes the argument down, with the
+  two heuristics shared with Akita's own estimates: the module structure treated as
+  unstructured, and the uniform binary error centred). The pinned lattice estimator under
+  ADPS16 quantum (`scripts/knapsack-lwe-check.py`, about an hour under Sage): the dual hybrid
+  attack is the cheapest, about a hundred bits below the primal attacks, so the earlier
+  primal-only estimate of 3,300 dimensions overstated the margin; at 5,000 bits it is 159
+  bits at the device's 1,024 rows, 140 at the note's Euclidean 1,385, and 107 at 2,048. The
+  padding is sized per floor as the least on the sweep's grid (250 bits, 50 where the floors
+  are crossed) whose cheapest attack reaches the floor, so the 147-bit hedge covers it (the
+  user): 4,400 bits (128.3) at 128 and 4,800 (148.9) at 147, `HIDING_PADDING_BITS` by floor.
+  The dispute over the dual attack's analysis (Ducas and Pulles 2023) is noted; keeping the
+  estimator's figure is the conservative choice. The statistical padding is 66 thousand bits
+  at 1,024 rows, 4.4 times the statement, still an order of magnitude dearer.
+- **The 147-bit floor is the default** (37e9684; the user). `DEFAULT_FLOOR` is the figure
+  helpers' default; Pedersen-IPA and the binary groups, at 128 alone, are pinned explicitly
+  where quoted, and under the default hash policy Pedersen-IPA was not shown anyway. The
+  cost-model table carries both floors' block sizes, 484 and 556, with the bits under each
+  model computed from the exponents (classical 162, paranoid 115 at 147). The page's own ARC
+  comparisons take their openings at the default floor; the proof-size note's stay at 128.
+- **Thoughts note.** Checked against the model before and after (see the chat): the figures
+  it quotes hold, with the corrections given there, the proof at 74 kbytes at the 147-bit
+  default being the one that moved.
+
+A modelling inconsistency to decide (raised in chat, not changed): the accumulator memory
+measure stores digits at 21 bits, from the Euclidean ledger's ℓ2 bound of about 2^19 taken as
+a per-entry bound and the entries growing 40× a level, while the mask's σ takes the masked
+vector as small digits (‖s‖₂ = DIGIT_MAX √N) and the fold's sum-checks are a decomposition's.
+If every fuse decomposes and recombines, the stored entries are a few hundred at most, about 9
+bits, and the memory measures fall by over half; if not, the masked vector's entries are not
+small digits and σ is six bits larger. The two should be made consistent one way or the other.
+
+NEXT: the Zoodles lineage priced both ways side by side (the user's decision: Tachyon's
+bucket route with a capacity chosen for digits and the evidence proof folded as Tachyon folds
+it, beside the sorted tree; the lift's shape from Tachyon's proof-tree chapter: QR profile
+tests, the bucket opened at the value, the elapsed product; a per-application folded public
+vector priced at the fold rate); Ragu steps 2 to 4 at ef7668fb; the Boolean step-size knob;
+Zoodles' header size; the handoff step's padding; the ledger decision above.
+
+STATE: main at this entry's commit; everything through 46c1d8b was pushed by the user; the
+commits after it, this one included, are unpushed. Artifact version 212; the book builds.
