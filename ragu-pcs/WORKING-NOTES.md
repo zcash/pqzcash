@@ -3475,3 +3475,44 @@ Zoodles' header size; the handoff step's padding; the ledger decision above.
 
 STATE: main at this entry's commit; everything through 46c1d8b was pushed by the user; the
 commits after it, this one included, are unpushed. Artifact version 212; the book builds.
+
+## 2026-11-23 12:41 UTC: the book published, updates by pull request, the note on the ℓ∞ route, the sidebar
+
+- **Published.** zcash/pqzcash is public. PR #1 (branch publish-book, merged by the user)
+  removed the README's private-repository caveat, enabled the book workflow's deploy job on
+  pushes to main, and trimmed the workflows' checkout comments to the remaining reason for the
+  full fetch. The first runs of all three workflows passed. The deploy job is skipped on pull
+  requests by its own condition, and the deploy action creates `gh-pages` itself, so the user
+  set that branch as the Pages source afterwards; the book is live at zcash.github.io/pqzcash.
+- **Updates go through pull requests from now on** (the user): a branch, the user's push,
+  `gh pr create`, as a draft when asked, and the user's merge. Local main lags the remote until
+  the user pulls.
+- **PR #2, draft, branch note-page-consistency** (f1b7557). The zero-knowledge note and the
+  page share the scheme: the masking fold with α = 48 and weight-20 challenges in degree 512,
+  the one-fold statement, the §5.8 deferral. The matrix sizing differs by design, the note's
+  own Euclidean analysis beside the page's ℓ∞ route in its §5.5. Two paragraphs still quoted
+  the page's former results: §5.6 the sweep's least at 64 to 130 with 48 within three percent,
+  now the ℓ∞ route's widest-is-least with 48 within nine percent, the Euclidean trade-off kept
+  as the note's own; §5.9 the two-matrix saving of 1.7 to 1.9, now beside the ℓ∞ route's 1.0
+  to 1.33. The page's lede says "proof bytes".
+- **This branch.** The ragu-commitments chapter links the study's files by relative paths,
+  which work in an editor and on GitHub's view of the source; `book/preprocessor-repo-links.py`
+  rewrites links that leave `book/src` into GitHub URLs for the rendered book, `blob/main` for
+  a file and `tree/main` for a directory.
+- **The sidebar.** mdbook's head script hides the sidebar on every page load when the
+  viewport is under 1,080 CSS pixels, zoom counted, so a click in the sidebar of a narrow
+  window closes it. A theme override of `index.hbs` with a lower threshold would change that,
+  a copy of the 0.5.4 template to maintain; the user's decision is pending.
+- **The thoughts note**, re-reviewed at the 147-bit default (chat): its figures hold; 7.3
+  Mbytes with zero knowledge is the masked accumulator as slices (6.8 stored compactly); its
+  Fiat–Shamir-with-aborts link, labelled 2012, points to the 2009 paper; "13 percent more on
+  each step and merge" holds on the same configuration (recovery 13, Zoodles 15); a Kishu step
+  of 2^19 to 2^21 bits is a quarter to the whole of Ragu's 2^13 Pallas coefficients, not more.
+
+NEXT, each on its own branch: the pages' references to "the note", which are unclear, made
+links to the chapter and its section (the user); the Zoodles lineage both ways; Ragu steps 2
+to 4; the Boolean step-size knob; Zoodles' header size; the handoff step's padding; the ledger
+decision; and the user's calls on the mask's width and the sidebar's threshold.
+
+STATE: branch repo-links-and-notes at this entry's commit, on main a672d13, which the user
+pushed; PR #1 merged, PR #2 a draft; artifact version 212; the book builds.
