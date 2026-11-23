@@ -143,6 +143,13 @@ for long-running jobs to run under `caffeinate -i` to stop the machine from slee
       > estimates/linf-accumulation-widths.tsv
   ```
 
+- **The hiding padding's hardness** (`HIDING_PADDING_ATTACK_BITS`, `HIDING_PADDING_SWEEP`): the
+  pinned lattice estimator in Akita's `third_party` submodule, under Sage, costs every LWE attack
+  on the knapsack-LWE instance behind the hardware wallet's padding at 5,000 bits and 1,024, 1,385,
+  and 2,048 rows, then sweeps the padding from 3,500 to 6,000 bits at the device's 1,024 rows, by
+  250 and by 50 where the floors are crossed, under the ADPS16 quantum model:
+  `sage scripts/knapsack-lwe-check.py` from `ragu-pcs`, about an hour.
+
 - **Typed from the paper and the notes**: the verifier times (`AKITA_VERIFY_MS`, Table 16), the
   terminal's inner-image coordinates (`IMAGE_COORDS`, pasta-proof-size.md §6.1), and the mask's
   parameters (`MASK_*`, the zero-knowledge note's §5).

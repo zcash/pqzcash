@@ -976,16 +976,52 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # test. The padding is computational. Aρ for ρ of HIDING_PADDING_BITS uniform bits is
 # pseudorandom if knapsack-LWE is hard at the commitment's rows, which by the Micciancio–Mol
 # duality is LWE of dimension bits − rows with rows samples and binary secret and error at the
-# 64-bit modulus. The primal uSVP estimate at block 484 and root Hermite factor 1.0035 needs
-# about 3,300 dimensions against 1,385 rows, the zero-knowledge note's Euclidean masked matrix
-# at q64; the ℓ∞ route's matrix for the device's vector has fewer rows (accumulation_matrix,
-# qk_device_matrix_rows), which asks less, so 5,000 bits leaves a margin. The lattice estimator
-# should confirm it. The note's leftover-hash padding would be rows × 64 + 256 bits.
+# 64-bit modulus. HIDING_PADDING_ATTACK_BITS is the pinned lattice estimator's cheapest attack
+# on that instance at 5,000 bits under the ADPS16 quantum model, by rows, and
+# HIDING_PADDING_SWEEP the same at the device's 1,024 rows by the padding's bits
+# (scripts/knapsack-lwe-check.py, REGENERATING.md): the dual hybrid attack on the binary
+# secret, about a hundred bits below the primal attacks, so a primal estimate alone overstates
+# the margin. The padding is sized per floor, the least on the sweep's grid, 50 bits where the
+# floors are crossed, whose cheapest attack reaches the floor, so that the higher floor's hedge
+# covers it too (the user, 2026-11-23). The device's matrix is the ℓ∞ route's for its own
+# vector (accumulation_matrix, qk_device_matrix_rows); the zero-knowledge note's Euclidean
+# masked matrix at q64 has 1,385 rows. The note's leftover-hash padding would be rows × 64 +
+# 256 bits.
 # Device rates are assumptions scaled from sphincs.art's hardware-wallet benchmark. A Ledger
 # Nano S+ hashes BLAKE2s about 500 times below a laptop core and a Trezor Safe 3 about 200
 # times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
 # that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
-HIDING_PADDING_BITS = 5000
+HIDING_PADDING_ATTACK_BITS = {1024: 159.3, 1385: 140.5, 2048: 107.1}
+HIDING_PADDING_SWEEP = {
+    3500: 83.8,
+    3750: 95.7,
+    4000: 108.1,
+    4250: 120.8,
+    4300: 123.3,
+    4350: 125.6,
+    4400: 128.3,
+    4450: 130.9,
+    4500: 133.3,
+    4550: 136.0,
+    4600: 138.6,
+    4650: 141.2,
+    4700: 143.7,
+    4750: 146.3,
+    4800: 148.9,
+    4850: 151.5,
+    4900: 154.2,
+    4950: 156.8,
+    5000: 159.3,
+    5250: 172.6,
+    5500: 186.0,
+    5750: 199.6,
+    6000: 213.4,
+}
+HIDING_PADDING_BITS = {
+    floor: min(bits for bits, attack in HIDING_PADDING_SWEEP.items() if attack >= floor)
+    for floor in (128, 147)
+}
+assert HIDING_PADDING_BITS == {128: 4400, 147: 4800}
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
@@ -4227,7 +4263,8 @@ def define_figures():
     # constants' comment): its digits, its online and idle work, the response's size, and the
     # times on the assumed devices and link.
     leaf = APP["qk"]["bitz"]["blake3"]
-    padding = HIDING_PADDING_BITS
+    # The chapter's figures are at the page's default floor; the 147-bit padding is quoted.
+    padding = HIDING_PADDING_BITS[128]
     sumcheck_rounds = math.ceil(math.log2(leaf + padding))
     mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
     device_digits = leaf + padding + mask_elements * Q64_DIGITS
@@ -4251,16 +4288,36 @@ def define_figures():
     z_bytes = device_digits * z_bits / 8
     fig("qk_sumcheck_mask_elements", mask_elements)
     fig("hiding_padding_bits", fmt(padding))
-    # The device's masked matrix, and the note's leftover-hash padding at its rows.
-    _, device_rank, device_degree, _ = accumulation_matrix(
-        "pasta_q64",
-        128,
-        masked_log_beta_inf(log_n=math.log2(device_digits), digit_max=DIGIT_MAX["kishu"]),
-        math.log2(device_digits),
+    fig("hiding_padding_bits_147", fmt(HIDING_PADDING_BITS[147]))
+    # The device's masked matrix at each floor's padding, and the note's leftover-hash padding
+    # at its rows.
+    device_rows = {}
+    for floor in FLOORS:
+        digits = leaf + HIDING_PADDING_BITS[floor] + mask_elements * Q64_DIGITS
+        _, device_rank, device_degree, _ = accumulation_matrix(
+            "pasta_q64",
+            floor,
+            masked_log_beta_inf(log_n=math.log2(digits), digit_max=DIGIT_MAX["kishu"]),
+            math.log2(digits),
+        )
+        device_rows[floor] = device_rank * device_degree
+    statistical_padding = device_rows[128] * 64 + 256
+    fig("qk_device_matrix_rows", fmt(device_rows[128]))
+    fig("hiding_padding_attack_bits", round(HIDING_PADDING_SWEEP[padding]))
+    fig("hiding_padding_attack_bits_147", round(HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[147]]))
+    fig("hiding_padding_attack_bits_1385", round(HIDING_PADDING_ATTACK_BITS[1385]))
+    claim(
+        "hiding_padding_secure",
+        "the device's matrix has the sweep's 1,024 rows at both floors, where each floor's padding is the least on the grid whose cheapest attack reaches the floor, the grid's previous point falling short; at the note's 1,385 rows 5,000 bits reach the 128-bit floor alone, and at 2,048 rows not even that",
+        all(rows == 1024 for rows in device_rows.values())
+        and all(
+            HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f]] >= f
+            and HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f] - 50] < f
+            for f in FLOORS
+        )
+        and 128 <= HIDING_PADDING_ATTACK_BITS[1385] < max(FLOORS)
+        and HIDING_PADDING_ATTACK_BITS[2048] < 128,
     )
-    device_rows = device_rank * device_degree
-    statistical_padding = device_rows * 64 + 256
-    fig("qk_device_matrix_rows", fmt(device_rows))
     fig("hiding_padding_statistical_kbits", round(statistical_padding / 1000))
     fig("hiding_padding_statistical_over_statement", sig(statistical_padding / leaf))
     fig("qk_device_digits", sig(device_digits, 3))
