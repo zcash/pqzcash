@@ -57,19 +57,19 @@ A classical argument avoids simulation extractability altogether, and it fits th
 
 ## References
 
-- [CL06] M. Chase, A. Lysyanskaya. On signatures of knowledge. CRYPTO 2006. <https://eprint.iacr.org/2006/184>
-- [CMS19] A. Chiesa, P. Manohar, N. Spooner. Succinct arguments in the quantum random oracle model. TCC 2019. <https://eprint.iacr.org/2019/834>
-- [DFM20] J. Don, S. Fehr, C. Majenz. The measure-and-reprogram technique 2.0: multi-round Fiat–Shamir and more. CRYPTO 2020. <https://eprint.iacr.org/2020/282>
-- [DFMS19] J. Don, S. Fehr, C. Majenz, C. Schaffner. Security of the Fiat–Shamir transformation in the quantum random-oracle model. CRYPTO 2019. <https://eprint.iacr.org/2019/190>
-- [DG23] Q. Dao, P. Grubbs. Spartan and Bulletproofs are simulation-extractable (for free!). EUROCRYPT 2023. <https://eprint.iacr.org/2023/494>
-- [EIP-8288] V. Buterin, T. Coratger. EIP-8288: in-mempool signature and proof aggregation. Draft, 2026. <https://eips.ethereum.org/EIPS/eip-8288>
-- [FFKRZ23] A. Faonio, D. Fiore, M. Kohlweiss, L. Russo, M. Zajac. From polynomial IOP and commitments to non-malleable zkSNARKs. TCC 2023.
-- [FKMV12] S. Faust, M. Kohlweiss, G. A. Marson, D. Venturi. On the non-malleability of the Fiat–Shamir transform. INDOCRYPT 2012.
-- [FS90] U. Feige, A. Shamir. Witness indistinguishable and witness hiding protocols. STOC 1990.
-- [KPT23] M. Kohlweiss, M. Pancholi, A. Takahashi. How to compile polynomial IOP into simulation-extractable SNARKs: a modular approach. TCC 2023.
-- [KW03] J. Katz, N. Wang. Efficiency improvements for signature schemes with tight security reductions. CCS 2003.
-- [Lit26] I. Litteri. Dependency frames for leanSPHINCS signatures. Draft EIP, 2026. <https://github.com/ethereum/EIPs/pull/12672>
-- [LZ19] Q. Liu, M. Zhandry. Revisiting post-quantum Fiat–Shamir. CRYPTO 2019.
+- [CL06] Melissa Chase, Anna Lysyanskaya. On signatures of knowledge. CRYPTO 2006. <https://eprint.iacr.org/2006/184>
+- [CMS19] Alessandro Chiesa, Peter Manohar, Nicholas Spooner. Succinct arguments in the quantum random oracle model. TCC 2019. <https://eprint.iacr.org/2019/834>
+- [DFM20] Jelle Don, Serge Fehr, Christian Majenz. The measure-and-reprogram technique 2.0: multi-round Fiat–Shamir and more. CRYPTO 2020. <https://eprint.iacr.org/2020/282>
+- [DFMS19] Jelle Don, Serge Fehr, Christian Majenz, Christian Schaffner. Security of the Fiat–Shamir transformation in the quantum random-oracle model. CRYPTO 2019. <https://eprint.iacr.org/2019/190>
+- [DG23] Quang Dao, Paul Grubbs. Spartan and Bulletproofs are simulation-extractable (for free!). EUROCRYPT 2023. <https://eprint.iacr.org/2023/494>
+- [EIP-8288] Vitalik Buterin, Thomas Coratger. EIP-8288: in-mempool signature and proof aggregation. Draft, 2026. <https://eips.ethereum.org/EIPS/eip-8288>
+- [FFKRZ23] Antonio Faonio, Dario Fiore, Markulf Kohlweiss, Luigi Russo, Michał Zając. From polynomial IOP and commitments to non-malleable zkSNARKs. TCC 2023.
+- [FKMV12] Sebastian Faust, Markulf Kohlweiss, Giorgia Azzurra Marson, Daniele Venturi. On the non-malleability of the Fiat–Shamir transform. INDOCRYPT 2012.
+- [FS90] Uriel Feige, Adi Shamir. Witness indistinguishable and witness hiding protocols. STOC 1990.
+- [KPT23] Markulf Kohlweiss, Mahak Pancholi, Akira Takahashi. How to compile polynomial IOP into simulation-extractable SNARKs: a modular approach. TCC 2023.
+- [KW03] Jonathan Katz, Nan Wang. Efficiency improvements for signature schemes with tight security reductions. CCS 2003.
+- [Lit26] Ivan Litteri. Dependency frames for leanSPHINCS signatures. Draft EIP-8504, 2026. <https://github.com/ethereum/EIPs/pull/12672>
+- [LZ19] Qipeng Liu, Mark Zhandry. Revisiting post-quantum Fiat–Shamir. CRYPTO 2019.
 - [TOB22] Trail of Bits. Coordinated disclosure of vulnerabilities affecting Girault, Bulletproofs, and PlonK ("Frozen Heart"). 2022. <https://blog.trailofbits.com/2022/04/13/the-frozen-heart-vulnerability-in-bulletproofs/>
-- [Wam26] T. Wambsgans. leanSPHINCS: a hash-based stateless signature scheme for post-quantum Ethereum, with security proofs in Lean 4. 2026. <https://sphincs.art/>; the hardware-wallet benchmark at <https://github.com/TomWambsgans/hardware-wallet-benchmark>
-- [ZIP-2005] D.-E. Hopwood, J. Grigg. ZIP 2005: Ironwood Quantum Recoverability. <https://zips.z.cash/zip-2005>
+- [Wam26] Tom Wambsgans. leanSPHINCS: a hash-based stateless signature scheme for post-quantum Ethereum, with security proofs in Lean 4. 2026. <https://sphincs.art/>; the hardware-wallet benchmark at <https://github.com/TomWambsgans/hardware-wallet-benchmark>
+- [ZIP-2005] Daira-Emma Hopwood, Jack Grigg. ZIP 2005: Ironwood Quantum Recoverability. <https://zips.z.cash/zip-2005>

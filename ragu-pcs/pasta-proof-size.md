@@ -227,21 +227,21 @@ For calibration, ML-DSA [FIPS204], the standardized Dilithium, sizes its SIS ins
 
 **References.**
 
-- [ADH+19] M. R. Albrecht, L. Ducas, G. Herold, E. Kirshanova, E. W. Postlethwaite, M. Stevens. The general sieve kernel and new records in lattice reduction. EUROCRYPT 2019. <https://eprint.iacr.org/2019/089>
-- [ADPS16] E. Alkim, L. Ducas, T. Pöppelmann, P. Schwabe. Post-quantum key exchange: a new hope. USENIX Security 2016. <https://eprint.iacr.org/2015/1092>
-- [AGVW17] M. R. Albrecht, F. Göpfert, F. Virdia, T. Wunderer. Revisiting the expected cost of solving uSVP and applications to LWE. ASIACRYPT 2017. <https://eprint.iacr.org/2017/815>
-- [Ajt96] M. Ajtai. Generating hard instances of lattice problems. STOC 1996. <https://doi.org/10.1145/237814.237838>
-- [APS15] M. R. Albrecht, R. Player, S. Scott. On the concrete hardness of Learning with Errors. J. Math. Cryptol. 9(3), 2015. <https://eprint.iacr.org/2015/046>. Marked outdated by its authors in 2019; see [LE] and [Pla18].
-- [BDGL16] A. Becker, L. Ducas, N. Gama, T. Laarhoven. New directions in nearest neighbor searching with applications to lattice sieving. SODA 2016. <https://eprint.iacr.org/2015/1128>
-- [CDW17] R. Cramer, L. Ducas, B. Wesolowski. Short Stickelberger class relations and application to Ideal-SVP. EUROCRYPT 2017. <https://eprint.iacr.org/2016/885>
-- [CN11] Y. Chen, P. Q. Nguyen. BKZ 2.0: better lattice security estimates. ASIACRYPT 2011. <https://doi.org/10.1007/978-3-642-25385-0_1>
-- [Dil21] L. Ducas, E. Kiltz, T. Lepoint, V. Lyubashevsky, P. Schwabe, G. Seiler, D. Stehlé. CRYSTALS-Dilithium: algorithm specifications and supporting documentation, version 3.1, 2021. <https://pq-crystals.org/dilithium/data/dilithium-specification-round3-20210208.pdf>
-- [DP23] L. Ducas, L. Pulles. Does the dual-sieve attack on Learning with Errors even work? CRYPTO 2023. <https://eprint.iacr.org/2023/302>
-- [Duc18] L. Ducas. Shortest vector from lattice sieving: a few dimensions for free. EUROCRYPT 2018. <https://eprint.iacr.org/2017/999>
+- [ADH+19] Martin R. Albrecht, Léo Ducas, Gottfried Herold, Elena Kirshanova, Eamonn W. Postlethwaite, Marc Stevens. The general sieve kernel and new records in lattice reduction. EUROCRYPT 2019. <https://eprint.iacr.org/2019/089>
+- [ADPS16] Erdem Alkim, Léo Ducas, Thomas Pöppelmann, Peter Schwabe. Post-quantum key exchange: a new hope. USENIX Security 2016. <https://eprint.iacr.org/2015/1092>
+- [AGVW17] Martin R. Albrecht, Florian Göpfert, Fernando Virdia, Thomas Wunderer. Revisiting the expected cost of solving uSVP and applications to LWE. ASIACRYPT 2017. <https://eprint.iacr.org/2017/815>
+- [Ajt96] Miklós Ajtai. Generating hard instances of lattice problems. STOC 1996. <https://doi.org/10.1145/237814.237838>
+- [APS15] Martin R. Albrecht, Rachel Player, Sam Scott. On the concrete hardness of Learning with Errors. J. Math. Cryptol. 9(3), 2015. <https://eprint.iacr.org/2015/046>. Marked outdated by its authors in 2019; see [LE] and [Pla18].
+- [BDGL16] Anja Becker, Léo Ducas, Nicolas Gama, Thijs Laarhoven. New directions in nearest neighbor searching with applications to lattice sieving. SODA 2016. <https://eprint.iacr.org/2015/1128>
+- [CDW17] Ronald Cramer, Léo Ducas, Benjamin Wesolowski. Short Stickelberger class relations and application to Ideal-SVP. EUROCRYPT 2017. <https://eprint.iacr.org/2016/885>
+- [CN11] Yuanmi Chen, Phong Q. Nguyen. BKZ 2.0: better lattice security estimates. ASIACRYPT 2011. <https://doi.org/10.1007/978-3-642-25385-0_1>
+- [Dil21] Léo Ducas, Eike Kiltz, Tancrède Lepoint, Vadim Lyubashevsky, Peter Schwabe, Gregor Seiler, Damien Stehlé. CRYSTALS-Dilithium: algorithm specifications and supporting documentation, version 3.1, 2021. <https://pq-crystals.org/dilithium/data/dilithium-specification-round3-20210208.pdf>
+- [DP23] Léo Ducas, Ludo Pulles. Does the dual-sieve attack on Learning with Errors even work? CRYPTO 2023. <https://eprint.iacr.org/2023/302>
+- [Duc18] Léo Ducas. Shortest vector from lattice sieving: a few dimensions for free. EUROCRYPT 2018. <https://eprint.iacr.org/2017/999>
 - [FIPS204] NIST. Module-Lattice-Based Digital Signature Standard. FIPS 204, 2024. <https://doi.org/10.6028/NIST.FIPS.204>
-- [Laa16] T. Laarhoven. Search problems in cryptography: from fingerprinting to lattice sieving. PhD thesis, Eindhoven University of Technology, 2016.
-- [LE] M. R. Albrecht et al. The lattice estimator. <https://github.com/malb/lattice-estimator>. Its SIS module is what the cross-check in [§5.5 of the zero-knowledge note](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator) used.
-- [LMvdP15] T. Laarhoven, M. Mosca, J. van de Pol. Finding shortest lattice vectors faster using quantum search. Des. Codes Cryptogr. 77, 2015. <https://eprint.iacr.org/2014/907>
-- [LS15] A. Langlois, D. Stehlé. Worst-case to average-case reductions for module lattices. Des. Codes Cryptogr. 75(3), 2015. <https://eprint.iacr.org/2012/090>
+- [Laa16] Thijs Laarhoven. Search problems in cryptography: from fingerprinting to lattice sieving. PhD thesis, Eindhoven University of Technology, 2016.
+- [LE] Martin R. Albrecht et al. The lattice estimator. <https://github.com/malb/lattice-estimator>. Its SIS module is what the cross-check in [§5.5 of the zk note](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator) used.
+- [LMvdP15] Thijs Laarhoven, Michele Mosca, Joop van de Pol. Finding shortest lattice vectors faster using quantum search. Des. Codes Cryptogr. 77, 2015. <https://eprint.iacr.org/2014/907>
+- [LS15] Adeline Langlois, Damien Stehlé. Worst-case to average-case reductions for module lattices. Des. Codes Cryptogr. 75(3), 2015. <https://eprint.iacr.org/2012/090>
 - [MATZOV22] MATZOV. Report on the security of LWE: improved dual lattice attack. Zenodo, 2022.
-- [Pla18] R. Player. Parameter selection in lattice-based cryptography. PhD thesis, Royal Holloway, University of London, 2018.
+- [Pla18] Rachel Player. Parameter selection in lattice-based cryptography. PhD thesis, Royal Holloway, University of London, 2018.

@@ -285,17 +285,17 @@ The pinned lattice estimator costs every attack on that instance under the ADPS1
 
 ## References
 
-- V. Lyubashevsky. Fiat–Shamir with Aborts: Applications to Lattice and Factoring-Based Signatures. ASIACRYPT 2009. <https://doi.org/10.1007/978-3-642-10366-7_35>
-- V. Lyubashevsky. Lattice Signatures Without Trapdoors. EUROCRYPT 2012. <https://eprint.iacr.org/2011/537>, <https://doi.org/10.1007/978-3-642-29011-4_43>. Theorem 4.6 and Lemma 4.4.
-- L. Ducas, A. Durmus, T. Lepoint, V. Lyubashevsky. Lattice Signatures and Bimodal Gaussians. CRYPTO 2013. <https://eprint.iacr.org/2013/383>
-- C. Gentry, C. Peikert, V. Vaikuntanathan. Trapdoors for Hard Lattices and New Cryptographic Constructions. STOC 2008. <https://eprint.iacr.org/2007/432>. The regularity lemma for discrete Gaussians.
-- T. Attema, V. Lyubashevsky, G. Seiler. Practical Product Proofs for Lattice Commitments. CRYPTO 2020. <https://eprint.iacr.org/2020/517>. Relaxed openings and the cross-multiplication binding argument.
-- E. Kiltz, V. Lyubashevsky, C. Schaffner. A Concrete Treatment of Fiat-Shamir Signatures in the Quantum Random-Oracle Model. EUROCRYPT 2018. <https://eprint.iacr.org/2017/916>
-- J. Devevey, P. Fallahpour, A. Passelègue, D. Stehlé. A Detailed Analysis of Fiat-Shamir with Aborts. CRYPTO 2023. <https://eprint.iacr.org/2023/245>
-- M. Barbosa et al. Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium. CRYPTO 2023. <https://eprint.iacr.org/2023/246>
+- Vadim Lyubashevsky. Fiat–Shamir with Aborts: Applications to Lattice and Factoring-Based Signatures. ASIACRYPT 2009. <https://doi.org/10.1007/978-3-642-10366-7_35>
+- Vadim Lyubashevsky. Lattice Signatures Without Trapdoors. EUROCRYPT 2012. <https://eprint.iacr.org/2011/537>, <https://doi.org/10.1007/978-3-642-29011-4_43>. Theorem 4.6 and Lemma 4.4.
+- Léo Ducas, Alain Durmus, Tancrède Lepoint, Vadim Lyubashevsky. Lattice Signatures and Bimodal Gaussians. CRYPTO 2013. <https://eprint.iacr.org/2013/383>
+- Craig Gentry, Chris Peikert, Vinod Vaikuntanathan. Trapdoors for Hard Lattices and New Cryptographic Constructions. STOC 2008. <https://eprint.iacr.org/2007/432>. The regularity lemma for discrete Gaussians.
+- Thomas Attema, Vadim Lyubashevsky, Gregor Seiler. Practical Product Proofs for Lattice Commitments. CRYPTO 2020. <https://eprint.iacr.org/2020/517>. Relaxed openings and the cross-multiplication binding argument.
+- Eike Kiltz, Vadim Lyubashevsky, Christian Schaffner. A Concrete Treatment of Fiat-Shamir Signatures in the Quantum Random-Oracle Model. EUROCRYPT 2018. <https://eprint.iacr.org/2017/916>
+- Julien Devevey, Pouria Fallahpour, Alain Passelègue, Damien Stehlé. A Detailed Analysis of Fiat-Shamir with Aborts. CRYPTO 2023. <https://eprint.iacr.org/2023/245>
+- Manuel Barbosa et al. Fixing and Mechanizing the Security Proof of Fiat-Shamir with Aborts and Dilithium. CRYPTO 2023. <https://eprint.iacr.org/2023/246>
 - NIST FIPS 204, Module-Lattice-Based Digital Signature Standard (ML-DSA). <https://doi.org/10.6028/NIST.FIPS.204>. The uniform-mask variant in deployment.
-- D. Boneh, B. Chen. LatticeFold: A Lattice-based Folding Scheme and its Applications to Succinct Proof Systems. <https://eprint.iacr.org/2024/257>. Decomposition and range checks in a folding verifier.
-- Q. Dao et al. Akita: A High-Performance Lattice-Based Polynomial Commitment Scheme. <https://eprint.iacr.org/2026/1983>
-- D. Micciancio, P. Mol. Pseudorandom Knapsacks and the Sample Complexity of LWE Search-to-Decision Reductions. CRYPTO 2011. <https://eprint.iacr.org/2011/521>. The knapsack–LWE duality of §5.10.
-- L. Ducas, L. Pulles. Does the Dual Attack Work? CRYPTO 2023. <https://eprint.iacr.org/2023/302>. The dispute over the dual attack's analysis.
-- B. Bünz, A. Chiesa, W. Lin, P. Mishra, N. Spooner. Proof-Carrying Data without Succinct Arguments. CRYPTO 2021 (BCLMS). <https://eprint.iacr.org/2020/1618>. Split accumulation, and zero-knowledge accumulation by folding with a random instance.
+- Dan Boneh, Binyi Chen. LatticeFold: A Lattice-based Folding Scheme and its Applications to Succinct Proof Systems. <https://eprint.iacr.org/2024/257>. Decomposition and range checks in a folding verifier.
+- Quang Dao et al. Akita: A High-Performance Lattice-Based Polynomial Commitment Scheme. <https://eprint.iacr.org/2026/1983>
+- Daniele Micciancio, Petros Mol. Pseudorandom Knapsacks and the Sample Complexity of LWE Search-to-Decision Reductions. CRYPTO 2011. <https://eprint.iacr.org/2011/521>. The knapsack–LWE duality of [§5.10](#510-a-computational-hiding-padding).
+- Léo Ducas, Ludo Pulles. Does the Dual Attack Work? CRYPTO 2023. <https://eprint.iacr.org/2023/302>. The dispute over the dual attack's analysis.
+- Benedikt Bünz, Alessandro Chiesa, William Lin, Pratyush Mishra, Nicholas Spooner. Proof-Carrying Data without Succinct Arguments. CRYPTO 2021 (BCLMS). <https://eprint.iacr.org/2020/1618>. Split accumulation, and zero-knowledge accumulation by folding with a random instance.
