@@ -22,7 +22,7 @@ lake build --wfail   # verify every proof; --wfail makes warnings fail, as CI do
 ## Documentation
 
 - [The Post-Quantum Zcash Book](https://zcash.github.io/pqzcash/), built from `book/` and
-  published by the book workflow. The link is not live while the repository is private.
+  published by the book workflow.
 
 ## License
 

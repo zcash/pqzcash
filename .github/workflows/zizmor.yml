@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
           # On a push, paths-filter diffs against the previous push's commit, which a depth-1
-          # checkout lacks; fetching it afterwards fails without credentials in a private repository.
+          # checkout lacks.
           fetch-depth: 0
       - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
         id: filter

@@ -31,7 +31,7 @@ jobs:
         with:
           persist-credentials: false
           # On a push, paths-filter diffs against the previous push's commit, which a depth-1
-          # checkout lacks; fetching it afterwards fails without credentials in a private repository.
+          # checkout lacks.
           fetch-depth: 0
       # A change is book-relevant iff some changed file is not purely a Lean
       # source or Lake build file. The single negated brace pattern matches any
@@ -75,9 +75,8 @@ jobs:
 
   deploy:
     name: Deploy the book to GitHub Pages
-    # Disabled while the repository is private, since GitHub Pages is not
-    # enabled for it. Remove the leading `false &&` to deploy pushes to main.
-    if: false && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    # Pushes to main alone are deployed; a pull request only builds.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     needs: build
     runs-on: ubuntu-latest
     permissions:
