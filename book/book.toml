@@ -33,3 +33,5 @@ hash-files = true
 [output.html.redirect]
 "/proof-systems/working-notes/pasta-proof-size.html" = "../other-schemes/pasta-proof-size.html"
 "/proof-systems/working-notes/zk-fiat-shamir-with-aborts.html" = "../kishu/zk-fiat-shamir-with-aborts.html"
+# The hardware-wallets chapter was a top-level section until 2026-11-23.
+"/hardware-wallets.html" = "zoodles/spend-authorization/hardware-wallets.html"

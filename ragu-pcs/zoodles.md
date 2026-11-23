@@ -63,15 +63,12 @@ that the headers bind together.
 
 ## Spend authorization
 
-Spend authorization is chosen per input, usually the same for all.
+Spend authorization is chosen per input, usually the same for all; the [Spend authorization](spend-authorization.md) section has a page on each method, on recovery from Ironwood and from Tachyon, and on hardware wallets.
 
 The first form is a Sprout-like preimage check: the payment key is the BLAKE3 hash of the
 authorizing key, which Tachyon's spend step derives already, and the spend step proves knowledge of
 the preimage. It needs no digest of the transaction, since it is proved inside the spend step, which
-the tree binds to the rest of the transaction directly and through the PCD headers. Its binding to
-the transaction rests on the signature-of-knowledge argument of [Hardware wallets and the recovery
-statement](hardware-wallets.md), and that page also prices the preimage statement as the part a
-hardware wallet proves on its own.
+the tree binds to the rest of the transaction directly and through the PCD headers. Its binding to the transaction rests on the signature-of-knowledge argument of [Hash preimage](auth-preimage.md), and [Hardware wallets](hardware-wallets.md) prices the preimage statement as the part a hardware wallet proves on its own.
 
 The second form is a leanSPHINCS signature with BLAKE2s at the pruned
 key, <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes verified

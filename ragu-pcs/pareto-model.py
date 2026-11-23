@@ -6166,6 +6166,11 @@ PROSE_FILES = (
     "hardware-wallets.md",
     "zoodles.md",
     "zoodles-epoch-set.md",
+    "spend-authorization.md",
+    "auth-preimage.md",
+    "auth-leansphincs.md",
+    "recovery-ironwood.md",
+    "recovery-tachyon.md",
 )
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # A claim's sentence sits between `<!--claim:names:hash-->` and `<!--/claim-->`, the names
@@ -6363,7 +6368,8 @@ def write_book_files(page, data_json):
     # are the source file beside this one and the chapter's path from the page's directory.
     NOTE_CHAPTERS = {
         "zk": ("zk-fiat-shamir-with-aborts.md", "kishu/zk-fiat-shamir-with-aborts.html"),
-        "hardware-wallets": ("hardware-wallets.md", "../hardware-wallets.html"),
+        "hardware-wallets": ("hardware-wallets.md", "../zoodles/spend-authorization/hardware-wallets.html"),
+        "spend-authorization": ("spend-authorization.md", "../zoodles/spend-authorization.html"),
     }
     note_ids = {
         name: {

@@ -13,4 +13,9 @@
   - [Regenerating the Study's Numbers](proof-systems/regenerating.md)
 - [Zoodles](zoodles.md) <!-- todo -->
   - [The Epoch's Tachygram Set](zoodles/epoch-set.md)
-- [Hardware Wallets and the Recovery Statement](hardware-wallets.md)
+  - [Spend Authorization](zoodles/spend-authorization.md)
+    - [Hash Preimage](zoodles/spend-authorization/hash-preimage.md)
+    - [leanSPHINCS](zoodles/spend-authorization/leansphincs.md)
+    - [Recovery from Ironwood](zoodles/spend-authorization/recovery-ironwood.md)
+    - [Recovery from Tachyon](zoodles/spend-authorization/recovery-tachyon.md)
+    - [Hardware Wallets](zoodles/spend-authorization/hardware-wallets.md)
