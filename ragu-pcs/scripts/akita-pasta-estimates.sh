@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # SIS width tables and proof-size re-pricing for the Pallas base field and
 # Goldilocks, using Akita's own estimator and planner code with the additions
-# in work/akita-src (see pasta-proof-size.md). Paths are relative to the
-# ragu-pcs directory; the clone that it
-# builds lives under work/, or under $RAGU_PCS_WORK. The whole run takes a few hours, most of it in step 4.
+# in work/akita-src, the clone that scripts/akita-checkout.sh makes (see
+# pasta-proof-size.md). Paths are relative to the ragu-pcs directory; the clone
+# lives under work/, or under $RAGU_PCS_WORK. The whole run takes a few hours,
+# most of it in step 4.
 #
 # Usage: scripts/akita-pasta-estimates.sh [OUT_DIR]
 # Everything is written under OUT_DIR (default work/akita-pasta-out), one

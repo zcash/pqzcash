@@ -6,13 +6,13 @@
 # quantum model, as the page's SIS instances are, at the ℓ∞ route's 1,024 rows, the
 # zero-knowledge note's Euclidean 1,385, and 2,048; then the padding is swept at the device's
 # rows so that the page can take the least that reaches each floor. Run from ragu-pcs, with
-# the estimator in Akita's third_party submodule: `sage scripts/knapsack-lwe-check.py`.
+# the estimator in the Akita clone's third_party submodule (scripts/akita-checkout.sh), under
+# work/ or $RAGU_PCS_WORK: `sage scripts/knapsack-lwe-check.py`.
 import os
 import sys
 
-sys.path.insert(
-    0, os.path.join(os.getcwd(), "work", "akita-src", "third_party", "lattice-estimator")
-)
+WORK = os.environ.get("RAGU_PCS_WORK", os.path.join(os.getcwd(), "work"))
+sys.path.insert(0, os.path.join(WORK, "akita-src", "third_party", "lattice-estimator"))
 from estimator import LWE, ND
 from estimator.reduction import ADPS16
 from sage.all import log

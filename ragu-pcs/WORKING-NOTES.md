@@ -3516,3 +3516,75 @@ decision; and the user's calls on the mask's width and the sidebar's threshold.
 
 STATE: branch repo-links-and-notes at this entry's commit, on main a672d13, which the user
 pushed; PR #1 merged, PR #2 a draft; artifact version 212; the book builds.
+
+## 2026-11-23 13:35 UTC: PRs #2 and #3 merged, the branch protection, the Akita checkout script, the patches as series
+
+- **PRs #2 and #3 merged** (the user). #3, the repo-links-and-notes branch, was rebased onto
+  main first, since the branch rule requires an up-to-date branch. The zcash remote's fetch
+  URL is HTTPS now, so this shell can fetch the public repository; the user asks to be asked
+  before each fetch, to keep track of the state.
+- **Branch protection**, a ruleset on the default branch: no deletion or force-push, a pull
+  request required with no approvals, the three aggregate checks required (`Post-Quantum
+  Zcash book CI`, `Lean CI`, `Workflow CI`, each from the GitHub Actions app), and branches
+  must be up to date with main before merging.
+- **The Akita checkout is scripted** (2345bd0). `scripts/akita-checkout.sh` clones the pinned
+  revision, initialises the lattice-estimator submodule, and applies the patches with `git am`:
+  the Pasta-widths series in the clone on the branch `pasta-widths`, that and the 147-bit
+  policy in the worktree on `pasta-widths-147`, from which the 147-bit pipeline resumes at the
+  table regeneration. Tested offline with the local clone as the mirror: both checkouts came
+  out identical to the patches' commits, and a second run leaves them alone. The patches are
+  per-repository series under `scripts/patches/akita/` and `scripts/patches/ragu/` in
+  `git format-patch` form (the user's rule: ordered patches use the `0001-` convention, and
+  patches for different repositories go in different subdirectories). The 147-bit patch became
+  the delta over the Pasta-widths patch, derived from the worktree's commit 2478c43 (the 32
+  files it changes outside the generated tables, checked identical), plus the policy's rename in
+  the shipped width tables so that the crates build before the regeneration. The regenerated
+  tables stay out of the patch: their diff is 8.3 Mbytes, mostly `policy_audit.csv`, and the
+  pipeline regenerates them.
+- **The proof-size note** (2437c17) names the patch, the scripts under `scripts/`, and
+  `estimates/` instead of paths under the scratch directory (the user: make it reproducible).
+  The model's comments still name the scratch logs of the BitZ runs, which are developer-facing,
+  and `estimates/summary.txt` is a generated log.
+- **Cross-references are links** (2813c5a, dac2c36, b506373). The repo-links preprocessor
+  resolves an included note's links from the note's own directory and maps a target that is a
+  chapter to the chapter (`pareto-template.html` stands for the frontier chapter,
+  `REGENERATING.md` for the regenerating one), so a note writes its links as neighbours
+  (`scripts/x.py`, `zk-fiat-shamir-with-aborts.md#…`) that work on GitHub and in the book
+  alike, and a link to a file that does not exist fails the build. The regenerating chapter
+  and the two notes link every tracked file they name (`work/link-files.py`); bare section
+  numbers link their headings, a section of another paper staying bare
+  (`work/section-links.py`); the zero-knowledge note is "the zk note" after a first mention in
+  each document, with a link on every reference, noteref spans in the frontier page and links
+  in the notes (the user: abbreviate so that every reference reads "in the zk note";
+  `work/note-refs.py`); the zk note links the frontier page's sections, the proof-size note,
+  the hardware-wallets chapter, and its open points; the hardware-wallets note's two
+  book-relative links are note-relative. A reference to another page gives the page's title as
+  the link text (the user: not its filename), and the preprocessor sends a link whose text is a
+  code span to the file on GitHub, a title to the chapter. The proof-size note's bare "§5.5",
+  which it has no section for, is read as the zk note's §5.5; the user checked the §5.5 links. The rendered chapters' 555 links were
+  checked by `work/check-links.py` (GitHub paths tracked, pages and ids present).
+- **References give authors' first names in full** (dd9a302; the user's rule, for the reason
+  that initials can hide diversity in gender and culture), taken from the papers' own pages
+  where the lists had initials: Zinc+, Akita, BitZ, Flock, Zook, the small-field SoK, and the
+  leanSPHINCS EIP, cited by its number 8504 now (`work/ref-names.py`).
+
+- **The regeneration notes are a book chapter**, "Regenerating the Study's Numbers" at
+  `book/src/proof-systems/regenerating.md`, moved there from `ragu-pcs/REGENERATING.md`, which
+  is a stub with an include pointing at the chapter (the user's choice); the Ragu commitments
+  chapter links it. The chapter's paths stay relative to `ragu-pcs/`, as its first paragraph
+  says.
+
+NEXT: the queue as before: the Zoodles lineage both ways; Ragu steps 2 to 4; the Boolean
+step-size knob; Zoodles' header size; the handoff step's padding; the ledger decision; and the
+user's calls on the mask's width and the sidebar's threshold. Low priority, for completeness
+(the user, after the question whether Pasta was re-planned): a native Pasta profile for Akita,
+the proof-size note's §7, two to three days of which the challenge families for a fully
+splitting prime are the uncertain part. It would refine the two Pallas-modulus rows' bytes by
+a few percent (the re-plan at Pallas widths saved under two percent a row) and leave their
+prover, which the 255-bit arithmetic sets at 15 times fp128's, so it does not change where
+those rows stand; the 64-bit-commitment row already gives native Pasta claims at a twelfth of
+their prover.
+
+STATE: branch akita-checkout-script at this entry's commit, on 94d1383, the tip of #3 before
+its merge; to be rebased onto main after a fetch, then pushed by the user and opened as a
+draft PR; the book builds and its links check.

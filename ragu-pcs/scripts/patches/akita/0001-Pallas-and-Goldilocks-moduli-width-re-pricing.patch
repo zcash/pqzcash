@@ -1,3 +1,44 @@
+From 0237e7c4b56f398e859233e3e408803a909b715f Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Mon, 23 Nov 2026 13:29:56 +0000
+Subject: [PATCH 1/2] Pallas and Goldilocks moduli; width re-pricing
+
+akita-sis-estimator: two estimator-only moduli, pallas (the Pallas base field) and goldilocks (2^64 - 2^32 + 1), selectable in every example by name. They have no params profile, so the table generators emit CSV for them, and the l-infinity generator gives them the canonical role cells of the checked-in profiles as explicit origins. The example pasta_rank binary-searches the least row count for a Euclidean bound at each modulus.
+
+akita-params: NonterminalLevelLayout::with_field_widths re-prices a level's atoms at other base-field and challenge-field widths without changing their counts.
+
+akita-schedules: expanded_schedule_proof_breakdown splits a schedule's proof estimate into non-terminal payloads, offloaded setup sum-checks, the terminal extension-opening reduction, the terminal response, and grinding nonces, at the schedule's own widths or at a FieldWidthOverride. With no override its total equals the planner's own estimate.
+
+akita-schedules and akita-planner: a process-wide pricing width override, set_pricing_width_override, consulted by every byte estimate that the planner derives from a policy, and read by the artifact generator from AKITA_PRICING_WIDTHS. The example catalog_reprice prints every shipped schedule's breakdown at its own modulus, at Pallas widths (255-bit base and challenge field, no extension), and at Goldilocks widths (64-bit base field, degree-2 challenge extension).
+
+Co-Authored-By: Claude Mythos 5.1 <noreply@anthropic.com>
+---
+ crates/akita-params/src/layout/mod.rs         |   1 +
+ crates/akita-params/src/layout/proof_size.rs  |  74 ++++-
+ crates/akita-params/src/lib.rs                |   3 +-
+ crates/akita-params/src/proof_size.rs         |  20 ++
+ crates/akita-planner/Cargo.toml               |   5 +
+ .../akita-planner/examples/catalog_reprice.rs | 219 +++++++++++++
+ .../src/bin/gen_schedule_artifacts.rs         |  42 +++
+ .../src/schedule_params/suffix_dp.rs          |  10 +-
+ .../src/schedule_params/suffix_dp/source.rs   |   6 +-
+ .../src/schedule_params/suffix_dp/terminal.rs |   5 +-
+ crates/akita-schedules/src/lib.rs             |   9 +-
+ crates/akita-schedules/src/runtime.rs         | 291 +++++++++++++++++-
+ .../benches/fixed_infinity.rs                 |   2 +
+ .../benches/infinity_optimizer.rs             |   2 +
+ .../examples/infinity_width_table.rs          |  46 ++-
+ .../examples/pasta_rank.rs                    | 127 ++++++++
+ crates/akita-sis-estimator/src/akita.rs       |  29 +-
+ crates/akita-sis-estimator/src/config.rs      |  20 +-
+ crates/akita-sis-estimator/src/lib.rs         |   5 +-
+ crates/akita-sis-estimator/src/params.rs      |  25 ++
+ crates/akita-sis-estimator/src/width_table.rs |  38 ++-
+ .../tests/euclidean_width_goldens.rs          |   2 +
+ 22 files changed, 927 insertions(+), 54 deletions(-)
+ create mode 100644 crates/akita-planner/examples/catalog_reprice.rs
+ create mode 100644 crates/akita-sis-estimator/examples/pasta_rank.rs
+
 diff --git a/crates/akita-params/src/layout/mod.rs b/crates/akita-params/src/layout/mod.rs
 index d2673c7..a0ad3d2 100644
 --- a/crates/akita-params/src/layout/mod.rs

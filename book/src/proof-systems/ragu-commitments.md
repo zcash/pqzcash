@@ -29,7 +29,8 @@ is in the repository's [`ragu-pcs/`](../../../ragu-pcs/) directory. There,
 [`pareto-model.py`](../../../ragu-pcs/pareto-model.py) generates the comparison from the
 measurements under [`estimates/`](../../../ragu-pcs/estimates/) and the models beside it, and
 [`WORKING-NOTES.md`](../../../ragu-pcs/WORKING-NOTES.md) is the running log of what was done
-and what is open. The two working
+and what is open. [Regenerating the Study's Numbers](regenerating.md) says where each number
+comes from and how to redo it. The two working
 notes in this section are the study's longer write-ups. The first prices an Akita opening at
 a Pasta modulus; the second shows how a lattice accumulation step can be made
 zero-knowledge.
