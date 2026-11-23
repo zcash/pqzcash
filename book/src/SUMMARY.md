@@ -11,4 +11,5 @@
     - [Akita Proof Sizes at a Pasta Modulus](proof-systems/other-schemes/pasta-proof-size.md)
     - [The Pasta-Claims Variant's Soundness Obligation](proof-systems/other-schemes/pasta-q64-soundness.md)
   - [Regenerating the Study's Numbers](proof-systems/regenerating.md)
-- [Hardware Wallets](hardware-wallets.md)
+- [Zoodles](zoodles.md) <!-- todo -->
+- [Hardware Wallets and the Recovery Statement](hardware-wallets.md)

@@ -6080,6 +6080,7 @@ PROSE_FILES = (
     "pasta-proof-size.md",
     "zk-fiat-shamir-with-aborts.md",
     "hardware-wallets.md",
+    "zoodles.md",
 )
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # A claim's sentence sits between `<!--claim:names:hash-->` and `<!--/claim-->`, the names
