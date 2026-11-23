@@ -3644,3 +3644,41 @@ and, low priority, the native Pasta profile.
 
 STATE: branch book-reorganization at this entry's commit, stacked on akita-checkout-script (PR #4,
 open), pushed by the user up to the commit before this one; the book builds, 655 links check.
+
+## 2026-11-23 21:57 UTC: the epoch-set page; compression, the bucketed table, the QR profile
+
+- **PR #5**, book-reorganization against main, is a draft, opened after #4 merged and the branch
+  was rebased; the two commits of this entry follow its pushed tip aaa9fd2.
+- **The epoch-set page** (48d42d4; `ragu-pcs/zoodles-epoch-set.md`, 2.1 under Zoodles; the
+  user: a page of its own, not weight on the Zoodles page): the sorted tree against set
+  polynomials and the bucketed table of zcash/zcash#4062, whose "to be continued" probability
+  analysis is done: the capacity K from the Poisson tail of a bucket's load under a union bound
+  over the buckets (`bucket_capacity`, figures `bucket_*`, claim `bucket_table_dearer`); the
+  tags variant, two-choice placement, filters; the attacker a table has. The table I gave in
+  chat had K a few too high, a constant slipped in a scratch script; the page's figures are the
+  model's. The user has the permissions to unarchive zcash/zcash and means to transfer its
+  design issues out of it later; archived repositories refuse transfers.
+- **Compression of tachygrams** (chat): a 128-bit image survives a single-target roadblock on
+  the Grover-depth reading, since the mempool exposes a value before it is final, but not the
+  multi-target membership search at 2^128 / N over every commitment ever created; an
+  exclusion-only compressed set would split the one structure that serves both checks, which
+  the user wants to keep. So full width everywhere, and the recommendation stands to drop set
+  polynomials from the transaction tree for hashed lists when the lineage task redoes the
+  Zoodles row's inventory.
+- **"Quadratic-residue profile"** (Tachyon's primitives/qr.rs at 73031f7): the bucket routing
+  is a binary trie whose split at depth j is whether x + R_0 + j is a square in F_p, R_0 a
+  prover-chosen random discriminant threaded through the network, at most 32 deep; a side is
+  proved by a square root y² = c(x + s), one squaring and a selection, and a whole class by an
+  interpolant u with u² − c(X + s) = q·h against the class's set polynomial q. The profile's bits
+  are the Legendre PRF of the tachygram at consecutive inputs.
+- **Hashing an epoch's tree** (chat): about 2^20 compressions of 64 bytes, 67 Mbytes, tens of
+  milliseconds a core with BLAKE3's lane batching and a quarter of a second scalar, plus a sort
+  of 2^20 values; BLAKE3's own tree mode would give 1 KiB leaves and a 31-compression inclusion
+  proof against the custom tree's 21, at the same native speed, so the custom tree is right.
+
+NEXT: the online measure, "transaction prover (online)", the user's choice (a): the total less
+the fold's offline share, Flock's mask split wanted, WHIR's only if cheap; then the queue as
+before.
+
+STATE: branch book-reorganization at this entry's commit, two commits beyond PR #5's pushed tip
+aaa9fd2; the book builds, 682 links check.
