@@ -63,12 +63,18 @@ that the headers bind together.
 
 ## Spend authorization
 
-Spend authorization is chosen per input, usually the same for all; the [Spend authorization](spend-authorization.md) section has a page on each method, on recovery from Ironwood and from Tachyon, and on hardware wallets.
+Spend authorization is chosen per input, usually the same for all; the [Spend
+authorization](spend-authorization.md) section has a page on each method, on recovery from Ironwood
+and from Tachyon, and on hardware wallets.
 
-The first form is a Sprout-like preimage check: the payment key is the BLAKE3 hash of the
-authorizing key, which Tachyon's spend step derives already, and the spend step proves knowledge of
-the preimage. It needs no digest of the transaction, since it is proved inside the spend step, which
-the tree binds to the rest of the transaction directly and through the PCD headers. Its binding to the transaction rests on the signature-of-knowledge argument of [Hash preimage](auth-preimage.md), and [Hardware wallets](hardware-wallets.md) prices the preimage statement as the part a hardware wallet proves on its own.
+The first form is a Sprout-like preimage check with ZIP 2005's derivation: the note's payment key
+commits to a quantum key $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$, one BLAKE3 compression that
+the spend step derives anyway, and the step proves knowledge of $\mathsf{qsk}$. It needs no digest
+of the transaction, since it is proved inside the spend step, which the tree binds to the rest of
+the transaction directly and through the PCD headers. Its binding to the transaction rests on the
+signature-of-knowledge argument of [Hash preimage](auth-preimage.md), and [Hardware
+wallets](hardware-wallets.md) prices the preimage statement as the part a hardware wallet proves on
+its own.
 
 The second form is a leanSPHINCS signature with BLAKE2s at the pruned
 key, <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes verified
@@ -82,6 +88,21 @@ or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a P
 each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
 commitments that its children's headers carry. The signature verification, not the digest, is the
 expensive part of this form.
+
+## Binding a note to its action
+
+Tachyon binds a note to its action through the randomized key: the randomizer $\alpha =
+\mathsf{PRF}(\mathsf{cm} \| \theta)$ ties $\mathsf{rk}$, which the action publishes and the
+signature verifies under, to the note's commitment inside the proof, and Tachyon's book notes that
+with $\mathsf{rk}$ gone the binding has to be re-established as a constraint of the proof statement.
+In Zoodles it is. Every value an action publishes is derived in the step that opens the note: a
+spend's step opens $\mathsf{cm}$ to the payment key, the value, $\psi$, and $\mathsf{rcm}$, derives
+the nullifiers from $\mathsf{nk}$ and $\psi$, and takes the amount from the value; an output's step
+hashes the commitment it publishes from the note it creates. The lineage's attestation of
+$\mathsf{cm}$ reaches the spend step as a PCD header, which the step checks against the commitment
+it opens. The proof tree then carries the published values to the root in its headers, so a preimage
+proof inside a spend step is bound to the whole transaction by the tree, and a signature is bound to
+it by the digest of those values. No randomizer is needed.
 
 ## The lineage
 
