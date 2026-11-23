@@ -1,0 +1,102 @@
+#pareto { --surface: var(--bg); --ink: var(--fg); --muted: var(--icons); --rule: var(--quote-border); --accent: var(--links); --accent-ink: var(--links); --mono: var(--mono-font); --c-pedersen: #8a8f9a; --c-fp128: #3b6ea5; --c-gold: #6a9f3a; --c-q64: #b8731a; --c-sis: #1b8a7a; --c-pasta: #8b2f6f; --c-whir: #c0392b; --c-whirgold: #6f42c1; --c-whirhybrid: #a89400; --c-plonky3: #1f1f1f; --c-flock: #0288d1; --c-whirrec: #e8846f; --c-whirgoldrec: #c71585; --c-whirhybridrec: #ff7f0e; --c-plonky3rec: #6b6b6b; --c-flockrec: #6cc1ea; --c-bitz: #2e7d32; --c-bitzrec: #7cc47f; --c-bitsq64: #d35400; --c-bitsq64pos: #c9a000; --c-bitsakita: #795548; }
+.coal #pareto, .navy #pareto, .ayu #pareto { --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7; --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsq64pos: #ffd740; --c-bitsakita: #c8a48e; }
+#pareto .top { color-scheme: dark; --surface: #1d2027; --ink: #e8e6e1; --muted: #a2a8b4; --rule: #343843; --accent: #e0a24a; --accent-ink: #f0c88a; --c-pedersen: #9aa0ab; --c-fp128: #7ea6d6; --c-gold: #93c467; --c-q64: #e0a24a; --c-sis: #5ccab8; --c-pasta: #cf7fb8; --c-whir: #ef7a7a; --c-whirgold: #b39ddb; --c-whirhybrid: #e6d55a; --c-plonky3: #f2f2f2; --c-flock: #4fc3f7; --c-whirrec: #f5a89d; --c-whirgoldrec: #f48fb1; --c-whirhybridrec: #ffb74d; --c-plonky3rec: #bdbdbd; --c-flockrec: #a6e0fb; --c-bitz: #66bb6a; --c-bitzrec: #b9e4ba; --c-bitsq64: #ff9e64; --c-bitsq64pos: #ffd740; --c-bitsakita: #c8a48e; color: var(--ink); }
+#pareto.wrap { max-width: none; margin: 0; padding-block: 28px 48px; padding-inline: 16px; container-type: inline-size; }
+#pareto .top { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 16px; align-items: start; margin: 18px 0 12px; }
+/* Below 1000 px of the page's own width, in the standalone page or the book's column, the plot takes the whole width and the controls go below it. */
+@container (max-width: 1000px) {
+#pareto .top { grid-template-columns: 1fr; }
+#pareto .controls { max-height: none; }
+}
+/* The text runs in a centred column of about 120 characters, which gives it its margins; the tables sit in it too and the frontier table scrolls sideways; only the plot keeps the full width. */
+#pareto .prose { max-width: 64em; margin: 0 auto; padding-inline: clamp(16px, 5vw, 80px);  }
+#pareto .lede { color: var(--muted); }
+#pareto a { color: var(--accent-ink); }
+/* A link in the lede's grey takes the ink colour and an accent underline, so that it stands out. */
+#pareto .lede a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 2px; }
+#pareto .selfcheck { color: #b00020; font-weight: 600; }
+#pareto .selfcheck:empty { display: none; }
+#pareto .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
+#pareto .group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#pareto .group.wide { grid-column: 1 / -1; }
+/* Two cells side by side, whatever precedes them: the two measures; a group beside a stack of short groups. */
+#pareto .group.measures, #pareto .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+/* The two measure groups with the swap button between them. */
+#pareto .group.measures { grid-template-columns: 1fr auto 1fr; gap: 12px 10px; }
+/* One application list at full width, or both side by side when both measures are the transaction prover. */
+#pareto .group.txapps { display: grid; grid-template-columns: 1fr; gap: 12px 18px; }
+#pareto .group.txapps.both { grid-template-columns: 1fr 1fr; }
+/* The hidden attribute must beat the groups' own display. */
+#pareto [hidden] { display: none !important; }
+#pareto .measures .swap { display: flex; align-items: center; }
+/* The two eyebrows reserve two lines each, so the lists start level whatever the width. */
+#pareto .measures .group .eyebrow { min-height: 2.8em; }
+#pareto .measures .swap button { padding: 2px 7px; font-size: 16px; line-height: 1; }
+#pareto .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* The rank boxes in a regular grid across the panel's width. */
+#pareto .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
+#pareto .group.grid .eyebrow { grid-column: 1 / -1; }
+#pareto .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+#pareto .group a.eyebrow { color: var(--accent-ink); }
+/* an eyebrow that is a link keeps the link colour */
+/* A thin rule between the controls that share a group, such as the view's projection, scale and hold. */
+#pareto .group hr.sep { width: 100%; border: 0; border-top: 1px solid var(--rule); margin: 3px 0; }
+#pareto .group label { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 1.35; }
+#pareto .group label input { margin-top: 3px; flex: none; }
+#pareto .group label .swatch { margin-top: 5px; flex: none; }
+#pareto .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+#pareto .swatch.square { border-radius: 0; }
+/* The swatch box takes the label's first line and centres the swatch in it, where the checkbox sits, so a two-line label keeps them level. */
+#pareto .swatches { display: inline-flex; gap: 3px; align-items: center; align-self: flex-start; height: 1.35em; width: 40px; justify-content: center; flex: none; }
+#pareto .group label .swatches .swatch { margin-top: 0; }
+/* A grey fill, a shade off the panel in either theme, marks the selects and buttons as controls. */
+#pareto select, #pareto button { font: inherit; color: var(--ink); background: color-mix(in srgb, var(--surface), var(--ink) 14%); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 8px; }
+/* The swap button's arrow is an inline SVG, so it sits in the middle of the button whatever the font's glyph metrics. */
+#pareto #swapmeasures { display: inline-flex; align-items: center; justify-content: center; height: 2em; padding: 0 8px; line-height: 1; }
+#pareto #swapmeasures svg { width: 1.1em; height: 1.1em; display: block; }
+#pareto .group label select { flex: 1 1 auto; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
+#pareto button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-ink); }
+#pareto #plot { width: 100%; height: 720px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--rule); min-width: 0; overflow: hidden; }
+/* the same box as the controls, so the two are the same height */
+/* A crosshair over the plot, in both views, so the pointer does not cover the hover box. */
+#pareto #plot .nsewdrag, #pareto #plot .gl-container canvas, #pareto #plot .drag { cursor: crosshair !important; }
+@container (max-width: 640px) {
+#pareto #plot { height: 440px; }
+}
+#pareto .tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); margin: 14px 0 18px; }
+/* The small tables are no wider than their columns need, centred, with room above and below. */
+#pareto .tablewrap.narrow { width: fit-content; max-width: 100%; margin: 22px auto 26px; }
+#pareto .tablewrap.narrow table { width: auto; }
+#pareto table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+#pareto th, #pareto td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+#pareto td.num { white-space: nowrap; }
+#pareto th { white-space: normal; }
+/* The frontier table takes the width its columns need and scrolls sideways; only the Family and
+   Configuration columns wrap, wide enough for a row to take four lines at most. */
+#pareto #table { width: auto; min-width: 100%; }
+#pareto #table td:nth-child(1) { min-width: 26ch; max-width: 30ch; }
+#pareto #table td:nth-child(2) { min-width: 40ch; max-width: 46ch; }
+#pareto #table td:nth-child(n+11) { white-space: nowrap; }
+#pareto #table td:nth-child(9) { max-width: 14ch; }
+#pareto #table td:nth-child(10) { max-width: 12ch; }
+#pareto th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; user-select: none; }
+#pareto th .katex, #pareto th math { text-transform: none; }
+/* symbols keep their case: uppercasing turns α into Α, which reads as a Latin letter */
+#pareto th.sorted-asc::after { content: " \25B2"; }
+#pareto th.sorted-desc::after { content: " \25BC"; }
+#pareto td.num { font-family: var(--mono); text-align: right; }
+#pareto th.num { text-align: right; }
+#pareto .frontier td:first-child, #pareto #table thead th:first-child { border-left: 3px solid var(--accent); }
+#pareto ul { padding-left: 20px; }
+#pareto li { margin-bottom: 4px; }
+#pareto code { font-family: var(--mono); font-size: 0.92em; }
+#pareto :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+#pareto * { transition: none !important; }
+}
+#pareto.wrap { padding: 0; }
+#pareto a.header { color: inherit; }
+#pareto th { color: var(--fg); }
+#pareto table tbody tr { background: var(--table-alternate-bg); }
+#pareto table tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%); }
+#pareto table th, #pareto table td { border: 0; border-bottom: 1px solid var(--rule); }
