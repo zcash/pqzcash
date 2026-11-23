@@ -1303,8 +1303,8 @@ ZOODLES_ROOT_MULTS = {"pasta": 1, "fp128": 3, "goldilocks": 9}
 
 
 def zoodles_nodes(spends, outputs):
-    """Tachyon's tree without the two rerandomization fuses; the fee step is the root and its
-    own step."""
+    """Tachyon's tree without the two rerandomization fuses; the fee circuit is the root and is
+    packed into a step with the rest, as the others are."""
     return tachyon_nodes(spends, outputs)[:-2]
 
 
@@ -4431,6 +4431,7 @@ def define_figures():
             continue
         fig(f"tx_{app}_kishu_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        fig(f"tx_{app}_kishu_zk_steps", tx_steps(p, app, "blake3"))
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app, floor=128)
         fig(f"tx_{app}_bits_akita_s", secs(w))
