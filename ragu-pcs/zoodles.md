@@ -36,13 +36,13 @@ the maximum-fee note's value less the fee, as Tachyon's does.
 What changes in the tree is the packing: Tachyon gives each circuit a step of its own, whereas a
 Kishu step of $2^{\mathrm{rank}}$ digits holds the fee
 circuit, <!--fig:zoodles_fee_digits-->39,557<!--/fig--> digits, and with it as many spends and
-outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->50,461<!--/fig--> digits and an
+outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->65,533<!--/fig--> digits and an
 output <!--fig:zoodles_output_digits-->65,513<!--/fig--> digits, each with its merge
 of <!--fig:zoodles_merge_digits-->13,666<!--/fig--> digits (for more on the cost model of Kishu, see
 [Kishu's Arithmetization](kishu-arithmetization.md)).
 Therefore, <!--fig:zoodles_actions_per_step_17-->1<!--/fig--> action, a spend or an output, fits at
 rank 17, <!--fig:zoodles_actions_per_step_19-->6<!--/fig--> at rank 19,
-and <!--fig:zoodles_actions_per_step_21-->28<!--/fig--> at rank 21. A transaction of two inputs and
+and <!--fig:zoodles_actions_per_step_21-->25<!--/fig--> at rank 21. A transaction of two inputs and
 two outputs is four actions, and at rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->19<!--/fig-->
 it fits in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the
 same transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or output, three
@@ -69,13 +69,13 @@ proved inside the tree that the headers bind together.
 
 ## Pool accounting
 
-A Zoodles bundle (e.g. in a ZIP 248 transaction [\[ZIP-248\]](#ref-zip248)) can spend from three pools:
-its own, Ironwood's through the Recovery Statement of [Recovery from
+A Zoodles bundle (e.g. in a ZIP 248 transaction [\[ZIP-248\]](#ref-zip248)) can spend from three
+pools: its own, Ironwood's through the Recovery Statement of [Recovery from
 Ironwood](recovery-ironwood.md), and Tachyon's through the recovery spend of [Recovery from
 Tachyon](recovery-tachyon.md). Consensus tracks each pool's balance, and ZIP 209
-[\[ZIP-209\]](#ref-zip209) rejects a transaction that would take any pool's balance out of range. So the
-Zoodles bundle reveals the total it spends from Ironwood, the total it spends from Tachyon, and its
-Zoodles balance, the net value leaving the Zoodles pool, which is negative when value enters it.
+[\[ZIP-209\]](#ref-zip209) rejects a transaction that would take any pool's balance out of range. So
+the Zoodles bundle reveals the total it spends from Ironwood, the total it spends from Tachyon, and
+its Zoodles balance, the net value leaving the Zoodles pool, which is negative when value enters it.
 
 The headers carry the sums: a recovery spend's step adds its amount to its pool's sum and a native
 spend's to the Zoodles sum, a merge adds its children's sums, and the fee step publishes the two
@@ -92,10 +92,10 @@ disabled before Q-day.
 Spend authorization is chosen per input, usually the same for all. The [Spend
 authorization](spend-authorization.md) section motivates the two methods and has a page on each: the
 [hash preimage](auth-preimage.md), the check $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ of ZIP
-2005 [\[ZIP-2005\]](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved inside
-the spend step, which derives it anyway; and a [leanSPHINCS](auth-leansphincs.md) signature over a
-digest of the transaction, verified inside the proof with the public key as a witness. The section
-also covers recovery from Ironwood and from Tachyon, and hardware wallets.
+2005 [\[ZIP-2005\]](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved
+inside the spend step beside the payment key's opening; and a [leanSPHINCS](auth-leansphincs.md)
+signature over a digest of the transaction, verified inside the proof with the public key as a
+witness. The section also covers recovery from Ironwood and from Tachyon, and hardware wallets.
 
 ## Binding a note to its action
 
@@ -139,8 +139,8 @@ tachygram set](zoodles-epoch-set.md) compares the representations.
 ## Cost
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
-is <!--fig:app_zoodles_preimage_kishu-->313,000<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0824<!--/fig--> s with zero knowledge at
+is <!--fig:app_zoodles_preimage_kishu-->343,000<!--/fig--> committed digits and
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0825<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->19<!--/fig-->,
 or <!--fig:tx_zoodles_preimage_kishu_s-->0.0395<!--/fig--> s without. One authorized by leanSPHINCS
 with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->9.42 million<!--/fig--> digits

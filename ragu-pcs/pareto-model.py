@@ -1269,8 +1269,9 @@ CLMUL_ANDS = {
 # merge above and folded by CLAIM_GATES multiplications. The curve goes: amounts are
 # range-checked and summed in the PCD headers in place of value commitments and the binding
 # signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
-# payment key is the BLAKE3 hash of the authorizing key, which Tachyon's spend step derives
-# already) or a leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction
+# payment key is the BLAKE3 hash of the nullifier key and the quantum key, and the spend proves
+# the quantum key's derivation from the quantum spending key too: two compressions, where
+# Tachyon's spend step derives the payment key alone) or a leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction
 # digest (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
 # the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
@@ -1280,8 +1281,8 @@ CLMUL_ANDS = {
 # instead, opening the note and deriving one nullifier there, with no set polynomials.
 # Per node: BLAKE3 compressions, roots or products of set polynomials, openings at the
 # challenge, and bits of range checks and header sums. A spend's bind step derives the two
-# nullifiers and range-checks the epoch and the amount; its action step derives the payment key
-# and roots the nullifiers; an output's bind step hashes the commitment and the padding and
+# nullifiers and range-checks the epoch and the amount; its action step opens the payment key,
+# under the preimage method derives the quantum key as well, and roots the nullifiers; an output's bind step hashes the commitment and the padding and
 # range-checks the amount; its action step roots them; a merge multiplies the two sets and sums
 # the amounts; the fee step hashes the change note, range-checks the slack, the fee and the
 # change, and roots the change commitment.
@@ -1380,6 +1381,8 @@ def zoodles_node_cost(field, hp, node, auth):
     verifier in a spend's action step and the transaction digest in the fee step."""
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     verifier = 0
+    if auth == "preimage" and node == "SpendAction":
+        blake3 += 1  # qk = H^qk(qsk), beside the payment key's opening to (nk, qk)
     if h := leansphincs_hash(auth):
         if node == "SpendAction":
             verifier = hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
@@ -1397,6 +1400,8 @@ def zoodles_node_cost(field, hp, node, auth):
 def zoodles_node_piop(node, auth):
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     parts = []
+    if auth == "preimage" and node == "SpendAction":
+        blake3 += 1
     if h := leansphincs_hash(auth):
         if node == "SpendAction":
             parts.append((LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
@@ -1420,7 +1425,7 @@ def zoodles_merkle_cost(field, hp, auth):
     summed."""
     spend = (
         path_cost(field, hp)
-        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2)
+        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
         + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
     )
     sighash = 0
@@ -1441,7 +1446,7 @@ def zoodles_merkle_cost(field, hp, auth):
 
 def zoodles_merkle_piop(auth):
     blake3 = (
-        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2)
+        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
         + (ZOODLES_OUTPUTS + 1) * ZOODLES_NOTE_COMPRESSIONS
     )
     bits = (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3) * ZOODLES_AMOUNT_BITS + (
