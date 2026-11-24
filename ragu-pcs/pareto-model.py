@@ -1469,9 +1469,9 @@ def zoodles_merkle_piop(auth):
 # left out.
 ZOODLES_BUCKET_LOG = 13
 ZOODLES_BUCKET_DIGITS = 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS
-# Tachyon's EPOCH_SIZE, at the chain's 75-second target spacing.
+# Tachyon's EPOCH_SIZE, at the chain's 25-second target spacing since NU7.
 ZOODLES_EPOCH_BLOCKS = 4096
-ZOODLES_BLOCK_SECONDS = 75
+ZOODLES_BLOCK_SECONDS = 25
 ZOODLES_EPOCH_LOG = 20
 
 

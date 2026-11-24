@@ -115,7 +115,7 @@ digest](auth-leansphincs.md#the-message) of those values. No randomizer is neede
 
 A Zoodles note's lineage runs in the background, as Tachyon's does, and is not part of any
 transaction. Once an epoch, <!--fig:zoodles_epoch_blocks-->4,096<!--/fig--> blocks
-or <!--fig:zoodles_epoch_days-->3.6<!--/fig--> days at 75-second blocks, a step advances the note
+or <!--fig:zoodles_epoch_days-->1.2<!--/fig--> days at 25-second blocks, a step advances the note
 past the epoch's published tachygrams, proving that its nullifier is not among them.
 
 Tachyon does this with set polynomials. The epoch's tachygrams are split into buckets by a
