@@ -3964,3 +3964,13 @@ wire; bits, F_q, free constraint shape; instance values in both); "Writing circu
 words, integer semantics, other prime fields expensive but not prohibitively so, gadget costs,
 steps, zero knowledge, no lookups). Lowercase "boolean" as an adjective; "Booleanity" left as the
 study spells it. The user: some redundancy remains, left for now.
+
+The user's observation (2026-11-24): most optimization techniques for bignum arithmetic on native
+limbs apply in Kishu's arithmetization too. Assessment: yes, since a limb is a word below q/2 with
+free range checks, so lazy carry propagation, redundant (non-canonical) limb representations,
+Karatsuba, and quotient-witness reductions (Barrett, Montgomery, Solinas-style for Pasta's primes)
+all translate; but the cost structure differs from a CPU's: a product term is 9.8 word
+multiplications where a committed bit is about 11, so the committed intermediate bits (carries,
+quotients, products' outputs) dominate, and the techniques worth most are those that cut committed
+bits, not multiplications. The limb route is schoolbook over 29-bit limbs with 34-bit carries, 17
+constraints of up to nine products; the fingerprint route avoids limbs altogether.
