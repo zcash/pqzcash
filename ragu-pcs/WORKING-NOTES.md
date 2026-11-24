@@ -3947,3 +3947,20 @@ appendix in the book. Ragu main is 7914b3b8, 315 commits past 8109a41c. So keep/
 and the measured gate counts (TACHYON_STEPS) describe the old revision; re-read the step circuits
 before the Zoodles statements page, and re-measure the counts when Ragu steps 2–4 come up. Every
 tachyon.z.cash link the pages cite resolves (payment-key, pq, pq-rerand, team, the Ragu chapter).
+
+Kishu's Arithmetization was reworked with the user sentence by sentence (the definition is the
+part a misreading would poison, so it got the time): "Kishu as a Proof-Carrying-Data scheme"
+(nodes, headers, the node/step distinction); "The arithmetization" (q a fixed prime, 2^64 − 59 for
+the modelled parameters; column vectors, ⟨x, y⟩ = xᵀy by the `\innerprod` macro in
+book/macros.txt with a −0.8mu kern; matrices r × c take F_q^c to F_q^r; a circuit with m
+constraints, the public inputs padded with zeros to the instance vector v ∈ F_q^m, the witness
+w ∈ {0,1}^N; per constraint j, sparse A_j, B_j ∈ F_q^{t_j × N} and a row vector c_j ∈ F_q^{1×N};
+⟨A_j w, B_j w⟩ + c_j w = v_j in F_q; a prose gloss; the constant term wlog through an input fixed
+to 1; booleanity enforced for the whole witness at once); "Relation to R1CS" (a generalization with
+several products a constraint, boolean constraints implicit), "Relation to CCS" (STW23's
+definition, read row by row at degree two; z = (w, 1, x) against bits and the right-hand side;
+degree two here), "Relation to Ragu" (Bootle et al.'s constraint system over Pallas with a fourth
+wire; bits, F_q, free constraint shape; instance values in both); "Writing circuits" (the costs,
+words, integer semantics, other prime fields expensive but not prohibitively so, gadget costs,
+steps, zero knowledge, no lookups). Lowercase "boolean" as an adjective; "Booleanity" left as the
+study spells it. The user: some redundancy remains, left for now.
