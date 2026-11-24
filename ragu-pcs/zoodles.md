@@ -66,15 +66,35 @@ sums its children's amounts, and the fee step range-checks the slack, the fee, a
 binding signature is not needed for non-malleability either, since every spend's authorization is
 proved inside the tree that the headers bind together.
 
+## Pool accounting
+
+A Zoodles bundle (e.g. in a ZIP 248 transaction [ZIP-248](#ref-zip248)) can spend from three pools:
+its own, Ironwood's through the Recovery Statement of [Recovery from
+Ironwood](recovery-ironwood.md), and Tachyon's through the recovery spend of [Recovery from
+Tachyon](recovery-tachyon.md). Consensus tracks each pool's balance, and ZIP 209
+[ZIP-209](#ref-zip209) rejects a transaction that would take any pool's balance out of range. So the
+Zoodles bundle reveals the total it spends from Ironwood, the total it spends from Tachyon, and its
+Zoodles balance, the net value leaving the Zoodles pool, which is negative when value enters it.
+
+The headers carry the sums: a recovery spend's step adds its amount to its pool's sum and a native
+spend's to the Zoodles sum, a merge adds its children's sums, and the fee step publishes the two
+recovery totals and the Zoodles balance. A transaction with no recovery inputs publishes two zero
+totals. The recovery totals are public, as a turnstile's flows are.
+
+Unlike earlier turnstile crossings, where each pool's bundle carried its own proof and the
+transparent value pool bridged them, the whole transaction is one Kishu proof; the recovery spends
+are steps of its tree. This is necessary because both Halo 2 and Ragu proofs will have to be
+disabled before Q-day.
+
 ## Spend authorization
 
 Spend authorization is chosen per input, usually the same for all. The [Spend
 authorization](spend-authorization.md) section motivates the two methods and has a page on each: the
-[hash preimage](auth-preimage.md), ZIP 2005's $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ with
-$\mathsf{qk}$ committed in the note's payment key, proved inside the spend step, which derives it
-anyway; and a [leanSPHINCS](auth-leansphincs.md) signature over a digest of the transaction,
-verified inside the proof with the public key as a witness. The section also covers recovery from
-Ironwood and from Tachyon, and hardware wallets.
+[hash preimage](auth-preimage.md), the check $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ of ZIP
+2005 [ZIP-2005](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved inside
+the spend step, which derives it anyway; and a [leanSPHINCS](auth-leansphincs.md) signature over a
+digest of the transaction, verified inside the proof with the public key as a witness. The section
+also covers recovery from Ironwood and from Tachyon, and hardware wallets.
 
 ## Binding a note to its action
 
@@ -137,7 +157,8 @@ prices.
 ## Status
 
 - Whether Zoodles needs Tachyon's PCD header of nine elements, or fits the recovery circuit's six or
-  seven, is not settled; the frontier page prices it at nine.
+  seven, is not settled; the frontier page prices it at nine. The pool sums of [Pool
+  accounting](#pool-accounting) are part of the count.
 - The lineage is priced by the sorted tree alone; the bucket route is to be priced beside it.
 - The bind, lift, and fuse steps that close a lineage segment at a spend are not counted.
 - The packed step's interface is not charged. One step circuit carrying several nodes' headers and
@@ -153,3 +174,12 @@ Zoodles is mostly just the obvious adaptation of Tachyon. Thank you to the [Tach
 team](https://tachyon.z.cash/team/), Sean Bowe, Tal Derei, Connor O'Hara, Alex Xiong, L Winslow, and
 Samuel Akinosho, for their work. The adaptation, its name, and its modelling are Daira-Emma
 Hopwood's.
+
+## References
+
+- <a id="ref-zip209"></a>[ZIP-209] Sean Bowe. ZIP 209: Prohibit Out-of-Range Chain Value Pool
+  Balances. <https://zips.z.cash/zip-0209>
+- <a id="ref-zip248"></a>[ZIP-248] Jack Grigg, Kris Nuttycombe, Daira-Emma Hopwood, Schell Scivally.
+  ZIP 248: Extensible Transaction Format. Draft. <https://zips.z.cash/zip-0248>
+- <a id="ref-zip2005"></a>[ZIP-2005] Daira-Emma Hopwood, Jack Grigg. ZIP 2005: Ironwood Quantum
+  Recoverability. <https://zips.z.cash/zip-2005>
