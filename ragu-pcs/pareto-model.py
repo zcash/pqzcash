@@ -24,7 +24,7 @@ data define them. The numbers come from:
 Writes pareto.html next to this script: a self-contained page with the data inlined.
 """
 
-import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, sys
+import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, subprocess, sys
 import frib_optimizer as frib
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -759,13 +759,35 @@ def mult_ands(n):
 BITZ_GATE_BITS = 510  # a Pasta gate as committed bits in BitZ's arithmetization: a 255-bit value and a 255-bit quotient
 BITS_PER_VALUE = 255  # a Pasta value in Kishu's one-bit digits
 BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
-BLAKE2B_BITS = (
-    12 * 8 * (4 * 65 + 4 * 64) + 16 * 64
-)  # the additions' sums and carries, the XORs' outputs, the finalisation
-BLAKE3_BITS = 7 * 8 * (4 * 33 + 4 * 32) + 16 * 32
-BLAKE2B_BITS_KISHU = (
-    12 * 8 * (4 * 66 + 4 * 64) + 16 * 64
-)  # as BLAKE2B_BITS, each 64-bit addition in two halves with two carries, since a 64-bit sum can wrap modulo q
+# A compression's committed digits in a degree-two arithmetization over bits (BitZ's and
+# Kishu's): per G function the four adders' sums and carries, and two of the four XOR words.
+# Every word of G is used once as a factor, in an XOR, and once linearly, in an adder. A word
+# needs committing only to be a factor, and an uncommitted XOR word enters its adder as the
+# exact expressions x + y - 2xy of its bits. So of each chain of two XORs only the second's
+# word is committed, certified against both XORs' inputs at once (XOR_RELATION_PIOP); a third
+# XOR in the chain would need degree three. The finalisation's XORs are expressions too: a
+# compression in a chain commits only the four output words that are the next compression's b
+# inputs, its factors in the first round. Rotations are wiring.
+BLAKE_G_COMMITTED_XORS = 2
+BLAKE_CHAIN_WORDS = 4
+
+
+def blake_bits(rounds, word_bits, add2, add3):
+    """A BLAKE compression's committed digits: per G function two additions of two words at
+    `add2` digits (the sum and a carry bit), two of three words at `add3` (the carry up to
+    two, two bits), and the committed XOR words; then the chaining words."""
+    g = rounds * 8
+    return (
+        g * (2 * add2 + 2 * add3 + BLAKE_G_COMMITTED_XORS * word_bits)
+        + BLAKE_CHAIN_WORDS * word_bits
+    )
+
+
+BLAKE2B_BITS = blake_bits(12, 64, 65, 66)
+BLAKE3_BITS = blake_bits(7, 32, 33, 34)
+# As BLAKE2B_BITS, each 64-bit addition in two halves with a carry each, since a 64-bit sum
+# can wrap modulo q.
+BLAKE2B_BITS_KISHU = blake_bits(12, 64, 66, 68)
 # Constraint counts for Kishu's PIOP, a sum-check over a constraint system on the committed
 # table (Zinc+'s UCS, R1CS or CCS alike), beside the digit counts, as (product terms, nonzeros
 # of small constants, nonzeros of field constants). A product term costs the prover the
@@ -775,17 +797,30 @@ BLAKE2B_BITS_KISHU = (
 # two word multiplications for a power of two or a small constant and four for a field
 # constant. Linear forms are over word entries: the table is laid out by bit position, so a
 # word's evaluation is a batch of column claims, which Akita opens at the cost of one, and a
-# bit is a one-bit word. An XOR bit is z = x + y - 2xy; a 32-bit addition a + b = s + 2^32 c
-# over word entries with 33 committed bits; a 64-bit one two halves; a Sinsemilla chunk its
-# 1,013 products, and its two selected coordinates materialized as committed bits, each one
-# linear constraint over the products, since a linear form of 1,024 bits would otherwise
-# enter every limb product; the reductions and linking one term each.
+# bit is a one-bit word. An XOR bit committed on its own is z = x + y - 2xy, one product; a
+# committed XOR word certified against the two XORs that produced it, z ⊕ a2 = d ⊕ a1 bit by
+# bit, is two products a bit; a 32-bit addition a + b = s + 2^32 c over word entries with 33
+# committed bits is one linear constraint, or 32 products and the constraint when an addend is
+# an uncommitted XOR word; a 64-bit one two halves; a Sinsemilla chunk its committed subset
+# products and its two coordinates' constraints (SINSEMILLA_CHUNK_PIOP below); the reductions
+# and linking one term each.
 CONSTRAINT_TERM_WORD_MULTS = 437.7 / 2**27 * WORD_MULTS_PER_MS  # BOOL_CHECK's rate, asserted there
 NONZERO_SMALL_WORD_MULTS = WORD_MULTS["pasta_q64"]
 NONZERO_FIELD_WORD_MULTS = 2 * WORD_MULTS["pasta_q64"]
 XOR_BIT_PIOP = (1, 4, 0)
+XOR_RELATION_PIOP = (
+    2,
+    8,
+    0,
+)  # a committed XOR word's bit against both XORs' inputs: two products, four factors and four linear entries
 ADD32_PIOP = (1, 4, 0)
+ADD32_XOR_PIOP = (
+    32,
+    68,
+    0,
+)  # an addition with an uncommitted XOR word as an addend: its 32 products' factors and the four word entries
 ADD64_PIOP = (2, 8, 0)
+ADD64_XOR_PIOP = (64, 136, 0)
 
 
 def piop_sum(*parts):
@@ -802,10 +837,47 @@ def piop_word_mults(piop):
     )
 
 
-BLAKE3_PIOP = piop_sum((7 * 8 * 4, ADD32_PIOP), (7 * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP))
-BLAKE2B_PIOP = piop_sum((12 * 8 * 4, ADD64_PIOP), (12 * 8 * 4 * 64 + 16 * 64, XOR_BIT_PIOP))
-SINSEMILLA_CHUNK_PIOP = piop_sum((1013, (1, 3, 0)), (2, (1, 1024 + BITS_PER_VALUE, 0)))
-SINSEMILLA_CHUNK_DIGITS_KISHU = 1013 + 2 * BITS_PER_VALUE
+def blake_piop(rounds, word_bits):
+    """A BLAKE compression's constraint counts in Kishu's PIOP: per G function two plain
+    additions, two additions taking an uncommitted XOR word, and two committed XOR words
+    certified by XOR_RELATION_PIOP; then the chaining words, four committed by XOR_BIT_PIOP and
+    four entering the next compression's first additions as expressions."""
+    add, add_xor = (ADD32_PIOP, ADD32_XOR_PIOP) if word_bits == 32 else (ADD64_PIOP, ADD64_XOR_PIOP)
+    g = rounds * 8
+    return piop_sum(
+        (2 * g, add),
+        (2 * g, add_xor),
+        (BLAKE_G_COMMITTED_XORS * g * word_bits, XOR_RELATION_PIOP),
+        (BLAKE_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
+        (BLAKE_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+    )
+
+
+BLAKE3_PIOP = blake_piop(7, 32)
+BLAKE2B_PIOP = blake_piop(12, 64)
+# A Sinsemilla chunk selects one of 1,024 generators by ten bits. Each coordinate of the
+# selected point is a fixed linear form in the subset products of the bits, one coefficient per
+# subset. Only a product that is a factor of another needs committing: the subsets within each
+# half of the bits, 26 of two to five bits a half, are committed as bits, one product each, and
+# every subset spanning both halves is the product of two committed monomials or bits, a term
+# of the coordinate's constraint, 961 of them, its coefficient a field constant on one factor.
+# The coordinates are materialized as committed bits, since the form would otherwise enter
+# every limb product.
+SINSEMILLA_HALF_MONOMIALS = 2**5 - 1 - 5
+SINSEMILLA_COMMITTED_PRODUCTS = 2 * SINSEMILLA_HALF_MONOMIALS
+SINSEMILLA_CROSS_PRODUCTS = (2**5 - 1) ** 2
+SINSEMILLA_CHUNK_PIOP = piop_sum(
+    (SINSEMILLA_COMMITTED_PRODUCTS, (1, 3, 0)),
+    (
+        2,
+        (
+            SINSEMILLA_CROSS_PRODUCTS,
+            SINSEMILLA_CROSS_PRODUCTS + BITS_PER_VALUE,
+            SINSEMILLA_CROSS_PRODUCTS + SINSEMILLA_COMMITTED_PRODUCTS + 10 + 1,
+        ),
+    ),
+)
+SINSEMILLA_CHUNK_DIGITS_KISHU = SINSEMILLA_COMMITTED_PRODUCTS + 2 * BITS_PER_VALUE
 REDUCTIONS_PIOP = (4000, 12000, 0)
 # Two routes for Kishu's Pasta multiplication a b = k p + r over committed bits, since Akita's
 # claims are in one fixed field and the relation cannot be checked modulo it alone: the prover
@@ -859,7 +931,7 @@ RECOVERY_BITS = {  # the hashes, the selections, the reductions and linking, in 
     "goldilocks": 547_000,
     "fp128": 542_000,  # a 64-bit addition over Goldilocks is two halves
     "boolean": 7 * BLAKE2B_ANDS + BLAKE3_ANDS + 162_000 + 4_000,
-    "bits": 7 * BLAKE2B_BITS + BLAKE3_BITS + 162_000 + 4_000,
+    "bits": 7 * BLAKE2B_BITS + BLAKE3_BITS + 160 * SINSEMILLA_COMMITTED_PRODUCTS + 4_000,
     "bits_kishu": 7 * BLAKE2B_BITS_KISHU
     + BLAKE3_BITS
     + 160 * SINSEMILLA_CHUNK_DIGITS_KISHU
@@ -931,23 +1003,25 @@ def path_cost(field, hp):
 #     one per recovery transaction. The layered forest key of the same lifetime verifies in
 #     408 or 462 with a 6,332-byte signature, and Ethereum's provisional set, with FORS of 24
 #     trees of height 10 in place of the forest, in 515 with 7,740 bytes.
-# XOR is not free in a digit arithmetization or over a prime field, so Keccak-f costs its 24
-# rounds of 3,200 XOR bits in theta and 1,600 ANDs and 1,600 XORs in chi, 153,600 committed
-# bits or gates and as many product terms, against a BLAKE2s compression's 21,312 (ten rounds
-# of BLAKE3's G function) and a BLAKE3 compression's 15,072. In a Boolean circuit with XOR free
-# Keccak-f is chi's 38,400 ANDs and BLAKE2s its additions.
+# XOR is not free in a digit arithmetization or over a prime field. Keccak-f costs its 24
+# rounds of committed lanes, each lane's bits certified against three inputs at two products a
+# bit (XOR_RELATION_PIOP): in theta two parity lanes a column, the first over three of the
+# column's lanes and the second over it and the other two, then the 25 lanes after theta, each
+# against its lane and two parities; and chi's 25 output lanes, each bit certified by
+# a'' ⊕ b0 = (1 - b1) b2 with no AND digit. Beside it a BLAKE2s compression is ten rounds of
+# BLAKE3's G function. In a Boolean circuit with XOR free Keccak-f is chi's 38,400 ANDs and
+# BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
-BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + 4 * 32) + 16 * 32
+BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + BLAKE_G_COMMITTED_XORS * 32) + BLAKE_CHAIN_WORDS * 32
 BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32
-BLAKE2S_PIOP = piop_sum(
-    (BLAKE2S_ROUNDS * 8 * 4, ADD32_PIOP), (BLAKE2S_ROUNDS * 8 * 4 * 32 + 16 * 32, XOR_BIT_PIOP)
-)
+BLAKE2S_PIOP = blake_piop(BLAKE2S_ROUNDS, 32)
 KECCAK_ROUNDS = 24
-# Theta's XORs; chi's ANDs and XORs.
-KECCAK_ROUND_BITS = 3200 + 1600 + 1600
+# Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
+KECCAK_ROUND_LANES = 2 * 5 + 25 + 25
+KECCAK_ROUND_BITS = KECCAK_ROUND_LANES * 64
 KECCAK_BITS = KECCAK_ROUNDS * KECCAK_ROUND_BITS
 KECCAK_ANDS = KECCAK_ROUNDS * 1600
-KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
+KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_RELATION_PIOP))
 # Hash calls of one verification of the pruned key, its signature bytes, its grinding digests
 # per signature and its proved lifetime; the layered forest key's calls and bytes; Ethereum's
 # provisional FORS set's; and the hash rates of a Ledger Nano S+ from sphincs.art's
@@ -4239,6 +4313,9 @@ def define_figures():
         fig(f"piop_recovery_kishu_{kishu_route(a)}_s", secs(PIOP_WORK["recovery"][a]))
     fig("mult_limbs_digits", fmt(MULT_ROUTES["limbs"][0]))
     fig("mult_limbs_terms", MULT_ROUTES["limbs"][1][0])
+    fig("sinsemilla_chunk_digits", fmt(SINSEMILLA_CHUNK_DIGITS_KISHU))
+    fig("sinsemilla_committed_products", SINSEMILLA_COMMITTED_PRODUCTS)
+    fig("sinsemilla_cross_products", SINSEMILLA_CROSS_PRODUCTS)
     fig("mult_coefficients", MULT_COEFFICIENTS)
     fig("mult_carry_bits", MULT_CARRY_BITS)
     fig("fingerprint_instances", FINGERPRINT_INSTANCES)
@@ -4495,8 +4572,8 @@ def define_figures():
     fig("qk_succinct_proof_kbytes", kb(succinct))
     claim(
         "qk_qr_channel_too_big",
-        "the leaf's masked response with no padding and no masking elements, and a succinct proof of the leaf, are each over 30 kbytes",
-        min(z_floor_bytes, succinct) > 30_000,
+        "the leaf's masked response with no padding and no masking elements, and a succinct proof of the leaf, are each at least three times the largest leanSPHINCS signature",
+        min(z_floor_bytes, succinct) >= 3 * LEANSPHINCS_ETHEREUM_BYTES,
     )
     fig("leansphincs_layered_sig_bytes", fmt(LEANSPHINCS_LAYERED_SIG_BYTES))
     fig("leansphincs_layered_keccak_calls", LEANSPHINCS_LAYERED_VERIFY["keccak"])
@@ -4793,9 +4870,9 @@ def define_figures():
         zk_steps * zk_per_step > p["fold"],
     )
     claim(
-        "kishu_zk_rank_same_as_plain",
-        "Kishu's zero-knowledge optimum for the recovery circuit is at the plain row's rank, with the same merges",
-        p["rank"] == plain["rank"] and zk_steps == plain_steps,
+        "kishu_zk_rank_below_plain",
+        "Kishu's zero-knowledge optimum for the recovery circuit is at a lower rank than the plain row's, which is a single step",
+        p["rank"] < plain["rank"] and plain_steps == 1,
     )
     fig("mask_alpha", MASK_ALPHA)
     fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
@@ -6256,6 +6333,36 @@ MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # comma-separated where one sentence carries several claims, the hash the first six hex digits
 # of SHA-256 over the claims' texts, so that rewording a claim stales its sentence's marker.
 CLAIM_MARKER = re.compile(r"<!--claim:([\w,]+):([0-9a-f]*)-->(.*?)<!--/claim-->", re.S)
+# The generated pages say which commit of this file their figures come from: the template
+# carries `<!--model-commit-->` in its lede, which the outputs replace and the template keeps.
+MODEL_COMMIT_MARKER = "<!--model-commit-->"
+MODEL_COMMIT_URL = "https://github.com/zcash/pqzcash/commit/"
+
+
+def model_commit_sentence():
+    """The last commit that changed this file, linked, and whether the working copy differs."""
+    this = pathlib.Path(__file__).name
+    try:
+        full, short = subprocess.run(
+            ["git", "log", "-1", "--format=%H %h", "--", this],
+            cwd=HERE,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        modified = bool(
+            subprocess.run(
+                ["git", "status", "--porcelain", "--", this],
+                cwd=HERE,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+        return ""
+    state = " with uncommitted changes" if modified else ""
+    return f' This is commit <a href="{MODEL_COMMIT_URL}{full}"><code>{short}</code></a> of the model{state}.'
 
 
 def filled(text, used):
@@ -6539,8 +6646,9 @@ for name in PROSE_FILES:
         dangling.append(name)
     if name == "pareto-template.html":
         data_json = json.dumps(data, separators=(",", ":"))
-        (HERE / "pareto.html").write_text(new.replace("/*DATA*/", data_json))
-        write_book_files(new, data_json)
+        stamped = new.replace(MODEL_COMMIT_MARKER, model_commit_sentence())
+        (HERE / "pareto.html").write_text(stamped.replace("/*DATA*/", data_json))
+        write_book_files(stamped, data_json)
     if fill and new != text:
         path.write_text(new)
 for name, figure, old, new in stale:
