@@ -3931,3 +3931,5 @@ than to separate it from nsk); (c) no significant circuit saving. The user rules
 Commit^ivk is Sinsemilla and pays for the extra input bits; (a) or (b) remain. For Zoodles (b) does
 not apply to qk as the nullifier key: qk is a hash output, not a public key in the discrete-log
 sense, and ZIP 2005 already uses it as a PRF key, in H^rivk_ext_qk.
+(The user: the rivk precedent is for the hygiene point only; Zoodles has no rivk, "and good
+riddance".)
