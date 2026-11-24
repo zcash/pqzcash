@@ -11,13 +11,13 @@ straightforward. They just drop all uses of Pasta outside the Ironwood/Tachyon r
 - The value commitments are replaced by a balance check in PCD. The binding signature is dropped; it
   is not needed for either non-malleability or balance.
 - Note commitments and nullifiers are derived using BLAKE3.
-- Spends are authenticated *either* by proving knowledge of $\mathsf{qsk}$, or via a leanSPHINCS
-  signature verified in zk. The latter requires many PCD steps to verify, but the overall
-  performance is entirely practical both on a hardware wallet and on the host wallet.
-  Multisignatures are also feasible.
-- The epoch tachygram set accumulators are replaced by sorted Merkle trees rather than by set
-  polynomials in Kishu's PCS (Akita). [The epoch's tachygram set](zoodles-epoch-set.md) compares the
-  two, and a bucketed table.
+- [Spends are authenticated](spend-authorization.md) *either* by proving knowledge of
+  $\mathsf{qsk}$, or via a leanSPHINCS signature verified in zk. The latter requires many PCD steps
+  to verify, but the overall performance is entirely practical both on a hardware wallet and on the
+  host wallet. Multisignatures are also feasible.
+- The [epoch tachygram set accumulators](zoodles-epoch-set.md) are replaced by sorted Merkle trees
+  rather than by set polynomials in Kishu's PCS (Akita). That page compares the two, and a bucketed
+  table.
 - The PCD step size is reoptimized for Kishu. It ends up committing between a quarter and the same
   step circuit witness size as Ragu, but as bits rather than Pallas field elements.
 
