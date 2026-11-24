@@ -162,11 +162,13 @@ gives the same transactions under every scheme it prices.
   accounting](#pool-accounting) are part of the count.
 - The lineage is priced by the sorted tree alone; the bucket route is to be priced beside it.
 - The bind, lift, and fuse steps that close a lineage segment at a spend are not counted.
-- Whether the payment key needs a hash of its own is open. Zoodles mirrors Tachyon's $\mathsf{pk}$
-  with the least change that gives the same quantum recoverability, so a spend opens $\mathsf{pk} =
-  \mathsf{H}(\mathsf{nk}, \mathsf{qk})$ and then proves $\mathsf{qk} =
-  \mathsf{H^{qk}}(\mathsf{qsk})$; a note commitment that took $\mathsf{nk}$ and $\mathsf{qk}$
-  directly would save a compression a spend, at the price of a longer address.
+- The key chain is open. Zoodles mirrors Tachyon's $\mathsf{pk}$ with the least change that gives
+  the same quantum recoverability, so a spend opens $\mathsf{pk} = \mathsf{H}(\mathsf{nk},
+  \mathsf{qk})$ and proves $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$. The payment key's hash is
+  needed in some form, since a sender who knew the nullifier key could watch for the note's spend. A
+  chain $\mathsf{qsk} \to \mathsf{qk} \to \mathsf{pk}$ with $\mathsf{qk}$ as the nullifier key would
+  drop $\mathsf{nk}$, keep the two compressions, and leave the host, which holds $\mathsf{qk}$ for
+  scanning, unable to spend.
 - Faerie gold is open. Tachyon pushes its detection to the wallet, which rejects a received note
   whose nullifier collides with one it holds; that does not survive a roadblock, since a sender can
   send two notes with the same $\psi$ and the wallet cannot tell the payment from the roadblock, so

@@ -3919,3 +3919,7 @@ Two design questions from the user, for the statements page:
   For Zoodles the constraint is that the nullifier key must stay hidden from senders, who know
   the address and ψ, or a sender could watch for the note's spend; that is what the hash
   producing pk does, so the hash is needed unless the address carries nk in the clear.
+
+The user's follow-up: Zoodles could have the chain qsk -> qk -> pk and use qk as the nullifier key,
+dropping nk; the two compressions stay (H^qk and the pk hash), the host holds qk for scanning and
+cannot spend, and a sender sees only pk. The Status bullet on the key chain says so.
