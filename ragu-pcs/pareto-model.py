@@ -6235,6 +6235,7 @@ PROSE_FILES = (
     "pareto-template.html",
     "pasta-proof-size.md",
     "zk-fiat-shamir-with-aborts.md",
+    "kishu-arithmetization.md",
     "hardware-wallets.md",
     "zoodles.md",
     "zoodles-epoch-set.md",
@@ -6439,8 +6440,10 @@ def write_book_files(page, data_json):
     # them as text. The ids are the ones mdbook gives the note's headings. The zero-knowledge
     # note is the default; `data-note` names another, by its key in NOTE_CHAPTERS, whose values
     # are the source file beside this one and the chapter's path from the page's directory.
+    # `data-section` is a numbered section of the note, or a heading's id written with its `#`.
     NOTE_CHAPTERS = {
         "zk": ("zk-fiat-shamir-with-aborts.md", "kishu/zk-fiat-shamir-with-aborts.html"),
+        "kishu-arithmetization": ("kishu-arithmetization.md", "kishu/arithmetization.html"),
         "hardware-wallets": (
             "hardware-wallets.md",
             "../zoodles/spend-authorization/hardware-wallets.html",
@@ -6462,12 +6465,12 @@ def write_book_files(page, data_json):
     def note_link(m):
         name = m.group(1) or "zk"
         target = NOTE_CHAPTERS[name][1]
-        if m.group(2):
-            target += "#" + note_ids[name][m.group(2)]
+        if sec := m.group(2):
+            target += sec if sec.startswith("#") else "#" + note_ids[name][sec]
         return f'<a href="{target}">{m.group(3)}</a>'
 
     body = re.sub(
-        r'<span class="noteref"(?: data-note="([a-z-]+)")? data-section="([\d.]*)">(.*?)</span>',
+        r'<span class="noteref"(?: data-note="([a-z-]+)")? data-section="([\w.#-]*)">(.*?)</span>',
         note_link,
         body,
     )

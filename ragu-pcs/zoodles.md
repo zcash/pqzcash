@@ -38,7 +38,8 @@ Kishu step of $2^{\mathrm{rank}}$ digits holds the fee
 circuit, <!--fig:zoodles_fee_digits-->39,557<!--/fig--> digits, and with it as many spends and
 outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->50,461<!--/fig--> digits and an
 output <!--fig:zoodles_output_digits-->65,513<!--/fig--> digits, each with its merge
-of <!--fig:zoodles_merge_digits-->13,666<!--/fig--> digits.
+of <!--fig:zoodles_merge_digits-->13,666<!--/fig--> digits (for more on the cost model of Kishu, see
+[Kishu's Arithmetization](kishu-arithmetization.md)).
 Therefore, <!--fig:zoodles_actions_per_step_17-->1<!--/fig--> action, a spend or an output, fits at
 rank 17, <!--fig:zoodles_actions_per_step_19-->6<!--/fig--> at rank 19,
 and <!--fig:zoodles_actions_per_step_21-->28<!--/fig--> at rank 21. A transaction of two inputs and

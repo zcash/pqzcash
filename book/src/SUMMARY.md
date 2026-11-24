@@ -5,6 +5,7 @@
   - [Commitment Schemes for Ragu](proof-systems/ragu-commitments.md)
   - [The PCS Frontier](proof-systems/pcs-frontier.md)
   - [Kishu](proof-systems/kishu.md)
+    - [Kishu's Arithmetization](proof-systems/kishu/arithmetization.md)
     - [Zero Knowledge for a Lattice Accumulation Step](proof-systems/kishu/zk-fiat-shamir-with-aborts.md)
     - [Kishu's Soundness Obligations](proof-systems/kishu/kishu-soundness.md)
   - [Other Schemes](proof-systems/other-schemes.md)
