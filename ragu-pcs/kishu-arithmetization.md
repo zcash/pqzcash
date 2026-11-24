@@ -47,6 +47,12 @@ Read row by row at degree two, that is the form above. Each $S_i$ then names one
 
 CCS puts the constant 1 and the public inputs inside $\mathbf{z}$, where they can enter the products. Here the witness is bits, the public inputs stand on the right-hand side, and a constant or an input that a product needs is first copied into witness bits by a linear constraint. CCS allows degrees above two; here the degree is two.
 
+### Relation to Universal Constraint Systems
+
+Universal Constraint Systems [\[AGK+26\]](#ref-agk26) are the constraint systems of Zinc+, over polynomial rings in general. Over the integers they are the constraint systems of Zinc [\[GWHD25\]](#ref-gwhd25): CCS on a witness of bounded integers, with lifted moduli. The relations are proved by projecting them to a random prime field for the PIOP, so that one constraint system serves any moduli. That is what makes them universal. BitZ [\[BGK+26\]](#ref-bgk26) proves integer polynomial constraints the same way.
+
+Kishu keeps the shape of the constraints and the bits as witness, but evaluates the constraints in $\mathbb{F}_q$ itself. Its fingerprint route is Zinc's method, the relations checked in instances over random primes; its limb route is not, holding the relations over the integers by the bound below $q/2$ instead.
+
 ### Relation to Ragu
 
 Ragu's arithmetization is the constraint system of Bootle et al. [\[BCC+16\]](#ref-bcc16), over the Pallas base field and with a fourth wire added to each gate. A circuit of $n$ gates has four wires a gate, each gate enforcing $\mathbf{a}_i \mathbf{b}_i = \mathbf{c}_i$ and $\mathbf{c}_i \mathbf{d}_i = 0$, and $4n$ linear constraints, each a fixed linear combination of all the wires equal to an instance value ([Ragu's arithmetization chapter](https://tachyon.z.cash/ragu/protocol/construction/arithmetization.html)).
@@ -59,9 +65,9 @@ The writer pays per bit of witness, per product, and a little per nonzero coeffi
 
 A word of $\ell < 64$ bits is a linear combination of its canonical bits, which costs nothing to form. Bit vectors of any fixed length can be represented directly, as can elements of $\mathbb{F}_q$ (non-canonically as 64 bits). A range check is free: a value held in $\ell$ bits is below $2^\ell$ by construction.
 
-Since a word is a linear combination in certified bits, a relation whose terms stay below half of $q$ in absolute value holds over the integers whenever it holds in $\mathbb{F}_q$. That is how integer arithmetic is written. A 32-bit addition is $a + b = s + 2^{32} c$ with the sum bits and the carry committed, and a comparison is a subtraction's carry. Arithmetic in a prime field other than $\mathbb{F}_q$, such as Pasta's base field, is a relation with a committed quotient. Each multiplication carries the bits of a quotient and of carries, which Kishu commits. An R1CS emulation of the same arithmetic pays mostly for the boolean constraints on those bits, which Kishu's bits do not need, so in Kishu's arithmetization it is expensive but not prohibitively so.
+Since a word is a linear combination in certified bits, a relation whose terms stay below half of $q$ in absolute value holds over the integers whenever it holds in $\mathbb{F}_q$. That is how integer arithmetic is written. A 32-bit addition is $a + b = s + 2^{32} c$ with the sum bits and the carry committed, and a comparison is a subtraction's carry. A multiplication of two words costs one product term; a constant costs by its nonzeros. Arithmetic in a prime field other than $\mathbb{F}_q$, such as Pasta's base field, is a relation with a committed quotient. Each multiplication carries the bits of a quotient and of carries, which Kishu commits. An R1CS emulation of the same arithmetic pays mostly for the boolean constraints on those bits, which Kishu's bits do not need, so in Kishu's arithmetization it is expensive but not prohibitively so.
 
-A multiplication of two words costs one product term; a constant costs by its nonzeros. Bit operations are a term each: XOR is $z = x + y - 2xy$ and AND is $z = xy$, each with its result bit committed; rotations and shifts are wiring and cost nothing. So a BLAKE3 compression is <!--fig:blake3_bits-->15,000<!--/fig--> bits of witness and <!--fig:blake3_piop_terms-->7,904<!--/fig--> terms, a multiplication in $\mathbb{F}_q$ is one term over <!--fig:q64_digits-->64<!--/fig-->-bit operands, and a Pasta multiplication is <!--fig:bitz_gate_bits-->510<!--/fig--> or <!--fig:mult_limbs_digits-->1,088<!--/fig--> bits by one of two routes. The circuits that suit Kishu are the hash-heavy ones.
+Bit operations are a term each: XOR is $z = x + y - 2xy$ and AND is $z = xy$, each with its result bit committed; rotations and shifts are wiring and cost nothing. So a BLAKE3 compression is <!--fig:blake3_bits-->15,000<!--/fig--> bits of witness and <!--fig:blake3_piop_terms-->7,904<!--/fig--> terms, a multiplication in $\mathbb{F}_q$ is one term over <!--fig:q64_digits-->64<!--/fig-->-bit operands, and a Pasta multiplication is <!--fig:bitz_gate_bits-->510<!--/fig--> or <!--fig:mult_limbs_digits-->1,088<!--/fig--> bits by one of two routes. The circuits that suit Kishu are the hash-heavy ones.
 
 A step holds $2^{\mathrm{rank}}$ bits of witness, the rank chosen for the application between 13 and 24, and as many nodes as fit, as the [Zoodles](zoodles.md) page's packing shows. Zero knowledge asks nothing of the circuit's writer: the scheme hides the witness, and no randomizer or blinding wire is needed. Not available: lookup arguments, which the study does not model.
 
@@ -142,6 +148,9 @@ A transaction's prover work is then its steps' commitments and PIOPs, a merge fo
 
 ## References
 
+- <a id="ref-agk26"></a>[AGK+26] Alexander Abdugafarov, Albert Garreta, Amit Kumar, Michał Osadnik, Psi Vesely, Ilia Vlasov, Kai Zhe Zheng. Zinc+: SNARKs for polynomial rings. 2026. <https://eprint.iacr.org/2026/855>
 - <a id="ref-bcc16"></a>[BCC+16] Jonathan Bootle, Andrea Cerulli, Pyrros Chaidos, Jens Groth, Christophe Petit. Efficient Zero-Knowledge Arguments for Arithmetic Circuits in the Discrete Log Setting. EUROCRYPT 2016. <https://eprint.iacr.org/2016/263>
+- <a id="ref-bgk26"></a>[BGK+26] Remco Bloemen, Albert Garreta, Marcin Kostrzewa, Shreyas Londhe, Lev Soukhanov, John Wu. BitZ: proofs and commitments in arbitrary rings through binary fields. 2026. <https://eprint.iacr.org/2026/2141>
+- <a id="ref-gwhd25"></a>[GWHD25] Albert Garreta, Hendrik Waldner, Katerina Hristova, Luca Dall'Ava. Zinc: Succinct Arguments with Small Arithmetization Overheads from IOPs of Proximity to the Integers. 2025. <https://eprint.iacr.org/2025/316>
 - <a id="ref-stw23"></a>[STW23] Srinath Setty, Justin Thaler, Riad Wahby. Customizable Constraint Systems for Succinct Arguments. 2023. <https://eprint.iacr.org/2023/552>
 - <a id="ref-zip2005"></a>[ZIP-2005] Daira-Emma Hopwood, Jack Grigg. ZIP 2005: Ironwood Quantum Recoverability. <https://zips.z.cash/zip-2005>
