@@ -6,7 +6,7 @@ Ragu hides a user's witness from the aggregator by folding the user's proof with
 
 ### 1.1 What the aggregator sees, and what Ragu's fold does
 
-In split accumulation (Ragu's scheme, following [BCLMS20](#ref-bclms20)), an accumulator is an instance (a commitment and an evaluation claim) and a witness (the committed vector). The accumulation prover needs the witnesses of everything it folds, and in Tachyon the aggregator is that prover. So the user has to hand over an accumulator whose witness does not depend on the user's secrets, and the intended mechanism is one fold by the user with a random partner.
+In split accumulation (Ragu's scheme, following [\[BCLMS20\]](#ref-bclms20)), an accumulator is an instance (a commitment and an evaluation claim) and a witness (the committed vector). The accumulation prover needs the witnesses of everything it folds, and in Tachyon the aggregator is that prover. So the user has to hand over an accumulator whose witness does not depend on the user's secrets, and the intended mechanism is one fold by the user with a random partner.
 
 Ragu's fold is the PCS aggregation of its book. Take claims $(\bar C_i, x_i, y_i)$ on polynomials $p_i$ with blinding factors $\gamma_i$. The prover commits to $f = \sum_i \alpha^i q_i$ with $q_i = (p_i - y_i)/(X - x_i)$ and sends the evaluations $p_i(u)$ at a fresh point $u$. The folded witness is $p = f + \sum_i \beta^i p_i$ with blinding $\gamma = \gamma_f + \sum_i \beta^i \gamma_i$. A Pedersen commitment $\sum_j p_j G_j + \gamma H$ commits to any vector in $\mathbb{F}^n$, so $p$ is an opening of the folded commitment $\bar F + \sum_i \beta^i \bar C_i$ whatever the $p_i$ are.
 

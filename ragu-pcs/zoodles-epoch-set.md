@@ -60,7 +60,7 @@ Take $m$ tachygrams as uniform $N$-bit strings. The exact collisions have probab
 these sizes, and by a union bound over the buckets the probability that any bucket overflows is at
 most $2^B \cdot \Pr[\mathrm{Poisson}(\mu) \ge K + 1]$. This is the maximum load of balls thrown into
 bins in its heavily loaded case, $m \gg 2^B$, where the typical maximum is $\mu + \sqrt{2\mu \ln
-2^B}$ [[RS98](#ref-rs98), [BCSV06](#ref-bcsv06)]; a bound of $2^{-64}$ on losing any note sits far
+2^B}$ [[RS98](#ref-rs98), [\[BCSV06\]](#ref-bcsv06)]; a bound of $2^{-64}$ on losing any note sits far
 out in the tail, and that is what sets $K$. The least $K$ with the bound below $2^{-64}$ and
 $2^{-128}$, and the exclusion proof's hashes at the first, the $B$ path hashes plus the bucket's $K
 (N - B)$ bits at 512 a compression:
@@ -83,9 +83,9 @@ each suffix adds a within-bucket collision term of about $m \mu / 2^{T+1}$, so $
 \log_2 \mu + \lambda$: <!--fig:bucket_tag_bits_20_16-->87<!--/fig--> bits at $2^{20}$ tachygrams,
 $\mu = $ <!--fig:bucket_mu_20_16-->16<!--/fig--> and $2^{-64}$, which brings that row's proof
 to <!--fig:bucket_tag_hashes_20_16-->29<!--/fig--> hashes, still above the tree's. Placing each
-tachygram in the emptier of two buckets [[ABKU99](#ref-abku99)] brings the maximum load down to $\mu
+tachygram in the emptier of two buckets [\[ABKU99\]](#ref-abku99) brings the maximum load down to $\mu
 + O(\log \log 2^B)$, but an exclusion proof must then show absence from both buckets, two paths, and
-gives back the saving. Bloom and cuckoo filters [[Blo70](#ref-blo70), [FAKM14](#ref-fakm14)] make
+gives back the saving. Bloom and cuckoo filters [[Blo70](#ref-blo70), [\[FAKM14\]](#ref-fakm14)] make
 the same trade in another shape; their false positives are frozen notes rather than forged ones, so
 they are admissible in principle, and larger than the tree at these sizes.
 
@@ -100,7 +100,7 @@ design to rely on.
 The table's merit is authenticated insertion: "assert absent, then insert" in a circuit, for an
 accumulator updated one nullifier at a time, which is the setting the issue was written for.
 Merklized balanced trees do the same at about $1.44 \log_2 m$ hashes an insertion
-[[RMCI17](#ref-rmci17)]. In Zoodles nothing is inserted in a circuit: the builder makes each epoch's
+[\[RMCI17\]](#ref-rmci17). In Zoodles nothing is inserted in a circuit: the builder makes each epoch's
 structure from public tachygrams, so the sorted tree's exactness and its shorter proof come free,
 and it serves membership and exclusion alike. That is why the frontier page prices the lineage by
 the tree. The analysis above is recorded so that the alternative need not be re-derived.

@@ -69,11 +69,11 @@ proved inside the tree that the headers bind together.
 
 ## Pool accounting
 
-A Zoodles bundle (e.g. in a ZIP 248 transaction [ZIP-248](#ref-zip248)) can spend from three pools:
+A Zoodles bundle (e.g. in a ZIP 248 transaction [\[ZIP-248\]](#ref-zip248)) can spend from three pools:
 its own, Ironwood's through the Recovery Statement of [Recovery from
 Ironwood](recovery-ironwood.md), and Tachyon's through the recovery spend of [Recovery from
 Tachyon](recovery-tachyon.md). Consensus tracks each pool's balance, and ZIP 209
-[ZIP-209](#ref-zip209) rejects a transaction that would take any pool's balance out of range. So the
+[\[ZIP-209\]](#ref-zip209) rejects a transaction that would take any pool's balance out of range. So the
 Zoodles bundle reveals the total it spends from Ironwood, the total it spends from Tachyon, and its
 Zoodles balance, the net value leaving the Zoodles pool, which is negative when value enters it.
 
@@ -92,7 +92,7 @@ disabled before Q-day.
 Spend authorization is chosen per input, usually the same for all. The [Spend
 authorization](spend-authorization.md) section motivates the two methods and has a page on each: the
 [hash preimage](auth-preimage.md), the check $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ of ZIP
-2005 [ZIP-2005](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved inside
+2005 [\[ZIP-2005\]](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved inside
 the spend step, which derives it anyway; and a [leanSPHINCS](auth-leansphincs.md) signature over a
 digest of the transaction, verified inside the proof with the public key as a witness. The section
 also covers recovery from Ironwood and from Tachyon, and hardware wallets.
