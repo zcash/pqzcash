@@ -3937,3 +3937,13 @@ riddance".)
 TODO (the user): work out the details of key derivation for leanSPHINCS: how the signature's key
 pair is derived from the wallet's seed or quantum spending key, how its public key is committed in
 the Zoodles payment key and in a recovery arm, and what a FROST group does with it.
+
+The user pulled the Tachyon and Ragu checkouts (2026-11-24): Tachyon main is d1f5ffb (2026-11-23),
+15 commits past the 73031f7 the study read, among them "feat: use real proofs" (267a566: the
+mock `ragu` dependency replaced by `ragu_pcd` with the accelerated prover; the `relations` module
+gone, steps checking polynomial identities inline; FixedBase reads 254 bits), "hold rcm nonzero
+wherever a note commitment is derived" (a36788b, #324), the QR and pool refactors, and a parameters
+appendix in the book. Ragu main is 7914b3b8, 315 commits past 8109a41c. So keep/tachyon-statements.md
+and the measured gate counts (TACHYON_STEPS) describe the old revision; re-read the step circuits
+before the Zoodles statements page, and re-measure the counts when Ragu steps 2–4 come up. Every
+tachyon.z.cash link the pages cite resolves (payment-key, pq, pq-rerand, team, the Ragu chapter).
