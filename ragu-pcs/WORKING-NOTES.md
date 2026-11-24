@@ -3820,3 +3820,69 @@ measure, the Tachyon → Zoodles application, and the queue as before.
 
 STATE: branch book-reorganization at this entry's commit, 27 commits beyond main, history
 rewritten since PR #5's pushed tip 9e3bce6; the book builds, 819 links check.
+
+## 2026-11-24 02:23 UTC: leanSPHINCS with BLAKE3, Kishu's Arithmetization, pool accounting as a bundle
+
+Still PR #5 (book-reorganization, a draft, history rewritten; the push is a force-push).
+
+- **leanSPHINCS with BLAKE3** (the user: if Ethereum goes with Keccak there is no point in BLAKE2s,
+  so the choice is Keccak or BLAKE3). `LEANSPHINCS_VERIFY` has the three hashes in increasing
+  order of cost, BLAKE3 at the same 298 calls as BLAKE2s (same block and output sizes), and the
+  applications follow: `leansphincs_{blake3,blake2s,keccak}`, and the Zoodles transactions, with
+  and without Merkle paths, as `zoodles_leansphincs_{hash}` and `zoodles_merkle_leansphincs_{hash}`
+  (`ZOODLES_AUTHS` lists them; `leansphincs_hash(auth)` picks the hash). The pages quote the BLAKE3
+  variant: the verifier 4.53M digits, 71% of BLAKE2s's (claim `leansphincs_blake3_cheaper`), 0.234 s
+  zk at rank 21; the Zoodles BLAKE3 signature transaction 9.42M digits, 0.363 s zk at rank 21 in 5
+  steps, a spend 4.58M digits; the preimage transaction stays under a quarter of it (claim holds at
+  0.0824 against 0.363/4). The device's BLAKE3 grind is unmeasured in Wam26's benchmark; the pages
+  say it should be no slower than BLAKE2s (seven rounds to ten).
+- **Kishu's Arithmetization** (`kishu-arithmetization.md`, section 1.3.1 under Kishu, a PROSE_FILE;
+  `NOTE_CHAPTERS["kishu-arithmetization"]`, and `data-section` may now be a heading id with its
+  `#`). The frontier page's Kishu section lost its paragraphs on digits and constraints, the two
+  routes, the merge, and the recovery circuit to it, keeping a summary, the costs at rank 17, and
+  the status; the page adds a unit-cost table and the differences from Ragu, read from Ragu's own
+  arithmetization chapter (four wires a gate, a_i b_i = c_i and c_i d_i = 0, 4n linear constraints,
+  one structured trace polynomial of degree < 4n, a revdot identity; a rank-r step is 2^r
+  coefficients = 2^(r-2) gates). The Kishu page lists its three subpages; the Zoodles page points at
+  the cost model from its packing paragraph.
+- **Pool accounting** is stated for the Zoodles bundle (e.g. in a ZIP 248 transaction [ZIP-248]
+  cited): it reveals the Ironwood and Tachyon spend totals and the Zoodles balance; the fee check
+  is ZIP 248's per-asset balance, not the bundle's, so the "three sum to the fee" sentence went.
+  The Zoodles opening is the user's: a post-quantum shielded protocol based on Tachyon with its own
+  pool, Kishu as its proof system, a follow-on to Tachyon.
+- **The Ragu commitments chapter** names the frontier's measures as they are (proof bytes plus two
+  of eight; the frontier on bytes, the two measures, and three requirements) and Kishu among the
+  candidates.
+- The book builds, 823 links check; the headless Firefox checks are in `work/firefox-*-kishu.log`.
+
+NEXT: the Zoodles statements page; the SpendAction compression decision (the model counts one
+BLAKE3 compression where the preimage method needs H^qk and the pk opening); the online measure;
+the Tachyon → Zoodles application; the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, 31 commits beyond main; the book builds,
+823 links check.
+
+Later in the same session:
+
+- **Kishu's Arithmetization opens at the PCD level** (the user: cart before the horse; describe it as
+  it appears to circuit writers, assuming no familiarity with BitZ or Akita; "merge" and
+  "accumulation" are too low-level there): a section "Kishu as a Proof-Carrying-Data scheme" on
+  nodes, headers, the witness as bits, constraints as polynomial relations among words with
+  integer semantics below q/2, the unit costs, what is free; then "What Kishu is made of" defines
+  Akita and BitZ and places accumulation beneath the node interface. Terms: a NODE is a vertex of
+  the PCD graph (a Tachyon circuit), a STEP the accumulation scheme's unit, which packs several
+  nodes. Ragu's book calls the application circuit "a PCD step" and Tachyon's book names its
+  circuits steps, so their "step" is our node; in Ragu the two coincide, one circuit a step.
+- **Faerie gold is open for Zoodles** (the user, correcting the chat answer above): Tachyon's
+  wallet-side detection does not survive a roadblock, since a sender can send two notes with the
+  same ψ and the wallet cannot tell the payment from the roadblock, so spendability cannot be
+  established at receipt; this is why Sprout, Sapling, and Orchard derive ρ uniquely (the Zerocash
+  authors had suggested the wallet check and the user argued it did not work). Tachyon has no
+  incoming viewing keys, so note secrecy might be assumed against everyone but the sender, but the
+  spendability definition would still have to allow all but one note from a sender to be rejected.
+  Zoodles needs a unique ρ per output; the statements page is to settle how (Orchard's pairing of
+  a spend with each output, or another per-transaction unique value). A Status bullet says so.
+- **use_qsk**: the priced recovery circuit takes either value (ZIP 2005's cost section: three
+  BLAKE2b compressions multiplexed between the two paths); the Ironwood recovery and
+  hardware-wallet pages said the false path was not considered, which was about their device
+  analysis only, and now say so.
