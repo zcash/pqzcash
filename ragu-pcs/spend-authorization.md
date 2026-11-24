@@ -17,7 +17,7 @@ The pages of this section:
 
 The two recovery pages share one definition. A note is quantum-recoverable when its owner can spend it, or move it to a post-quantum pool, after discrete logarithms fall, by a statement whose soundness rests on hash and lattice assumptions alone. That asks four things of the note and of the chain:
 
-- the note commits to an owner key $\mathsf{qk} = \mathsf{H}(\mathsf{qsk})$ whose secret $\mathsf{qsk}$ is in no viewing key, so that a viewing key does not become a spending key when the curve's keys do;
+- the note commits to an owner key $\mathsf{qk} = \mathsf{H}(\mathsf{qsk})$ whose secret $\mathsf{qsk}$ is in no key used to view or to scan, so that such a key does not become a spending key when the curve's keys do;
 - the commitment's opening and the derivation of the note's nullifier can be proved without discrete log, which means hash commitments, or commitments whose derivation is constrained so that a hash binds them;
 - the note's membership in the chain's history and its nullifier's absence from it can be proved from a hash-based structure over the published commitments and nullifiers, built from public data where the chain's own structure is discrete-log-based;
 - and the spend is authorized by one of the two methods above, with the message bound into the proof.
