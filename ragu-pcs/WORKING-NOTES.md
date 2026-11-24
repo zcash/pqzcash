@@ -3896,3 +3896,7 @@ unchanged in effect. The signature variant opens the payment key once. Tachyon's
 commitment over Pallas, which the Tachyon recovery spend in Kishu must open by limbs or
 fingerprint; said on the Recovery from Tachyon page. Linked citations now keep their brackets on
 every note (`[\[KEY\]](#ref-key)`). The hardware wallet is orthogonal to the pool a spend is from.
+
+The user is not sure the hash that produces pk is needed; Zoodles mirrors Tachyon as closely as
+possible with the minimal change for the same quantum recoverability, and this may be optimized
+later. A Status bullet on the Zoodles page records it.
