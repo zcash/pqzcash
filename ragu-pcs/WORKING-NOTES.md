@@ -3886,3 +3886,13 @@ Later in the same session:
   BLAKE2b compressions multiplexed between the two paths); the Ironwood recovery and
   hardware-wallet pages said the false path was not considered, which was about their device
   analysis only, and now say so.
+
+After the push (ced08c7): the SpendAction compression question is settled by the user: a Zoodles
+spend proves knowledge of (nk, qk) opening pk = H(nk, qk) AND knowledge of qsk with qk = H^qk(qsk),
+two BLAKE3 compressions; the model's preimage variant now counts both (`zoodles_node_cost`,
+`zoodles_node_piop`, the Merkle variant likewise), so a preimage spend is 65,533 digits, the
+two-by-two transaction 343,000, and 25 actions fit at rank 21 (was 28); the zk time is 0.0825 s,
+unchanged in effect. The signature variant opens the payment key once. Tachyon's pk is a Poseidon
+commitment over Pallas, which the Tachyon recovery spend in Kishu must open by limbs or
+fingerprint; said on the Recovery from Tachyon page. Linked citations now keep their brackets on
+every note (`[\[KEY\]](#ref-key)`). The hardware wallet is orthogonal to the pool a spend is from.
