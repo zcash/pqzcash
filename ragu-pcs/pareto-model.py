@@ -952,7 +952,9 @@ KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
 # per signature and its proved lifetime; the layered forest key's calls and bytes; Ethereum's
 # provisional FORS set's; and the hash rates of a Ledger Nano S+ from sphincs.art's
 # hardware-wallet benchmark, for the grinding's time there.
-LEANSPHINCS_VERIFY = {"keccak": 262, "blake2s": 298}
+# In increasing order of cost in a digit arithmetization. BLAKE3's block and output sizes are
+# BLAKE2s's, so its call count is the same.
+LEANSPHINCS_VERIFY = {"blake3": 298, "blake2s": 298, "keccak": 262}
 LEANSPHINCS_SIG_BYTES = 4276
 # CAPSS (ePrint 2025/061), typed from its Tables 2, 3, and 6, over a 256-bit field at 128 bits
 # unless said: signature bytes and the verifier's R1CS constraints of the instances the CAPSS
@@ -1268,8 +1270,8 @@ CLMUL_ANDS = {
 # range-checked and summed in the PCD headers in place of value commitments and the binding
 # signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
 # payment key is the BLAKE3 hash of the authorizing key, which Tachyon's spend step derives
-# already) or a leanSPHINCS signature with BLAKE2s over a transaction digest
-# (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
+# already) or a leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction
+# digest (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
 # the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
 # either policy. The lineage's steps run in the background and are not in the transaction, as
@@ -1313,7 +1315,15 @@ ZOODLES_MERKLE_SIGHASH_BYTES = (
     + math.ceil(ZOODLES_EPOCH_BITS / 8)
 )
 ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_MERKLE_SIGHASH_BYTES / BLAKE3_BLOCK)
-ZOODLES_AUTHS = ("preimage", "leansphincs")
+# The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
+ZOODLES_AUTHS = ("preimage", *(f"leansphincs_{h}" for h in LEANSPHINCS_VERIFY))
+
+
+def leansphincs_hash(auth):
+    """The hash of a `leansphincs_<hash>` authorization; None for the preimage check."""
+    return auth.removeprefix("leansphincs_") if auth.startswith("leansphincs_") else None
+
+
 ZOODLES_NODES = {
     "SpendBind": (2, 0, 0, ZOODLES_EPOCH_BITS + ZOODLES_AMOUNT_BITS),
     "SpendAction": (1, 2, 1, 0),
@@ -1370,11 +1380,9 @@ def zoodles_node_cost(field, hp, node, auth):
     verifier in a spend's action step and the transaction digest in the fee step."""
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     verifier = 0
-    if auth == "leansphincs":
+    if h := leansphincs_hash(auth):
         if node == "SpendAction":
-            verifier = hash_app_cost(
-                field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
-            )
+            verifier = hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     return (
@@ -1389,9 +1397,9 @@ def zoodles_node_cost(field, hp, node, auth):
 def zoodles_node_piop(node, auth):
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     parts = []
-    if auth == "leansphincs":
+    if h := leansphincs_hash(auth):
         if node == "SpendAction":
-            parts.append((LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+            parts.append((LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     claim_bytes = CLAIM_BYTES["kishu"]
@@ -1416,10 +1424,8 @@ def zoodles_merkle_cost(field, hp, auth):
         + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
     )
     sighash = 0
-    if auth == "leansphincs":
-        spend += hash_app_cost(
-            field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
-        )
+    if h := leansphincs_hash(auth):
+        spend += hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
         sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
     output = (
         hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
@@ -1442,8 +1448,8 @@ def zoodles_merkle_piop(auth):
         ZOODLES_INPUTS + ZOODLES_OUTPUTS
     ) * ZOODLES_SUM_BITS
     parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP), (bits, BIT_CHECK_PIOP)]
-    if auth == "leansphincs":
-        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+    if h := leansphincs_hash(auth):
+        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
         parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
@@ -1546,7 +1552,8 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     # The hardware wallet's part of the Recovery Statement: the device's statement, and a
-    # leanSPHINCS verifier with either hash; their hash is the scheme's under either policy.
+    # leanSPHINCS verifier with each of the three hashes; their hash is the scheme's under
+    # either policy.
     "qk": {a: {hp: round(hash_app_cost(a, "blake3", 1)) for hp in HASH_POLICIES} for a in ARITHS},
     **{
         f"leansphincs_{h}": {
@@ -4070,10 +4077,8 @@ PAGE_APPLICATIONS = (
     ("recovery", 1),
     ("recovery", 4),
     ("qk", 1),
-    ("leansphincs_blake2s", 1),
-    ("leansphincs_keccak", 1),
-    ("zoodles_preimage", 1),
-    ("zoodles_leansphincs", 1),
+    *((f"leansphincs_{h}", 1) for h in LEANSPHINCS_VERIFY),
+    *((f"zoodles_{auth}", 1) for auth in ZOODLES_AUTHS),
     *((f"zoodles_merkle_{auth}", 1) for auth in ZOODLES_AUTHS),
     ("zoodles_epoch", 1),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
@@ -4294,13 +4299,15 @@ def define_figures():
     fig("bool_mult_ands", sig((1 + BOOL_REDUCTION) * mult_ands(255)))
 
     # The hardware wallet's part of the Recovery Statement as applications: the device's own
-    # statement, and a leanSPHINCS verifier with either hash (the Transaction prover section).
+    # statement, and a leanSPHINCS verifier with each of three hashes (the Transaction prover
+    # section).
     fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
     fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
     fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
+    fig("leansphincs_blake3_calls", LEANSPHINCS_VERIFY["blake3"])
     fig("leansphincs_sig_bytes", fmt(LEANSPHINCS_SIG_BYTES))
     fig("leansphincs_ethereum_perms", LEANSPHINCS_ETHEREUM_PERMS)
     # The CAPSS page: the paper's figures, and the Kishu estimates at the model's rates.
@@ -4339,9 +4346,17 @@ def define_figures():
     fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
     keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
     blake2s_kishu = APP["leansphincs_blake2s"]["bitz"]["blake3"]
+    blake3_kishu = APP["leansphincs_blake3"]["bitz"]["blake3"]
     fig("app_leansphincs_keccak_kishu", millions(keccak_kishu, 3))
     fig("app_leansphincs_blake2s_kishu", millions(blake2s_kishu, 3))
+    fig("app_leansphincs_blake3_kishu", millions(blake3_kishu, 3))
     fig("leansphincs_keccak_over_blake2s", sig(keccak_kishu / blake2s_kishu))
+    fig("leansphincs_blake3_of_blake2s_pct", round(100 * blake3_kishu / blake2s_kishu))
+    claim(
+        "leansphincs_blake3_cheaper",
+        "the leanSPHINCS verifier with BLAKE3 costs about seven tenths of the one with BLAKE2s in Kishu's digits",
+        0.65 <= blake3_kishu / blake2s_kishu <= 0.75,
+    )
     fig(
         "leansphincs_keccak_over_blake2s_boolean",
         sig(
@@ -4354,7 +4369,7 @@ def define_figures():
         "the leanSPHINCS verifier with Keccak-256 costs between five and eight times the one with BLAKE2s in Kishu's digits",
         5 <= keccak_kishu / blake2s_kishu <= 8,
     )
-    for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak"):
+    for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak", "leansphincs_blake3"):
         p, w = kishu_best(app, zk=True)
         fig(f"tx_{app}_kishu_zk_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
@@ -4498,7 +4513,7 @@ def define_figures():
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
     fig("zoodles_sighash_bytes", fmt(ZOODLES_SIGHASH_BYTES))
     # The digest's hashing against one step at the rank the signature transaction favours.
-    p_sig, _ = kishu_best("zoodles_leansphincs", zk=True)
+    p_sig, _ = kishu_best("zoodles_leansphincs_blake3", zk=True)
     claim(
         "zoodles_sighash_small",
         "the transaction digest's hashing is under a tenth of one step at the rank Kishu's signature transaction favours",
@@ -4540,8 +4555,8 @@ def define_figures():
         fig(f"tx_{app}_goldilocks_s", secs(w))
     claim(
         "zoodles_preimage_quarter",
-        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature",
-        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs"] / 4,
+        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature with BLAKE3",
+        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs_blake3"] / 4,
     )
     claim(
         "zoodles_merkle_paths_most",
@@ -4599,9 +4614,9 @@ def define_figures():
     fig("zoodles_output_digits", fmt(output_digits))
     fig("zoodles_merge_digits", fmt(node_digits["ActionMerge"]))
     fig("zoodles_fee_digits", fmt(node_digits["FeeFuse"]))
-    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs"]["bitz"]["blake3"]))
+    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs_blake3"]["bitz"]["blake3"]))
     fig(
-        "zoodles_leansphincs_spend_digits",
+        "zoodles_leansphincs_blake3_spend_digits",
         millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
     )
     action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]

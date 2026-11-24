@@ -45,9 +45,9 @@ and <!--fig:zoodles_actions_per_step_21-->28<!--/fig--> at rank 21. A transactio
 two outputs is four actions, and at rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->19<!--/fig-->
 it fits in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the
 same transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or output, three
-merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS
-is <!--fig:zoodles_leansphincs_spend_digits-->6.44 million<!--/fig--> digits and takes several steps
-by itself.
+merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS with BLAKE3
+is <!--fig:zoodles_leansphincs_blake3_spend_digits-->4.58 million<!--/fig--> digits and takes
+several steps by itself.
 
 The arithmetic inside the nodes also changes. In Tachyon the set polynomials are Pedersen vector
 commitments and the bridge hash is a Pedersen hash onto Pallas. In Zoodles the set polynomials are
@@ -142,17 +142,17 @@ is <!--fig:app_zoodles_preimage_kishu-->313,000<!--/fig--> committed digits and
 takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0824<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->19<!--/fig-->,
 or <!--fig:tx_zoodles_preimage_kishu_s-->0.0395<!--/fig--> s without. One authorized by leanSPHINCS
-is <!--fig:app_zoodles_leansphincs_kishu-->13.1 million<!--/fig--> digits
-and <!--fig:tx_zoodles_leansphincs_kishu_zk_s-->0.488<!--/fig--> s with zero knowledge at
-rank <!--fig:tx_zoodles_leansphincs_kishu_zk_rank-->21<!--/fig-->,
-in <!--fig:tx_zoodles_leansphincs_kishu_zk_steps-->7<!--/fig--> steps. Tachyon's own four
-tachyactions in Kishu with zero knowledge take <!--fig:tx_tachyon4_kishu_zk_s-->0.241<!--/fig--> s,
-so Zoodles by preimage is <!--fig:zoodles_preimage_of_tachyon_pct-->34<!--/fig--> percent of them;
-on Pedersen-IPA they take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these ranks a step
-commits $2^{\mathrm{rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas
-coefficients in bits, which is the fifth bullet above. The [frontier
-page](pareto-template.html#transaction-prover) gives the same transactions under every scheme it
-prices.
+with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->9.42 million<!--/fig--> digits
+and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.363<!--/fig--> s with zero knowledge at
+rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->21<!--/fig-->,
+in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->5<!--/fig--> steps; the frontier page has
+the BLAKE2s and Keccak variants. Tachyon's own four tachyactions in Kishu with zero knowledge
+take <!--fig:tx_tachyon4_kishu_zk_s-->0.241<!--/fig--> s, so Zoodles by preimage
+is <!--fig:zoodles_preimage_of_tachyon_pct-->34<!--/fig--> percent of them; on Pedersen-IPA they
+take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these ranks a step commits
+$2^{\mathrm{rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas coefficients in
+bits, which is the fifth bullet above. The [frontier page](pareto-template.html#transaction-prover)
+gives the same transactions under every scheme it prices.
 
 ## Status
 
