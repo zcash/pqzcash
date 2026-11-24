@@ -3900,3 +3900,22 @@ every note (`[\[KEY\]](#ref-key)`). The hardware wallet is orthogonal to the poo
 The user is not sure the hash that produces pk is needed; Zoodles mirrors Tachyon as closely as
 possible with the minimal change for the same quantum recoverability, and this may be optimized
 later. A Status bullet on the Zoodles page records it.
+
+Two design questions from the user, for the statements page:
+
+- **Orchard-style actions.** Given two tachygrams per Tachyon action anyway, why not actions of a
+  spend and an output, either a dummy, as Orchard's? Tachyon's book (revisit.md, "two
+  tachygrams"): a spend publishes its current and next epoch's nullifiers for the race at the
+  epoch boundary, and an output publishes a dummy tachygram beside its commitment so that every
+  action carries two and the spend/output split does not leak; it does not consider the pairing.
+  A paired action would publish three tachygrams (two nullifiers and a commitment), also uniform:
+  one fewer per spend–output pair, no padding tachygram, and a unique ρ for every output from the
+  action's spend nullifier, which answers Faerie gold as Orchard does. Against it: a dummy spend
+  needs the spendability proof to be skippable, as Orchard's value-0 rule does; unbalanced
+  transactions pay three tachygrams an action where Tachyon pays two; and the node's circuit
+  doubles, which matters for Ragu's rank-13 steps and not for Kishu's packing.
+- **ak and nk.** Why separate keys? The user cannot recall why Orchard did not use ak as nk;
+  Sapling wanted a proof authorizing key (ak, nsk), and Orchard may have kept the shape by inertia.
+  For Zoodles the constraint is that the nullifier key must stay hidden from senders, who know
+  the address and ψ, or a sender could watch for the note's spend; that is what the hash
+  producing pk does, so the hash is needed unless the address carries nk in the clear.
