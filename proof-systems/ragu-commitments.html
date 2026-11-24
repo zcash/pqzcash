@@ -28,7 +28,7 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
-        <link rel="stylesheet" href="../custom-a8328095.css">
+        <link rel="stylesheet" href="../custom-1a339123.css">
 
 
         <!-- Provide site root and default themes to javascript -->
@@ -36,10 +36,10 @@
             const path_to_root = "../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../searchindex-59efae2d.js";
+            window.path_to_searchindex_js = "../searchindex-29d35a22.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-326f7d0c.js"></script>
+        <script src="../toc-4ff39b87.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,9 +178,11 @@
                         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
 <h1 id="commitment-schemes-for-ragu"><a class="header" href="#commitment-schemes-for-ragu">Commitment Schemes for Ragu</a></h1>
 <p>This study prices Ragu as a proof-carrying-data scheme under each candidate commitment
-scheme, on three measures. They are the compressed proof’s bytes, the prover’s work in word
-multiplications, and the cost of recursion, measured either as the merge circuit’s gates or
-as the atoms that the merge absorbs. The candidates are:</p>
+scheme, on the measures of <a href="pcs-frontier.html">The PCS Frontier</a>: the compressed proof’s bytes,
+and two more chosen from eight, among them the prover’s work for one step’s commitments, for
+a fuse’s accumulation, and for a whole transaction, the merge circuit’s gates or the atoms it
+absorbs, the decider’s work, and the accumulator’s and a fuse’s peak memory. The candidates
+are:</p>
 <ul>
 <li>Ragu’s Pedersen inner-product argument as deployed today, the pre-quantum baseline;</li>
 <li>Akita (<a href="https://eprint.iacr.org/2026/1983">ePrint 2026/1983</a>), a lattice-based polynomial
@@ -190,13 +192,14 @@ modulus, from its own 128-bit field to the Pasta base field;</li>
 limbs; a Plonky3-style FRI over Goldilocks; the Flock/Binius-style binary-field family,
 whose proof sizes come from FRI-Binius; and BitZ, which is Pasta-native through a binary
 field. Each is priced both under ARC accumulation and under its own recursion;</li>
-<li>and, as a draft, BitZ’s bit-level arithmetization with Akita as the backend.</li>
+<li>and <a href="kishu.html">Kishu</a>, BitZ’s bit-level arithmetization with Akita as the backend, a draft.</li>
 </ul>
-<p>The hash-based rows’ rate and grinding, the security floor, and zero knowledge are
-selectable. For each class, pre-quantum and post-quantum, the comparison marks the frontier:
-the configurations that nothing else in the class beats on all three measures at once.
-Native support for the Pasta base field counts as a requirement rather than a cost, since
-the Ironwood recovery circuit needs it.</p>
+<p>The hash-based rows’ rate and grinding, the security floor, zero knowledge, and the hashes
+allowed in circuits are selectable. For each class, pre-quantum and post-quantum, the
+comparison marks the frontier: the configurations that nothing else in the class dominates on
+proof bytes, the two chosen measures, and three requirements. Native support for the Pasta
+base field is one requirement, since the Ironwood recovery circuit needs it; the others are
+the scheme’s assumption and whether a row needs only parameter changes.</p>
 <p>No scheme has been selected. The comparison is an input to that choice, beside
 implementation experience with each route.</p>
 <p><a href="pcs-frontier.html">The PCS frontier</a> is the interactive comparison. The study’s own material
@@ -205,10 +208,11 @@ is in the repository’s <a href="https://github.com/zcash/pqzcash/tree/main/rag
 measurements under <a href="https://github.com/zcash/pqzcash/tree/main/ragu-pcs/estimates"><code>estimates/</code></a> and the models beside it, and
 <a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/WORKING-NOTES.md"><code>WORKING-NOTES.md</code></a> is the running log of what was done
 and what is open. <a href="regenerating.html">Regenerating the Study’s Numbers</a> says where each number
-comes from and how to redo it. The two working
-notes in this section are the study’s longer write-ups. The first prices an Akita opening at
-a Pasta modulus; the second shows how a lattice accumulation step can be made
-zero-knowledge.</p>
+comes from and how to redo it. The study’s longer write-ups are in the <a href="kishu.html">Kishu</a> and
+<a href="other-schemes.html">Other Schemes</a> sections: for Kishu, the zero-knowledge fold of a lattice
+accumulation step and the soundness statements; for the others, an Akita opening priced at a
+Pasta modulus and the soundness statement of the variant with Pasta claims.</p>
+<script class="todo-data" type="application/json">["zoodles.html"]</script>
 
                     </main>
 
