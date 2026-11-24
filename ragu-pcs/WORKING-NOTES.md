@@ -3735,3 +3735,88 @@ application; the queue as before.
 
 STATE: branch book-reorganization at this entry's commit, five commits beyond PR #5's pushed
 tip 9e3bce6; the book builds, 771 links check.
+
+## 2026-11-24 01:28 UTC: review of the Spend Authorization and Zoodles pages; the commit messages at 72 columns
+
+PR #5 (book-reorganization, a draft) was reviewed page by page; its history was rewritten, so the
+next push is a force-push (`git push --force-with-lease zcash book-reorganization`).
+
+- **Commit messages.** Every message in the PR is rewrapped at 72 columns with its long sentences
+  split, and subjects over 72 characters are shortened (`work/pr5-new-messages.txt`,
+  `work/amend-messages.py`: one empty `amend!` commit per message, folded by one autosquash
+  rebase; the tree is unchanged). The user: "it's typical to wrap commit comments to about 72
+  characters". Keep to it in this repository.
+- **Wording on the Spend Authorization pages** (folded into the commits that introduced the
+  prose): "authorization method" in each page's opening; the CAPSS page says up front that
+  Zoodles does not adopt it; the preimage page's bullet on Tachyon links the key-structure
+  section; every bracketed citation on the six pages links to an anchored References entry
+  (`work/auth-cites.py`), and ZIP 2005 is cited at its first mention, with entries added to the
+  preimage and leanSPHINCS pages; long sentences split across the section page and the CAPSS,
+  recovery, and hardware-wallet pages (the ones of forty words and more; a few of 30 to 39
+  remain, and the checker's 70-word flags on the hardware-wallets page are sentences that begin
+  with a math span, which it does not split).
+- **The Zoodles page.** The packing paragraph counts in actions, an action a spend or an output
+  (the model's figure: the average of a spend and an output with its merge); the two-by-two
+  transaction is four actions in one step at rank 19 against the twelve steps of Tachyon's tree
+  before it rerandomizes; the packing is its own paragraph. Amounts are range-checked to
+  [0, MAX_MONEY], as Tachyon's output statement checks them. Long sentences split and the page
+  rewrapped. The spend-authorization section is one paragraph, since it repeated the section's
+  pages; the leanSPHINCS page gained "The message" with the digest's contents and the fee step's
+  check (the figures moved with the text). The bullets link the section and the epoch-set page.
+  A **Pool accounting** section (the user's design): a transaction with Ironwood or Tachyon
+  recovery spends reveals the total it spends from each of those pools and its Zoodles balance,
+  so that consensus keeps the pools' balances and rejects a transaction ZIP 209 forbids; the
+  headers carry the sums; the whole transaction is one Kishu proof, since Halo 2 and Ragu proofs
+  will have to be disabled before Q-day; the two recovery pages refer to it, and the page has a
+  References list (ZIP 209, ZIP 2005). Blocks are 25 seconds since NU7, so an epoch of 4,096
+  blocks is 1.2 days (`ZOODLES_BLOCK_SECONDS`; the frontier page's sentence too).
+- **Tachyon's pk with qk** (the user's question whether `Com(ak, nk, qk)` still fits one hash):
+  Tachyon's sponge absorbs four field elements a permutation and `pk` takes three, so `qk` fits
+  as the fourth if it enters as one Pallas element, reduced modulo p, since a 256-bit output is
+  not one; the recovery proof pays a 256-bit range check for the reduction. Said on the Tachyon
+  page. (Two limbs would cost a second permutation, which in Kishu is a Pallas Poseidon
+  permutation by limbs or fingerprint, far dearer than the range check.)
+- **The book.** The Raleway fonts the stylesheet names were missing (the user saw the failed
+  downloads); they are now under `book/src/fonts/` with their OFL, as the ironwood book ships
+  them. `\tilde` in Kishu's soundness note rendered as strikethrough (mdbook-katex passes a
+  literal `~`); `\widetilde` now. 819 links check, 0 bad; the build warns of nothing.
+
+Answered in chat (to record):
+
+- **Actions and Faerie gold.** Tachyon and Zoodles do not bundle a spend with an output as Orchard
+  does; an action is one spend or one output (Spend Action, Output Action). Orchard bundled them
+  for a unique ρ from the spend's nullifier; Tachyon has no canonical note position and pushes
+  Faerie-gold detection to the recipient's wallet, which computes a received note's nullifier at
+  a fixed reference epoch and rejects a collision with a note it holds (revisit.md, "Faerie-gold
+  via the wallet" and "Note Spendability"; keys.rs, note.rs, nullifier.rs say the same). Zoodles
+  inherits that, since its nullifiers have the same shape.
+- **SmallWood with BLAKE3** (the user: CAPSS is SmallWood plus arithmetic hashes; does SmallWood
+  make sense for BLAKE3?). It would make ZIP 2005's SoK^qsk a standalone hash-only proof of a
+  BLAKE3 preimage, usable with existing preimage-route keys and under hash assumptions alone, but
+  the statement becomes ~15k bit constraints instead of a few hundred field constraints, so the
+  proof is tens of kbytes (over a QR channel's budget), signing is seconds and a few Mbytes on
+  an MCU (no secure element), and the verifier in Kishu is thousands of BLAKE3 Merkle-path
+  compressions plus the PIOP checks, dearer than leanSPHINCS's ~300. In Kishu an arithmetic
+  hash buys nothing either (Poseidon over q64 ≈ 17.7k digits a permutation against BLAKE3's
+  15.1k a compression). Not a third method for Zoodles; at most a hash-only alternative to the
+  Kishu leaf for the Ironwood SoK^qsk with existing keys. Not priced.
+
+FINDING, to decide: the model's Zoodles spend action step counts one BLAKE3 compression, "the
+payment key is the hash of the authorizing key". With the preimage method as the pages now
+describe it, qk committed in pk and qk = H^qk(qsk) proved, the step derives H^qk and opens pk:
+two compressions, so a preimage spend is ~15k digits more (65k, not 50k), and the leanSPHINCS
+variant's pk commits the signature's public key (one compression plus the verifier). The actions
+per step would be 1 / 6 / 25 at ranks 17 / 19 / 21 (was 28 at 21). `ZOODLES_NODES` would need
+the authorization method as a parameter.
+
+QUEUED by the user this session: (1) leanSPHINCS with BLAKE3 as an application beside BLAKE2s and
+Keccak (the user: if Ethereum goes with Keccak there is no point in BLAKE2s; expected ~7/10 of
+the BLAKE2s cost, the same 298 calls); (2) a section 1.3.1 "Kishu's Arithmetization" with a
+rough cost model and the differences from Ragu, after everything else in flight.
+
+NEXT: the Zoodles statements page (the user's earlier request), the leanSPHINCS-with-BLAKE3
+application, the SpendAction compression decision, Kishu's Arithmetization, then the online
+measure, the Tachyon → Zoodles application, and the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, 27 commits beyond main, history
+rewritten since PR #5's pushed tip 9e3bce6; the book builds, 819 links check.
