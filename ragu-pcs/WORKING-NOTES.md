@@ -3923,3 +3923,11 @@ Two design questions from the user, for the statements page:
 The user's follow-up: Zoodles could have the chain qsk -> qk -> pk and use qk as the nullifier key,
 dropping nk; the two compressions stay (H^qk and the pk hash), the host holds qk for scanning and
 cannot spend, and a sender sees only pk. The Status bullet on the key chain says so.
+
+On ak and nk in Orchard, the user sees three plausible reasons they were not unified: (a) it did
+not occur to the designers; (b) key hygiene, since using a public key as a PRF key is a little
+janky (Sapling uses a point representation as one, but not one that is also a public key, other
+than to separate it from nsk); (c) no significant circuit saving. The user rules out (c), since
+Commit^ivk is Sinsemilla and pays for the extra input bits; (a) or (b) remain. For Zoodles (b) does
+not apply to qk as the nullifier key: qk is a hash output, not a public key in the discrete-log
+sense, and ZIP 2005 already uses it as a PRF key, in H^rivk_ext_qk.
