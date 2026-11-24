@@ -63,9 +63,9 @@ entries in $\{-1,0,1\}$) have integer magnitude below $q/2$ as well.
 **Theorem B (Kishu's claim reduction, sum-check form).** Fix $s \in \mathbb{F}_q^n$
 authenticated by an Akita commitment at the 64-bit profile. Suppose the verifier accepts the
 sum-check over $E$, with uniform $r \in E^m$ and $\mu \in E^8$ drawn after the commitment, of
-$$\sum_a \mathrm{eq}(r, a)\,\tilde s(a)(\tilde s(a)-1) + \tilde s(a)\,\tilde w(a) = \sum_j \mu_j v_j,
+$$\sum_a \mathrm{eq}(r, a)\,\widetilde s(a)(\widetilde s(a)-1) + \widetilde s(a)\,\widetilde w(a) = \sum_j \mu_j v_j,
 \qquad w = \sum_j \mu_j c_j,$$
-with the terminal evaluation $v = \tilde s(\rho)$ authenticated by the commitment. Then, except
+with the terminal evaluation $v = \widetilde s(\rho)$ authenticated by the commitment. Then, except
 with probability at most $(4m+1)/\lvert E \rvert$ over the verifier's randomness, plus Akita's
 knowledge error for the opening: $s \in \{0,1\}^n$, every $v_j$ is the integer limb of Lemma
 B3, and $V \bmod p$ is the Pasta value whose bits $s$ carries.
@@ -83,9 +83,9 @@ $x(x-1) = 0$ in a prime field only at $0$ and $1$.
 authenticated by an Akita commitment at the 64-bit profile, before the projection randomness.
 Suppose the verifier accepts the protocol of the draft's equation 6 extended by the limb terms
 (the spike's steps 6 and 7): the batched quadratic sum-check over $E$ of
-$$\sum_a \tilde s(a)(\tilde s(a)-1) + \tilde s(a)\,\tilde w(a) = \langle \lambda, y\rangle + \sum_j \mu_j v_j,
+$$\sum_a \widetilde s(a)(\widetilde s(a)-1) + \widetilde s(a)\,\widetilde w(a) = \langle \lambda, y\rangle + \sum_j \mu_j v_j,
 \qquad w = T^\top \lambda + \sum_j \mu_j c_j,$$
-with the terminal evaluation $v = \tilde s(\rho)$ authenticated by the commitment, and the
+with the terminal evaluation $v = \widetilde s(\rho)$ authenticated by the commitment, and the
 integer energy checks on the revealed $y$. Then, except with probability at most
 $\varepsilon_{\mathrm{proj}} + (2m+2)/\lvert E \rvert$ over the verifier's randomness, plus
 Akita's knowledge error for the opening: $s \in \{0,1\}^n$, $y = Ts$, every $v_j$ is the integer
