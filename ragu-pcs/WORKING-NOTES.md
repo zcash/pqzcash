@@ -3974,3 +3974,54 @@ multiplications where a committed bit is about 11, so the committed intermediate
 quotients, products' outputs) dominate, and the techniques worth most are those that cut committed
 bits, not multiplications. The limb route is schoolbook over 29-bit limbs with 34-bit carries, 17
 constraints of up to nine products; the fingerprint route avoids limbs altogether.
+
+## 2026-11-24 17:37 UTC: the arithmetization page reviewed sentence by sentence; relations to CCS, UCS, Ragu
+
+PR #5 (book-reorganization, draft): the user force-pushed through 715f07a; the commits after it are
+this session's review of `kishu-arithmetization.md` with the user, each sentence settled in chat
+before it was written (the user: a misconception at the definition sends the reader down wrong
+paths; reading is repeatedly asking "do I already understand this?"; an explicit sum is a math
+smell; the same notation should mean the same thing; ask whether each unit can be set down).
+
+- **The arithmetization**, as it stands: q a fixed prime (2^64 − 59 modelled); ⟨x, y⟩ = xᵀy for
+  column vectors (`\innerprod` macro in book/macros.txt, −0.8mu kern); matrices r × c take a
+  column vector in F_q^c to F_q^r; a circuit with m constraints, the public inputs padded with
+  zeros to v ∈ F_q^m, a witness w ∈ {0,1}^N; per constraint index j, sparse A_j, B_j ∈
+  F_q^{t_j × N} and a row vector c_j ∈ F_q^{1×N}; the equality in F_q ⟨A_j w, B_j w⟩ + c_j w = v_j;
+  a prose gloss; the constant term wlog through an input fixed to 1 and a bit constrained to it;
+  booleanity enforced for the whole witness at once.
+- **Relations**: to R1CS (a generalization with several products a constraint; boolean constraints
+  implicit); to CCS [STW23] (keep/2023-552.pdf: Σ c_i ∘_{j∈S_i} M_j z = 0 over z = (w, 1, x), read
+  row by row at degree two; varying t_j = zero-row padding; z against bits and the right-hand side;
+  degree two here); to Universal Constraint Systems [AGK+26] (Zinc+'s, over polynomial rings;
+  over the integers Zinc's [GWHD25], CCS on bounded integers with lifted moduli, keep/2025-316.pdf;
+  proved by projection to a random prime field, which is what makes them universal; BitZ [BGK+26]
+  proves integer polynomial constraints the same way; Albert Garreta is an author of all three;
+  Kishu keeps the shape and the bits but evaluates in F_q, its fingerprint route being Zinc's
+  method and its limb route a range argument); to Ragu (Bootle et al.'s constraint system
+  [BCC+16] over Pallas with a fourth wire; bits, F_q, free constraint shape; instance values in
+  both). The closing "Differences from Ragu" refers back for the arithmetization's own.
+- **Writing circuits**: what the writer pays (per bit, per product, a little per nonzero
+  coefficient; degree two by the model's choice); words of ℓ < 64 canonical bits, bit vectors and
+  F_q elements (non-canonically) represented directly, range checks free; integer semantics
+  whenever both sides lie in a range no larger than q ([0, u] + [0, v] safe for u + v < q), not a
+  q/2 bound; a word multiplication one product term; arithmetic in another prime field a relation
+  with a committed quotient, expensive but not prohibitively so, since R1CS pays mostly for the
+  boolean constraints that Kishu's bits do not need; gadget costs; steps; zero knowledge asks
+  nothing of the writer (the binding clause was removed: binding is soundness, not zk); no lookups.
+- "Kishu is an arithmetization in BitZ's style", not BitZ's (frontier page lede too); "What
+  Kishu is made of" in one-sentence and short paragraphs. Lowercase "boolean" as an adjective;
+  "Booleanity" left as the study spells it (a sweep would touch claims; ask before doing it).
+- Ragu's published book has the arithmetization chapter at protocol/construction/, not the
+  checkout's protocol/local/; the page links the former. Tachyon main d1f5ffb (real proofs) and
+  Ragu main 7914b3b8 are pulled; keep/tachyon-statements.md and TACHYON_STEPS predate them.
+- The user's bignum observation and its assessment are in the entry above.
+
+NEXT: the Zoodles statements page (unique ρ for Faerie gold; Orchard-style actions; the key chain
+qsk → qk → pk with qk as nullifier key; leanSPHINCS key derivation; the preimage spend's two
+compressions, already in the model); re-read Tachyon's step circuits at d1f5ffb first; then the
+online measure, the Tachyon → Zoodles application, and the queue as before. The user: some
+redundancy remains on the arithmetization page, left for now; KaTeX kerning elsewhere deferred.
+
+STATE: branch book-reorganization at this entry's commit, pushed through 715f07a; the book builds,
+822 links check.
