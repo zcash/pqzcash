@@ -69,30 +69,12 @@ proved inside the tree that the headers bind together.
 ## Spend authorization
 
 Spend authorization is chosen per input, usually the same for all. The [Spend
-authorization](spend-authorization.md) section has a page on each method, on recovery from Ironwood
-and from Tachyon, and on hardware wallets.
-
-The first form is a Sprout-like preimage check with ZIP 2005's derivation. The note's payment key
-commits to a quantum key $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$, one BLAKE3 compression that
-the spend step derives anyway, and the step proves knowledge of $\mathsf{qsk}$. It needs no digest
-of the transaction, since it is proved inside the spend step. The tree binds that step to the rest
-of the transaction directly and through the PCD headers. Its binding to the transaction rests on the
-signature-of-knowledge argument of [Hash preimage](auth-preimage.md), and [Hardware
-wallets](hardware-wallets.md) prices the preimage statement as the part a hardware wallet proves on
-its own.
-
-The second form is a leanSPHINCS signature with BLAKE2s at the pruned
-key, <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes verified
-in <!--fig:leansphincs_blake2s_calls-->298<!--/fig--> compressions, over a transaction digest. The
-signature is verified in the circuit with the public key as a witness: the zero-knowledge fold hides
-the key, so no re-randomized signature is needed. Since the signature is made outside the proof, its
-message must bind the transaction's effecting data: each spend's two nullifiers, each output's
-commitment, the change commitment, the fee, and the
-epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
-or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value:
-each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
-commitments that its children's headers carry. The signature verification, not the digest, is the
-expensive part of this form.
+authorization](spend-authorization.md) section motivates the two methods and has a page on each: the
+[hash preimage](auth-preimage.md), ZIP 2005's $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ with
+$\mathsf{qk}$ committed in the note's payment key, proved inside the spend step, which derives it
+anyway; and a [leanSPHINCS](auth-leansphincs.md) signature over a digest of the transaction,
+verified inside the proof with the public key as a witness. The section also covers recovery from
+Ironwood and from Tachyon, and hardware wallets.
 
 ## Binding a note to its action
 
@@ -106,8 +88,8 @@ nullifiers from $\mathsf{nk}$ and $\psi$, and takes the amount from the value. A
 hashes the commitment it publishes from the note it creates. The lineage's attestation of
 $\mathsf{cm}$ reaches the spend step as a PCD header, which the step checks against the commitment
 it opens. The proof tree then carries the published values to the root in its headers. So a preimage
-proof inside a spend step is bound to the whole transaction by the tree, and a signature by the
-digest of those values. No randomizer is needed.
+proof inside a spend step is bound to the whole transaction by the tree, and a signature by [the
+digest](auth-leansphincs.md#the-message) of those values. No randomizer is needed.
 
 ## The lineage
 
