@@ -4025,3 +4025,11 @@ redundancy remains on the arithmetization page, left for now; KaTeX kerning else
 
 STATE: branch book-reorganization at this entry's commit, pushed through 715f07a; the book builds,
 822 links check.
+
+NEXT, first (the user, 2026-11-24): investigate whether one bit per digit is the optimal choice for
+Kishu, or whether the commitment cost improves by keeping closer to Akita, whose digits are
+balanced base-8 digits of a few bits (the paper's "Committing through small digits",
+work/akita.txt). The questions: what the Booleanity check would become for digits of several bits
+(a range check per digit, higher degree or a decomposition), how the digit count, the constraint
+terms, and the Ajtai rate per digit trade off, and what the hash-heavy circuits lose if XOR stops
+being one term over bits.
