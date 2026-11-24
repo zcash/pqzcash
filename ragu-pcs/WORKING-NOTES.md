@@ -3933,3 +3933,7 @@ not apply to qk as the nullifier key: qk is a hash output, not a public key in t
 sense, and ZIP 2005 already uses it as a PRF key, in H^rivk_ext_qk.
 (The user: the rivk precedent is for the hygiene point only; Zoodles has no rivk, "and good
 riddance".)
+
+TODO (the user): work out the details of key derivation for leanSPHINCS: how the signature's key
+pair is derived from the wallet's seed or quantum spending key, how its public key is committed in
+the Zoodles payment key and in a recovery arm, and what a FROST group does with it.
