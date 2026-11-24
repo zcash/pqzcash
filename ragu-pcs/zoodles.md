@@ -162,6 +162,15 @@ gives the same transactions under every scheme it prices.
   accounting](#pool-accounting) are part of the count.
 - The lineage is priced by the sorted tree alone; the bucket route is to be priced beside it.
 - The bind, lift, and fuse steps that close a lineage segment at a spend are not counted.
+- Faerie gold is open. Tachyon pushes its detection to the wallet, which rejects a received note
+  whose nullifier collides with one it holds; that does not survive a roadblock, since a sender can
+  send two notes with the same $\psi$ and the wallet cannot tell the payment from the roadblock, so
+  a received note's spendability cannot be established, which is why Sprout, Sapling, and Orchard
+  derive $\rho$ uniquely instead. Tachyon has no incoming viewing keys, so note secrecy might be
+  assumed against everyone but the sender, but the definition of spendability would still have to
+  allow all but one note from a sender to be rejected. Zoodles needs a unique $\rho$ for each
+  output; how to supply it without Orchard's pairing of a spend with every output is for the
+  statements to settle.
 - The packed step's interface is not charged. One step circuit carrying several nodes' headers and
   set products, with the fee logic beside the spends and outputs it fuses, is circuit layout that
   Tachyon's one-circuit-per-step design does not have.
