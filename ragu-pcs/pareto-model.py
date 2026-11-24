@@ -952,8 +952,35 @@ KECCAK_PIOP = piop_sum((KECCAK_BITS, XOR_BIT_PIOP))
 # per signature and its proved lifetime; the layered forest key's calls and bytes; Ethereum's
 # provisional FORS set's; and the hash rates of a Ledger Nano S+ from sphincs.art's
 # hardware-wallet benchmark, for the grinding's time there.
-LEANSPHINCS_VERIFY = {"keccak": 262, "blake2s": 298}
+# In increasing order of cost in a digit arithmetization. BLAKE3's block and output sizes are
+# BLAKE2s's, so its call count is the same.
+LEANSPHINCS_VERIFY = {"blake3": 298, "blake2s": 298, "keccak": 262}
 LEANSPHINCS_SIG_BYTES = 4276
+# CAPSS (ePrint 2025/061), typed from its Tables 2, 3, and 6, over a 256-bit field at 128 bits
+# unless said: signature bytes and the verifier's R1CS constraints of the instances the CAPSS
+# page quotes, the permutation calls of verifying and signing (Anemoi-3 and Poseidon-3 at the
+# default trade-off, the latter summed over its three widths), the Goldilocks instance's
+# figures, the paper's estimate for a 64-bit field, and the factor it implies. The page's Kishu
+# estimates take the Poseidon call counts at Q64_POSEIDON_MULTS a permutation and Q64_DIGITS a
+# wire.
+CAPSS_BYTES = {
+    "anemoi3_short": 9504,
+    "anemoi3_default": 12640,
+    "poseidon3_default": 19616,
+    "poseidon5_fast": 25824,
+}
+CAPSS_R1CS = {
+    "griffin3_short": 20717,
+    "anemoi3_default": 23484,
+    "poseidon3_default": 46567,
+    "poseidon5_fast": 71145,
+}
+CAPSS_ANEMOI_CALLS = {"verify": 173, "sign": 13902}
+CAPSS_POSEIDON_CALLS = {"verify": 85 + 10 + 48, "sign": 1936 + 286 + 7790}
+CAPSS_GOLDILOCKS = {"bytes": 9715, "sign_ms": 101, "verify_ms": 1.4}
+CAPSS_GOLDILOCKS_R1CS = (80_000, 100_000)
+CAPSS_BN254_SIGN_MS = 2460
+CAPSS_FIELD_FACTOR = 4
 LEANSPHINCS_GRIND = 2 ** (26 - 12)
 LEANSPHINCS_LIFETIME = 126_900
 LEANSPHINCS_LAYERED_VERIFY = {"keccak": 408, "blake2s": 462}
@@ -1242,9 +1269,10 @@ CLMUL_ANDS = {
 # merge above and folded by CLAIM_GATES multiplications. The curve goes: amounts are
 # range-checked and summed in the PCD headers in place of value commitments and the binding
 # signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
-# payment key is the BLAKE3 hash of the authorizing key, which Tachyon's spend step derives
-# already) or a leanSPHINCS signature with BLAKE2s over a transaction digest
-# (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
+# payment key is the BLAKE3 hash of the nullifier key and the quantum key, and the spend proves
+# the quantum key's derivation from the quantum spending key too: two compressions, where
+# Tachyon's spend step derives the payment key alone) or a leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction
+# digest (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
 # the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
 # either policy. The lineage's steps run in the background and are not in the transaction, as
@@ -1253,8 +1281,8 @@ CLMUL_ANDS = {
 # instead, opening the note and deriving one nullifier there, with no set polynomials.
 # Per node: BLAKE3 compressions, roots or products of set polynomials, openings at the
 # challenge, and bits of range checks and header sums. A spend's bind step derives the two
-# nullifiers and range-checks the epoch and the amount; its action step derives the payment key
-# and roots the nullifiers; an output's bind step hashes the commitment and the padding and
+# nullifiers and range-checks the epoch and the amount; its action step opens the payment key,
+# under the preimage method derives the quantum key as well, and roots the nullifiers; an output's bind step hashes the commitment and the padding and
 # range-checks the amount; its action step roots them; a merge multiplies the two sets and sums
 # the amounts; the fee step hashes the change note, range-checks the slack, the fee and the
 # change, and roots the change commitment.
@@ -1288,7 +1316,15 @@ ZOODLES_MERKLE_SIGHASH_BYTES = (
     + math.ceil(ZOODLES_EPOCH_BITS / 8)
 )
 ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_MERKLE_SIGHASH_BYTES / BLAKE3_BLOCK)
-ZOODLES_AUTHS = ("preimage", "leansphincs")
+# The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
+ZOODLES_AUTHS = ("preimage", *(f"leansphincs_{h}" for h in LEANSPHINCS_VERIFY))
+
+
+def leansphincs_hash(auth):
+    """The hash of a `leansphincs_<hash>` authorization; None for the preimage check."""
+    return auth.removeprefix("leansphincs_") if auth.startswith("leansphincs_") else None
+
+
 ZOODLES_NODES = {
     "SpendBind": (2, 0, 0, ZOODLES_EPOCH_BITS + ZOODLES_AMOUNT_BITS),
     "SpendAction": (1, 2, 1, 0),
@@ -1303,8 +1339,8 @@ ZOODLES_ROOT_MULTS = {"pasta": 1, "fp128": 3, "goldilocks": 9}
 
 
 def zoodles_nodes(spends, outputs):
-    """Tachyon's tree without the two rerandomization fuses; the fee step is the root and its
-    own step."""
+    """Tachyon's tree without the two rerandomization fuses; the fee circuit is the root and is
+    packed into a step with the rest, as the others are."""
     return tachyon_nodes(spends, outputs)[:-2]
 
 
@@ -1345,11 +1381,11 @@ def zoodles_node_cost(field, hp, node, auth):
     verifier in a spend's action step and the transaction digest in the fee step."""
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     verifier = 0
-    if auth == "leansphincs":
+    if auth == "preimage" and node == "SpendAction":
+        blake3 += 1  # qk = H^qk(qsk), beside the payment key's opening to (nk, qk)
+    if h := leansphincs_hash(auth):
         if node == "SpendAction":
-            verifier = hash_app_cost(
-                field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
-            )
+            verifier = hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     return (
@@ -1364,9 +1400,11 @@ def zoodles_node_cost(field, hp, node, auth):
 def zoodles_node_piop(node, auth):
     blake3, roots, openings, bits = ZOODLES_NODES[node]
     parts = []
-    if auth == "leansphincs":
+    if auth == "preimage" and node == "SpendAction":
+        blake3 += 1
+    if h := leansphincs_hash(auth):
         if node == "SpendAction":
-            parts.append((LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+            parts.append((LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     claim_bytes = CLAIM_BYTES["kishu"]
@@ -1387,14 +1425,12 @@ def zoodles_merkle_cost(field, hp, auth):
     summed."""
     spend = (
         path_cost(field, hp)
-        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2)
+        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
         + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
     )
     sighash = 0
-    if auth == "leansphincs":
-        spend += hash_app_cost(
-            field, "blake2s", LEANSPHINCS_VERIFY["blake2s"], LEANSPHINCS_SIG_BYTES
-        )
+    if h := leansphincs_hash(auth):
+        spend += hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
         sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
     output = (
         hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
@@ -1410,15 +1446,15 @@ def zoodles_merkle_cost(field, hp, auth):
 
 def zoodles_merkle_piop(auth):
     blake3 = (
-        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2)
+        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
         + (ZOODLES_OUTPUTS + 1) * ZOODLES_NOTE_COMPRESSIONS
     )
     bits = (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3) * ZOODLES_AMOUNT_BITS + (
         ZOODLES_INPUTS + ZOODLES_OUTPUTS
     ) * ZOODLES_SUM_BITS
     parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP), (bits, BIT_CHECK_PIOP)]
-    if auth == "leansphincs":
-        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY["blake2s"], BLAKE2S_PIOP))
+    if h := leansphincs_hash(auth):
+        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
         parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
@@ -1444,9 +1480,9 @@ def zoodles_merkle_piop(auth):
 # left out.
 ZOODLES_BUCKET_LOG = 13
 ZOODLES_BUCKET_DIGITS = 2**ZOODLES_BUCKET_LOG * ZOODLES_TACHYGRAM_BITS
-# Tachyon's EPOCH_SIZE, at the chain's 75-second target spacing.
+# Tachyon's EPOCH_SIZE, at the chain's 25-second target spacing since NU7.
 ZOODLES_EPOCH_BLOCKS = 4096
-ZOODLES_BLOCK_SECONDS = 75
+ZOODLES_BLOCK_SECONDS = 25
 ZOODLES_EPOCH_LOG = 20
 
 
@@ -1455,6 +1491,49 @@ def tree_path_cost(field, hp, levels):
     hashed under policy `hp` where the field has a Poseidon and by BLAKE3 otherwise: the
     32-level path's cost per hash, each level being one hash of two children."""
     return path_cost(field, hp) * (levels + 1) / 33
+
+
+# A bucketed table for an epoch's tachygram set, the non-membership accumulator of
+# zcash/zcash#4062, priced beside the sorted tree on the epoch-set page: m tachygrams of
+# ZOODLES_TACHYGRAM_BITS go to 2^B buckets by prefix, a bucket holding up to K suffixes, and an
+# honest note is lost when its bucket overflows, so K is the least that bounds the overflow
+# probability below 2^-lambda, by a union bound over the buckets of the Poisson tail of a
+# bucket's load (its mean m / 2^B). The exclusion proof is the B path hashes and the bucket's
+# contents at BLAKE3's block.
+BUCKET_TABLE_ROWS = ((20, 16), (20, 18), (20, 20), (34, 32), (34, 34))  # (log2 m, B)
+BUCKET_TABLE_LAMBDAS = (64, 128)
+
+
+def log2_poisson_tail(mu, k):
+    """log2 of P[Poisson(mu) >= k], the terms summed in log space."""
+    first = (-mu + k * math.log(mu) - math.lgamma(k + 1)) / math.log(2)
+    total, term, j = 0.0, 1.0, k
+    while term > 1e-30:
+        total += term
+        j += 1
+        term *= mu / j
+    return first + math.log2(total)
+
+
+def bucket_capacity(log_m, B, lam):
+    """The least bucket capacity K with 2^B * P[load >= K + 1] <= 2^-lam."""
+    mu = 2**log_m / 2**B
+    K = max(1, int(mu))
+    while B + log2_poisson_tail(mu, K + 1) > -lam:
+        K += 1
+    return K
+
+
+def bucket_proof_hashes(B, K, tag_bits=None):
+    """The exclusion proof's hashes: the path and the bucket's K entries, full suffixes or
+    `tag_bits`-bit tags, at 512 bits a compression."""
+    bits = K * (tag_bits if tag_bits else ZOODLES_TACHYGRAM_BITS - B)
+    return B + math.ceil(bits / (8 * BLAKE3_BLOCK))
+
+
+def bucket_tag_bits(log_m, B, lam):
+    """Tags of T bits add a within-bucket collision term of about m * mu / 2^(T + 1)."""
+    return log_m + (log_m - B) - 1 + lam
 
 
 def zoodles_epoch_cost(field, hp):
@@ -1478,7 +1557,8 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     "path": {a: {hp: round(path_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
     # The hardware wallet's part of the Recovery Statement: the device's statement, and a
-    # leanSPHINCS verifier with either hash; their hash is the scheme's under either policy.
+    # leanSPHINCS verifier with each of the three hashes; their hash is the scheme's under
+    # either policy.
     "qk": {a: {hp: round(hash_app_cost(a, "blake3", 1)) for hp in HASH_POLICIES} for a in ARITHS},
     **{
         f"leansphincs_{h}": {
@@ -4002,10 +4082,8 @@ PAGE_APPLICATIONS = (
     ("recovery", 1),
     ("recovery", 4),
     ("qk", 1),
-    ("leansphincs_blake2s", 1),
-    ("leansphincs_keccak", 1),
-    ("zoodles_preimage", 1),
-    ("zoodles_leansphincs", 1),
+    *((f"leansphincs_{h}", 1) for h in LEANSPHINCS_VERIFY),
+    *((f"zoodles_{auth}", 1) for auth in ZOODLES_AUTHS),
     *((f"zoodles_merkle_{auth}", 1) for auth in ZOODLES_AUTHS),
     ("zoodles_epoch", 1),
     *((f"tachyon{n}", 1) for n in sorted(TACHYON_TRANSACTIONS)),
@@ -4226,22 +4304,64 @@ def define_figures():
     fig("bool_mult_ands", sig((1 + BOOL_REDUCTION) * mult_ands(255)))
 
     # The hardware wallet's part of the Recovery Statement as applications: the device's own
-    # statement, and a leanSPHINCS verifier with either hash (the Transaction prover section).
+    # statement, and a leanSPHINCS verifier with each of three hashes (the Transaction prover
+    # section).
     fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
     fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
     fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
+    fig("leansphincs_blake3_calls", LEANSPHINCS_VERIFY["blake3"])
     fig("leansphincs_sig_bytes", fmt(LEANSPHINCS_SIG_BYTES))
     fig("leansphincs_ethereum_perms", LEANSPHINCS_ETHEREUM_PERMS)
+    # The CAPSS page: the paper's figures, and the Kishu estimates at the model's rates.
+    fig("capss_short_bytes_min", fmt(min(CAPSS_BYTES.values())))
+    fig("capss_fast_bytes_max", fmt(max(CAPSS_BYTES.values())))
+    fig("capss_r1cs_min", fmt(min(CAPSS_R1CS.values())))
+    fig("capss_r1cs_max", fmt(max(CAPSS_R1CS.values())))
+    fig("capss_anemoi_default_bytes", fmt(CAPSS_BYTES["anemoi3_default"]))
+    fig("capss_anemoi_default_r1cs", fmt(CAPSS_R1CS["anemoi3_default"]))
+    fig("capss_poseidon_default_bytes", fmt(CAPSS_BYTES["poseidon3_default"]))
+    fig("capss_poseidon_default_r1cs", fmt(CAPSS_R1CS["poseidon3_default"]))
+    fig("capss_verify_calls", CAPSS_ANEMOI_CALLS["verify"])
+    fig("capss_sign_calls", sig(CAPSS_ANEMOI_CALLS["sign"], 3))
+    fig("capss_poseidon_verify_calls", CAPSS_POSEIDON_CALLS["verify"])
+    fig("capss_poseidon_sign_calls", sig(CAPSS_POSEIDON_CALLS["sign"], 2))
+    fig("capss_goldilocks_bytes", fmt(CAPSS_GOLDILOCKS["bytes"]))
+    fig("capss_goldilocks_sign_ms", CAPSS_GOLDILOCKS["sign_ms"])
+    fig("capss_goldilocks_verify_ms", CAPSS_GOLDILOCKS["verify_ms"])
+    fig("capss_goldilocks_r1cs_min", fmt(CAPSS_GOLDILOCKS_R1CS[0]))
+    fig("capss_goldilocks_r1cs_max", fmt(CAPSS_GOLDILOCKS_R1CS[1]))
+    fig("capss_bn254_sign_ms", fmt(CAPSS_BN254_SIGN_MS))
+    fig("capss_field_factor", CAPSS_FIELD_FACTOR)
+    fig("capss_kishu_digits_est", millions(CAPSS_GOLDILOCKS_R1CS[1] * Q64_DIGITS, 2))
+    capss_verify_64 = CAPSS_POSEIDON_CALLS["verify"] * CAPSS_FIELD_FACTOR
+    fig(
+        "capss_kishu_poseidon_digits_est",
+        millions(capss_verify_64 * Q64_POSEIDON_MULTS * Q64_DIGITS, 3),
+    )
+    capss_sign_64 = CAPSS_POSEIDON_CALLS["sign"] * CAPSS_FIELD_FACTOR
+    fig("capss_kishu_poseidon_sign_calls", sig(capss_sign_64, 2))
+    fig(
+        "capss_device_sign_s_est",
+        sig(capss_sign_64 * Q64_POSEIDON_MULTS / DEVICE_WORD_MULTS_PER_S["mcu"], 2),
+    )
     fig("keccak_bits", sig(KECCAK_BITS, 3))
     fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
     keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
     blake2s_kishu = APP["leansphincs_blake2s"]["bitz"]["blake3"]
+    blake3_kishu = APP["leansphincs_blake3"]["bitz"]["blake3"]
     fig("app_leansphincs_keccak_kishu", millions(keccak_kishu, 3))
     fig("app_leansphincs_blake2s_kishu", millions(blake2s_kishu, 3))
+    fig("app_leansphincs_blake3_kishu", millions(blake3_kishu, 3))
     fig("leansphincs_keccak_over_blake2s", sig(keccak_kishu / blake2s_kishu))
+    fig("leansphincs_blake3_of_blake2s_pct", round(100 * blake3_kishu / blake2s_kishu))
+    claim(
+        "leansphincs_blake3_cheaper",
+        "the leanSPHINCS verifier with BLAKE3 costs about seven tenths of the one with BLAKE2s in Kishu's digits",
+        0.65 <= blake3_kishu / blake2s_kishu <= 0.75,
+    )
     fig(
         "leansphincs_keccak_over_blake2s_boolean",
         sig(
@@ -4254,7 +4374,7 @@ def define_figures():
         "the leanSPHINCS verifier with Keccak-256 costs between five and eight times the one with BLAKE2s in Kishu's digits",
         5 <= keccak_kishu / blake2s_kishu <= 8,
     )
-    for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak"):
+    for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak", "leansphincs_blake3"):
         p, w = kishu_best(app, zk=True)
         fig(f"tx_{app}_kishu_zk_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
@@ -4398,7 +4518,7 @@ def define_figures():
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
     fig("zoodles_sighash_bytes", fmt(ZOODLES_SIGHASH_BYTES))
     # The digest's hashing against one step at the rank the signature transaction favours.
-    p_sig, _ = kishu_best("zoodles_leansphincs", zk=True)
+    p_sig, _ = kishu_best("zoodles_leansphincs_blake3", zk=True)
     claim(
         "zoodles_sighash_small",
         "the transaction digest's hashing is under a tenth of one step at the rank Kishu's signature transaction favours",
@@ -4431,6 +4551,7 @@ def define_figures():
             continue
         fig(f"tx_{app}_kishu_s", secs(w))
         fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        fig(f"tx_{app}_kishu_zk_steps", tx_steps(p, app, "blake3"))
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app, floor=128)
         fig(f"tx_{app}_bits_akita_s", secs(w))
@@ -4439,8 +4560,8 @@ def define_figures():
         fig(f"tx_{app}_goldilocks_s", secs(w))
     claim(
         "zoodles_preimage_quarter",
-        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature",
-        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs"] / 4,
+        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature with BLAKE3",
+        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs_blake3"] / 4,
     )
     claim(
         "zoodles_merkle_paths_most",
@@ -4488,6 +4609,46 @@ def define_figures():
     fig("zoodles_epoch_tachygrams", fmt(2**ZOODLES_EPOCH_LOG))
     fig("zoodles_epoch_per_block", fmt(2**ZOODLES_EPOCH_LOG // ZOODLES_EPOCH_BLOCKS))
     fig("zoodles_epoch_hashes", ZOODLES_EPOCH_LOG + 2)
+    # The Zoodles page's packing in numbers: the nodes' digits by kind, and how many actions a
+    # step holds beside the fee, each action a spend or an output with its merge.
+    node_names = tachyon_nodes(2, 2)[:-2]
+    node_digits = dict(zip(node_names, APP["zoodles_preimage"]["bitz"]["blake3"]))
+    spend_digits = node_digits["SpendBind"] + node_digits["SpendAction"]
+    output_digits = node_digits["OutputBind"] + node_digits["OutputAction"]
+    fig("zoodles_spend_digits", fmt(spend_digits))
+    fig("zoodles_output_digits", fmt(output_digits))
+    fig("zoodles_merge_digits", fmt(node_digits["ActionMerge"]))
+    fig("zoodles_fee_digits", fmt(node_digits["FeeFuse"]))
+    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs_blake3"]["bitz"]["blake3"]))
+    fig(
+        "zoodles_leansphincs_blake3_spend_digits",
+        millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
+    )
+    action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
+    for rank in (17, 19, 21):
+        fig(f"zoodles_actions_per_step_{rank}", int((2**rank - node_digits["FeeFuse"]) // action))
+    # The epoch-set page's comparison of the bucketed table with the sorted tree, whose
+    # exclusion proof is the path and the leaf, log2 m + 1 hashes.
+    gaps = []
+    for log_m in sorted({row[0] for row in BUCKET_TABLE_ROWS}):
+        fig(f"tree_hashes_{log_m}", log_m + 1)
+    for log_m, B in BUCKET_TABLE_ROWS:
+        for lam in BUCKET_TABLE_LAMBDAS:
+            fig(f"bucket_k{lam}_{log_m}_{B}", bucket_capacity(log_m, B, lam))
+        hashes = bucket_proof_hashes(B, bucket_capacity(log_m, B, 64))
+        fig(f"bucket_hashes_{log_m}_{B}", hashes)
+        gaps.append(hashes - (log_m + 1))
+    fig("bucket_tag_bits_20_16", bucket_tag_bits(20, 16, 64))
+    fig(
+        "bucket_tag_hashes_20_16",
+        bucket_proof_hashes(16, bucket_capacity(20, 16, 64), bucket_tag_bits(20, 16, 64)),
+    )
+    fig("bucket_mu_20_16", 2**20 // 2**16)
+    claim(
+        "bucket_table_dearer",
+        "in every row of the epoch-set page's table the bucketed table's exclusion proof takes at least ten more hashes than the sorted tree's",
+        min(gaps) >= 10,
+    )
     fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
     claim(
         "zoodles_tree_under_bucket",
@@ -6079,7 +6240,16 @@ PROSE_FILES = (
     "pareto-template.html",
     "pasta-proof-size.md",
     "zk-fiat-shamir-with-aborts.md",
+    "kishu-arithmetization.md",
     "hardware-wallets.md",
+    "zoodles.md",
+    "zoodles-epoch-set.md",
+    "spend-authorization.md",
+    "auth-preimage.md",
+    "auth-leansphincs.md",
+    "auth-capss.md",
+    "recovery-ironwood.md",
+    "recovery-tachyon.md",
 )
 MARKER = re.compile(r"<!--fig:([\w.]+)-->(.*?)<!--/fig-->", re.S)
 # A claim's sentence sits between `<!--claim:names:hash-->` and `<!--/claim-->`, the names
@@ -6275,9 +6445,15 @@ def write_book_files(page, data_json):
     # them as text. The ids are the ones mdbook gives the note's headings. The zero-knowledge
     # note is the default; `data-note` names another, by its key in NOTE_CHAPTERS, whose values
     # are the source file beside this one and the chapter's path from the page's directory.
+    # `data-section` is a numbered section of the note, or a heading's id written with its `#`.
     NOTE_CHAPTERS = {
-        "zk": ("zk-fiat-shamir-with-aborts.md", "working-notes/zk-fiat-shamir-with-aborts.html"),
-        "hardware-wallets": ("hardware-wallets.md", "../hardware-wallets.html"),
+        "zk": ("zk-fiat-shamir-with-aborts.md", "kishu/zk-fiat-shamir-with-aborts.html"),
+        "kishu-arithmetization": ("kishu-arithmetization.md", "kishu/arithmetization.html"),
+        "hardware-wallets": (
+            "hardware-wallets.md",
+            "../zoodles/spend-authorization/hardware-wallets.html",
+        ),
+        "spend-authorization": ("spend-authorization.md", "../zoodles/spend-authorization.html"),
     }
     note_ids = {
         name: {
@@ -6294,12 +6470,12 @@ def write_book_files(page, data_json):
     def note_link(m):
         name = m.group(1) or "zk"
         target = NOTE_CHAPTERS[name][1]
-        if m.group(2):
-            target += "#" + note_ids[name][m.group(2)]
+        if sec := m.group(2):
+            target += sec if sec.startswith("#") else "#" + note_ids[name][sec]
         return f'<a href="{target}">{m.group(3)}</a>'
 
     body = re.sub(
-        r'<span class="noteref"(?: data-note="([a-z-]+)")? data-section="([\d.]*)">(.*?)</span>',
+        r'<span class="noteref"(?: data-note="([a-z-]+)")? data-section="([\w.#-]*)">(.*?)</span>',
         note_link,
         body,
     )
@@ -6336,10 +6512,18 @@ if "--figures" in sys.argv:
         print(f"claim {name}: {text}")
     for app, row in KISHU_ZK_ALPHA.items():
         print(f"kishu zk optimum {app}: {row}")
-used, marked, stale, stale_claims, dangling = set(), set(), [], [], []
+used, marked, stale, stale_claims, dangling, marker_led = set(), set(), [], [], [], []
 for name in PROSE_FILES:
     path = HERE / name
     text = path.read_text()
+    if name.endswith(".md"):
+        # CommonMark starts an HTML block at a line beginning with `<!--`, even inside a
+        # paragraph, which would render the rest of the paragraph literally.
+        marker_led += [
+            f"{name}:{n}"
+            for n, line in enumerate(text.split("\n"), 1)
+            if line.lstrip().startswith("<!--")
+        ]
     new = filled_claims(filled(text, used), marked)
     stale += [
         (name, m.group(1), m.group(2), n.group(2))
@@ -6375,12 +6559,17 @@ if unmarked:
     print(f"claims with no marked sentence in any file: {', '.join(unmarked)}", file=sys.stderr)
 for name in dangling:
     print(f"{name}: unbalanced claim markers", file=sys.stderr)
+for where in marker_led:
+    print(
+        f"{where}: a marker starts the line, which Markdown renders as an HTML block",
+        file=sys.stderr,
+    )
 if (stale or stale_claims) and not fill:
     print(
         f"{len(stale)} stale figures and {len(stale_claims)} stale claim markers in the tracked files; run `python pareto-model.py --fill` to update them",
         file=sys.stderr,
     )
-if failed or unmarked or dangling or ((stale or stale_claims) and not fill):
+if failed or unmarked or dangling or marker_led or ((stale or stale_claims) and not fill):
     sys.exit(1)
 pre = [p for p in points if not p["pq"]]
 post = [p for p in points if p["pq"] and p["zk"] is not True and p["floor"] == 128]

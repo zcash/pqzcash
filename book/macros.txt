@@ -3,6 +3,7 @@
 \ceil:{\left\lceil{#1}\right\rceil}
 \Prob:{\Pr\lbrack #1\rbrack}
 \card:{\kern-0.05em\textsf{\#}{#1}}
+\innerprod:{\langle #1, #2\mkern-0.8mu\rangle}
 
 # Groups, rings and fields
 \Group:{\mathbb{G}}

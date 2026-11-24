@@ -66,7 +66,11 @@ def rewrite(content, chapter_path, chapters):
         if target in chapters and not text.startswith("`"):
             rel = Path(os.path.relpath(SRC / chapters[target], source.parent)).as_posix()
             return f"[{text}]({rel}{fragment})"
-        if target.is_relative_to(SRC) or not target.is_relative_to(REPO):
+        if target.is_relative_to(SRC):
+            # A book page, which an included note reaches as `../book/src/…`: from the chapter.
+            rel = Path(os.path.relpath(target, source.parent)).as_posix()
+            return f"[{text}]({rel}{fragment})"
+        if not target.is_relative_to(REPO):
             return m.group(0)
         if not target.exists():
             sys.exit(f"{chapter_path}: a link to {path}, which is not in the repository")

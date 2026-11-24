@@ -232,6 +232,11 @@ The recovery circuit's and the Merkle path's costs in each arithmetization (`REC
 the arithmetizations' own gate costs; Tachyon's nodes are the measured circuits above. Nothing
 external is needed beyond the gate probe.
 
+## CAPSS
+
+`CAPSS_*` are the CAPSS paper's Tables 2, 3, and 6, typed; the CAPSS page's Kishu estimates
+apply the model's Poseidon and digit costs to them.
+
 ## The sampler
 
 `MASK_SAMPLE_NS` and its companions are

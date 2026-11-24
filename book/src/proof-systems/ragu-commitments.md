@@ -1,9 +1,11 @@
 # Commitment Schemes for Ragu
 
 This study prices Ragu as a proof-carrying-data scheme under each candidate commitment
-scheme, on three measures. They are the compressed proof's bytes, the prover's work in word
-multiplications, and the cost of recursion, measured either as the merge circuit's gates or
-as the atoms that the merge absorbs. The candidates are:
+scheme, on the measures of [The PCS Frontier](pcs-frontier.md): the compressed proof's bytes,
+and two more chosen from eight, among them the prover's work for one step's commitments, for
+a fuse's accumulation, and for a whole transaction, the merge circuit's gates or the atoms it
+absorbs, the decider's work, and the accumulator's and a fuse's peak memory. The candidates
+are:
 
 - Ragu's Pedersen inner-product argument as deployed today, the pre-quantum baseline;
 - Akita ([ePrint 2026/1983](https://eprint.iacr.org/2026/1983)), a lattice-based polynomial
@@ -13,13 +15,14 @@ as the atoms that the merge absorbs. The candidates are:
   limbs; a Plonky3-style FRI over Goldilocks; the Flock/Binius-style binary-field family,
   whose proof sizes come from FRI-Binius; and BitZ, which is Pasta-native through a binary
   field. Each is priced both under ARC accumulation and under its own recursion;
-- and, as a draft, BitZ's bit-level arithmetization with Akita as the backend.
+- and [Kishu](kishu.md), BitZ's bit-level arithmetization with Akita as the backend, a draft.
 
-The hash-based rows' rate and grinding, the security floor, and zero knowledge are
-selectable. For each class, pre-quantum and post-quantum, the comparison marks the frontier:
-the configurations that nothing else in the class beats on all three measures at once.
-Native support for the Pasta base field counts as a requirement rather than a cost, since
-the Ironwood recovery circuit needs it.
+The hash-based rows' rate and grinding, the security floor, zero knowledge, and the hashes
+allowed in circuits are selectable. For each class, pre-quantum and post-quantum, the
+comparison marks the frontier: the configurations that nothing else in the class dominates on
+proof bytes, the two chosen measures, and three requirements. Native support for the Pasta
+base field is one requirement, since the Ironwood recovery circuit needs it; the others are
+the scheme's assumption and whether a row needs only parameter changes.
 
 No scheme has been selected. The comparison is an input to that choice, beside
 implementation experience with each route.
@@ -30,7 +33,7 @@ is in the repository's [`ragu-pcs/`](../../../ragu-pcs/) directory. There,
 measurements under [`estimates/`](../../../ragu-pcs/estimates/) and the models beside it, and
 [`WORKING-NOTES.md`](../../../ragu-pcs/WORKING-NOTES.md) is the running log of what was done
 and what is open. [Regenerating the Study's Numbers](regenerating.md) says where each number
-comes from and how to redo it. The two working
-notes in this section are the study's longer write-ups. The first prices an Akita opening at
-a Pasta modulus; the second shows how a lattice accumulation step can be made
-zero-knowledge.
+comes from and how to redo it. The study's longer write-ups are in the [Kishu](kishu.md) and
+[Other Schemes](other-schemes.md) sections: for Kishu, the zero-knowledge fold of a lattice
+accumulation step and the soundness statements; for the others, an Akita opening priced at a
+Pasta modulus and the soundness statement of the variant with Pasta claims.

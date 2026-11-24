@@ -3588,3 +3588,448 @@ their prover.
 STATE: branch akita-checkout-script at this entry's commit, on 94d1383, the tip of #3 before
 its merge; to be rebased onto main after a fetch, then pushed by the user and opened as a
 draft PR; the book builds and its links check.
+
+## 2026-11-23 20:24 UTC: the book by scheme, a Zoodles page, the soundness notes split, the citations linked
+
+PR #4 (branch akita-checkout-script) is open; this branch is stacked on it.
+
+- **Sections** (8cc5f66, 42028db, 2b786a8): 1.3 Kishu with the zero-knowledge note and Kishu's
+  soundness statements under it, 1.4 Other Schemes with the Pasta proof-size note and the
+  Pasta-claims variant's statement, 2 Zoodles, 3 Hardware Wallets and the Recovery Statement (its
+  page's title); "Working Notes" is gone and its two addresses redirect. Both new sections have
+  pages, since a page-less section renders in mdbook's draft colour, which sits near the sidebar's
+  background in every theme (1.6:1 on the rust theme); the colour is now derived from the
+  sidebar's text for any future draft.
+- **The soundness note is two pages** (b39849a; the user's request): `kishu-soundness.md` and
+  `pasta-q64-soundness.md`, the statements unchanged, Lemma L on both with a note that it is the
+  same.
+- **The Kishu page** (af8a1a4) says what Kishu is made of and carries the acknowledgement
+  paragraph in the user's exact words (the designers of Akita and BitZ; Quang Dao, Albert
+  Garreta, Tal Derei; Ulrich Haböck's suggestions).
+- **Zoodles** (2b786a8, 7b7a7b6): `ragu-pcs/zoodles.md`, a prose file with figure markers, from
+  the user's thoughts.md text expanded section by section, with the Tachyon team's
+  acknowledgement; marked in progress. The user corrected the tree sentence: Kishu's step holds
+  as many spends and outputs as fit in the same step as the fee, which is what `tx_steps` packs
+  (first-fit decreasing); Tachyon as built gives each circuit a step at rank 13 (all 39 circuits
+  under 2,048 gates), so the packing is the design's, and the packed step's interface is an open
+  point on the page. Figures `tx_zoodles_*_kishu_zk_steps`.
+- **A marker never starts a line** (8830f4f). CommonMark starts an HTML block at a line beginning
+  with `<!--`, inside a paragraph too, and renders the rest literally: the zero-knowledge note's
+  §5.8 paragraph began with its claim marker, which is why the user saw `[§3](…)` and `[§5.4](…)`
+  as text. The marker follows the first word now; the model fails on any note line that begins
+  with a marker; `work/rewrap-markers.py` refills a hard-wrapped note with markers glued to the
+  word before.
+- **The zero-knowledge note cites every paper it names** (5810b06; the user: all the papers need
+  to be referenced/linked): links to anchored References entries, five entries added (Dilithium's
+  specification, Hülsing–Lange–Smeets, Jeudy, Karney, Du–Fan–Wei), and §5.2 gives the 147-bit
+  target first (block size 556, log₂ δ 0.00454, against 484 and 0.00502).
+- **Preprocessor** (d86a252): an included note's `../book/src/…` link is written relative to the
+  chapter, so the Zoodles page links the Kishu page.
+- **Answered in chat.** Akita's committed digits are balanced base 8 catalog-wide (every
+  proof-optimized preset has `log_basis = 3`; the compression levels use binary digits), so the
+  zk note's sentence holds for every variant. The sampling attempts cannot share the mask or its
+  commitment (a mask derived from a rejected attempt is correlated with the secret through the
+  test), but masks are independent of the secret, so a stock of them can be drawn and committed
+  in idle time and consumed once each, which is what §5.8 relies on.
+
+Decided (the user): the online/offline split of the prover is shown as a MEASURE, "transaction
+prover (online)", the total less the fold's offline share (the mask sampling and commitments of
+the expected attempts; for the leaf handoff the leaf's), plottable against the transaction prover
+for the same application; Flock's zero-knowledge mask split is wanted, WHIR's only if cheap.
+
+NEXT: the online measure, on its own branch; then the queue as before: the Zoodles lineage both
+ways; Ragu steps 2 to 4; the Boolean step-size knob; Zoodles' header size; the handoff step's
+padding; the ledger decision; the user's calls on the mask's width and the sidebar's threshold;
+and, low priority, the native Pasta profile.
+
+STATE: branch book-reorganization at this entry's commit, stacked on akita-checkout-script (PR #4,
+open), pushed by the user up to the commit before this one; the book builds, 655 links check.
+
+## 2026-11-23 21:57 UTC: the epoch-set page; compression, the bucketed table, the QR profile
+
+- **PR #5**, book-reorganization against main, is a draft, opened after #4 merged and the branch
+  was rebased; the two commits of this entry follow its pushed tip aaa9fd2.
+- **The epoch-set page** (48d42d4; `ragu-pcs/zoodles-epoch-set.md`, 2.1 under Zoodles; the
+  user: a page of its own, not weight on the Zoodles page): the sorted tree against set
+  polynomials and the bucketed table of zcash/zcash#4062, whose "to be continued" probability
+  analysis is done: the capacity K from the Poisson tail of a bucket's load under a union bound
+  over the buckets (`bucket_capacity`, figures `bucket_*`, claim `bucket_table_dearer`); the
+  tags variant, two-choice placement, filters; the attacker a table has. The table I gave in
+  chat had K a few too high, a constant slipped in a scratch script; the page's figures are the
+  model's. The user has the permissions to unarchive zcash/zcash and means to transfer its
+  design issues out of it later; archived repositories refuse transfers.
+- **Compression of tachygrams** (chat): a 128-bit image survives a single-target roadblock on
+  the Grover-depth reading, since the mempool exposes a value before it is final, but not the
+  multi-target membership search at 2^128 / N over every commitment ever created; an
+  exclusion-only compressed set would split the one structure that serves both checks, which
+  the user wants to keep. So full width everywhere, and the recommendation stands to drop set
+  polynomials from the transaction tree for hashed lists when the lineage task redoes the
+  Zoodles row's inventory.
+- **"Quadratic-residue profile"** (Tachyon's primitives/qr.rs at 73031f7): the bucket routing
+  is a binary trie whose split at depth j is whether x + R_0 + j is a square in F_p, R_0 a
+  prover-chosen random discriminant threaded through the network, at most 32 deep; a side is
+  proved by a square root y² = c(x + s), one squaring and a selection, and a whole class by an
+  interpolant u with u² − c(X + s) = q·h against the class's set polynomial q. The profile's bits
+  are the Legendre PRF of the tachygram at consecutive inputs.
+- **Hashing an epoch's tree** (chat): about 2^20 compressions of 64 bytes, 67 Mbytes, tens of
+  milliseconds a core with BLAKE3's lane batching and a quarter of a second scalar, plus a sort
+  of 2^20 values; BLAKE3's own tree mode would give 1 KiB leaves and a 31-compression inclusion
+  proof against the custom tree's 21, at the same native speed, so the custom tree is right.
+
+NEXT: the online measure, "transaction prover (online)", the user's choice (a): the total less
+the fold's offline share, Flock's mask split wanted, WHIR's only if cheap; then the queue as
+before.
+
+STATE: branch book-reorganization at this entry's commit, two commits beyond PR #5's pushed tip
+aaa9fd2; the book builds, 682 links check.
+
+## 2026-11-23 23:20 UTC: Spend Authorization under Zoodles, CAPSS, ZIP 2005's qk derivation in all three protocols
+
+PR #5 (book-reorganization, a draft) carries this entry's work; its pushed tip is 9e3bce6, and the
+commits after it are the section, the derivation and binding, CAPSS, and this one.
+
+- **Spend Authorization** (the user's reorganization: most of the hardware-wallets
+  chapter was about the two authorization methods, which are not recovery-specific). Section
+  2.2 has a page that motivates the two methods (the preimage is ZIP 2005's and much the
+  cheaper for a signer with no key separation or no bandwidth or memory constraint; leanSPHINCS
+  reaches a wider range of devices and may be compatible with Ethereum's choice) and defines
+  quantum recovery for Ironwood and Tachyon alike, and under it Hash Preimage (with the
+  signature-of-knowledge argument), leanSPHINCS, CAPSS, Recovery from Ironwood, Recovery from
+  Tachyon, and Hardware Wallets (the device split, the Kishu leaf and the QR channel, the
+  signature on the device). The figures and claims moved with their sentences, the old chapter
+  address redirects, and the frontier page refers to the section (`NOTE_CHAPTERS`
+  "spend-authorization").
+- **Recovery from Tachyon.** Tachyon's owner field is $\mathsf{pk} = \mathsf{Com}(\mathsf{ak},
+  \mathsf{nk})$ (its book, revisit.html#payment-key), so its recovery witness is viewing-key
+  material: no counterpart of ZIP 2005's $\mathsf{qsk}$, hence no threshold-held recovery secret
+  for a FROST group and viewing keys that spend after the break. The user calls it a regression
+  and easily fixable: the proof-authorizing key $(\mathsf{ak}, \mathsf{nk}, \mathsf{qk})$ with
+  $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$. The migration transaction is a recovery spend
+  of a Tachyon note plus a Zoodles output, queued as an application; the frontier page's
+  sentence that Tachyon's circuits in a post-quantum proof system are not a useful deployment is
+  to be revised. Tachyon's book sketches the post-quantum upgrade and leaves it there; Zoodles
+  is that upgrade. The book's URL is tachyon.z.cash/book/revisit.html.
+- **ZIP 2005's qk derivation in all three protocols** (the user: it is $\mathsf{H^{qk}}$ that
+  is the same, not the keys). The preimage method's image is derived from its preimage by the
+  ZIP's $\mathsf{H^{qk}}$, whose personalization names no pool on purpose (any domain
+  separation between the protocols affects how $\mathsf{qsk}$ is obtained, not the derivation;
+  a footnote on the page), so a native Zoodles spend, an Ironwood recovery on the
+  $\mathsf{use\_qsk}$ path, and a Tachyon recovery make the same check with keys of their own. What binds a Zoodles
+  note to its action without Tachyon's randomizer (the user's question from the book's
+  #pq-rerand): every published value is derived in the step that opens the note, the lineage's
+  attestation arrives as a header the step checks, and the tree and the digest carry the rest.
+- **CAPSS** (the user: worth analysing as a third option). ePrint 2025/061 read from
+  keep/2025-061.pdf; its Tables 2, 3, and 6 typed as `CAPSS_*`. Anemoi is set aside for the
+  FreeLunch attacks (CRYPTO 2024, keep/crypto-2024.pdf) and Campa–Roy's Gröbner-basis
+  cryptanalysis (ePrint 2025/814, keep/2025-814.pdf), the Poseidon instances read; the
+  framework takes any permutation cheap in the proof system at hand (the user), so a Poseidon
+  instance over Kishu's field is estimated at the model's rates: a verifier of about 10.1
+  million digits by the call counts or 6.4 million by the paper's constraint estimate, against
+  leanSPHINCS's 6.39 million; signing about 40,000 permutations, 1.1 s at the MCU rate; about
+  20 kbytes. Not adopted: the method for a prime-field proof system; a row would be a day's
+  work.
+
+NEXT: the Zoodles statements page (the user: a page giving the Zoodles statements, in the
+style of Tachyon's proof-statement section); the online measure; the Tachyon → Zoodles
+application; the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, five commits beyond PR #5's pushed
+tip 9e3bce6; the book builds, 771 links check.
+
+## 2026-11-24 01:28 UTC: review of the Spend Authorization and Zoodles pages; the commit messages at 72 columns
+
+PR #5 (book-reorganization, a draft) was reviewed page by page; its history was rewritten, so the
+next push is a force-push (`git push --force-with-lease zcash book-reorganization`).
+
+- **Commit messages.** Every message in the PR is rewrapped at 72 columns with its long sentences
+  split, and subjects over 72 characters are shortened (`work/pr5-new-messages.txt`,
+  `work/amend-messages.py`: one empty `amend!` commit per message, folded by one autosquash
+  rebase; the tree is unchanged). The user: "it's typical to wrap commit comments to about 72
+  characters". Keep to it in this repository.
+- **Wording on the Spend Authorization pages** (folded into the commits that introduced the
+  prose): "authorization method" in each page's opening; the CAPSS page says up front that
+  Zoodles does not adopt it; the preimage page's bullet on Tachyon links the key-structure
+  section; every bracketed citation on the six pages links to an anchored References entry
+  (`work/auth-cites.py`), and ZIP 2005 is cited at its first mention, with entries added to the
+  preimage and leanSPHINCS pages; long sentences split across the section page and the CAPSS,
+  recovery, and hardware-wallet pages (the ones of forty words and more; a few of 30 to 39
+  remain, and the checker's 70-word flags on the hardware-wallets page are sentences that begin
+  with a math span, which it does not split).
+- **The Zoodles page.** The packing paragraph counts in actions, an action a spend or an output
+  (the model's figure: the average of a spend and an output with its merge); the two-by-two
+  transaction is four actions in one step at rank 19 against the twelve steps of Tachyon's tree
+  before it rerandomizes; the packing is its own paragraph. Amounts are range-checked to
+  [0, MAX_MONEY], as Tachyon's output statement checks them. Long sentences split and the page
+  rewrapped. The spend-authorization section is one paragraph, since it repeated the section's
+  pages; the leanSPHINCS page gained "The message" with the digest's contents and the fee step's
+  check (the figures moved with the text). The bullets link the section and the epoch-set page.
+  A **Pool accounting** section (the user's design): a transaction with Ironwood or Tachyon
+  recovery spends reveals the total it spends from each of those pools and its Zoodles balance,
+  so that consensus keeps the pools' balances and rejects a transaction ZIP 209 forbids; the
+  headers carry the sums; the whole transaction is one Kishu proof, since Halo 2 and Ragu proofs
+  will have to be disabled before Q-day; the two recovery pages refer to it, and the page has a
+  References list (ZIP 209, ZIP 2005). Blocks are 25 seconds since NU7, so an epoch of 4,096
+  blocks is 1.2 days (`ZOODLES_BLOCK_SECONDS`; the frontier page's sentence too).
+- **Tachyon's pk with qk** (the user's question whether `Com(ak, nk, qk)` still fits one hash):
+  Tachyon's sponge absorbs four field elements a permutation and `pk` takes three, so `qk` fits
+  as the fourth if it enters as one Pallas element, reduced modulo p, since a 256-bit output is
+  not one; the recovery proof pays a 256-bit range check for the reduction. Said on the Tachyon
+  page. (Two limbs would cost a second permutation, which in Kishu is a Pallas Poseidon
+  permutation by limbs or fingerprint, far dearer than the range check.)
+- **The book.** The Raleway fonts the stylesheet names were missing (the user saw the failed
+  downloads); they are now under `book/src/fonts/` with their OFL, as the ironwood book ships
+  them. `\tilde` in Kishu's soundness note rendered as strikethrough (mdbook-katex passes a
+  literal `~`); `\widetilde` now. 819 links check, 0 bad; the build warns of nothing.
+
+Answered in chat (to record):
+
+- **Actions and Faerie gold.** Tachyon and Zoodles do not bundle a spend with an output as Orchard
+  does; an action is one spend or one output (Spend Action, Output Action). Orchard bundled them
+  for a unique ρ from the spend's nullifier; Tachyon has no canonical note position and pushes
+  Faerie-gold detection to the recipient's wallet, which computes a received note's nullifier at
+  a fixed reference epoch and rejects a collision with a note it holds (revisit.md, "Faerie-gold
+  via the wallet" and "Note Spendability"; keys.rs, note.rs, nullifier.rs say the same). Zoodles
+  inherits that, since its nullifiers have the same shape.
+- **SmallWood with BLAKE3** (the user: CAPSS is SmallWood plus arithmetic hashes; does SmallWood
+  make sense for BLAKE3?). It would make ZIP 2005's SoK^qsk a standalone hash-only proof of a
+  BLAKE3 preimage, usable with existing preimage-route keys and under hash assumptions alone, but
+  the statement becomes ~15k bit constraints instead of a few hundred field constraints, so the
+  proof is tens of kbytes (over a QR channel's budget), signing is seconds and a few Mbytes on
+  an MCU (no secure element), and the verifier in Kishu is thousands of BLAKE3 Merkle-path
+  compressions plus the PIOP checks, dearer than leanSPHINCS's ~300. In Kishu an arithmetic
+  hash buys nothing either (Poseidon over q64 ≈ 17.7k digits a permutation against BLAKE3's
+  15.1k a compression). Not a third method for Zoodles; at most a hash-only alternative to the
+  Kishu leaf for the Ironwood SoK^qsk with existing keys. Not priced.
+
+FINDING, to decide: the model's Zoodles spend action step counts one BLAKE3 compression, "the
+payment key is the hash of the authorizing key". With the preimage method as the pages now
+describe it, qk committed in pk and qk = H^qk(qsk) proved, the step derives H^qk and opens pk:
+two compressions, so a preimage spend is ~15k digits more (65k, not 50k), and the leanSPHINCS
+variant's pk commits the signature's public key (one compression plus the verifier). The actions
+per step would be 1 / 6 / 25 at ranks 17 / 19 / 21 (was 28 at 21). `ZOODLES_NODES` would need
+the authorization method as a parameter.
+
+QUEUED by the user this session: (1) leanSPHINCS with BLAKE3 as an application beside BLAKE2s and
+Keccak (the user: if Ethereum goes with Keccak there is no point in BLAKE2s; expected ~7/10 of
+the BLAKE2s cost, the same 298 calls); (2) a section 1.3.1 "Kishu's Arithmetization" with a
+rough cost model and the differences from Ragu, after everything else in flight.
+
+NEXT: the Zoodles statements page (the user's earlier request), the leanSPHINCS-with-BLAKE3
+application, the SpendAction compression decision, Kishu's Arithmetization, then the online
+measure, the Tachyon → Zoodles application, and the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, 27 commits beyond main, history
+rewritten since PR #5's pushed tip 9e3bce6; the book builds, 819 links check.
+
+## 2026-11-24 02:23 UTC: leanSPHINCS with BLAKE3, Kishu's Arithmetization, pool accounting as a bundle
+
+Still PR #5 (book-reorganization, a draft, history rewritten; the push is a force-push).
+
+- **leanSPHINCS with BLAKE3** (the user: if Ethereum goes with Keccak there is no point in BLAKE2s,
+  so the choice is Keccak or BLAKE3). `LEANSPHINCS_VERIFY` has the three hashes in increasing
+  order of cost, BLAKE3 at the same 298 calls as BLAKE2s (same block and output sizes), and the
+  applications follow: `leansphincs_{blake3,blake2s,keccak}`, and the Zoodles transactions, with
+  and without Merkle paths, as `zoodles_leansphincs_{hash}` and `zoodles_merkle_leansphincs_{hash}`
+  (`ZOODLES_AUTHS` lists them; `leansphincs_hash(auth)` picks the hash). The pages quote the BLAKE3
+  variant: the verifier 4.53M digits, 71% of BLAKE2s's (claim `leansphincs_blake3_cheaper`), 0.234 s
+  zk at rank 21; the Zoodles BLAKE3 signature transaction 9.42M digits, 0.363 s zk at rank 21 in 5
+  steps, a spend 4.58M digits; the preimage transaction stays under a quarter of it (claim holds at
+  0.0824 against 0.363/4). The device's BLAKE3 grind is unmeasured in Wam26's benchmark; the pages
+  say it should be no slower than BLAKE2s (seven rounds to ten).
+- **Kishu's Arithmetization** (`kishu-arithmetization.md`, section 1.3.1 under Kishu, a PROSE_FILE;
+  `NOTE_CHAPTERS["kishu-arithmetization"]`, and `data-section` may now be a heading id with its
+  `#`). The frontier page's Kishu section lost its paragraphs on digits and constraints, the two
+  routes, the merge, and the recovery circuit to it, keeping a summary, the costs at rank 17, and
+  the status; the page adds a unit-cost table and the differences from Ragu, read from Ragu's own
+  arithmetization chapter (four wires a gate, a_i b_i = c_i and c_i d_i = 0, 4n linear constraints,
+  one structured trace polynomial of degree < 4n, a revdot identity; a rank-r step is 2^r
+  coefficients = 2^(r-2) gates). The Kishu page lists its three subpages; the Zoodles page points at
+  the cost model from its packing paragraph.
+- **Pool accounting** is stated for the Zoodles bundle (e.g. in a ZIP 248 transaction [ZIP-248]
+  cited): it reveals the Ironwood and Tachyon spend totals and the Zoodles balance; the fee check
+  is ZIP 248's per-asset balance, not the bundle's, so the "three sum to the fee" sentence went.
+  The Zoodles opening is the user's: a post-quantum shielded protocol based on Tachyon with its own
+  pool, Kishu as its proof system, a follow-on to Tachyon.
+- **The Ragu commitments chapter** names the frontier's measures as they are (proof bytes plus two
+  of eight; the frontier on bytes, the two measures, and three requirements) and Kishu among the
+  candidates.
+- The book builds, 823 links check; the headless Firefox checks are in `work/firefox-*-kishu.log`.
+
+NEXT: the Zoodles statements page; the SpendAction compression decision (the model counts one
+BLAKE3 compression where the preimage method needs H^qk and the pk opening); the online measure;
+the Tachyon → Zoodles application; the queue as before.
+
+STATE: branch book-reorganization at this entry's commit, 31 commits beyond main; the book builds,
+823 links check.
+
+Later in the same session:
+
+- **Kishu's Arithmetization opens at the PCD level** (the user: cart before the horse; describe it as
+  it appears to circuit writers, assuming no familiarity with BitZ or Akita; "merge" and
+  "accumulation" are too low-level there): a section "Kishu as a Proof-Carrying-Data scheme" on
+  nodes, headers, the witness as bits, constraints as polynomial relations among words with
+  integer semantics below q/2, the unit costs, what is free; then "What Kishu is made of" defines
+  Akita and BitZ and places accumulation beneath the node interface. Terms: a NODE is a vertex of
+  the PCD graph (a Tachyon circuit), a STEP the accumulation scheme's unit, which packs several
+  nodes. Ragu's book calls the application circuit "a PCD step" and Tachyon's book names its
+  circuits steps, so their "step" is our node; in Ragu the two coincide, one circuit a step.
+- **Faerie gold is open for Zoodles** (the user, correcting the chat answer above): Tachyon's
+  wallet-side detection does not survive a roadblock, since a sender can send two notes with the
+  same ψ and the wallet cannot tell the payment from the roadblock, so spendability cannot be
+  established at receipt; this is why Sprout, Sapling, and Orchard derive ρ uniquely (the Zerocash
+  authors had suggested the wallet check and the user argued it did not work). Tachyon has no
+  incoming viewing keys, so note secrecy might be assumed against everyone but the sender, but the
+  spendability definition would still have to allow all but one note from a sender to be rejected.
+  Zoodles needs a unique ρ per output; the statements page is to settle how (Orchard's pairing of
+  a spend with each output, or another per-transaction unique value). A Status bullet says so.
+- **use_qsk**: the priced recovery circuit takes either value (ZIP 2005's cost section: three
+  BLAKE2b compressions multiplexed between the two paths); the Ironwood recovery and
+  hardware-wallet pages said the false path was not considered, which was about their device
+  analysis only, and now say so.
+
+After the push (ced08c7): the SpendAction compression question is settled by the user: a Zoodles
+spend proves knowledge of (nk, qk) opening pk = H(nk, qk) AND knowledge of qsk with qk = H^qk(qsk),
+two BLAKE3 compressions; the model's preimage variant now counts both (`zoodles_node_cost`,
+`zoodles_node_piop`, the Merkle variant likewise), so a preimage spend is 65,533 digits, the
+two-by-two transaction 343,000, and 25 actions fit at rank 21 (was 28); the zk time is 0.0825 s,
+unchanged in effect. The signature variant opens the payment key once. Tachyon's pk is a Poseidon
+commitment over Pallas, which the Tachyon recovery spend in Kishu must open by limbs or
+fingerprint; said on the Recovery from Tachyon page. Linked citations now keep their brackets on
+every note (`[\[KEY\]](#ref-key)`). The hardware wallet is orthogonal to the pool a spend is from.
+
+The user is not sure the hash that produces pk is needed; Zoodles mirrors Tachyon as closely as
+possible with the minimal change for the same quantum recoverability, and this may be optimized
+later. A Status bullet on the Zoodles page records it.
+
+Two design questions from the user, for the statements page:
+
+- **Orchard-style actions.** Given two tachygrams per Tachyon action anyway, why not actions of a
+  spend and an output, either a dummy, as Orchard's? Tachyon's book (revisit.md, "two
+  tachygrams"): a spend publishes its current and next epoch's nullifiers for the race at the
+  epoch boundary, and an output publishes a dummy tachygram beside its commitment so that every
+  action carries two and the spend/output split does not leak; it does not consider the pairing.
+  A paired action would publish three tachygrams (two nullifiers and a commitment), also uniform:
+  one fewer per spend–output pair, no padding tachygram, and a unique ρ for every output from the
+  action's spend nullifier, which answers Faerie gold as Orchard does. Against it: a dummy spend
+  needs the spendability proof to be skippable, as Orchard's value-0 rule does; unbalanced
+  transactions pay three tachygrams an action where Tachyon pays two; and the node's circuit
+  doubles, which matters for Ragu's rank-13 steps and not for Kishu's packing.
+- **ak and nk.** Why separate keys? The user cannot recall why Orchard did not use ak as nk;
+  Sapling wanted a proof authorizing key (ak, nsk), and Orchard may have kept the shape by inertia.
+  For Zoodles the constraint is that the nullifier key must stay hidden from senders, who know
+  the address and ψ, or a sender could watch for the note's spend; that is what the hash
+  producing pk does, so the hash is needed unless the address carries nk in the clear.
+
+The user's follow-up: Zoodles could have the chain qsk -> qk -> pk and use qk as the nullifier key,
+dropping nk; the two compressions stay (H^qk and the pk hash), the host holds qk for scanning and
+cannot spend, and a sender sees only pk. The Status bullet on the key chain says so.
+
+On ak and nk in Orchard, the user sees three plausible reasons they were not unified: (a) it did
+not occur to the designers; (b) key hygiene, since using a public key as a PRF key is a little
+janky (Sapling uses a point representation as one, but not one that is also a public key, other
+than to separate it from nsk); (c) no significant circuit saving. The user rules out (c), since
+Commit^ivk is Sinsemilla and pays for the extra input bits; (a) or (b) remain. For Zoodles (b) does
+not apply to qk as the nullifier key: qk is a hash output, not a public key in the discrete-log
+sense, and ZIP 2005 already uses it as a PRF key, in H^rivk_ext_qk.
+(The user: the rivk precedent is for the hygiene point only; Zoodles has no rivk, "and good
+riddance".)
+
+TODO (the user): work out the details of key derivation for leanSPHINCS: how the signature's key
+pair is derived from the wallet's seed or quantum spending key, how its public key is committed in
+the Zoodles payment key and in a recovery arm, and what a FROST group does with it.
+
+The user pulled the Tachyon and Ragu checkouts (2026-11-24): Tachyon main is d1f5ffb (2026-11-23),
+15 commits past the 73031f7 the study read, among them "feat: use real proofs" (267a566: the
+mock `ragu` dependency replaced by `ragu_pcd` with the accelerated prover; the `relations` module
+gone, steps checking polynomial identities inline; FixedBase reads 254 bits), "hold rcm nonzero
+wherever a note commitment is derived" (a36788b, #324), the QR and pool refactors, and a parameters
+appendix in the book. Ragu main is 7914b3b8, 315 commits past 8109a41c. So keep/tachyon-statements.md
+and the measured gate counts (TACHYON_STEPS) describe the old revision; re-read the step circuits
+before the Zoodles statements page, and re-measure the counts when Ragu steps 2–4 come up. Every
+tachyon.z.cash link the pages cite resolves (payment-key, pq, pq-rerand, team, the Ragu chapter).
+
+Kishu's Arithmetization was reworked with the user sentence by sentence (the definition is the
+part a misreading would poison, so it got the time): "Kishu as a Proof-Carrying-Data scheme"
+(nodes, headers, the node/step distinction); "The arithmetization" (q a fixed prime, 2^64 − 59 for
+the modelled parameters; column vectors, ⟨x, y⟩ = xᵀy by the `\innerprod` macro in
+book/macros.txt with a −0.8mu kern; matrices r × c take F_q^c to F_q^r; a circuit with m
+constraints, the public inputs padded with zeros to the instance vector v ∈ F_q^m, the witness
+w ∈ {0,1}^N; per constraint j, sparse A_j, B_j ∈ F_q^{t_j × N} and a row vector c_j ∈ F_q^{1×N};
+⟨A_j w, B_j w⟩ + c_j w = v_j in F_q; a prose gloss; the constant term wlog through an input fixed
+to 1; booleanity enforced for the whole witness at once); "Relation to R1CS" (a generalization with
+several products a constraint, boolean constraints implicit), "Relation to CCS" (STW23's
+definition, read row by row at degree two; z = (w, 1, x) against bits and the right-hand side;
+degree two here), "Relation to Ragu" (Bootle et al.'s constraint system over Pallas with a fourth
+wire; bits, F_q, free constraint shape; instance values in both); "Writing circuits" (the costs,
+words, integer semantics, other prime fields expensive but not prohibitively so, gadget costs,
+steps, zero knowledge, no lookups). Lowercase "boolean" as an adjective; "Booleanity" left as the
+study spells it. The user: some redundancy remains, left for now.
+
+The user's observation (2026-11-24): most optimization techniques for bignum arithmetic on native
+limbs apply in Kishu's arithmetization too. Assessment: yes, since a limb is a word below q/2 with
+free range checks, so lazy carry propagation, redundant (non-canonical) limb representations,
+Karatsuba, and quotient-witness reductions (Barrett, Montgomery, Solinas-style for Pasta's primes)
+all translate; but the cost structure differs from a CPU's: a product term is 9.8 word
+multiplications where a committed bit is about 11, so the committed intermediate bits (carries,
+quotients, products' outputs) dominate, and the techniques worth most are those that cut committed
+bits, not multiplications. The limb route is schoolbook over 29-bit limbs with 34-bit carries, 17
+constraints of up to nine products; the fingerprint route avoids limbs altogether.
+
+## 2026-11-24 17:37 UTC: the arithmetization page reviewed sentence by sentence; relations to CCS, UCS, Ragu
+
+PR #5 (book-reorganization, draft): the user force-pushed through 715f07a; the commits after it are
+this session's review of `kishu-arithmetization.md` with the user, each sentence settled in chat
+before it was written (the user: a misconception at the definition sends the reader down wrong
+paths; reading is repeatedly asking "do I already understand this?"; an explicit sum is a math
+smell; the same notation should mean the same thing; ask whether each unit can be set down).
+
+- **The arithmetization**, as it stands: q a fixed prime (2^64 − 59 modelled); ⟨x, y⟩ = xᵀy for
+  column vectors (`\innerprod` macro in book/macros.txt, −0.8mu kern); matrices r × c take a
+  column vector in F_q^c to F_q^r; a circuit with m constraints, the public inputs padded with
+  zeros to v ∈ F_q^m, a witness w ∈ {0,1}^N; per constraint index j, sparse A_j, B_j ∈
+  F_q^{t_j × N} and a row vector c_j ∈ F_q^{1×N}; the equality in F_q ⟨A_j w, B_j w⟩ + c_j w = v_j;
+  a prose gloss; the constant term wlog through an input fixed to 1 and a bit constrained to it;
+  booleanity enforced for the whole witness at once.
+- **Relations**: to R1CS (a generalization with several products a constraint; boolean constraints
+  implicit); to CCS [STW23] (keep/2023-552.pdf: Σ c_i ∘_{j∈S_i} M_j z = 0 over z = (w, 1, x), read
+  row by row at degree two; varying t_j = zero-row padding; z against bits and the right-hand side;
+  degree two here); to Universal Constraint Systems [AGK+26] (Zinc+'s, over polynomial rings;
+  over the integers Zinc's [GWHD25], CCS on bounded integers with lifted moduli, keep/2025-316.pdf;
+  proved by projection to a random prime field, which is what makes them universal; BitZ [BGK+26]
+  proves integer polynomial constraints the same way; Albert Garreta is an author of all three;
+  Kishu keeps the shape and the bits but evaluates in F_q, its fingerprint route being Zinc's
+  method and its limb route a range argument); to Ragu (Bootle et al.'s constraint system
+  [BCC+16] over Pallas with a fourth wire; bits, F_q, free constraint shape; instance values in
+  both). The closing "Differences from Ragu" refers back for the arithmetization's own.
+- **Writing circuits**: what the writer pays (per bit, per product, a little per nonzero
+  coefficient; degree two by the model's choice); words of ℓ < 64 canonical bits, bit vectors and
+  F_q elements (non-canonically) represented directly, range checks free; integer semantics
+  whenever both sides lie in a range no larger than q ([0, u] + [0, v] safe for u + v < q), not a
+  q/2 bound; a word multiplication one product term; arithmetic in another prime field a relation
+  with a committed quotient, expensive but not prohibitively so, since R1CS pays mostly for the
+  boolean constraints that Kishu's bits do not need; gadget costs; steps; zero knowledge asks
+  nothing of the writer (the binding clause was removed: binding is soundness, not zk); no lookups.
+- "Kishu is an arithmetization in BitZ's style", not BitZ's (frontier page lede too); "What
+  Kishu is made of" in one-sentence and short paragraphs. Lowercase "boolean" as an adjective;
+  "Booleanity" left as the study spells it (a sweep would touch claims; ask before doing it).
+- Ragu's published book has the arithmetization chapter at protocol/construction/, not the
+  checkout's protocol/local/; the page links the former. Tachyon main d1f5ffb (real proofs) and
+  Ragu main 7914b3b8 are pulled; keep/tachyon-statements.md and TACHYON_STEPS predate them.
+- The user's bignum observation and its assessment are in the entry above.
+
+NEXT: the Zoodles statements page (unique ρ for Faerie gold; Orchard-style actions; the key chain
+qsk → qk → pk with qk as nullifier key; leanSPHINCS key derivation; the preimage spend's two
+compressions, already in the model); re-read Tachyon's step circuits at d1f5ffb first; then the
+online measure, the Tachyon → Zoodles application, and the queue as before. The user: some
+redundancy remains on the arithmetization page, left for now; KaTeX kerning elsewhere deferred.
+
+STATE: branch book-reorganization at this entry's commit, pushed through 715f07a; the book builds,
+822 links check.
+
+NEXT, first (the user, 2026-11-24): investigate whether one bit per digit is the optimal choice for
+Kishu, or whether the commitment cost improves by keeping closer to Akita, whose digits are
+balanced base-8 digits of a few bits (the paper's "Committing through small digits",
+work/akita.txt). The questions: what the Booleanity check would become for digits of several bits
+(a range check per digit, higher degree or a decomposition), how the digit count, the constraint
+terms, and the Ajtai rate per digit trade off, and what the hash-heavy circuits lose if XOR stops
+being one term over bits.

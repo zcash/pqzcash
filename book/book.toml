@@ -28,3 +28,10 @@ default-theme = "rust"
 preferred-dark-theme = "rust"
 additional-css = ["custom.css"]
 hash-files = true
+
+# The two notes were chapters of a "Working Notes" section until 2026-11-23.
+[output.html.redirect]
+"/proof-systems/working-notes/pasta-proof-size.html" = "../other-schemes/pasta-proof-size.html"
+"/proof-systems/working-notes/zk-fiat-shamir-with-aborts.html" = "../kishu/zk-fiat-shamir-with-aborts.html"
+# The hardware-wallets chapter was a top-level section until 2026-11-23.
+"/hardware-wallets.html" = "zoodles/spend-authorization/hardware-wallets.html"
