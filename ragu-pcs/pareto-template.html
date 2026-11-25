@@ -397,9 +397,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p><!--claim:rank12_rows:d8b522-->Rank 12 has no Pedersen-IPA rows, since a 1,024-gate circuit
   holds no binder challenge, and no Akita rows under BLAKE3.<!--/claim--> Rank 17 helps Akita under
   BLAKE3, where fewer circuits absorb fewer
-  claims: <!--fig:akita17_blake3_cut_pct_min-->14<!--/fig-->
-  to <!--fig:akita17_blake3_cut_pct_max-->30<!--/fig--> percent off the merge prover,
-  and <!--fig:akita17_blake3_less_kb_small-->0.6 kbytes<!--/fig--> off the proof at the small
+  claims: <!--fig:akita17_blake3_cut_pct_min-->10<!--/fig-->
+  to <!--fig:akita17_blake3_cut_pct_max-->28<!--/fig--> percent off the merge prover,
+  and <!--fig:akita17_blake3_less_kb_small-->0.5 kbytes<!--/fig--> off the proof at the small
   fields, <!--fig:akita17_blake3_less_kb_pasta-->3 kbytes<!--/fig--> for the Pasta variants.</p>
   <p>The WHIR-type rows depend on the rank only through their circuit count, so they are shown at
   ranks 13 to 16.</p>
@@ -437,7 +437,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   its <!--fig:ligerito_levels-->5<!--/fig--> levels at 100 bits, against
   ARC's <!--fig:arc_openings_1_8_default-->98<!--/fig--> openings at rate 1/8. So its recursion
   is <!--fig:bitz_rec_over_arc_hashing-->7<!--/fig--> times ARC's hashing
-  (<!--fig:bitz_rec13_merge_bits-->232<!--/fig-->
+  (<!--fig:bitz_rec13_merge_bits-->233<!--/fig-->
   against <!--fig:bitz13_merge_bits_m-->33<!--/fig--> million witness bits at rate 1/8)
   and <!--fig:bitz_rec_over_arc_prover-->7.4<!--/fig--> times the prover, for a
   proof <!--fig:bitz_rec_less_pct-->23<!--/fig--> percent smaller.<!--/claim--> The ARC row is the
@@ -728,16 +728,16 @@ code { font-family: var(--mono); font-size: 0.92em; }
   a <!--fig:kishu17_blake3_decider_ms-->2.37<!--/fig--> ms decider in the sum-check form; with
   Poseidon <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig-->
   digits, <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->
-  and <!--fig:kishu17_poseidon_prover-->1.7e7<!--/fig-->. Each circuit's claim
+  and <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->. Each circuit's claim
   costs <!--fig:kishu_claim_digits_blake3-->3,000<!--/fig--> digits to absorb under BLAKE3
   and <!--fig:kishu_claim_digits_poseidon-->1,700<!--/fig--> under Poseidon, so even a rank‑13
-  circuit of 8,192 digits holds its claim (<!--fig:kishu13_blake3_circuits-->268<!--/fig--> circuits
+  circuit of 8,192 digits holds its claim (<!--fig:kishu13_blake3_circuits-->270<!--/fig--> circuits
   under BLAKE3). <!--claim:kishu_rows_from_rank13:8dfbec-->Kishu therefore has rows from rank 13
   under both hashes, where the lattice rows under BLAKE3 start at 14.<!--/claim--></p>
   <p><!--claim:kishu_poseidon_merge_prover_smaller,kishu_blake3_dominates_q64,kishu_poseidon_proof_smaller:10ba68-->Against
   the 64‑bit Akita variant, which commits every wire of a hash gate as a 255‑bit value, the merge
   prover is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller under BLAKE3
-  (<!--fig:q64_17_blake3_prover-->5.7e9<!--/fig--> at rank 17)
+  (<!--fig:q64_17_blake3_prover-->5.9e9<!--/fig--> at rank 17)
   and <!--fig:kishu_vs_q64_poseidon_prover-->7.0<!--/fig--> times under Poseidon. Under BLAKE3 the
   proof is smaller too (<!--fig:kishu17_blake3_kb-->74 kbytes<!--/fig-->
   against <!--fig:q64_17_blake3_kb-->95 kbytes<!--/fig-->). So under conventional hashes Kishu
@@ -801,7 +801,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   percent off. That is 16,400 AND gates at 128 bits, plus 800 for the reduction by
   $2^{128} - 275$. <!--claim:bits_akita_merge_below_f2:cc6467-->That
   is <!--fig:bits_akita_gates-->4.1 million<!--/fig--> AND gates in
-  all, <!--fig:bits_akita_f2_merge_ratio-->8.1<!--/fig--> times fewer than the $\mathbb{F}_2$
+  all, <!--fig:bits_akita_f2_merge_ratio-->8.0<!--/fig--> times fewer than the $\mathbb{F}_2$
   family's ARC merge at rate 1/8, and not comparable with Pasta gates.<!--/claim--></p>
   <p>The proof is the measured opening extrapolated from $2^{29}$ bits down to the merge's
   $2^{21.3}$ at the planner's 563 bytes per doubling for the 128‑bit field, with the stage groups at
@@ -1273,21 +1273,21 @@ code { font-family: var(--mono); font-size: 0.92em; }
   circuit at every rank up to <!--fig:kishu_one_circuit_rank-->21<!--/fig-->, where one circuit
   holds the merge, and two circuits beyond. For the recovery circuit Kishu's zero-knowledge optimum
   is
-  rank <!--fig:tx_recovery_kishu_zk_rank-->21<!--/fig-->, <!--fig:tx_recovery_kishu_zk_s-->0.220<!--/fig-->
+  rank <!--fig:tx_recovery_kishu_zk_rank-->21<!--/fig-->, <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig-->
   s per note against <!--fig:tx_recovery_kishu_s-->0.132<!--/fig--> s
   without, <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0379<!--/fig--> s of it the sampling
   at <!--fig:mask_sample_ns-->7.1<!--/fig--> ns a
   sample. <!--claim:kishu_projection_no_zk,drop_out_at_147:1455d5-->Its projection rows reveal
   coordinates and drop out, as the binary-groups family does, and as Pedersen-IPA drops out at 147
   bits.<!--/claim--></p>
-  <p>Where that cost goes. Of the <!--fig:tx_recovery_kishu_zk_s-->0.220<!--/fig--> s, the fold
+  <p>Where that cost goes. Of the <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig--> s, the fold
   is <!--fig:tx_recovery_kishu_zk_fold_s-->0.0649<!--/fig--> s: the
   sampling <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0379<!--/fig--> s, the masks' commitments
   under the masked matrix <!--fig:tx_recovery_kishu_zk_masks_s-->0.0253<!--/fig--> s and the
-  handoff's merge <!--fig:tx_recovery_kishu_zk_fold_merge_s-->0.00164<!--/fig-->
+  handoff's merge <!--fig:tx_recovery_kishu_zk_fold_merge_s-->0.00170<!--/fig-->
   s. <!--claim:kishu_zk_steps_over_fold,kishu_zk_rank_below_plain:806d45-->The larger part is the
   steps and their merges: <!--fig:tx_recovery_kishu_zk_steps-->2<!--/fig-->
-  at <!--fig:tx_recovery_kishu_zk_step_ms-->76.4<!--/fig-->
+  at <!--fig:tx_recovery_kishu_zk_step_ms-->76.5<!--/fig-->
   ms, <!--fig:tx_recovery_kishu_zk_steps_s-->0.153<!--/fig--> s
   against <!--fig:tx_recovery_kishu_steps_s-->0.132<!--/fig--> s without zero knowledge. What zero
   knowledge adds to them is the masked matrix, rank 2 at degree 1,024 in place of rank 1 at 512,
@@ -1326,7 +1326,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about <!--fig:mask_karney_sample_ns-->300<!--/fig--> ns a coordinate, measured
   at <!--fig:karney_ns_min-->290<!--/fig--> to <!--fig:karney_ns_max-->470<!--/fig--> ns by Du, Fan
   and Wei <a href="#ref-dfw20">[DFW20]</a>. With it the recovery would
-  take <!--fig:tx_recovery_kishu_zk_karney_s-->0.891<!--/fig--> s at
+  take <!--fig:tx_recovery_kishu_zk_karney_s-->0.892<!--/fig--> s at
   rank <!--fig:tx_recovery_kishu_zk_karney_rank-->19<!--/fig-->, and
   at <!--fig:mask_fast_sample_ns-->100<!--/fig-->
   ns <!--fig:tx_recovery_kishu_zk_fast_s-->0.479<!--/fig--> s at
@@ -1347,7 +1347,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <tr><td class="num">6</td><td class="num"><!--fig:mask_attempts_alpha6-->7.5<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha6-->30.5<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha6-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha6-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha6-->24<!--/fig--></td><td class="num"><!--fig:mask_length_alpha6-->8<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_s-->0.379<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_rank-->20<!--/fig--></td></tr>
     <tr><td class="num">12</td><td class="num"><!--fig:mask_attempts_alpha12-->2.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha12-->31.5<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha12-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha12-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha12-->25<!--/fig--></td><td class="num"><!--fig:mask_length_alpha12-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_s-->0.261<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_rank-->20<!--/fig--></td></tr>
     <tr><td class="num">24</td><td class="num"><!--fig:mask_attempts_alpha24-->1.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha24-->32.5<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha24-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha24-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha24-->26<!--/fig--></td><td class="num"><!--fig:mask_length_alpha24-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_s-->0.234<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_rank-->20<!--/fig--></td></tr>
-    <tr><td class="num">48</td><td class="num"><!--fig:mask_attempts_alpha48-->1.3<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha48-->34.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha48-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha48-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha48-->27<!--/fig--></td><td class="num"><!--fig:mask_length_alpha48-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_s-->0.220<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_rank-->21<!--/fig--></td></tr>
+    <tr><td class="num">48</td><td class="num"><!--fig:mask_attempts_alpha48-->1.3<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha48-->34.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha48-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha48-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha48-->27<!--/fig--></td><td class="num"><!--fig:mask_length_alpha48-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_s-->0.221<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_rank-->21<!--/fig--></td></tr>
     <tr><td class="num">96</td><td class="num"><!--fig:mask_attempts_alpha96-->1.1<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha96-->35.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha96-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha96-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha96-->28<!--/fig--></td><td class="num"><!--fig:mask_length_alpha96-->10<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_s-->0.213<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_rank-->21<!--/fig--></td></tr>
   </tbody></table></div>
   <p><!--claim:kishu_zk_falls_with_alpha:4646d0-->The time falls at each doubling across the table,
@@ -1502,7 +1502,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   claim more than a rank-14 circuit. So rank 13 has no Akita rows and rank 14 none for the Pasta
   variants, and the first ranks that hold them
   take <!--fig:akita14_blake3_circuits-->1,740<!--/fig-->
-  and <!--fig:pasta15_blake3_circuits-->1,471<!--/fig--> circuits.<!--/claim--></p>
+  and <!--fig:pasta15_blake3_circuits-->1,472<!--/fig--> circuits.<!--/claim--></p>
   <p><!--claim:blake3_rank16_small_fields_same,blake3_rank16_pasta_same,poseidon_rank16_two_circuits,blake3_prover_ratios:360d90-->At
   rank 16 the merge takes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits at the 128‑bit
   field and on Goldilocks and <!--fig:q64_16_blake3_circuits-->122<!--/fig--> for the Pasta
@@ -1673,34 +1673,34 @@ code { font-family: var(--mono); font-size: 0.92em; }
   digits and the signature one with
   BLAKE3 <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.03 million<!--/fig-->, the two verifiers
   being most of it. <!--claim:zoodles_preimage_quarter:d14014-->With zero knowledge Kishu proves the
-  preimage transaction in <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0506<!--/fig--> s on one core
+  preimage transaction in <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0507<!--/fig--> s on one core
   at rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->18<!--/fig--> and the BLAKE3 signature one
   in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.299<!--/fig--> s at
   rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->22<!--/fig-->, so the preimage route is
   under a quarter of the signature route;<!--/claim--> without zero knowledge they
-  are <!--fig:tx_zoodles_preimage_kishu_s-->0.0272<!--/fig-->
+  are <!--fig:tx_zoodles_preimage_kishu_s-->0.0273<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_kishu_s-->0.163<!--/fig--> s. In the other families,
   preimage then BLAKE3 signature: BitZ with zero
   knowledge <!--fig:tx_zoodles_preimage_bitz_zk_s-->0.0817<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_bitz_zk_s-->0.168<!--/fig--> s; Boolean over
-  Akita <!--fig:tx_zoodles_preimage_bits_akita_s-->0.0767<!--/fig-->
-  and <!--fig:tx_zoodles_leansphincs_blake3_bits_akita_s-->0.153<!--/fig--> s at its 128‑bit floor;
+  Akita <!--fig:tx_zoodles_preimage_bits_akita_s-->0.0768<!--/fig-->
+  and <!--fig:tx_zoodles_leansphincs_blake3_bits_akita_s-->0.154<!--/fig--> s at its 128‑bit floor;
   Flock <!--fig:tx_zoodles_preimage_flock_s-->0.195<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_flock_s-->0.389<!--/fig--> s; and Akita over Goldilocks
   with a Poseidon tree <!--fig:tx_zoodles_preimage_goldilocks_s-->0.287<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_goldilocks_s-->9.02<!--/fig-->
   s. <!--claim:zoodles_preimage_beats_tachyon:db8cb2-->Tachyon's own four tachyactions, with their
-  curve arithmetic, take <!--fig:tx_tachyon4_kishu_zk_s-->0.143<!--/fig--> s in Kishu with zero
+  curve arithmetic, take <!--fig:tx_tachyon4_kishu_zk_s-->0.144<!--/fig--> s in Kishu with zero
   knowledge and <!--fig:tx_tachyon4_kishu_s-->0.105<!--/fig--> without,
   and <!--fig:tx_tachyon4_bitz_zk_s-->0.298<!--/fig--> s in BitZ, so Zoodles by preimage costs less
   in each, <!--fig:zoodles_preimage_of_tachyon_pct-->35<!--/fig--> percent of Tachyon with zero
   knowledge.<!--/claim--> <!--claim:zoodles_merkle_beats_tachyon:6c09f8-->A simpler Zoodles that
   proves a 32-level Merkle path in each spend, opening the note there and deriving one nullifier,
   with no set polynomials, is <!--fig:app_zoodles_merkle_preimage_kishu-->920,000<!--/fig--> digits
-  by preimage and <!--fig:tx_zoodles_merkle_preimage_kishu_zk_s-->0.0772<!--/fig--> s with zero
+  by preimage and <!--fig:tx_zoodles_merkle_preimage_kishu_zk_s-->0.0774<!--/fig--> s with zero
   knowledge, <!--fig:zoodles_merkle_of_tachyon_pct-->54<!--/fig--> percent of Tachyon, and still
   costs less than Tachyon in Kishu and BitZ;<!--/claim--> by leanSPHINCS with BLAKE3 it
-  is <!--fig:tx_zoodles_merkle_leansphincs_blake3_kishu_zk_s-->0.308<!--/fig-->
+  is <!--fig:tx_zoodles_merkle_leansphincs_blake3_kishu_zk_s-->0.309<!--/fig-->
   s. <!--claim:zoodles_merkle_paths_most:00acfc-->Its two paths are most of its digits.<!--/claim-->
   The Pasta-native families reverse the order: with Pedersen-IPA under the arithmetic-hash option
   Tachyon is <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s and the Merkle
@@ -1731,7 +1731,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   The tree's size is a choice, <!--fig:zoodles_epoch_per_block-->256<!--/fig--> tachygrams a block
   over the epoch, between the bucket's $2^{13}$ and a busy chain's $2^{24}$. Each doubling adds one
   hash to the step, and a shorter epoch adds steps a day. Kishu
-  takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0273<!--/fig--> s a note an epoch on one core at
+  takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0274<!--/fig--> s a note an epoch on one core at
   rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig-->, without zero knowledge, since the
   lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.0812<!--/fig--> s,
   Flock <!--fig:tx_zoodles_epoch_flock_s-->0.195<!--/fig--> s, Akita over
@@ -1740,7 +1740,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   floor. <!--claim:zoodles_lineage_rank_is_spends:02a0e3-->The lineage's best rank is the spend's
   own, so the spend that consumes it inherits a rank it would choose anyway: Zoodles by preimage at
   rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig-->
-  is <!--fig:tx_zoodles_preimage_kishu_zk_lineage_rank_s-->0.0506<!--/fig--> s with zero
+  is <!--fig:tx_zoodles_preimage_kishu_zk_lineage_rank_s-->0.0507<!--/fig--> s with zero
   knowledge.<!--/claim--></p>
   <h4 id="tx-masking-fold">The masking fold</h4>
   <p>For Akita's zero-knowledge rows the user's masking fold is added. It is the expected
@@ -1778,7 +1778,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Pasta claims over 64‑bit commitments takes about <!--fig:tx_recovery_q64_s-->25.1<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
   sum-checks over the accumulator's <!--fig:digits_q64-->85<!--/fig--> digits per coefficient in
-  Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,920<!--/fig--> s at
+  Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,960<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_blake3_rank-->17<!--/fig--> under the default BLAKE3 trees; Akita
   over Goldilocks <!--fig:tx_recovery_goldilocks_s-->16.1<!--/fig--> s with Poseidon; and
   Pedersen-IPA, at its 128‑bit floor and the checked-in configuration,
@@ -1788,7 +1788,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rank <!--fig:tx_recovery_pedersen_best_rank-->17<!--/fig-->
   with <!--fig:tx_recovery_pedersen_best_E-->72<!--/fig--> endoscalings per step.<!--/claim--></p>
   <p><!--claim:bitz_recovery_zk_unchanged:84fbf1-->With zero knowledge Kishu's best
-  is <!--fig:tx_recovery_kishu_zk_s-->0.220<!--/fig--> s at
+  is <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig--> s at
   rank <!--fig:tx_recovery_kishu_zk_rank-->21<!--/fig--> by
   the <!--fig:tx_recovery_kishu_zk_route-->fingerprint<!--/fig--> route, and Akita with Pasta claims
   about <!--fig:tx_recovery_q64_zk_s-->25.7<!--/fig--> s at

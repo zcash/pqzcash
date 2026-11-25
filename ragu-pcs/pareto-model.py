@@ -27,6 +27,14 @@ Writes pareto.html next to this script: a self-contained page with the data inli
 import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, subprocess, sys
 import frib_optimizer as frib
 
+
+def ceil_div(a, b):
+    """a / b rounded up to a whole number, for counts of whole things: the compressions that
+    hash a transcript, the words of a byte string, the queries at a floor. A share of a larger
+    whole, such as one claim's bytes within a merge's transcript, stays a plain quotient."""
+    return int(-(-a // b))
+
+
 HERE = pathlib.Path(__file__).resolve().parent
 # The page's default security floor, in quantum bits under the ADPS16 core-SVP model (the
 # user, 2026-11-23); FLOORS below lists both. Pedersen-IPA and the binary-groups row exist at
@@ -569,7 +577,20 @@ def akita_absorbed_bytes(variant, K, circuits, zk):
 def akita_hash_gates(variant, K, circuits, zk, hp):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return akita_absorbed_bytes(variant, K, circuits, zk) / BLAKE3_BLOCK * BLAKE3_GATES
+    return ceil_div(akita_absorbed_bytes(variant, K, circuits, zk), BLAKE3_BLOCK) * BLAKE3_GATES
+
+
+def circuit_slope(cost):
+    """What one more circuit adds to a merge whose cost is `cost(circuits)`: the slope over
+    BLAKE3_BLOCK circuits from 2 * BLAKE3_BLOCK + 1. Over that span the circuits' claims fill
+    whole hash blocks at any claim width, and the count stays between two powers of two, so
+    the slope holds neither a compression that one claim happened to start nor a round added
+    to the merge's sum-check. A difference of two neighbouring counts could hold either, or
+    come out zero."""
+    lo = 2 * BLAKE3_BLOCK + 1
+    slope = (cost(lo + BLAKE3_BLOCK) - cost(lo)) / BLAKE3_BLOCK
+    assert slope > 0
+    return slope
 
 
 def akita_merge_gates(variant, K, circuits, zk, hp):
@@ -586,9 +607,7 @@ def akita_circuits(variant, K, rank, zk, hp):
     circuit count through each circuit's claim, divided by the budget, at its fixed point;
     None where each circuit adds more gates than the budget holds, so that no count
     converges."""
-    per_circuit = akita_merge_gates(variant, K, 2, zk, hp) - akita_merge_gates(
-        variant, K, 1, zk, hp
-    )
+    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp))
     if per_circuit >= gate_budget(rank):
         return None
     circuits = 1
@@ -1265,6 +1284,7 @@ STAGE_VALUE_COEFFICIENTS["kishu"] = (
     E_MULT_DIGITS  # a stage value, a claim-field element, as tribits
 )
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
+assert BLAKE3_BLOCK % Q64_POSEIDON_RATE_BYTES == 0  # circuit_slope spans whole blocks of either
 Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
 # A 64-bit value is a canonical F_q element only below q = 2^64 - 59, so a prover-supplied
 # word whose bytes BLAKE3 hashes is first checked to be below q: the difference q - 1 - w is
@@ -1286,19 +1306,29 @@ RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
 E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
 
 
-def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS):
+def absorb_calls(bytes_, block, whole):
+    """The hash calls that absorb `bytes_` at `block` bytes a call: whole calls for a whole
+    transcript, the plain quotient for a share of a larger one."""
+    return ceil_div(bytes_, block) if whole else bytes_ / block
+
+
+def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS, whole=False):
     """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
     prover-supplied words range-checked before BLAKE3 hashes them, at `range_check` digits
-    each: Kishu's by default, RANGE_CHECK_BITS for BitZ."""
+    each: Kishu's by default, RANGE_CHECK_BITS for BitZ. `whole` says the bytes are a
+    transcript of their own and not a share of the merge's."""
     if hp == "poseidon":
-        return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
-    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * range_check
+        calls = absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole)
+        return calls * Q64_POSEIDON_MULTS * Q64_DIGITS
+    return absorb_calls(bytes_, BLAKE3_BLOCK, whole) * BLAKE3_BITS + checked_words * range_check
 
 
-def absorb_piop(bytes_, hp, checked_words=0):
+def absorb_piop(bytes_, hp, checked_words=0, whole=False):
     if hp == "poseidon":
-        return piop_sum((bytes_ / Q64_POSEIDON_RATE_BYTES, POSEIDON_Q64_PIOP))
-    return piop_sum((bytes_ / BLAKE3_BLOCK, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP))
+        return piop_sum((absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole), POSEIDON_Q64_PIOP))
+    return piop_sum(
+        (absorb_calls(bytes_, BLAKE3_BLOCK, whole), BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
+    )
 
 
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
@@ -2158,7 +2188,7 @@ def handoff_merge_gates(variant, K, circuits, hp):
     if hp == "poseidon":
         hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
     else:
-        hashing = (K * 128 + circuits * CLAIM_BYTES[variant]) / BLAKE3_BLOCK * BLAKE3_GATES
+        hashing = ceil_div(K * 128 + circuits * CLAIM_BYTES[variant], BLAKE3_BLOCK) * BLAKE3_GATES
     return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
 
 
@@ -2904,7 +2934,7 @@ def f2_verify(p, grind, chal, zk=None):
     its authentication and leaf hashes, the grinding check, the Zook-style masks' spot
     checks, and its field multiplications."""
     return (
-        f2_bytes(p, zk) / 64
+        ceil_div(f2_bytes(p, zk), 64)
         + p["auth"]
         + p["opened"] / 64
         + (2 if grind else 0)
@@ -3144,7 +3174,7 @@ def ligerito_hashes(log_bits, floor):
     m = log_bits - 7  # 𝔽₂^128 elements
     total = 0
     for inv, queries in LIGERITO_LEVELS:
-        total += queries * floor / 100 * (m - 2 + math.log2(inv) + 1)
+        total += ceil_div(queries * floor, 100) * (m - 2 + math.log2(inv) + 1)
         m -= 2
     return total
 
@@ -3329,7 +3359,7 @@ BITZ_ZK_SUMCHECKS = 3  # the zero-check, the lincheck and Zinc+'s PIOP, each ove
 
 def bitz_zk_queries(floor):
     """Ligerito's opened columns over its levels, which scale with the floor."""
-    return sum(q for _, q in LIGERITO_LEVELS) * floor / 100
+    return sum(ceil_div(q * floor, 100) for _, q in LIGERITO_LEVELS)
 
 
 def bitz_mask_elements(log_bits):
@@ -3502,16 +3532,16 @@ def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=
         + bool_bytes
         + rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
     )
-    checked = 0 if hp == "poseidon" else (absorbed - K * 128) / 8
+    checked = 0 if hp == "poseidon" else ceil_div(absorbed - K * 128, 8)
     mults = SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults + rounds * PIOP_ROUND_MULTS
     digits = (
-        absorb_digits(absorbed, hp, checked)
+        absorb_digits(absorbed, hp, checked, whole=True)
         + 2 * K * FOLD_GATES_PER_IMAGE
         + mults * E_MULT_DIGITS
         + bool_bits
     )
     piop = piop_sum(
-        (1, absorb_piop(absorbed, hp, checked)),
+        (1, absorb_piop(absorbed, hp, checked, whole=True)),
         (2 * K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
         (mults, E_MULT_PIOP),
         (bool_bits, BIT_GATE_PIOP),
@@ -3528,7 +3558,7 @@ def kishu_step_overhead_digits(rank, hp):
     the 64-bit field, absorbed and verified in the merge above."""
     rounds = piop_rounds(2**rank)
     transcript = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
-    checked = 0 if hp == "poseidon" else transcript / 8
+    checked = 0 if hp == "poseidon" else ceil_div(transcript, 8)
     return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
 
 
@@ -3538,7 +3568,7 @@ def fingerprint_step_extra_digits(rank, hp):
     step of hashes alone runs no instance and pays nothing, so the routes tie there."""
     rounds = piop_rounds(2**rank)
     transcripts = FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
-    checked = 0 if hp == "poseidon" else transcripts / 8
+    checked = 0 if hp == "poseidon" else ceil_div(transcripts, 8)
     return (
         fingerprint_step_digits(rank)
         + absorb_digits(transcripts, hp, checked)
@@ -3553,12 +3583,11 @@ STEP_HEADROOM = 1.0
 
 
 def merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """The merge's digits for one more circuit in the step, its claim and the claim's
-    absorption, measured where one more does not add a round to the merge's own sum-check
-    transcript (six circuits against five; two against one would)."""
-    return frontend_merge_digits(
-        K, 6, rank, hp, bool_mults, bool_bits, bool_bytes, zk
-    ) - frontend_merge_digits(K, 5, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+    """The merge's digits for one more circuit in the step: its claim and the claim's
+    absorption (circuit_slope)."""
+    return circuit_slope(
+        lambda c: frontend_merge_digits(K, c, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+    )
 
 
 def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
@@ -3591,11 +3620,15 @@ def handoff_merge_digits(K, circuits, hp):
     rows): its digits and its PIOP's word multiplications, for the mask's K images and claim
     evaluations absorbed, the images' reductions, and the claims' fold."""
     absorbed = K * 128 + circuits * CLAIM_BYTES["kishu"]
-    checked = 0 if hp == "poseidon" else circuits * CLAIM_BYTES["kishu"] / 8
+    checked = 0 if hp == "poseidon" else ceil_div(circuits * CLAIM_BYTES["kishu"], 8)
     mults = CLAIM_GATES * circuits
-    digits = absorb_digits(absorbed, hp, checked) + K * FOLD_GATES_PER_IMAGE + mults * E_MULT_DIGITS
+    digits = (
+        absorb_digits(absorbed, hp, checked, whole=True)
+        + K * FOLD_GATES_PER_IMAGE
+        + mults * E_MULT_DIGITS
+    )
     piop = piop_sum(
-        (1, absorb_piop(absorbed, hp, checked)),
+        (1, absorb_piop(absorbed, hp, checked, whole=True)),
         (K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
         (mults, E_MULT_PIOP),
     )
@@ -3670,7 +3703,7 @@ def kishu_costs(
         step_prover=round(capacity * per_step_digit),
         unit_cost=per_step_digit,
         step_units=capacity,
-        step_units_mults=capacity - route_extra if capacity > route_extra else None,
+        step_units_mults=math.floor(capacity - route_extra) if capacity > route_extra else None,
         route_step=(
             round(route_extra * per_step_digit + fingerprint_step_range_mults(rank))
             if route == "fingerprint"
@@ -3811,8 +3844,7 @@ def bits_akita_merge_parts(K, circuits, field):
     the claims, and the two inputs' Flock PIOP verifiers at the merge's own size, as the 𝔽₂
     family's merge counts them, at a fixed point."""
     parts = dict(
-        hashing=akita_absorbed_bytes("fp128", K, circuits, False)
-        / BLAKE3_BLOCK
+        hashing=ceil_div(akita_absorbed_bytes("fp128", K, circuits, False), BLAKE3_BLOCK)
         * BLAKE3_ANDS_PADDED,
         fold=2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2),
         sumcheck=SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field)),
@@ -6186,10 +6218,7 @@ def define_figures():
     for hp in HASH_POLICIES:
         fig(
             f"kishu_claim_digits_{hp}",
-            sig(
-                frontend_merge_digits(Kg, 6, 17, hp, sum_mults, sum_bits, sum_bytes)
-                - frontend_merge_digits(Kg, 5, 17, hp, sum_mults, sum_bits, sum_bytes)
-            ),
+            sig(merge_marginal_circuit(Kg, 17, hp, sum_mults, sum_bits, sum_bytes)),
         )
     fig(
         "kishu13_blake3_circuits",
@@ -6287,10 +6316,7 @@ def define_figures():
     for v, width in (("fp128", 16), ("pasta_q64", 32)):
         fig(
             f"claim_gates_blake3_{width}",
-            sig(
-                akita_merge_gates(v, Kg, 2, False, "blake3")
-                - akita_merge_gates(v, Kg, 1, False, "blake3")
-            ),
+            sig(circuit_slope(lambda c: akita_merge_gates(v, Kg, c, False, "blake3"))),
         )
     claim(
         "pedersen_only_under_poseidon",

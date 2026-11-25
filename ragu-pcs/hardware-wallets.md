@@ -61,7 +61,7 @@ and a small merge of the handoff's own: the challenge derivation, the commitment
 claim fold. The decomposition and the range and norm proofs are deferred to the host (the zk note's
 [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a one-compression leaf the
 host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
-measure's <!--fig:tx_qk_kishu_zk_s-->0.0266<!--/fig--> s at
+measure's <!--fig:tx_qk_kishu_zk_s-->0.0267<!--/fig--> s at
 rank <!--fig:tx_qk_kishu_zk_rank-->16<!--/fig-->
 is <!--fig:tx_qk_kishu_zk_merges_pct-->88<!--/fig--> percent merge
 and <!--fig:tx_qk_kishu_zk_fold_pct-->12<!--/fig--> percent fold, and the circuit itself is a few

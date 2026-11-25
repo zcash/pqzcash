@@ -623,7 +623,7 @@ tribits, <!--fig:e_mult_digits-->44<!--/fig--> digits. At rank 17 with BLAKE3 it
 of <!--fig:kishu17_blake3_kb-->74 kbytes<!--/fig-->, a merge prover
 of <!--fig:kishu17_blake3_prover-->3e7<!--/fig--> word multiplications and a merge
 of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-check form; with
-Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.7e7<!--/fig-->
+Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
 cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.6<!--/fig-->
