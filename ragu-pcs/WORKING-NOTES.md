@@ -4762,3 +4762,51 @@ is the application's own hashing, a few percent of a merge-dominated transaction
 application's hashing dominates (the leanSPHINCS verifiers) the two multiply. The last column
 keeps the page's default policy, BLAKE3 alone: there the XOR trick's merge saving stays in the
 chosen row, and the gap to the column before it is what Poseidon over F_q buys the merge.
+
+## 2026-11-25 08:27 UTC: PR #6 merged, PR #7 hard-wraps the prose; what is parked
+
+PR #6 (circuit-improvements, seven commits) was merged as 22eb745. PR #7 (`hard-wrap`, draft,
+06a0200) hard-wraps every note and chapter and the frontier template at 100 columns, with
+`scripts/wrap-prose.py` (`--write` refills, `--check` fails the build on a prose line it would
+have shortened; build-book.sh runs the check first). The filler keeps figure and claim markers,
+noteref spans, inline math, inline code and HTML tags whole, and glues comments and tags to the
+word before them so that none starts a line. Every rendered page was identical to the build
+before, ignoring whitespace (a scratch comparison stripped all whitespace and the search index's
+hash); a first version lost the bullets of lists that were already within the width, and a noteref
+span wrapped across lines escaped the model's link conversion, both fixed before the commit.
+
+Parked, to take up after #7 merges (rebased onto the wrapped text):
+
+- The accumulation prover paragraph of the frontier page (local branch `accumulation-paragraph`,
+  one WIP commit): the measure includes the merge's constraint PIOP; Kishu's range check is the
+  Booleanity sum-check on bits and three products more a tribit in the merge's PIOP; the stage
+  values are digits; and the measure is within a tenth of flat from rank 15 to 19, rising with the
+  application's circuit from there, with the accumulator doubling each rank from the rank where
+  one circuit holds the merge (claim kishu_accumulation_flat_then_doubles; the zk BLAKE3 limb
+  rows: 99.8M word multiplications at rank 15, 105M at 19, 129M at 20, 152M at 21, 245M at 22).
+- The zk note's comparison of the masking fold with "an ordinary user proof of two to four dozen
+  rank-13 steps over Pasta, 36.4 to 72.8 s" (figures zk_note_proof24_s/48_s from pasta_sis at rank
+  13) is stale as a description of a transaction: restate it against the page's Tachyon
+  transactions (two to sixteen tachyactions) and their Pedersen rows.
+- The mask width α: the measure's least is at the grid's top at every sampler rate; at the page's
+  sampler α = 48 is within 9.9% of it, 64 within 7.1%, 128 within 3.1%, 256 within 1.3%; nine
+  slices a coordinate stop at about 54 at the recovery's accumulator and ten reach 256. The user:
+  Karney's sampler does not matter, the nine-slice limit was for the old parameters, and whether
+  a fixed α is sufficient at all is to be revisited: a per-row width needs the slices' cost priced
+  (the aggregator's first fold over the slices, the response's bytes, the peak memory).
+- The queue as before: the online transaction measure beside the transaction prover; the Zoodles
+  statements page; a diff view between model versions on the page; a structural check or type
+  system for constraint programs; Tachyon's comparisons as tribits; the merge's transcript
+  words' digits; BitZ's per-bit pricing, which takes the every-other saving without paying the
+  extra products.
+
+STATE: `hard-wrap` pushed and open as PR #7; this notes entry is on the local branch
+`notes-2026-11-25` from it, unpushed; `accumulation-paragraph` local, one WIP commit on main.
+
+Addendum (11:52 UTC): PR #7 was merged as f6be1c2 with a second commit (31fa3be) that pins the
+frontier page's three cdnjs scripts (Plotly, KaTeX, and its auto-render) with the SHA-512
+integrity hashes cdnjs publishes and `crossorigin="anonymous"`, after a code-scanning warning. The
+accumulation prover paragraph is no longer parked: it is rebased onto the wrapped text, its claim
+holds and carries its hash, and the book builds with 823 links checking. It sits with this notes
+entry on the local branch `accumulation-paragraph`, two commits on the merged `hard-wrap` tip,
+unpushed and without a PR. The other parked items stand.
