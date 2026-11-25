@@ -138,14 +138,14 @@ function fmt(n) { return n.toLocaleString('en-GB'); }
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; a
 // Tachyon tree's last nodes, Ragu's two rerandomization fuses, are steps of their own. The
 // model's tx_steps is the same function.
-function txStepsFor(p, kind, count, policy) {
-  const units = DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes];
-  if (!Array.isArray(units)) return Math.ceil(units * count / p.step_units);
-  const cap = p.step_units;
-  const own = DATA.own_last_steps[kind] || 0;
+const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes];
+// A proof tree's nodes packed into steps of capacity cap: a node larger than a step takes
+// whole steps and its remainder joins the rest, which fill steps first-fit decreasing; the
+// tree's last `own` nodes, a Tachyon tree's rerandomization fuses, are steps of their own.
+function packNodes(nodes, cap, own) {
   let steps = own;
   const items = [];
-  for (const node of own ? units.slice(0, -own) : units) {
+  for (const node of own ? nodes.slice(0, -own) : nodes) {
     steps += Math.floor(node / cap);
     if (node % cap) items.push(node % cap);
   }
@@ -157,10 +157,31 @@ function txStepsFor(p, kind, count, policy) {
   }
   return steps + bins.length;
 }
-// Kishu's rows add their application's constraint PIOP, priced per application by route.
-// The masking fold covers the user chain's accumulator, or the leaf alone for an application
-// whose user hands over a bare leaf without a fuse (DATA.leaf_handoff).
-const txWork = (p, kind, count, policy) => { const steps = txStepsFor(p, kind, count, policy); return steps * (p.step_prover + p.accumulation_prover) + (DATA.has_mults[kind] ? steps * (p.route_step || 0) : 0) + (DATA.leaf_handoff.includes(kind) ? p.fold_leaf : p.fold) + ((DATA.piop[kind] || {})[p.arith] || 0) * count; };
+// A step's capacity for the application: a Kishu row's is what its merge leaves of the slot,
+// less the fingerprint route's digits on an application with multiplications (null where
+// those leave no room, so the row cannot run that application at its rank).
+const stepCapacity = (p, kind) => (DATA.has_mults[kind] && 'step_units_mults' in p) ? p.step_units_mults : p.step_units;
+function txStepsFor(p, kind, count, policy) {
+  const units = appUnits(p, kind, policy);
+  const cap = stepCapacity(p, kind);
+  if (cap == null) return null;
+  if (!Array.isArray(units)) return Math.ceil(units * count / cap);
+  return packNodes(units, cap, DATA.own_last_steps[kind] || 0);
+}
+// A row with a cost per unit (Kishu, whose steps the merge and the application share) pays
+// the application's units at that cost and its steps' merges at the accumulation prover; the
+// other rows pay as many steps at the per-step cost. Then the fingerprint route's per-step
+// work on an application with multiplications, the masking fold (the user chain's
+// accumulator, or the leaf alone for an application whose user hands over a bare leaf without
+// a fuse, DATA.leaf_handoff), and Kishu's application PIOP.
+const txWork = (p, kind, count, policy) => {
+  const steps = txStepsFor(p, kind, count, policy);
+  if (steps == null) return null;
+  const units = appUnits(p, kind, policy);
+  const total = Array.isArray(units) ? units.reduce((a, b) => a + b, 0) : units * count;
+  const base = p.unit_cost != null ? total * p.unit_cost + steps * p.accumulation_prover : steps * (p.step_prover + p.accumulation_prover);
+  return base + (DATA.has_mults[kind] ? steps * (p.route_step || 0) : 0) + (DATA.leaf_handoff.includes(kind) ? p.fold_leaf : p.fold) + ((DATA.piop[kind] || {})[p.arith] || 0) * count;
+};
 // The text quotes transaction figures that the model computes with its own copy of this
 // measure; the two copies are checked against each other here, on the rows the text quotes.
 {
@@ -234,11 +255,12 @@ function render() {
   document.querySelector('#txapp2-group .side').hidden = sides.length === 0;
   for (const e of document.querySelectorAll('#txapps .proves')) e.hidden = sides.length === 2;
   // The transaction measure: the selected application, costed in each arithmetization's
-  // unit under the hash policy (DATA.applications), in as many steps as its step holds
-  // (step_units, the same unit), rounded up, at the family's per-step commitment cost; one
-  // merge per step at the row's prover; and, for the zero-knowledge rows, the masking work
-  // at the handoff to the public aggregator (Akita's masking fold; the hash-based families'
-  // masked prover extra).
+  // unit under the hash policy (DATA.applications), in as many steps as the row's step holds
+  // (step_units, the same unit), rounded up, at the family's per-step commitment cost, or at
+  // the row's cost per unit where it has one (txWork); one merge per step at the row's
+  // accumulation prover; and, for the zero-knowledge rows, the masking work at the handoff
+  // to the public aggregator (Akita's masking fold; the hash-based families' masked prover
+  // extra).
   const txPolicy = document.querySelector('input[name=hashes]:checked').value;
   // The PCD header is the application's choice and applies to every row alike: the rows are
   // priced without one, and the selected header adds its elements at 64 bytes each. A Tachyon
@@ -261,7 +283,7 @@ function render() {
     const [txKind, txCount] = txSelect(side).value.split(':');
     for (const p of DATA.points) p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
   }
-  const all = selected().filter(p => sides.length === 0 || p.step_prover !== null);
+  const all = selected().filter(p => sides.length === 0 || (p.step_prover !== null && sides.every(side => p[`transaction_${side}`] !== null)));
   // With the per-family box ticked, each family's frontier is taken on its own,
   // so that a family dominated by another still shows its best configurations.
   const perFamily = document.getElementById('perfamily').checked;
@@ -412,7 +434,7 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => `${fmtWork(val(p, `transaction_${side}`))} ${uname}`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => p[`transaction_${side}`] === null ? '' : `${fmtWork(val(p, `transaction_${side}`))} ${uname}`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="16">No family selected.</td></tr>';
