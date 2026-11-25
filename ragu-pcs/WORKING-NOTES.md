@@ -4033,3 +4033,109 @@ work/akita.txt). The questions: what the Booleanity check would become for digit
 (a range check per digit, higher degree or a decomposition), how the digit count, the constraint
 terms, and the Ajtai rate per digit trade off, and what the hash-heavy circuits lose if XOR stops
 being one term over bits.
+
+## 2026-11-25 05:49 UTC: every other XOR, tribits, the shared step; PR #5 merged
+
+PR #5 was merged at 8a18caa (merge commit d4ce262). The branch `circuit-improvements` carries
+the next PR, five commits on top of main, with the book built and 823 links checking:
+
+- **Every other XOR word committed** (4a034d1). A value needs committing only where it is a
+  factor; an XOR output consumed by an adder stays the expressions x + y − 2xy, and of each
+  chain of two XORs the second's word is committed and certified against both XORs' inputs at
+  two products a bit. BLAKE3 11,216 digits (15,072), 11,120 terms (7,904); BLAKE2s 15,968;
+  BLAKE2b in halves 38,272; Keccak-f 92,160 (153,600). The three-addend carries are two bits.
+  The Sinsemilla chunk commits the 52 subset products within each half of its ten bits; the
+  961 cross products are terms of the two coordinate constraints, with field-constant
+  coefficients. Prover work on BLAKE3 −14% plain, −20% zk. The frontier page's lede says which
+  commit of the model its figures come from (`<!--model-commit-->`, filled at generation).
+- **Tribits for integer-word data** (2231d86). Bits where the circuit needs bits as factors (the
+  hashes); tribits, Akita's balanced base-8 digits, for limbs, quotients, carries, claim-field
+  values, amounts, hash inputs, with a dibit or a bit for the remainder if needed; the digit
+  bound 4 for Kishu (the matrix stays rank 1 unmasked, rank 2 masked; tribits reach degree
+  1,024 at floor 147 and 2^25). The range check with Akita's paired predicate is b/2 products
+  a digit (b even): one a bit (the Booleanity charge), two a dibit, four a tribit; the products
+  beyond one a digit are a fourth PIOP count (piop_sum pads; piop_range_word_mults). A Pasta
+  multiplication 374 digits by limbs (1,088), 170 by fingerprint (510); an F_q value 22 digits.
+  Recovery 6.1M digits by limbs (17M). Poseidon over F_q now commits 54% of BLAKE3's digits per
+  absorbed byte and its merge is cheaper per 64 bytes. The device statement's vector is priced
+  at its exact ℓ2 norm with mask elements in the widest digits that keep the matrix at the
+  sweep's 1,024 rows: balanced dibits (33 a value) at floor 147, tribits at 128; 19,700 digits,
+  response 54 kbytes (50 at 128). BitZ keeps bits (RANGE_CHECK_BITS, BITZ_CLAIM_MULT_BITS).
+- **The dibit identities** (the user's): x ⊕ y = x + y + 2xy mod 4; x² mod 4 = x₀; (x² − x) mod 4
+  = 2x₁. In F_q each "mod 4" is a committed quotient digit (the −2xy form keeps it a dibit),
+  AND = xy − 2c′ follows, AND is not a Z₄ polynomial (mixed second difference 2), XOR has no
+  degree-two form mod 8 (checked by enumeration). A dibit XOR's quotient is pinned only by
+  committing the reduced result, so dibits cannot leave every other XOR uncommitted; dibits
+  "almost everywhere" with bits around the rotation by 7 is 212 digits a G against 196 for bits.
+- **The arithmetization page** (67672ab): the witness is small integers in three alphabets fixed
+  per position; Writing circuits says which width a value takes and what the range check costs;
+  the per-value comparison with a Pedersen coefficient (85 tribits, 935 word multiplications
+  against 5,600) and "Kishu is not specialized to Pasta", from the PR review.
+- **Review comments and the QR channel** (2b76292): the soundness note's obligations (B2 the
+  range check, B4 the fingerprint route's random primes, the limb route circuit-level, Lemma B3
+  to be redone for tribits); the Tachyon page's opening as suggested; the QR section now takes
+  Keystone's firmware rate (200-byte fragments at 5 fps, 1 kbyte/s): 54 s lossless for the
+  response, two to three times with losses; 14 s at 800 bytes a fragment, 5.2 s at the
+  version-40 ceiling, reliability depending on the screen, the light and the camera; the device
+  holds the mask with the response written over it, beside a 2.9-kbyte witness.
+- **The shared step** (ffa2a4c): a Kishu step is the least circuits that hold the merge, the
+  step's transcript digits (about 220k at rank 18: twenty BLAKE3 compressions) and one circuit
+  for the application (STEP_HEADROOM 1.0), the application's nodes filling the slack too. The
+  application's digits are charged exactly (unit_cost); the fold's sum-checks and the mask run
+  over the whole step, which now includes the application's digits and the step's transcript
+  (before: the merge's circuits alone, an undercount). A per-application slot search was tried
+  and reverted: it made the per-step axes inconsistent (a rank-17 row's transaction used a
+  34-circuit slot while its bytes and memory were at 12). Keccak zk 0.917 s (1.03), BLAKE3
+  leanSPHINCS 0.173 (0.183); recovery zk 0.220 (0.205), Zoodles preimage zk 0.0506 (0.0418).
+
+Findings to weigh (the user asked for such notes): BitZ's rows are priced per committed bit,
+so they take the every-other saving without paying the extra products; the merge's transcript
+words' own digits are not counted, only their canonicity checks and hashing; Tachyon's
+bit-level gates stay bits (its comparisons would be tribits); a fingerprint row at a low rank
+has no capacity for an application with multiplications (its transaction is left blank); the
+Akita Goldilocks variant with Poseidon beats Kishu's BLAKE3 variant on the device statement
+(83.7M against 86.3M word multiplications, plain), as it did before today (109M), the merge
+being nearly the whole transaction; the step's transcript hashing is a fixed ~220k digits a
+step. The mask width: the measure's optimum is the grid's top at every sampler rate; nine
+slices now stop at α ≈ 54 at the recovery's accumulator, ten reach 256; at the page's sampler
+α = 48 is within 9.9% of the least, 64 within 7.1%, 128 within 3.1% (Karney's sampler does not
+matter, the user). The user asks whether a fixed α is sufficient at all: a per-row width needs
+the slices' cost priced (the aggregator's first fold, the response's bytes, the peak memory).
+
+NEXT: the user's decision on α and on a per-row width; then the queue: the online transaction
+measure beside the transaction prover; the Zoodles statements page (unique ρ for Faerie gold;
+Orchard-style actions; the key chain qsk → qk → pk; leanSPHINCS key derivation); the Tachyon →
+Zoodles application; a diff view between model versions on the page (the user: a window on the
+old version is hard to keep track of); a lightweight structural check or type system for
+constraint programs so that values cannot be left without their intended constraints under
+optimizations such as these, with "locally equivalent on all inputs" statements short of full
+verification (the user, 2026-11-24); Tachyon's comparisons as tribits; the merge's transcript
+words' digits.
+
+STATE: branch circuit-improvements at this entry's commit, five commits past main d4ce262,
+unpushed; the book builds, 823 links check.
+
+Addendum (the user's question): the two optimizations' gains alone and together, under the
+current accounting, against a variant of the model with neither (bits, every XOR word
+committed, Keccak at 100 lanes a round, the Sinsemilla chunk's 1,013 products committed), on
+Kishu's best transaction for each application:
+
+| application | zk | neither | every other XOR | tribits | both | both, no arithmetic hashes |
+|---|---|---|---|---|---|---|
+| recovery | no | 0.215 s | 0.211 s (−1.7%) | 0.133 s (−38.1%) | 0.132 s (−38.6%) | 0.136 s (−36.6%) |
+| recovery | yes | 0.386 s | 0.378 s (−2.1%) | 0.222 s (−42.6%) | 0.220 s (−43.0%) | 0.231 s (−40.2%) |
+| Zoodles preimage | no | 0.0434 s | 0.0373 s (−14.1%) | 0.0274 s (−36.8%) | 0.0272 s (−37.2%) | 0.0334 s (−23.1%) |
+| Zoodles preimage | yes | 0.100 s | 0.0809 s (−19.4%) | 0.0509 s (−49.2%) | 0.0506 s (−49.5%) | 0.0666 s (−33.6%) |
+| leanSPHINCS BLAKE3 | yes | 0.264 s | 0.212 s (−19.7%) | 0.209 s (−20.8%) | 0.173 s (−34.5%) | 0.212 s (−19.8%) |
+| leanSPHINCS Keccak | yes | 1.25 s | 0.940 s (−25.0%) | 1.15 s (−7.9%) | 0.917 s (−26.8%) | 0.933 s (−25.5%) |
+| Tachyon, 4 tachyactions | yes | 0.301 s | 0.242 s (−19.6%) | 0.144 s (−52.2%) | 0.143 s (−52.3%) | 0.190 s (−36.9%) |
+| device statement | yes | 0.0474 s | 0.0407 s (−14.2%) | 0.0266 s (−43.9%) | 0.0266 s (−43.9%) | 0.0364 s (−23.3%) |
+
+The gains are not additive on the small applications because tribits change which variant
+wins: with tribits the Poseidon-over-F_q merge (276 × 22 digits a permutation) is far cheaper
+than the BLAKE3 one, so Kishu's best row hashes its merge with Poseidon, and the XOR trick's
+saving on the merge's transcript hashing no longer applies to the chosen row; what remains of it
+is the application's own hashing, a few percent of a merge-dominated transaction. Where the
+application's hashing dominates (the leanSPHINCS verifiers) the two multiply. The last column
+keeps the page's default policy, BLAKE3 alone: there the XOR trick's merge saving stays in the
+chosen row, and the gap to the column before it is what Poseidon over F_q buys the merge.

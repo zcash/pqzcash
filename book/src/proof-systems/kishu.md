@@ -3,8 +3,9 @@
 Kishu is the draft lattice route in the comparison: Ragu's proof-carrying-data arrangement and
 split accumulation, arithmetization ideas from [BitZ](https://eprint.iacr.org/2026/2141), and
 [Akita](https://eprint.iacr.org/2026/1983) as the polynomial commitment scheme. Each wire is
-committed as its bits under Akita's 64-bit modulus, the constraints and the Booleanity check
-are sum-checks over that field's quadratic extension, and Pasta values enter as 32-bit limbs or
+committed as small digits under Akita's 64-bit modulus, bits where the circuit needs bits and
+tribits, digits of three bits, for integer words. The constraints and the range check are
+sum-checks over that field's quadratic extension, and Pasta values enter as 32-bit limbs or
 through a fingerprint rather than as claims in the Pasta field. The name follows the naming
 convention of Japanese dog breeds used by Akita and its predecessor Hachi, with a nod to the
 "u" from Ragu.
