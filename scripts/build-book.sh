@@ -12,6 +12,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The prose is hard-wrapped at 100 columns; `python scripts/wrap-prose.py --write` refills what
+# is not, and the check fails the build on a line that it would have shortened.
+"${PYTHON:-python3}" scripts/wrap-prose.py --check
+
 # The model prints its summary line first, then every point; only the summary is shown. It
 # fails when a figure quoted in the tracked prose is stale against the model, or a claim the
 # prose makes no longer holds; `python ragu-pcs/pareto-model.py --fill` refreshes the figures.

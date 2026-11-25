@@ -55,15 +55,15 @@ and the buckets are the leaves of a tree of depth $B$. A note whose nullifier fi
 is treated as spent, so the table is an approximate set: an exact collision or a full bucket is a
 false positive that destroys an honest note. The issue left the choice of $B$ and $K$ for later.
 
-Take $m$ tachygrams as uniform $N$-bit strings. The exact collisions have probability about $m^2 /
-2^{N+1}$, negligible at $N = 256$. A bucket's load is binomial with mean $\mu = m / 2^B$, Poisson at
-these sizes, and by a union bound over the buckets the probability that any bucket overflows is at
-most $2^B \cdot \Pr[\mathrm{Poisson}(\mu) \ge K + 1]$. This is the maximum load of balls thrown into
-bins in its heavily loaded case, $m \gg 2^B$, where the typical maximum is $\mu + \sqrt{2\mu \ln
-2^B}$ [[RS98](#ref-rs98), [\[BCSV06\]](#ref-bcsv06)]; a bound of $2^{-64}$ on losing any note sits far
-out in the tail, and that is what sets $K$. The least $K$ with the bound below $2^{-64}$ and
-$2^{-128}$, and the exclusion proof's hashes at the first, the $B$ path hashes plus the bucket's $K
-(N - B)$ bits at 512 a compression:
+Take $m$ tachygrams as uniform $N$-bit strings. The exact collisions have probability about
+$m^2 / 2^{N+1}$, negligible at $N = 256$. A bucket's load is binomial with mean $\mu = m / 2^B$,
+Poisson at these sizes, and by a union bound over the buckets the probability that any bucket
+overflows is at most $2^B \cdot \Pr[\mathrm{Poisson}(\mu) \ge K + 1]$. This is the maximum load of
+balls thrown into bins in its heavily loaded case, $m \gg 2^B$, where the typical maximum is
+$\mu + \sqrt{2\mu \ln 2^B}$ [[RS98](#ref-rs98), [\[BCSV06\]](#ref-bcsv06)]; a bound of $2^{-64}$ on
+losing any note sits far out in the tail, and that is what sets $K$. The least $K$ with the bound
+below $2^{-64}$ and $2^{-128}$, and the exclusion proof's hashes at the first, the $B$ path hashes
+plus the bucket's $K (N - B)$ bits at 512 a compression:
 
 | tachygrams | prefix bits $B$ | mean load $\mu$ | $K$ at $2^{-64}$ | $K$ at $2^{-128}$ | proof hashes, table | sorted tree |
 |---|---|---|---|---|---|---|
@@ -79,15 +79,16 @@ compressions, and in every row the table's proof is at least ten hashes more tha
 tree's.<!--/claim-->
 
 The issue's second idea is to make the bucket's contents approximate too. Storing a $T$-bit tag of
-each suffix adds a within-bucket collision term of about $m \mu / 2^{T+1}$, so $T \approx \log_2 m +
-\log_2 \mu + \lambda$: <!--fig:bucket_tag_bits_20_16-->87<!--/fig--> bits at $2^{20}$ tachygrams,
-$\mu = $ <!--fig:bucket_mu_20_16-->16<!--/fig--> and $2^{-64}$, which brings that row's proof
-to <!--fig:bucket_tag_hashes_20_16-->29<!--/fig--> hashes, still above the tree's. Placing each
-tachygram in the emptier of two buckets [\[ABKU99\]](#ref-abku99) brings the maximum load down to $\mu
+each suffix adds a within-bucket collision term of about $m \mu / 2^{T+1}$, so
+$T \approx \log_2 m + \log_2 \mu + \lambda$: <!--fig:bucket_tag_bits_20_16-->87<!--/fig--> bits at
+$2^{20}$ tachygrams, $\mu = $ <!--fig:bucket_mu_20_16-->16<!--/fig--> and $2^{-64}$, which brings
+that row's proof to <!--fig:bucket_tag_hashes_20_16-->29<!--/fig--> hashes, still above the tree's.
+Placing each tachygram in the emptier of two buckets [\[ABKU99\]](#ref-abku99) brings the maximum
+load down to $\mu
 + O(\log \log 2^B)$, but an exclusion proof must then show absence from both buckets, two paths, and
-gives back the saving. Bloom and cuckoo filters [[Blo70](#ref-blo70), [\[FAKM14\]](#ref-fakm14)] make
-the same trade in another shape; their false positives are frozen notes rather than forged ones, so
-they are admissible in principle, and larger than the tree at these sizes.
+  gives back the saving. Bloom and cuckoo filters [[Blo70](#ref-blo70), [\[FAKM14\]](#ref-fakm14)]
+  make the same trade in another shape; their false positives are frozen notes rather than forged
+  ones, so they are admissible in principle, and larger than the tree at these sizes.
 
 The table has an adversary the tree has not. Filling a bucket is finding $K$ less its load
 tachygrams with one prefix, and grinding a prefix is free at these $B$, so a roadblock attacker who
@@ -100,10 +101,10 @@ design to rely on.
 The table's merit is authenticated insertion: "assert absent, then insert" in a circuit, for an
 accumulator updated one nullifier at a time, which is the setting the issue was written for.
 Merklized balanced trees do the same at about $1.44 \log_2 m$ hashes an insertion
-[\[RMCI17\]](#ref-rmci17). In Zoodles nothing is inserted in a circuit: the builder makes each epoch's
-structure from public tachygrams, so the sorted tree's exactness and its shorter proof come free,
-and it serves membership and exclusion alike. That is why the frontier page prices the lineage by
-the tree. The analysis above is recorded so that the alternative need not be re-derived.
+[\[RMCI17\]](#ref-rmci17). In Zoodles nothing is inserted in a circuit: the builder makes each
+epoch's structure from public tachygrams, so the sorted tree's exactness and its shorter proof come
+free, and it serves membership and exclusion alike. That is why the frontier page prices the lineage
+by the tree. The analysis above is recorded so that the alternative need not be re-derived.
 
 ## References
 
