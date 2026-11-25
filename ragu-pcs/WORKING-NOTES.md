@@ -4114,3 +4114,28 @@ words' digits.
 
 STATE: branch circuit-improvements at this entry's commit, five commits past main d4ce262,
 unpushed; the book builds, 823 links check.
+
+Addendum (the user's question): the two optimizations' gains alone and together, under the
+current accounting, against a variant of the model with neither (bits, every XOR word
+committed, Keccak at 100 lanes a round, the Sinsemilla chunk's 1,013 products committed), on
+Kishu's best transaction for each application:
+
+| application | zk | neither | every other XOR | tribits | both | both, no arithmetic hashes |
+|---|---|---|---|---|---|---|
+| recovery | no | 0.215 s | 0.211 s (−1.7%) | 0.133 s (−38.1%) | 0.132 s (−38.6%) | 0.136 s (−36.6%) |
+| recovery | yes | 0.386 s | 0.378 s (−2.1%) | 0.222 s (−42.6%) | 0.220 s (−43.0%) | 0.231 s (−40.2%) |
+| Zoodles preimage | no | 0.0434 s | 0.0373 s (−14.1%) | 0.0274 s (−36.8%) | 0.0272 s (−37.2%) | 0.0334 s (−23.1%) |
+| Zoodles preimage | yes | 0.100 s | 0.0809 s (−19.4%) | 0.0509 s (−49.2%) | 0.0506 s (−49.5%) | 0.0666 s (−33.6%) |
+| leanSPHINCS BLAKE3 | yes | 0.264 s | 0.212 s (−19.7%) | 0.209 s (−20.8%) | 0.173 s (−34.5%) | 0.212 s (−19.8%) |
+| leanSPHINCS Keccak | yes | 1.25 s | 0.940 s (−25.0%) | 1.15 s (−7.9%) | 0.917 s (−26.8%) | 0.933 s (−25.5%) |
+| Tachyon, 4 tachyactions | yes | 0.301 s | 0.242 s (−19.6%) | 0.144 s (−52.2%) | 0.143 s (−52.3%) | 0.190 s (−36.9%) |
+| device statement | yes | 0.0474 s | 0.0407 s (−14.2%) | 0.0266 s (−43.9%) | 0.0266 s (−43.9%) | 0.0364 s (−23.3%) |
+
+The gains are not additive on the small applications because tribits change which variant
+wins: with tribits the Poseidon-over-F_q merge (276 × 22 digits a permutation) is far cheaper
+than the BLAKE3 one, so Kishu's best row hashes its merge with Poseidon, and the XOR trick's
+saving on the merge's transcript hashing no longer applies to the chosen row; what remains of it
+is the application's own hashing, a few percent of a merge-dominated transaction. Where the
+application's hashing dominates (the leanSPHINCS verifiers) the two multiply. The last column
+keeps the page's default policy, BLAKE3 alone: there the XOR trick's merge saving stays in the
+chosen row, and the gap to the column before it is what Poseidon over F_q buys the merge.
