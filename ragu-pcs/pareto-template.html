@@ -481,25 +481,30 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>For the binary-groups family it is Akita's measured opening of a binary source, extrapolated to
   the merge's bits.</p>
   <h3 id="accumulation-prover">Accumulation prover</h3>
-  <p>The prover commitment work below plus the fold's own sum-checks. Akita's two norm and range
-  sum-checks run over the accumulator in digits, at about five multiplications in the claim field
-  per digit a pass (Pasta's field for the Pasta-claims variant, the 64‑bit field for Kishu). The
-  accumulator is the batch group and the five stage groups. The batch is every step circuit's
-  witness in one committed vector of circuits × $2^{\mathrm{rank}}$ coefficients, the merge's
-  circuits and the application's, since the merge absorbs one image for it and the decider opens it
-  at that length. A stage polynomial holds its values at the wires of its reserved gates and is zero
-  elsewhere. Those zeros are structural and public, so what is committed and folded is the stage's
+  <p>The prover commitment work below plus the fold's own sum-checks, and for Kishu the merge's own
+  constraint PIOP. Akita's two norm and range sum-checks run over the accumulator in digits, at
+  about five multiplications in the claim field per digit a pass (Pasta's field for the Pasta-claims
+  variant, the 64‑bit field for Kishu). The accumulator is the batch group and the five stage
+  groups. The batch is every step circuit's witness in one committed vector of circuits ×
+  $2^{\mathrm{rank}}$ coefficients, the merge's circuits and the application's, since the merge
+  absorbs one image for it and the decider opens it at that length. A stage polynomial holds its
+  values at the wires of its reserved gates and is zero elsewhere. Those zeros are structural and
+  public, so what is committed and folded is the stage's
   support: <!--fig:stage_values-->584<!--/fig--> values in Ragu's native fuse at a header of 9. A
   lattice fuse's stages are taken to hold the same, a claim-field element each, which in Kishu
-  is <!--fig:kishu_stage_digits-->26,000<!--/fig--> committed bits. Akita's grouped opening admits
-  groups of different dimensions <a href="#ref-dbk26">[DBK+26, §5]</a>. Kishu adds its measured
-  Booleanity sum-check (<!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for $2^{27}$ bits on one
-  core, <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications per 64‑bit digit). The
-  fold's own linear combination of the digit vectors costs one multiplication per digit. Since the
-  batch is about the merge's size plus a circuit for the application, this measure is nearly flat in
-  rank, like the commitments, until one circuit holds the merge, at
-  rank <!--fig:kishu_one_circuit_rank-->21<!--/fig--> for Kishu, and doubles with each rank beyond,
-  where the step is two circuits. It is the measure the transaction prover charges per merge.</p>
+  is <!--fig:kishu_stage_digits-->26,000<!--/fig--> committed digits. Akita's grouped opening admits
+  groups of different dimensions <a href="#ref-dbk26">[DBK+26, §5]</a>. Kishu adds its range check:
+  the measured Booleanity sum-check for its bits (<!--fig:bool_sumcheck_prover_ms-->438<!--/fig-->
+  ms for $2^{27}$ bits on one core, <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word
+  multiplications a digit), and for its tribits three products more at the same rate, in the merge's
+  constraint PIOP. The fold's own linear combination of the digit vectors costs one multiplication
+  per digit. <!--claim:kishu_accumulation_flat_then_doubles:6f1d45-->Since the batch is the merge's
+  circuits plus one for the application, this measure is within a tenth of flat from rank 15 to 19
+  for Kishu, the commitments and the merge's PIOP not moving with the rank, and rises with the
+  application's circuit from there. From rank <!--fig:kishu_one_circuit_rank-->21<!--/fig-->, where
+  one circuit holds the merge and the step is two circuits, the accumulator doubles with each rank,
+  and the fold's sum-checks with it.<!--/claim--> It is the measure the transaction prover charges
+  per merge.</p>
   <p>The other rows add nothing: Pedersen-IPA's fuse is measured whole and its native folding, the
   batching of about 95 polynomials and a 100-point linear combination, is about one percent of it;
   the hash-based rows' ARC step already hashes the new accumulator; and the binary-groups row's

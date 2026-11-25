@@ -5447,10 +5447,24 @@ def define_figures():
     fig("kishu_stage_digits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
     # The least rank at which one circuit holds Kishu's merge, below which the batch is about
     # the merge's size whatever the rank.
-    fig(
-        "kishu_one_circuit_rank",
-        # The merge within one circuit, beside the application's.
-        min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2),
+    # The merge within one circuit, beside the application's.
+    one_circuit = min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2)
+    fig("kishu_one_circuit_rank", one_circuit)
+    zk_rows = {p["rank"]: p for p in shown("bits_q64", "blake3", zk=True, route="limbs")}
+    flat = [zk_rows[r]["accumulation_prover"] for r in range(15, 20)]
+    claim(
+        "kishu_accumulation_flat_then_doubles",
+        "Kishu's accumulation prover is within a tenth of flat from rank 15 to 19, and its accumulator doubles with each rank from the rank where one circuit holds the merge",
+        max(flat) < 1.1 * min(flat)
+        and all(
+            abs(
+                accumulator_coefficients("kishu", r + 1, zk_rows[r + 1]["circuits"])
+                / accumulator_coefficients("kishu", r, zk_rows[r]["circuits"])
+                - 2
+            )
+            < 0.05
+            for r in range(one_circuit, max(zk_rows))
+        ),
     )
 
     # Accumulator memory (the axes list).
