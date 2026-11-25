@@ -1219,6 +1219,17 @@ assert HIDING_PADDING_BITS == {128: 4400, 147: 4800}
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
+# An animated QR channel (the hardware-wallets chapter): Keystone's firmware sends fountain-coded
+# fragments of QR_FRAGMENT_BYTES at QR_FRAMES_PER_S, a kilobyte a second. A denser fragment
+# that the format allows, and the ceiling of a version-40 symbol at error-correction level L,
+# 4,296 alphanumeric characters or about 2,100 bytes of fragment after the UR encoding's
+# overhead, are neither a demonstrated reliable operating point: reading dense codes depends on
+# the screen, the light and the camera. The fountain code's redundancy after missed frames
+# multiplies the lossless time, by about two at a quarter of the frames missed.
+QR_FRAGMENT_BYTES = 200
+QR_FRAMES_PER_S = 5
+QR_DENSE_FRAGMENT_BYTES = 800
+QR_MAX_FRAGMENT_BYTES = 2100
 
 
 def hash_app_cost(field, hash_, calls, input_bytes=0):
@@ -1456,14 +1467,15 @@ CLMUL_ANDS = {
 # of a 256-bit extension of the claim field (Pasta's own field; a quadratic extension of a
 # 128-bit field or of Kishu's E; a quartic one of Goldilocks), so a root costs one
 # multiplication there by Karatsuba, and an opening one more evaluation claim, absorbed by the
-# merge above and folded by CLAIM_GATES multiplications. The curve goes: amounts are
+# merge above and folded by CLAIM_GATES multiplications. The curve goes. Amounts are
 # range-checked and summed in the PCD headers in place of value commitments and the binding
-# signature, and spend authorization is one of two per input, a Sprout-like preimage check (the
-# payment key is the BLAKE3 hash of the nullifier key and the quantum key, and the spend proves
-# the quantum key's derivation from the quantum spending key too: two compressions, where
-# Tachyon's spend step derives the payment key alone) or a leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction
-# digest (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness since
-# the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
+# signature. Spend authorization is one of two methods per input. The first is a Sprout-like
+# preimage check: the payment key is the BLAKE3 hash of the nullifier key and the quantum key,
+# and the spend proves the quantum key's derivation from the quantum spending key too, two
+# compressions where Tachyon's spend step derives the payment key alone. The second is a
+# leanSPHINCS signature with one of LEANSPHINCS_VERIFY's hashes over a transaction digest
+# (ZOODLES_SIGHASH_BYTES below), verified in the circuit with the public key as a witness,
+# since the zero-knowledge fold hides it. The fee step fixes the fee last and hashes the change note,
 # the maximum-fee note's value less the fee, as Tachyon's does. Every hash is BLAKE3 under
 # either policy. The lineage's steps run in the background and are not in the transaction, as
 # Tachyon's are not; `zoodles_epoch` below prices one epoch of them. The simpler variant
@@ -4698,6 +4710,12 @@ def define_figures():
     fig("qk_device_idle_ms", millis(device_idle))
     fig("qk_device_z_bits", z_bits)
     fig("qk_device_z_kbytes", kb(z_bytes))
+    # The witness packed at its digits' widths: the leaf's and the padding's bits, and the mask
+    # elements' digits at their bits each.
+    fig(
+        "qk_device_witness_kbytes",
+        kb((leaf + padding + mask_elements * element_digits * element_bits) / 8),
+    )
     fig("device_mcu_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['mcu'] / 1e6, 1)} million")
     fig("device_se_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['secure_element'] / 1e6, 1)} million")
     fig("qk_device_mcu_s", sig(device_online / DEVICE_WORD_MULTS_PER_S["mcu"]))
@@ -4732,6 +4750,14 @@ def define_figures():
     fig("qk_z_floor_kbytes", kb(z_floor_bytes))
     fig("qk_min_rank", min_rank)
     fig("qk_succinct_proof_kbytes", kb(succinct))
+    fig("qr_fragment_bytes", QR_FRAGMENT_BYTES)
+    fig("qr_frames_per_s", QR_FRAMES_PER_S)
+    fig("qr_kbytes_per_s", sig(QR_FRAGMENT_BYTES * QR_FRAMES_PER_S / 1000, 1))
+    fig("qk_qr_current_s", sig(z_bytes / (QR_FRAGMENT_BYTES * QR_FRAMES_PER_S)))
+    fig("qr_dense_fragment_bytes", QR_DENSE_FRAGMENT_BYTES)
+    fig("qk_qr_dense_s", sig(z_bytes / (QR_DENSE_FRAGMENT_BYTES * QR_FRAMES_PER_S)))
+    fig("qr_max_fragment_bytes", fmt(QR_MAX_FRAGMENT_BYTES))
+    fig("qk_qr_max_s", sig(z_bytes / (QR_MAX_FRAGMENT_BYTES * QR_FRAMES_PER_S)))
     claim(
         "qk_qr_channel_too_big",
         "the leaf's masked response with no padding and no masking elements, and a succinct proof of the leaf, are each at least three times the largest leanSPHINCS signature",

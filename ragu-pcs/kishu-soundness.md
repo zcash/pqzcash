@@ -11,16 +11,23 @@ Akita variant has a different obligation, which is not Kishu's; it is the subjec
 
 Kishu's claim field is $\mathbb{F}_q$ with $q = 2^{64}-59$, which is Akita's own 64-bit
 commitment modulus. There is no decoupling of the commitment modulus from the claim field: the
-bits are committed one per digit as any small digit vector is, and the evaluation claims are
+digits are committed as any small digit vector is, bits where the circuit needs bits and
+Akita's own base-8 digits for integer words, and the evaluation claims are
 Akita's ordinary claims at the 64-bit profile, over the quadratic extension
 $E = \mathbb{F}_q[u]/(u^2-2)$ that the draft's sum-check uses. The Pasta values never reach the
-commitment: the first 255 bits of a value are read as eight 32-bit limbs
+commitment: a value's digits are read as eight 32-bit limbs
 $v_j = \langle c_j, s\rangle$, proved as linear claims in the same sum-check, and the verifier
 recomposes $V = \sum_j 2^{32j} v_j$ over the integers and reduces modulo $p$.
 
 So Kishu's obligations are: (B1) Akita's knowledge soundness at its 64-bit profile with claims
-in $E$, which the paper proves in the classical ROM; (B2) the soundness of the Booleanity
-check; (B3) an elementary limb lemma. The PCS frontier page's Kishu paragraph once said that
+in $E$, which the paper proves in the classical ROM; (B2) the soundness of the range check,
+the Booleanity check on the bit positions and Akita's paired predicate on the dibits and
+tribits; and (B4), for the fingerprint route only, the soundness of checking an integer
+relation in three instances over random 52-bit primes. (B4) is BitZ's argument, separate from
+the range check. The limb route asks nothing more of the proof system. The correctness of its
+Pasta arithmetic is a circuit-level matter: each constraint's sides are kept within a range no
+larger than $q$. Lemma B3 below only states what the limb reading of a value means. The
+PCS frontier page's Kishu paragraph once said that
 Kishu carries "the same open soundness obligation" as the Pasta-claims Akita variant, whose
 claims are $\mathbb{F}_p$ values over the 64-bit commitment. It was corrected on 2026-11-14
 (commit c8aa3302edbb5377e925a85e6552223c53f1934b): that variant's obligation, Theorem A on its
@@ -58,7 +65,10 @@ $s_0, \ldots, s_{254}$, and $V \bmod p$ is the Pasta value those bits encode.
 Proof sketch: each $v_j$ is a sum of at most 32 distinct powers of two below $2^{32}$, and
 $2^{32} < q$; Lemma L is not even needed, the integer is below $q$ outright. The hypothesis
 $n \le 2^{31}$ is only what makes the general linear claims of equation 6 (the projection rows,
-entries in $\{-1,0,1\}$) have integer magnitude below $q/2$ as well.
+entries in $\{-1,0,1\}$) have integer magnitude below $q/2$ as well. The lemma is stated for a
+value held in bits. For a value held in tribits the limb is the same linear reading over digits
+in $\{-4, \ldots, 3\}$ plus the offset constant, and its range follows from the alphabet. The
+statement should be redone for that reading when the proofs are attempted.
 
 **Theorem B (Kishu's claim reduction, sum-check form).** Fix $s \in \mathbb{F}_q^n$
 authenticated by an Akita commitment at the 64-bit profile. Suppose the verifier accepts the
