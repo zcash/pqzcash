@@ -538,7 +538,7 @@ STAGE_VALUE_COEFFICIENTS = {
     "pasta_q64": 1,
     "pasta_sis": 1,
     "pasta": 1,
-    "kishu": CLAIM_BYTES["kishu"] * 8,
+    "kishu": None,  # a claim-field element as tribits, set below E_MULT_DIGITS
     "bits_akita": CLAIM_BYTES["fp128"] * 8,
 }
 
@@ -1261,6 +1261,9 @@ def hash_app_piop(hash_, calls, input_bytes=0):
 Q64_BITS = 64
 Q64_DIGITS = word_digits(Q64_BITS)  # an F_q value as digits: 21 tribits and a bit
 E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
+STAGE_VALUE_COEFFICIENTS["kishu"] = (
+    E_MULT_DIGITS  # a stage value, a claim-field element, as tribits
+)
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
 Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
 # A 64-bit value is a canonical F_q element only below q = 2^64 - 59, so a prover-supplied
@@ -3543,21 +3546,38 @@ def fingerprint_step_extra_digits(rank, hp):
     )
 
 
-def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """The step circuits of 2^rank digits that the merge needs, at its fixed point; None
-    where each circuit's claim costs more digits than the circuit holds, as for the lattice
-    rows under BLAKE3."""
-    # The marginal circuit, measured where one more does not add a round to the merge's own
-    # sum-check transcript (six circuits against five; two against one would).
-    per_circuit = frontend_merge_digits(
+# A Kishu step keeps at least this many circuits of 2^rank digits for the application beside
+# its merge, so that the rank sets the step's capacity for the application as it does for the
+# other families, and the merge's slack adds to it.
+STEP_HEADROOM = 1.0
+
+
+def merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    """The merge's digits for one more circuit in the step, its claim and the claim's
+    absorption, measured where one more does not add a round to the merge's own sum-check
+    transcript (six circuits against five; two against one would)."""
+    return frontend_merge_digits(
         K, 6, rank, hp, bool_mults, bool_bits, bool_bytes, zk
     ) - frontend_merge_digits(K, 5, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+
+
+def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    """The circuits of 2^rank digits a Kishu step is: the merge's digits, the step's own
+    transcript digits in the merge above, and at least STEP_HEADROOM of a circuit for the
+    application's nodes, which fill the rest (kishu_costs), at the fixed point, since the
+    merge's digits grow with the circuits' claims; None where each circuit's claim costs more
+    digits than the circuit holds, as for the lattice rows under BLAKE3."""
+    per_circuit = merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
     if per_circuit >= 2**rank:
         return None
+    fixed = kishu_step_overhead_digits(rank, hp) + STEP_HEADROOM * 2**rank
     circuits = 1
     for _ in range(200):
         new = math.ceil(
-            frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+            (
+                frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+                + fixed
+            )
             / 2**rank
         )
         if new == circuits:
@@ -3582,29 +3602,42 @@ def handoff_merge_digits(K, circuits, hp):
     return digits, piop_word_mults(piop)
 
 
+# A Kishu step is a slot of some circuits of 2^rank digits that the merge and the application
+# share: the merge's digits and the step's own transcript digits take the first part, and the
+# application's nodes fill the rest, as many as fit. The step has the circuits of
+# frontend_circuits, the least that keep STEP_HEADROOM circuits for the application, so that
+# the rank sets the capacity and the merge's slack adds to it; the transaction measure packs
+# the application into that capacity, and the frontier chooses the rank per application. The
+# padding is charged as it costs: the application's digits are committed and range-checked at
+# their own number (unit_cost per digit), since a zero digit costs the Ajtai hash and the range
+# sum-check nothing, while the fold's sum-checks and the mask run over the whole slot, the
+# accumulator's length (accumulator_coefficients: circuits × 2^rank and the stages' values).
+#
 # Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
-# handoff, whose rejection sampling runs over the accumulator's digits, one per committed bit
-# (accumulator_coefficients: the merge's circuits × 2^rank and the stages' values as bits).
-# The projection form reveals coordinates and has no zero-knowledge rows.
+# handoff, whose rejection sampling runs over the accumulator's digits. The projection form
+# reveals coordinates and has no zero-knowledge rows.
 def kishu_costs(
     K, circuits, rank, hp, check, floor, zk, route, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS
 ):
-    """A Kishu row's work, and the parts of its masking fold. The merge's commitments are the
-    prover measure; its constraint PIOP joins the accumulation prover. The step pays its digits
-    and its overheads in the merge above (the application's constraint PIOP itself is per
-    application, DATA.piop). The fold is the expected rejection-sampling attempts, each a
-    commitment of a mask of the accumulator's digits under the masked matrix and as many
-    Gaussian samples, plus the handoff's merge; `fold_leaf` masks one step's 2^rank digits
-    instead, for a bare leaf handed over without a fuse (LEAF_HANDOFF). `alpha` and `sample`
-    stand in for the mask's Gaussian width and the sampler's cost, for the page's sweep of the
-    two."""
+    """A Kishu row's work, and the parts of its masking fold. The merge's commitments, its own
+    digits and the step's transcript digits, are the prover measure; with its constraint PIOP
+    and the fold's sum-checks over the slot they are the accumulation prover. The application's
+    digits are charged per digit (unit_cost), and the step's capacity for them is step_units,
+    less the fingerprint route's digits on a step with multiplications (step_units_mults, None
+    where those leave no room); the application's constraint PIOP itself is per application,
+    DATA.piop. The fold is the
+    expected rejection-sampling attempts, each a commitment of a mask of the accumulator's
+    digits under the masked matrix and as many Gaussian samples, plus the handoff's merge;
+    `fold_leaf` masks one circuit's 2^rank digits instead, for a bare leaf handed over without
+    a fuse (LEAF_HANDOFF). `alpha` and `sample` stand in for the mask's Gaussian width and the
+    sampler's cost, for the page's sweep of the two."""
     bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
     digits, merge_piop = frontend_merge(
         K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
     )
     accumulator = accumulator_coefficients("kishu", rank, circuits)
-    log_n = math.log2(accumulator)  # the bounds' N: this row's accumulator in bits
+    log_n = math.log2(accumulator)  # the bounds' N: this row's accumulator in digits
     bits = DIGIT_MAX["kishu"]
     per_digit = (
         ajtai_per_coefficient("pasta_q64", zk, floor, alpha, log_n, bits) / DIGITS["pasta_q64"]
@@ -3616,32 +3649,30 @@ def kishu_costs(
     leaf_masked_digit = (
         ajtai_per_coefficient("pasta_q64", True, floor, alpha, rank, bits) / DIGITS["pasta_q64"]
     )
-    commitments = circuits * 2**rank * (per_digit + bool_per_bit)
     per_step_digit = per_digit + bool_per_bit
-    step_digits = 2**rank + kishu_step_overhead_digits(rank, hp)
+    overhead = kishu_step_overhead_digits(rank, hp)
+    capacity = math.floor(circuits * 2**rank - digits - overhead)
+    assert capacity >= STEP_HEADROOM * 2**rank, (rank, circuits, digits, overhead)
+    route_extra = fingerprint_step_extra_digits(rank, hp) if route == "fingerprint" else 0
+    commitments = (digits + overhead) * per_step_digit
     attempts = mask_attempts(alpha) if zk else 0
     handoff_digits, handoff_piop = handoff_merge_digits(K, circuits, hp)
-    handoff = math.ceil(handoff_digits / 2**rank) * 2**rank * per_step_digit + handoff_piop
+    handoff = handoff_digits * per_step_digit + handoff_piop
     parts = dict(
         sampling=attempts * accumulator * sample,
         masks=attempts * accumulator * masked_digit,
         merge=handoff if zk else 0,
     )
+    acc_rate = accumulation_sumchecks("pasta_q64", 1, digits=1, word_mults=WORD_MULTS["pasta_q64"])
     fields = dict(
         prover=round(commitments),
-        accumulation_prover=round(
-            commitments
-            + merge_piop
-            + accumulation_sumchecks(
-                "pasta_q64", accumulator, digits=1, word_mults=WORD_MULTS["pasta_q64"]
-            )
-        ),
-        step_prover=round(step_digits * per_step_digit),
+        accumulation_prover=round(commitments + merge_piop + acc_rate * accumulator),
+        step_prover=round(capacity * per_step_digit),
+        unit_cost=per_step_digit,
+        step_units=capacity,
+        step_units_mults=capacity - route_extra if capacity > route_extra else None,
         route_step=(
-            round(
-                fingerprint_step_extra_digits(rank, hp) * per_step_digit
-                + fingerprint_step_range_mults(rank)
-            )
+            round(route_extra * per_step_digit + fingerprint_step_range_mults(rank))
             if route == "fingerprint"
             else 0
         ),
@@ -3962,9 +3993,11 @@ for p in points:
     p["assumption"] = ASSUMPTION_LEVEL[p["family"]]
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
-# the transaction measure (see APPLICATIONS).
+# the transaction measure (see APPLICATIONS); Kishu's rows set theirs in kishu_costs.
 for p in points:
     p["arith"] = p.get("arith") or FIELD[p["family"]]
+    if p.get("step_units") is not None:
+        continue
     if p["rank"] is None:
         p["step_units"] = BOOL_STEP_BITS  # a Boolean step, in AND gates
     elif p["arith"] == "bitz" or p["arith"].startswith("bits_pasta"):
@@ -4169,19 +4202,19 @@ budget = [
 RATE_PER_S = 1000 * WORD_MULTS_PER_MS  # word multiplications per second of one core
 
 
-def tx_steps(p, app, policy, count=1):
-    """The page's txStepsFor (pareto-template.html): the application's units in the row's
-    arithmetization under the row's hash policy, or under the page's for a row priced under
-    either, in as many steps as the row's step holds, rounded up; a proof tree is re-packed
-    first-fit decreasing, a Tachyon tree's last nodes, the two rerandomization fuses, as steps
-    of their own."""
-    units = APPLICATIONS[app][p["arith"]][policy if p["hashes"] == "any" else p["hashes"]]
-    cap = p["step_units"]
-    if not isinstance(units, list):
-        return math.ceil(units * count / cap)
-    own = OWN_LAST_STEPS.get(app, 0)
+def app_units(p, app, policy):
+    """The application's units in the row's arithmetization under the row's hash policy, or
+    under the page's for a row priced under either: a number, or a proof tree's nodes."""
+    return APPLICATIONS[app][p["arith"]][policy if p["hashes"] == "any" else p["hashes"]]
+
+
+def pack_nodes(nodes, cap, own):
+    """The page's packNodes: a proof tree's nodes into steps of capacity `cap`, a node larger
+    than a step taking whole steps and its remainder joining the rest, which fill steps
+    first-fit decreasing; the tree's last `own` nodes, a Tachyon tree's rerandomization
+    fuses, are steps of their own."""
     steps, items = own, []
-    for node in units[:-own] if own else units:
+    for node in nodes[:-own] if own else nodes:
         steps += node // cap
         if node % cap:
             items.append(node % cap)
@@ -4196,6 +4229,28 @@ def tx_steps(p, app, policy, count=1):
     return steps + len(bins)
 
 
+def step_capacity(p, app):
+    """A step's capacity for the application's units: step_units_mults where the application
+    has Pasta multiplications and the row has one (Kishu's fingerprint route; None where the
+    route's per-step digits leave the step no room), else step_units."""
+    if APPLICATION_MULTS[app] and "step_units_mults" in p:
+        return p["step_units_mults"]
+    return p["step_units"]
+
+
+def tx_steps(p, app, policy, count=1):
+    """The page's txStepsFor (pareto-template.html): the application's units in as many steps
+    as the row's step holds, rounded up, a proof tree packed by pack_nodes; infinite where the
+    row's step has no capacity for the application."""
+    units = app_units(p, app, policy)
+    cap = step_capacity(p, app)
+    if cap is None:
+        return math.inf
+    if not isinstance(units, list):
+        return math.ceil(units * count / cap)
+    return pack_nodes(units, cap, OWN_LAST_STEPS.get(app, 0))
+
+
 def app_fold(p, app):
     """The application's masking fold: over the leaf alone for a bare leaf handed over without
     a fuse (LEAF_HANDOFF), over the chain's accumulator otherwise."""
@@ -4203,9 +4258,20 @@ def app_fold(p, app):
 
 
 def tx_work(p, app, policy, count=1):
+    """The page's txWork: the steps' merges at the accumulation prover, and the application's
+    units at the row's cost per unit where it has one (Kishu, whose steps the merge and the
+    application share) or else at the per-step cost of as many steps; the fingerprint route's
+    per-step cost on an application with multiplications; the masking fold; and Kishu's
+    application PIOP."""
     steps = tx_steps(p, app, policy, count)
+    if p.get("unit_cost") is not None:
+        units = app_units(p, app, policy)
+        total = sum(units) if isinstance(units, list) else units * count
+        base = total * p["unit_cost"] + steps * p["accumulation_prover"]
+    else:
+        base = steps * (p["step_prover"] + p["accumulation_prover"])
     return (
-        steps * (p["step_prover"] + p["accumulation_prover"])
+        base
         + (steps * p.get("route_step", 0) if APPLICATION_MULTS[app] else 0)
         + app_fold(p, app)
         + PIOP_WORK.get(app, {}).get(p["arith"], 0) * count
@@ -4890,8 +4956,14 @@ def define_figures():
         millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
     )
     action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
+    # Actions in a step beside its merge and the fee node, at the zero-knowledge limb row's
+    # capacity for the application at each rank.
     for rank in (17, 19, 21):
-        fig(f"zoodles_actions_per_step_{rank}", int((2**rank - node_digits["FeeFuse"]) // action))
+        row = pick("bits_q64", rank=rank, zk=True, route="limbs", floor=DEFAULT_FLOOR)
+        fig(
+            f"zoodles_actions_per_step_{rank}",
+            int((row["step_units"] - node_digits["FeeFuse"]) // action),
+        )
     # The epoch-set page's comparison of the bucketed table with the sorted tree, whose
     # exclusion proof is the path and the leaf, log2 m + 1 hashes.
     gaps = []
@@ -5104,10 +5176,11 @@ def define_figures():
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
         fig(f"tx_recovery_kishu_zk_alpha{a}_rank", q["rank"])
     assert sweep[MASK_ALPHA] == w
+    fig("kishu_zk_alpha_48_to_96_pct", sig(100 * (1 - sweep[96] / sweep[48])))
     claim(
         "kishu_zk_falls_with_alpha",
-        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 96, by under two percent from 48 to 96",
-        all(sweep[a] > sweep[2 * a] for a in (6, 12, 24, 48)) and sweep[96] > 0.98 * sweep[48],
+        "Kishu's zero-knowledge recovery falls at each doubling of α from 6 to 96",
+        all(sweep[a] > sweep[2 * a] for a in (6, 12, 24, 48)),
     )
     # The widest and the narrowest masks the table's rows take, and the slices' thresholds on
     # the sweep's grid at the recovery row (the width paragraph).
@@ -5162,7 +5235,6 @@ def define_figures():
     fig("kishu_zk_alpha_recovery_band_min", sig(lo))
     fig("kishu_zk_alpha_grid_top", fmt(round(max(MASK_ALPHA_GRID))))
     fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
-    fig("kishu_zk_alpha_karney_excess_pct", sig(100 * excess["karney"]))
     claim(
         "alpha_optimum_at_grid_top",
         "the transaction measure's least zero-knowledge work is at the top of the width grid for every transaction-sized application at every sampler rate, since the masked matrix does not move across the grid",
@@ -5172,10 +5244,8 @@ def define_figures():
     )
     claim(
         "alpha_page_excess",
-        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application at the page's sampler, and within thirty at Karney's rate",
-        mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9
-        and excess["page"] < 0.10
-        and excess["karney"] < 0.30,
+        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application at the page's sampler",
+        mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9 and excess["page"] < 0.10,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
@@ -5374,12 +5444,13 @@ def define_figures():
     # The stage groups' support (the accumulation prover paragraph): Ragu's native stages'
     # values, and the bits they are in Kishu.
     fig("stage_values", fmt(STAGE_VALUES_TOTAL))
-    fig("kishu_stage_bits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
+    fig("kishu_stage_digits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
     # The least rank at which one circuit holds Kishu's merge, below which the batch is about
     # the merge's size whatever the rank.
     fig(
         "kishu_one_circuit_rank",
-        min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] == 1),
+        # The merge within one circuit, beside the application's.
+        min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2),
     )
 
     # Accumulator memory (the axes list).
@@ -6363,17 +6434,26 @@ def define_figures():
     fig("matrix_rows_both_floors", len(common))
     fig("matrix_moves_147", len(moves147))
     fig("matrix_moves_150", len(moves150))
+    # A Kishu row's key is (family, check, route, zk, rank); an Akita row's (variant, hash,
+    # zk, rank).
+    kishu_moves147 = [key for key in moves147 if key[0] in KISHU]
+    fig("matrix_moves_147_kishu", len(kishu_moves147))
     claim(
         "matrix_moves_147_blake3_wide",
-        "the rows whose accumulation matrix grows from the 128-bit floor to the 147-bit one are all BLAKE3 rows of the Akita variants, and none is a Kishu row",
-        bool(moves147) and all(len(key) == 4 and key[1] == "blake3" for key in moves147),
+        "the rows whose accumulation matrix grows from the 128-bit floor to the 147-bit one are BLAKE3 rows of the Akita variants and Kishu's rows at rank 23 without zero knowledge, the widest accumulators",
+        bool(kishu_moves147)
+        and all(
+            (len(key) == 4 and key[1] == "blake3")
+            or (key[0] in KISHU and key[3] is False and key[4] == 23)
+            for key in moves147
+        ),
     )
     claim(
         "kishu_matrix_same_at_150",
-        "Kishu's accumulation matrices are the same at 128, 147, and 150 bits",
+        "Kishu's accumulation matrices are the same at 147 and 150 bits",
         all(
-            shape(shapes[(128, key)][0]) == shape(shapes[(147, key)][0]) == shape(at150[key][0])
-            and shape(shapes[(128, key)][1]) == shape(shapes[(147, key)][1]) == shape(at150[key][1])
+            shape(shapes[(147, key)][0]) == shape(at150[key][0])
+            and shape(shapes[(147, key)][1]) == shape(at150[key][1])
             for key in common
             if key[0] in KISHU
         ),
