@@ -1797,6 +1797,113 @@ def zoodles_epoch_piop():
     )
 
 
+# ---- Migration: recovery spends from an older pool with a Zoodles output ---------------------
+# What a post-quantum proof system proves for the older pools is a migration: recovery spends
+# of Tachyon or Ironwood notes and one Zoodles output, in Zoodles' proof tree with a recovery
+# node in place of each spend's two steps. The transactions offered spend MIGRATION_INPUTS
+# notes of one pool.
+#   - An Ironwood input is the Ironwood recovery circuit (recovery_cost), ZIP 2005's Recovery
+#     Statement.
+#   - A Tachyon input is the recovery spend of the Recovery from Tachyon page, with the payment
+#     key changed as that page suggests: H^qk(qsk) = qk, one BLAKE3 compression, and qk's
+#     reduction modulo p, a 256-bit range check; four Poseidon permutations over Pallas
+#     (TACHYON_RECOVERY_PERMUTATIONS: the payment key, the note's master key, the note
+#     commitment, and the nullifier group's sponge, by Tachyon's key and nullifier definitions
+#     in keep/tachyon-statements.md); the commitment's path in a hash-based tree over Tachyon's
+#     published commitments and the nullifier's exclusion from a sorted tree over its published
+#     nullifiers, each MIGRATION_TREE_LEVELS levels and a leaf under the page's policy, the
+#     exclusion with its two 256-bit comparisons as the lineage step has them; and the amount's
+#     and the epoch's range checks. One nullifier is derived and excluded here; a note's
+#     nullifiers for the other epochs it has lived through are a lineage in the background, as
+#     Zoodles' own is, and are not counted.
+# Poseidon over Pallas is native over Pasta, POSEIDON_RAGU_GATES a permutation. In any other
+# unit a permutation's POSEIDON_PALLAS_SBOXES S-boxes of degree five are three Pallas
+# multiplications each, and one more reduces each S-box's input, a linear combination of
+# earlier reduced values with constants of the field's size, whose relation is linear in the
+# witness but needs its own quotient and result.
+# Each recovery node joins the action tree as a spend's action step does, with that step's
+# roots and openings. The output, the merges, and the fee step are Zoodles' own.
+MIGRATION_INPUTS = (1, 4)
+MIGRATION_POOLS = ("tachyon", "ironwood")
+MIGRATION_TREE_LEVELS = 32
+POSEIDON_PALLAS_SBOXES = POSEIDON_RAGU_GATES // 2
+POSEIDON_PALLAS_MULTS = 4 * POSEIDON_PALLAS_SBOXES
+TACHYON_RECOVERY_PERMUTATIONS = 4
+TACHYON_RECOVERY_RANGES = 3 * (256,) + (ZOODLES_AMOUNT_BITS, ZOODLES_EPOCH_BITS)
+MIGRATION_RECOVERY_NODES = {"tachyon": "TachyonRecovery", "ironwood": "IronwoodRecovery"}
+
+
+def migration_nodes(pool, inputs):
+    """Zoodles' tree for `inputs` recovery spends from `pool` and one output: a recovery node
+    for each input, the output's two steps, a merge per action after the first, and the fee
+    step."""
+    return (
+        [MIGRATION_RECOVERY_NODES[pool]] * inputs
+        + ["OutputBind", "OutputAction"]
+        + ["ActionMerge"] * inputs
+        + ["FeeFuse"]
+    )
+
+
+def pallas_mult_cost(field):
+    """One Pallas base-field multiplication in the unit of `field`'s arithmetization."""
+    if field == "pasta":
+        return 1
+    if field == "boolean":
+        return (1 + BOOL_REDUCTION) * mult_ands(255)
+    return RECOVERY_MULT[field]
+
+
+def poseidon_pallas_cost(field):
+    """One Poseidon permutation over Pallas, which a recovery spend must open as Tachyon
+    computed it, whatever the page's hash policy."""
+    if field == "pasta":
+        return POSEIDON_RAGU_GATES
+    return POSEIDON_PALLAS_MULTS * pallas_mult_cost(field)
+
+
+def tachyon_recovery_cost(field, hp):
+    """One Tachyon recovery spend in the unit of `field`'s arithmetization."""
+    return (
+        hash_app_cost(field, "blake3", 1)
+        + TACHYON_RECOVERY_PERMUTATIONS * poseidon_pallas_cost(field)
+        + 2 * tree_path_cost(field, hp, MIGRATION_TREE_LEVELS)
+        + sum(range_digits(field, bits) for bits in TACHYON_RECOVERY_RANGES)
+    )
+
+
+def migration_node_cost(field, hp, node):
+    _, roots, openings, _ = ZOODLES_NODES["SpendAction"]
+    join = roots * zoodles_root_cost(field) + openings * zoodles_opening_cost(field, hp)
+    if node == "TachyonRecovery":
+        return tachyon_recovery_cost(field, hp) + join
+    if node == "IronwoodRecovery":
+        return recovery_cost(field, hp) + join
+    return zoodles_node_cost(field, hp, node, "preimage")
+
+
+def migration_node_piop(route, node):
+    if node not in MIGRATION_RECOVERY_NODES.values():
+        return zoodles_node_piop(node, "preimage")
+    _, roots, openings, _ = ZOODLES_NODES["SpendAction"]
+    claim_bytes = CLAIM_BYTES["kishu"]
+    join = (
+        (3 * roots + CLAIM_GATES * openings, E_MULT_PIOP),
+        (openings, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
+    )
+    if node == "IronwoodRecovery":
+        return piop_sum((1, recovery_piop(route)), *join)
+    return piop_sum(
+        (1 + 2 * (MIGRATION_TREE_LEVELS + 1), BLAKE3_PIOP),
+        (TACHYON_RECOVERY_PERMUTATIONS * POSEIDON_PALLAS_MULTS, MULT_ROUTES[route][1]),
+        *((1, range_check_piop(bits)) for bits in TACHYON_RECOVERY_RANGES),
+        *join,
+    )
+
+
+MIGRATIONS = {f"{pool}_zoodles{n}": (pool, n) for pool in MIGRATION_POOLS for n in MIGRATION_INPUTS}
+
+
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
 APPLICATIONS = {  # the page's transaction applications, in each arithmetization's unit under each policy
     "recovery": {a: {hp: round(recovery_cost(a, hp)) for hp in HASH_POLICIES} for a in ARITHS},
@@ -1848,6 +1955,17 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
         }
         for n, (s, o) in TACHYON_TRANSACTIONS.items()
     },
+    # A migration is Zoodles' tree with a recovery node for each input.
+    **{
+        app: {
+            a: {
+                hp: [round(migration_node_cost(a, hp, node)) for node in migration_nodes(pool, n)]
+                for hp in HASH_POLICIES
+            }
+            for a in ARITHS
+        }
+        for app, (pool, n) in MIGRATIONS.items()
+    },
 }
 # The work of Kishu's constraint PIOP per application, by multiplication route, which the
 # transaction measure adds to its rows (DATA.piop); the other families' PIOPs are inside their
@@ -1894,6 +2012,18 @@ PIOP_WORK = {
         }
         for n, (s, o) in TACHYON_TRANSACTIONS.items()
     },
+    **{
+        app: {
+            a: round(
+                sum(
+                    piop_word_mults(migration_node_piop(kishu_route(a), node))
+                    for node in migration_nodes(pool, n)
+                )
+            )
+            for a in KISHU_ARITHS
+        }
+        for app, (pool, n) in MIGRATIONS.items()
+    },
 }
 
 # Whether an application has Pasta multiplications, which is when Kishu's fingerprint route
@@ -1905,6 +2035,7 @@ APPLICATION_MULTS = (
     | {f"zoodles_merkle_{auth}": False for auth in ZOODLES_AUTHS}
     | {"zoodles_epoch": False}
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
+    | {app: True for app in MIGRATIONS}
 )
 # The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
 # is re-packed into steps (DATA.own_last_steps), and how many such nodes end the list: two for
@@ -4397,6 +4528,7 @@ def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1)
 PAGE_APPLICATIONS = (
     ("recovery", 1),
     ("recovery", 4),
+    *((app, 1) for app in MIGRATIONS),
     ("qk", 1),
     *((f"leansphincs_{h}", 1) for h in LEANSPHINCS_VERIFY),
     *((f"zoodles_{auth}", 1) for auth in ZOODLES_AUTHS),
@@ -4935,6 +5067,12 @@ def define_figures():
     fig("tx_tachyon4_kishu_s", secs(tachyon4))
     p, tachyon4_zk = kishu_best("tachyon4", zk=True)
     fig("tx_tachyon4_kishu_zk_s", secs(tachyon4_zk))
+    # The migrations (the Recovery from Tachyon page).
+    kishu_limbs = "bits_pasta_limbs"
+    fig("app_tachyon_recovery_kishu", millions(APP["tachyon_zoodles1"][kishu_limbs]["blake3"][0]))
+    fig("app_tachyon_zoodles1_kishu", millions(sum(APP["tachyon_zoodles1"][kishu_limbs]["blake3"])))
+    for app in MIGRATIONS:
+        fig(f"tx_{app}_kishu_zk_s", secs(kishu_best(app, zk=True)[1]))
     p, tachyon4_bitz_zk = best_for("bitz", "tachyon4", zk=True)
     fig("tx_tachyon4_bitz_zk_s", secs(tachyon4_bitz_zk))
     p, tachyon4_flock = best_for("flock", "tachyon4")
@@ -6590,16 +6728,22 @@ def define_figures():
         "the masking fold is a fraction of a second on a fast core and a few seconds on a phone (the note's §5.8)",
         0.1 <= fold / RATE_PER_S < 1,
     )
-    # The user proof it is compared with: two to four dozen rank-13 steps over Pasta at the page's
-    # step and accumulation prover.
-    step = pick("pasta_sis", rank=13)
-    per_step = step["step_prover"] + step["accumulation_prover"]
-    fig("zk_note_proof24_s", secs(24 * per_step))
-    fig("zk_note_proof48_s", secs(48 * per_step))
+    # The note's example is at Pasta's modulus. The transactions a post-quantum Zcash would prove
+    # are the migrations, and the page prices them with Kishu, without zero knowledge and with
+    # it, on each one's best row.
+    plain = [kishu_best(app)[1] for app in MIGRATIONS]
+    masked = [kishu_best(app, zk=True)[1] for app in MIGRATIONS]
+    fig("zk_note_migration_min_s", secs(min(plain)))
+    fig("zk_note_migration_max_s", secs(max(plain)))
+    fig("zk_note_migration_zk_min_s", secs(min(masked)))
+    fig("zk_note_migration_zk_max_s", secs(max(masked)))
+    over = [100 * (m / q - 1) for m, q in zip(masked, plain)]
+    fig("zk_note_zk_over_plain_pct_min", sig(min(over), 2))
+    fig("zk_note_zk_over_plain_pct_max", sig(max(over), 2))
     claim(
-        "mask_fold_small_fraction",
-        "the masking fold is under three percent of a two-dozen-step user proof",
-        fold / (24 * per_step) < 0.03,
+        "kishu_migration_zk_overhead",
+        "zero knowledge adds more than a third and less than the whole of a Kishu migration's prover without it",
+        all(100 / 3 < x < 100 for x in over),
     )
 
     for r in (13, 14, 15, 16):

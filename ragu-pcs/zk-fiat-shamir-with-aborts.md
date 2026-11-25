@@ -410,12 +410,18 @@ attempts per fold.
   the <!--fig:mask_attempts_alpha6-->7.5<!--/fig--> of $\alpha = 6$
   ([§5.6](#56-cutting-the-masked-bound)), or <!--fig:zk_note_fold_karney_s-->1.91<!--/fig--> s with
   [Karney's](#ref-kar16) exact sampler at <!--fig:mask_karney_sample_ns-->300<!--/fig-->
-  nanoseconds. <!--claim:mask_fold_small_fraction:b1798f-->An ordinary user proof of two to four
-  dozen rank-13 steps over Pasta is <!--fig:zk_note_proof24_s-->36.4<!--/fig-->
-  to <!--fig:zk_note_proof48_s-->72.8<!--/fig--> s of prover at the page's rates, so the fold is
-  under three percent of it, and on a phone a few seconds; [§5.8](#58-the-users-online-cost) moves
-  the attempts and the obligations off the device's critical path.<!--/claim--> The merge circuit
-  sees only the accepted attempt.
+  nanoseconds. These are costs at Pasta's modulus. What a post-quantum Zcash would prove with such a
+  fold is a migration, which [the frontier page](pareto-template.html#transaction-prover) prices
+  with Kishu, whose commitments are at a 64-bit modulus. Recovering one or four Tachyon or Ironwood
+  notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0593<!--/fig-->
+  to <!--fig:zk_note_migration_max_s-->0.356<!--/fig--> s of prover there without zero knowledge,
+  and <!--fig:zk_note_migration_zk_min_s-->0.113<!--/fig-->
+  to <!--fig:zk_note_migration_zk_max_s-->0.513<!--/fig--> s with
+  it. <!--claim:kishu_migration_zk_overhead:6b5dd4-->So zero knowledge
+  adds <!--fig:zk_note_zk_over_plain_pct_min-->44<!--/fig-->
+  to <!--fig:zk_note_zk_over_plain_pct_max-->90<!--/fig--> percent to such a
+  transaction.<!--/claim--> [§5.8](#58-the-users-online-cost) moves the attempts and the obligations
+  off the device's critical path. The merge circuit sees only the accepted attempt.
 - Challenge set. $d = 512$ is the accumulation matrix's ring dimension in Akita's catalog at this
   geometry, so weight-20 ternary challenges there cost nothing and give $2^{138}$ choices. In
   dimension 128 weight 32 is needed for $2^{130}$, and in dimension 64 ternary challenges give only

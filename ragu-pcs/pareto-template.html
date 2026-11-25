@@ -168,6 +168,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><select id="txapp2">
         <option value="recovery" selected>the Ironwood recovery circuit</option>
         <option value="recovery:4">a transaction with 4 Ironwood recovery inputs</option>
+        <option value="tachyon_zoodles1">a migration: 1 Tachyon recovery input, 1 Zoodles output</option>
+        <option value="tachyon_zoodles4">a migration: 4 Tachyon recovery inputs, 1 Zoodles output</option>
+        <option value="ironwood_zoodles1">a migration: 1 Ironwood recovery input, 1 Zoodles output</option>
+        <option value="ironwood_zoodles4">a migration: 4 Ironwood recovery inputs, 1 Zoodles output</option>
         <option value="qk">the hardware wallet's statement alone: H^qk, one BLAKE3 compression</option>
         <option value="leansphincs_blake3">a leanSPHINCS verifier with BLAKE3 (pruned key, <!--fig:leansphincs_blake3_calls-->298<!--/fig--> compressions)</option>
         <option value="leansphincs_blake2s">a leanSPHINCS verifier with BLAKE2s (pruned key, <!--fig:leansphincs_blake2s_calls-->298<!--/fig--> compressions)</option>
@@ -2158,10 +2162,11 @@ function txShort(side) {
   return text.length > 44 ? text.slice(0, 42).trimEnd() + '…' : text;
 }
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
-// does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash.
+// does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash,
+// alone or as a migration's input (the migrations' names start with their pool's).
 let userHeader = 2, lastForced = false;  // the header chosen on the control, kept through a forced spell
 function forcedHeader() {
-  return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery'); });
+  return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery') || app.startsWith('ironwood'); });
 }
 function selected() {
   const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
