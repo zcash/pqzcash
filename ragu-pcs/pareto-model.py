@@ -5006,16 +5006,14 @@ def define_figures():
     plain_per_step = plain["step_prover"] + plain["accumulation_prover"] + plain["route_step"]
     fig("tx_recovery_kishu_steps_s", secs(plain_steps * plain_per_step))
     kishu_bits = DIGIT_MAX["kishu"]
-    fig(
-        "kishu_digit_mults",
-        sig(
-            ajtai_per_coefficient(
-                "pasta_q64", False, DEFAULT_FLOOR, log_n=recovery_log_n, digit_max=kishu_bits
-            )
-            / DIGITS["pasta_q64"],
-            3,
-        ),
+    digit_mults = (
+        ajtai_per_coefficient(
+            "pasta_q64", False, DEFAULT_FLOOR, log_n=recovery_log_n, digit_max=kishu_bits
+        )
+        / DIGITS["pasta_q64"]
     )
+    fig("kishu_digit_mults", sig(digit_mults, 3))
+    fig("kishu_value_commit_mults", sig(VALUE_DIGITS * digit_mults, 3))
     fig(
         "kishu_digit_mults_masked",
         sig(
