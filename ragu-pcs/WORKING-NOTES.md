@@ -76,16 +76,16 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   (re-planned) / 83,234 SIS-aware; Pasta with 64-bit commitments 70,725 (re-planned).
 - Per-coefficient prover word multiplications: Pedersen 6,400; Ajtai at Pasta 14,200; 128-bit
   2,600; Pasta/64-bit 2,000; Goldilocks 400.
-- Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice
-  the prover work (the 2.2x rows term of the accumulation matrix, system-wide; weight-20
-  challenges in dimension 512 since the evening of 2026-11-04, 2.37 with the note's weight-32 example) and 18 more atoms
-  in the zero-knowledge layer's merge, which is the merge priced; the opening bytes and the
+- Zero knowledge on the Pareto page (toggle): Akita with the masked witness costs about twice the
+  prover work (the 2.2x rows term of the accumulation matrix, system-wide; weight-20 challenges in
+  dimension 512 since the evening of 2026-11-04, 2.37 with the note's weight-32 example) and 18 more
+  atoms in the zero-knowledge layer's merge, which is the merge priced; the opening bytes and the
   verifier are unchanged, since the decider's accumulator is at the ordinary length and Akita's
   internal levels and terminal keep their own bounds (since 2026-11-04; before, the length was
-  charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15; the same day's modelling of
-  the masked rank through the terminal images' share, +36 to 59% bytes, was withdrawn, since
-  that share is the floor's mechanism, not the mask's).
-  Pedersen-IPA's blinding is free, so its points do not change.
+  charged to the opening, +1.5 to 7 KB, and to the verifier, x1.15; the same day's modelling of the
+  masked rank through the terminal images' share, +36 to 59% bytes, was withdrawn, since that share
+  is the floor's mechanism, not the mask's). Pedersen-IPA's blinding is free, so its points do not
+  change.
 - Hash-based (WHIR with ARC accumulation over Pasta, on the Pareto page): WHIR at 2^17 over a
   256-bit field, 128 bits, Johnson regime: 244/155/123 KiB at rates 1/2, 1/4, 1/8 with 2.7k,
   2.0k, 1.7k verifier hashes. ARC's verifier: 2*128/log2(1/rate) openings per input (256, 128,
@@ -135,17 +135,16 @@ word multiplications). The Akita paper is ePrint 2026/1983; `work/akita.txt` is 
   (`work/whir-sweep-150.log`); ARC openings scale with the floor. pasta-proof-size.md §9
   discusses the Module-SIS cost models with references; `work/2015-046.pdf` is
   Albrecht–Player–Scott.
-- Verifier work on the page (third measure "verifier work"; unit toggle word mults /
-  microseconds at 3e9 per second): Pedersen-IPA modelled (two 2^rank MSMs plus a scalar mult
-  per folded commitment, ~49 ms at rank 13); Akita measured (paper Table 16, one thread: 4.2 ms
-  fp128, 3.9 ms Goldilocks at 2^27 bits, +0.4 ms per doubling; Pasta variants x4, an
-  assumption); hash-based deciders = WHIR verifier hashes x native Poseidon cost (+1e6 for
-  arithmetic; the ARC rows add the decider's two extra first-round trees, so WHIR over Pasta is
-  62 ms at rate 1/8 under ARC and 31 under recursion), Blake3-measured 0.7-1.4 ms; 𝔽₂ = the
-  FRI-Binius verifier: auth + leaf hashes x BLAKE3 native + field mults x clmuls, 0.2-1.4 ms;
-  BitZ's Ligerito 1.3 ms-class verifier scaled by the extra trees in its ARC rows. Akita's small-field
-  (p32) verifier is slower than p64/p128 at equal bits because of 4x the coefficients and
-  degree-4 extension-field arithmetic in the sum-checks.
+- Verifier work on the page (third measure "verifier work"; unit toggle word mults / microseconds at
+  3e9 per second): Pedersen-IPA modelled (two 2^rank MSMs plus a scalar mult per folded commitment,
+  ~49 ms at rank 13); Akita measured (paper Table 16, one thread: 4.2 ms fp128, 3.9 ms Goldilocks at
+  2^27 bits, +0.4 ms per doubling; Pasta variants x4, an assumption); hash-based deciders = WHIR
+  verifier hashes x native Poseidon cost (+1e6 for arithmetic; the ARC rows add the decider's two
+  extra first-round trees, so WHIR over Pasta is 62 ms at rate 1/8 under ARC and 31 under
+  recursion), Blake3-measured 0.7-1.4 ms; 𝔽₂ = the FRI-Binius verifier: auth + leaf hashes x BLAKE3
+  native + field mults x clmuls, 0.2-1.4 ms; BitZ's Ligerito 1.3 ms-class verifier scaled by the
+  extra trees in its ARC rows. Akita's small-field (p32) verifier is slower than p64/p128 at equal
+  bits because of 4x the coefficients and degree-4 extension-field arithmetic in the sum-checks.
 - Rank under Akita follows the application: the merge is cut into step circuits and opened as
   one batch, so its cost is nearly flat in rank (about 160 B and a dozen atoms from rank 13 to
   16 via per-circuit claims, against a few percent of prover padding). Under Pedersen-IPA the
@@ -602,23 +601,23 @@ a principled argument. Changes:
   its first round, each under its own root (cheaper than a separate accumulation check plus a
   stand-alone proof, which would open four). 𝔽₂: `first_trees=3` for ARC rows, 1 for recursive.
   WHIR/FRI: `whir_extra_trees` adds, per extra tree, first_samples x 16 elements x 32 or 24 B of
-  leaves plus the paths as a pruned multiproof, `frib.expected_multiproof_hashes(height,
-  first_samples)` x 32 B (the user, 2026-10-29: assume pruning of path segments or a Merkle cap;
-  my first version counted full paths, 177 -> 362 KB at rank 13 rate 1/8, which the user
-  questioned), x size_factor, to the measured stand-alone bytes, and the same hashes plus the
-  leaf permutations to the verifier's hashes (post hoc, since those sizes are measurements;
-  `first_samples` is now loaded from the sweep TSV; WHIR_FOLD 16 = the reference
-  implementation's default folding factor). The user: pruning counts as a design change if the
-  implementation does not do it. Checked: the WHIR crate at the sweep's revision prunes already
-  (`src/protocols/merkle_tree.rs`, `opening_sibling_indices` merges neighbouring branches and
-  sends no hint for them; the verifier mirrors it), so the measured sizes are pruned multiproofs
-  and the extra trees priced the same way are not a design change for WHIR. The 𝔽₂ rows use the
-  optimizer's own Merkle-cap accounting (Ulrich's expected multiproof hashes); BitZ's extra is a
-  share of its measured Ligerito bytes, so pruning cancels in the ratio. BitZ ARC: the Ligerito part x (1 + 2 x the first level's share of columns and paths,
-  `ligerito_first_share`), the verifier likewise as a bound. Effect: WHIR ARC at rank 13, rate
-  1/8: 177 -> 326 KB (362 with full paths); the recursive rows (one stand-alone proof) are a
-  little over half the ARC rows' bytes; the WHIR-over-Pasta ARC verifier 62 ms at rate 1/8 (31
-  under recursion).
+  leaves plus the paths as a pruned multiproof,
+  `frib.expected_multiproof_hashes(height, first_samples)` x 32 B (the user, 2026-10-29: assume
+  pruning of path segments or a Merkle cap; my first version counted full paths, 177 -> 362 KB at
+  rank 13 rate 1/8, which the user questioned), x size_factor, to the measured stand-alone bytes,
+  and the same hashes plus the leaf permutations to the verifier's hashes (post hoc, since those
+  sizes are measurements; `first_samples` is now loaded from the sweep TSV; WHIR_FOLD 16 = the
+  reference implementation's default folding factor). The user: pruning counts as a design change if
+  the implementation does not do it. Checked: the WHIR crate at the sweep's revision prunes already
+  (`src/protocols/merkle_tree.rs`, `opening_sibling_indices` merges neighbouring branches and sends
+  no hint for them; the verifier mirrors it), so the measured sizes are pruned multiproofs and the
+  extra trees priced the same way are not a design change for WHIR. The 𝔽₂ rows use the optimizer's
+  own Merkle-cap accounting (Ulrich's expected multiproof hashes); BitZ's extra is a share of its
+  measured Ligerito bytes, so pruning cancels in the ratio. BitZ ARC: the Ligerito part x (1 + 2 x
+  the first level's share of columns and paths, `ligerito_first_share`), the verifier likewise as a
+  bound. Effect: WHIR ARC at rank 13, rate 1/8: 177 -> 326 KB (362 with full paths); the recursive
+  rows (one stand-alone proof) are a little over half the ARC rows' bytes; the WHIR-over-Pasta ARC
+  verifier 62 ms at rate 1/8 (31 under recursion).
 - Not changed, noted for later: the merge circuits price ARC as "t openings per input" x 2 inputs
   (ARC, ePrint 2024/1731, §1: "t = 2 lambda / log(1/rho) Merkle path openings per input"); whether
   the step's own witness oracle and the output accumulator add in-circuit openings was not
@@ -635,10 +634,10 @@ a principled argument. Changes:
 - Page prose updated: lede unchanged; "Which third measure" (verifier range), "The hash-based
   families" (197-831 KB, the three trees, 226 vs 326 KB, Goldilocks a sixth), "ARC against each
   scheme's own recursion" (proofs now differ; recursion's proof a little over half of ARC's; the 𝔽₂
-  family's own recursion), "Verifier work" (13/62 ms ARC, 7/31 recursion; 𝔽₂ 0.2-1.4 ms; BitZ scaled), and the
-  𝔽₂ paragraph (two designs, the ring-switching degree, the cost model, the prover and proof
-  ranges). Republished to the same URL on 2026-10-29. The 2024/504 and Flock texts extracted for
-  this are work/2024-504.txt, work/flock.txt, work/arc.txt.
+  family's own recursion), "Verifier work" (13/62 ms ARC, 7/31 recursion; 𝔽₂ 0.2-1.4 ms; BitZ
+  scaled), and the 𝔽₂ paragraph (two designs, the ring-switching degree, the cost model, the prover
+  and proof ranges). Republished to the same URL on 2026-10-29. The 2024/504 and Flock texts
+  extracted for this are work/2024-504.txt, work/flock.txt, work/arc.txt.
 - 2026-10-30, ZERO-KNOWLEDGE ROWS for the 𝔽₂ family. The user asked whether zk can be added to
   FRI-Binius, by what scheme, and whether we can price it with confidence; then "add the
   defensible ones". Two routes. (a) The full mask: Diamond, "Zero-Knowledge Polynomial Commitment
@@ -746,70 +745,66 @@ a principled argument. Changes:
   trinomial, the twiddles, the clmul counts 4/8/11 and 7, the prover comparison), the
   recursion paragraph (168M bits), the Knobs entry; the zk ratios re-read (1.8x rec full mask;
   Zook one to four percent). Republished 2026-11-02.
-- 2026-11-02, later: the hover text wraps the row label at commas into lines of about 60
-  characters (`wrapLabel` in the template; the user: the detail window was too wide to read).
-  A Signal summary for Ulrich of the 2026-10-28 to 11-02 changes is keep/ulrich-summary-2026-11-02.md.
-- 2026-11-02, STATE OF THE STUDY: the user and Ulrich agree that refining the estimates without
-  an implementation has reached diminishing returns; Suyash (Shielded Labs) is exploring the
-  hash-based branch by implementation, and the plan is two prototypes, one hash-based and one
-  lattice-based, to decide on. Ulrich is "not so much convinced of using ARC, or maybe not
-  baked into each recursive proof". The user's reading of the 191-bit result: it does not pay
-  off, except a little in prover cost at larger proof sizes (high rates). Open design question
-  from the user: Pasta is needed only for the Ironwood recovery circuit, but recovery and
-  non-recovery transactions must aggregate together; can Goldilocks and the Pasta-claims
-  variant be combined? (Answered in the chat: emulate Pasta non-natively inside the recovery
-  circuit over a Goldilocks arithmetization, or carry a second Pasta-claims accumulator.) The
-  user: the Merkle path is native, since the Ironwood commitment tree is public and can be
-  rehashed with whatever hash the arithmetization likes; so the recovery circuit's Pasta-only
-  content is the two full-width Pallas scalar multiplications and the two Sinsemilla
-  commitments, 3-6k Pasta multiplications, 0.3-0.6M Goldilocks constraints non-natively, while
-  its seven BLAKE2b compressions get cheaper over a 64-bit field; the emulated recovery leaf is
-  plausibly no larger than the native Pasta one, so the Goldilocks route wins at any recovery
-  share. RETRACTED 2026-11-03 by keep/recovery-circuit-cost.md (the user: estimate more
+- 2026-11-02, later: the hover text wraps the row label at commas into lines of about 60 characters
+  (`wrapLabel` in the template; the user: the detail window was too wide to read). A Signal summary
+  for Ulrich of the 2026-10-28 to 11-02 changes is keep/ulrich-summary-2026-11-02.md.
+- 2026-11-02, STATE OF THE STUDY: the user and Ulrich agree that refining the estimates without an
+  implementation has reached diminishing returns; Suyash (Shielded Labs) is exploring the hash-based
+  branch by implementation, and the plan is two prototypes, one hash-based and one lattice-based, to
+  decide on. Ulrich is "not so much convinced of using ARC, or maybe not baked into each recursive
+  proof". The user's reading of the 191-bit result: it does not pay off, except a little in prover
+  cost at larger proof sizes (high rates). Open design question from the user: Pasta is needed only
+  for the Ironwood recovery circuit, but recovery and non-recovery transactions must aggregate
+  together; can Goldilocks and the Pasta-claims variant be combined? (Answered in the chat: emulate
+  Pasta non-natively inside the recovery circuit over a Goldilocks arithmetization, or carry a
+  second Pasta-claims accumulator.) The user: the Merkle path is native, since the Ironwood
+  commitment tree is public and can be rehashed with whatever hash the arithmetization likes; so the
+  recovery circuit's Pasta-only content is the two full-width Pallas scalar multiplications and the
+  two Sinsemilla commitments, 3-6k Pasta multiplications, 0.3-0.6M Goldilocks constraints
+  non-natively, while its seven BLAKE2b compressions get cheaper over a 64-bit field; the emulated
+  recovery leaf is plausibly no larger than the native Pasta one, so the Goldilocks route wins at
+  any recovery share. RETRACTED 2026-11-03 by keep/recovery-circuit-cost.md (the user: estimate more
   precisely in Ragu's R1CS variant, read ZIP 2005): Ragu has no lookups, so an emulated Pallas
-  multiplication is ~1,100 gates (nine 29-bit limbs, the user: limbs need not be powers of
-  two); the recovery circuit is ~570k gates native over Pasta (the hashes and Sinsemilla's
-  generator selections dominate, field-independent) against ~16.5M over Goldilocks (the five
-  fixed-base and one variable-base complete scalar multiplications, 160 Sinsemilla additions
-  and the nullifier's Poseidon over Pallas's base field, ~14.5k emulated multiplications); a
-  recovery leaf costs 6x more under Goldilocks at the page's per-coefficient prices, so
-  Goldilocks wins only below a 6-10% recovery share. The user's remarks: lookups are possible
-  in Bootle16 but probably do not pay off here, and would also make XOR cheap, not only the
-  selection and range checks. The rehashed Merkle path is priced two ways at the user's
-  request (designs are moving to conventional hashes for assurance): Poseidon 1.1 in the
-  arithmetization's field at a free width (the user: not Poseidon2, because of cryptanalysis
-  against it and out-of-circuit optimisations of Poseidon 1.1 that close most of the gap;
-  Pasta width 3 at 288, Goldilocks width 12 at ~470 since 128-bit collision resistance needs
-  a four-element capacity: 9.5k / 15.6k gates for 33 nodes) or BLAKE3, the cheapest conventional hash in a lookup-free R1CS at 14.9k per
-  compression, 492k for the path in either field, which nearly doubles the native circuit to
-  ~1.05M and costs every Ironwood step with a path the same; break-even then 6-19%.
-  The user's reading (2026-11-03): 16-30x gate overhead for the recovery circuit without
-  native Pasta, against 4.12x slower prover with Pasta claims (the page's 1.98e8 / 4.81e7), so
-  the trade-off runs toward Goldilocks. Other fields considered in chat: 31-bit fields
-  (BabyBear, KoalaBear, Mersenne31) make the emulation ~3x worse (12-bit limbs) and need a
-  quartic extension for soundness, for a commitment only ~2x cheaper, and Akita's p32 variant
-  is slower by the paper's own verifier numbers; a 128-bit field eases the emulation to ~700
-  gates per multiplication (61-bit limbs) but costs 6.5x per coefficient (the page's 2,600
-  against 400); Mersenne-61 lacks the 2-adicity Akita's ring X^64 + 1 needs (q = 1 mod 128);
-  a quadratic-extension circuit field over Goldilocks doubles every coefficient for a third
-  off the emulation, a wash. A prime just above 2^64 (the user: 2^64 + 13, 2^64 + 2^21 - 1,
-  with a flag for the 65th bit) does NOT pay the 128-bit cost, which I first claimed: one
-  64x64 product and a fold 2^64 = -c, like Goldilocks's reduction, with only c residues
-  needing the flag; it lets 64-bit hash words fit whole (BLAKE2b additions 65 instead of 67
-  gates, ~1% of the native circuit), buys nothing for the emulation (30-bit limbs already fit
-  Goldilocks's column bound; 29 was used), and loses the NTT structure unless chosen with
-  q = 1 mod 128 for Akita's ring (those two examples have 2-adicity 2 and 1). The user asked
-  for a search: prime-search.py (p = 2^n -+ c, 64 <= n <= 68, c of signed weight <= 3 below
-  2^48, 2-adicity >= 7; 563 primes; log work/prime-search.log; write-up
-  keep/field-candidates.md). The user's pick, 2^65 - 2^42 + 1: 65 bits (one flag bit),
-  2-adicity 42, p - 1 = 2^42 x 47 x 178481, α = 3 allowed, quadratic extension x^2 - 3
-  (130 bits; no binomial cubic since 3 does not divide p - 1); Poseidon with α 3 at width
-  12 is 278 gates against Goldilocks's 472 (R_F 8, R_P 43 from the official
-  calc_round_numbers.py in the user's fork ~/olddaira/research/pasta-hadeshash/code, which
-  reproduces halo2's 8/56 and Plonky2's 8/22 exactly; width 14: 310; width 3: 130; α 5
-  would be 369), so option A's path ~9.2k and the lattice merge's absorption ~40% cheaper;
-  native multiplication folds three times where Goldilocks folds twice; the emulation is
-  unchanged.
+  multiplication is ~1,100 gates (nine 29-bit limbs, the user: limbs need not be powers of two); the
+  recovery circuit is ~570k gates native over Pasta (the hashes and Sinsemilla's generator
+  selections dominate, field-independent) against ~16.5M over Goldilocks (the five fixed-base and
+  one variable-base complete scalar multiplications, 160 Sinsemilla additions and the nullifier's
+  Poseidon over Pallas's base field, ~14.5k emulated multiplications); a recovery leaf costs 6x more
+  under Goldilocks at the page's per-coefficient prices, so Goldilocks wins only below a 6-10%
+  recovery share. The user's remarks: lookups are possible in Bootle16 but probably do not pay off
+  here, and would also make XOR cheap, not only the selection and range checks. The rehashed Merkle
+  path is priced two ways at the user's request (designs are moving to conventional hashes for
+  assurance): Poseidon 1.1 in the arithmetization's field at a free width (the user: not Poseidon2,
+  because of cryptanalysis against it and out-of-circuit optimisations of Poseidon 1.1 that close
+  most of the gap; Pasta width 3 at 288, Goldilocks width 12 at ~470 since 128-bit collision
+  resistance needs a four-element capacity: 9.5k / 15.6k gates for 33 nodes) or BLAKE3, the cheapest
+  conventional hash in a lookup-free R1CS at 14.9k per compression, 492k for the path in either
+  field, which nearly doubles the native circuit to ~1.05M and costs every Ironwood step with a path
+  the same; break-even then 6-19%. The user's reading (2026-11-03): 16-30x gate overhead for the
+  recovery circuit without native Pasta, against 4.12x slower prover with Pasta claims (the page's
+  1.98e8 / 4.81e7), so the trade-off runs toward Goldilocks. Other fields considered in chat: 31-bit
+  fields (BabyBear, KoalaBear, Mersenne31) make the emulation ~3x worse (12-bit limbs) and need a
+  quartic extension for soundness, for a commitment only ~2x cheaper, and Akita's p32 variant is
+  slower by the paper's own verifier numbers; a 128-bit field eases the emulation to ~700 gates per
+  multiplication (61-bit limbs) but costs 6.5x per coefficient (the page's 2,600 against 400);
+  Mersenne-61 lacks the 2-adicity Akita's ring X^64 + 1 needs (q = 1 mod 128); a quadratic-extension
+  circuit field over Goldilocks doubles every coefficient for a third off the emulation, a wash. A
+  prime just above 2^64 (the user: 2^64 + 13, 2^64 + 2^21 - 1, with a flag for the 65th bit) does
+  NOT pay the 128-bit cost, which I first claimed: one 64x64 product and a fold 2^64 = -c, like
+  Goldilocks's reduction, with only c residues needing the flag; it lets 64-bit hash words fit whole
+  (BLAKE2b additions 65 instead of 67 gates, ~1% of the native circuit), buys nothing for the
+  emulation (30-bit limbs already fit Goldilocks's column bound; 29 was used), and loses the NTT
+  structure unless chosen with q = 1 mod 128 for Akita's ring (those two examples have 2-adicity 2
+  and 1). The user asked for a search: prime-search.py (p = 2^n -+ c, 64 <= n <= 68, c of signed
+  weight <= 3 below 2^48, 2-adicity >= 7; 563 primes; log work/prime-search.log; write-up
+  keep/field-candidates.md). The user's pick, 2^65 - 2^42 + 1: 65 bits (one flag bit), 2-adicity 42,
+  p - 1 = 2^42 x 47 x 178481, α = 3 allowed, quadratic extension x^2 - 3 (130 bits; no binomial
+  cubic since 3 does not divide p - 1); Poseidon with α 3 at width 12 is 278 gates against
+  Goldilocks's 472 (R_F 8, R_P 43 from the official calc_round_numbers.py in the user's fork
+  ~/olddaira/research/pasta-hadeshash/code, which reproduces halo2's 8/56 and Plonky2's 8/22
+  exactly; width 14: 310; width 3: 130; α 5 would be 369), so option A's path ~9.2k and the lattice
+  merge's absorption ~40% cheaper; native multiplication folds three times where Goldilocks folds
+  twice; the emulation is unchanged.
 - 2026-11-03, LOOKUPS EMULATED IN RAGU (the user: consider the cost, halo2's argument, Plookup,
   logUp etc.; survey the literature and papers citing logUp; assume a challenge after committed
   values is possible even if not implemented for application circuits; the user saved the
@@ -862,39 +857,38 @@ repository root with `nix develop --command scripts/build-book.sh`, which regene
 
 ## 2026-11-04: the masked witness's length charged to the zero-knowledge layer only
 
-The user: the 14 MB masked accumulator applies to the split accumulation of zk steps, not to
-the folds above them. Agreed, from the note's own protocol: §3.2 step 5 decomposes z into nine
-digit slices, each committed; the aggregator's first fold range-checks them and folds them
-back to N digits with its other inputs, as every lattice fold decomposes and folds. What
-persists above is the Module-SIS rank, 2.4x, since §5.2's extraction argument needs one
-matrix for the whole chain. Changes: pareto-model.py no longer adds log2(9) to the decider's
-`log_len` (opening bytes and verifier) and no longer multiplies the verifier by 1.15;
-MASK_RANK stays on the rows term everywhere; MASK_SUMCHECK_ATOMS, now derived from
-MASK_LENGTH, stays in the merge, which the page describes as one at the zk layer, merges
-above paying the rows term only. Effect at 128 bits: the zk rows' bytes equal the plain rows'
-(before: +1.5 KB Goldilocks to +7 KB Pasta variants), the verifier is 13% lower, prover and
-atoms unchanged (Goldilocks rank 13: 67,866 B both; prover 4.81e7 -> 9.84e7; atoms 231 ->
-249). Prose: the page's zk paragraph and verifier bullet; zk-fiat-shamir-with-aborts.md §5.4,
-whose witness-size bullet is corrected and which gains a bullet on where refinements change
-the figures (the shared matrix; the digit base, α and the challenge weight; the witness
-size); pasta-proof-size.md's accumulator-witness paragraph. Then, the same day (the user: model the masked
-rank's effect on the opening and the verifier): the masked rank composes with the floor's
-factor (`rank_factor = rank_scale * MASK_RANK`) and goes through the 150-bit mechanism, the
-inner images' share of the opening and of the verifier. The user then asked whether the zk
-bytes had grown (they had, from this) and for corrections based on the inner-image share, so
-IMAGE_SHARE is now derived from the shipped terminal geometry (pasta-proof-size.md §6.1:
-1,344 clear t coordinates, 16 B each at fp128, the same bytes at a 64-bit modulus, 32 B with
-Pasta for everything) over the opening at K = 0: fp128 0.33, Goldilocks 0.35, q64 0.30,
-pasta_sis 0.26 (was 0.5), pasta 0.42 (was 0.5); the verifier scales through the same share
-(was: wholesale), which also lowers the 150-bit verifier figures a little. At 128 bits, rank
-13, header 2, plain -> zk: fp128 72,253 -> 105,093 B (+45%), verify 8.1e6 -> 1.21e7 (x1.49);
-goldilocks 67,866 -> 100,581 (+48%); pasta_q64 83,371 -> 118,136 (+42%); pasta_sis 96,941 ->
-131,763 (+36%); pasta 122,849 -> 195,203 (+59%); prover x2 as before; atoms +19 (18 plus one
-circuit). Caveat stated on the page: the share is the shipped geometry's, and a schedule
-planned at the masked rank would replace it. The same day: the cross-references between the notes and from the page
-became links; 𝔽₂ is written with the double-struck letter; the table's unit heading no longer
-reads MS under the CSS uppercase transform. The book is rebuilt after every change the user
-is to review: `nix develop --command scripts/build-book.sh` from the repository root.
+The user: the 14 MB masked accumulator applies to the split accumulation of zk steps, not to the
+folds above them. Agreed, from the note's own protocol: §3.2 step 5 decomposes z into nine digit
+slices, each committed; the aggregator's first fold range-checks them and folds them back to N
+digits with its other inputs, as every lattice fold decomposes and folds. What persists above is the
+Module-SIS rank, 2.4x, since §5.2's extraction argument needs one matrix for the whole chain.
+Changes: pareto-model.py no longer adds log2(9) to the decider's `log_len` (opening bytes and
+verifier) and no longer multiplies the verifier by 1.15; MASK_RANK stays on the rows term
+everywhere; MASK_SUMCHECK_ATOMS, now derived from MASK_LENGTH, stays in the merge, which the page
+describes as one at the zk layer, merges above paying the rows term only. Effect at 128 bits: the zk
+rows' bytes equal the plain rows' (before: +1.5 KB Goldilocks to +7 KB Pasta variants), the verifier
+is 13% lower, prover and atoms unchanged (Goldilocks rank 13: 67,866 B both; prover 4.81e7 ->
+9.84e7; atoms 231 -> 249). Prose: the page's zk paragraph and verifier bullet;
+zk-fiat-shamir-with-aborts.md §5.4, whose witness-size bullet is corrected and which gains a bullet
+on where refinements change the figures (the shared matrix; the digit base, α and the challenge
+weight; the witness size); pasta-proof-size.md's accumulator-witness paragraph. Then, the same day
+(the user: model the masked rank's effect on the opening and the verifier): the masked rank composes
+with the floor's factor (`rank_factor = rank_scale * MASK_RANK`) and goes through the 150-bit
+mechanism, the inner images' share of the opening and of the verifier. The user then asked whether
+the zk bytes had grown (they had, from this) and for corrections based on the inner-image share, so
+IMAGE_SHARE is now derived from the shipped terminal geometry (pasta-proof-size.md §6.1: 1,344 clear
+t coordinates, 16 B each at fp128, the same bytes at a 64-bit modulus, 32 B with Pasta for
+everything) over the opening at K = 0: fp128 0.33, Goldilocks 0.35, q64 0.30, pasta_sis 0.26 (was
+0.5), pasta 0.42 (was 0.5); the verifier scales through the same share (was: wholesale), which also
+lowers the 150-bit verifier figures a little. At 128 bits, rank 13, header 2, plain -> zk: fp128
+72,253 -> 105,093 B (+45%), verify 8.1e6 -> 1.21e7 (x1.49); goldilocks 67,866 -> 100,581 (+48%);
+pasta_q64 83,371 -> 118,136 (+42%); pasta_sis 96,941 -> 131,763 (+36%); pasta 122,849 -> 195,203
+(+59%); prover x2 as before; atoms +19 (18 plus one circuit). Caveat stated on the page: the share
+is the shipped geometry's, and a schedule planned at the masked rank would replace it. The same day:
+the cross-references between the notes and from the page became links; 𝔽₂ is written with the
+double-struck letter; the table's unit heading no longer reads MS under the CSS uppercase transform.
+The book is rebuilt after every change the user is to review:
+`nix develop --command scripts/build-book.sh` from the repository root.
 
 Later on 2026-11-04 (the user: try harder to reduce the zk proof-size overhead; why does the
 DL trick, folding with a random proof, not transfer; zk could be applied only at a trust
@@ -946,26 +940,26 @@ deferral of the slice decomposition and the range/norm obligations to the aggreg
 fold (open point 7), leaving online a sparse ring product and a vector addition (~2^27
 additions, 0.1 s on a phone core) and the ~13 MB transfer of z, which is intrinsic.
 
-Later on 2026-11-04 (the clock had not yet passed midnight in the user's zone): the page's default challenge set is weight 20 in the accumulation matrix's ring
-dimension 512 (MASK_CHALLENGE_L1 = 20; free, §5.6), rank factor 2.22 instead of 2.37; α stays
+Later on 2026-11-04 (the clock had not yet passed midnight in the user's zone): the page's default
+challenge set is weight 20 in the accumulation matrix's ring dimension 512 (MASK_CHALLENGE_L1 = 20;
+free, §5.6), rank factor 2.22 instead of 2.37; α stays
 12. The zk note's §5.8 (candidate masks precomputed offline, obligations deferred to the
 cross-transaction aggregator's first fold, which is the party untrusted for privacy) answers
 the user's point that seconds of masking work are too much for one zk step on a phone.
 
-Later on 2026-11-04 (the user: the zk effect on a typical transaction is hard to see, since
-the rejection is a large fraction of it; expose it as a third measure): the page has a
-fourth third measure, "transaction prover", with a knob for the transaction's size in
-application gates (2^16 to 2^20, default 2^17). Per point the model supplies `step_prover`
-(one application step circuit's commitments at the family's per-coefficient cost; for the
-𝔽₂ family, which has no rank, BitZ's convention of 510 bits per Pasta gate in steps of 2^13) and `fold`
-(Akita zk rows: `mask_fold` = MASK_ATTEMPTS x N x (masked per-digit commitment cost + 900
-word-mult equivalents of Karney sampling at 300 ns), plus the fold's own merge; 0 elsewhere);
-the page computes transaction = (G / 2^rank) x (step_prover + prover) + fold and uses it in
-the dominance test, the hover, a table column and the axis title. At G = 2^17, rank 13, 128
-bits: fp128 1.6 s plain -> 5.0 s zk (fold 42%), Goldilocks 0.3 -> 1.5 s (64%), pasta_q64 1.2
--> 6.1 s (61%), Pedersen 29 s, WHIR ARC rate 1/2 about 3,000 s (Pasta) / 630 s (Goldilocks).
-The page's prose (Which third measure; a Transaction prover paragraph after Grinding) says
-it is total work, not latency, §5.8 moving the fold off the device. Republished.
+Later on 2026-11-04 (the user: the zk effect on a typical transaction is hard to see, since the
+rejection is a large fraction of it; expose it as a third measure): the page has a fourth third
+measure, "transaction prover", with a knob for the transaction's size in application gates (2^16 to
+2^20, default 2^17). Per point the model supplies `step_prover` (one application step circuit's
+commitments at the family's per-coefficient cost; for the 𝔽₂ family, which has no rank, BitZ's
+convention of 510 bits per Pasta gate in steps of 2^13) and `fold` (Akita zk rows: `mask_fold` =
+MASK_ATTEMPTS x N x (masked per-digit commitment cost + 900 word-mult equivalents of Karney sampling
+at 300 ns), plus the fold's own merge; 0 elsewhere); the page computes transaction = (G / 2^rank) x
+(step_prover + prover) + fold and uses it in the dominance test, the hover, a table column and the
+axis title. At G = 2^17, rank 13, 128 bits: fp128 1.6 s plain -> 5.0 s zk (fold 42%), Goldilocks 0.3
+-> 1.5 s (64%), pasta_q64 1.2 -> 6.1 s (61%), Pedersen 29 s, WHIR ARC rate 1/2 about 3,000 s (Pasta)
+/ 630 s (Goldilocks). The page's prose (Which third measure; a Transaction prover paragraph after
+Grinding) says it is total work, not latency, §5.8 moving the fold off the device. Republished.
 
 ## 2026-11-11 22:36 UTC: hashes in circuits, pruning, ranks 12 and 17, the licence, LaBinius
 
@@ -1280,8 +1274,8 @@ unpushed, each verified from git archive; artifact v87.
 
 ## 2026-11-12 04:06 UTC: BitZ's zero-knowledge rows; the hash option adds rows
 
-Pushed through e0d9202 by the user. Then d514dc9 (BitZ zk rows) and 6972628 (the hash option adds rows), unpushed;
-artifact v89.
+Pushed through e0d9202 by the user. Then d514dc9 (BitZ zk rows) and 6972628 (the hash option adds
+rows), unpushed; artifact v89.
 
 - BITZ ZK ROWS (the user: the hash-based BitZ options dropped out under zk; "yes please"):
   derived, since the paper offers succinctness only. Ligero's random row per Ligerito level
@@ -1495,19 +1489,19 @@ user pushes.
   the circuit-budget constants from ragu's internal/tests.rs table; the zk-fold levers for the
   frontend; the Pallas rank factor at 147 if wanted.
 
-2026-11-14 14:59 UTC, addendum: with assembly. Neither benchmark above used assembly: pasta_curves 0.6.1 has an `asm` feature (AArch64 and
-x86_64 backends; the user's ARMv7E-M work is separate) that orchard does not enable, and
-zakura-udon 0.1.0 has `aarch64-asm`, which ragu's workspace does not enable (features traits,
-poseidon only). Rebuilt with them on rustc 1.100.0: Orchard 0.16.0 (bench-0.16 with
-`pasta_curves = { version = "0.6.1", features = ["asm"] }`): all cores 0.34 / 0.35 / 0.62 / 1.16 /
-2.35 s at 1 / 2 / 4 / 8 / 16 actions (was 0.47 / 0.46 / 0.83 / 1.60 / 3.15), one thread 1.83 /
-1.88 / 3.75 s at 1 / 2 / 4 (was 2.55 / 2.77 / 4.89): 24–32% faster. Ragu fuse with
+2026-11-14 14:59 UTC, addendum: with assembly. Neither benchmark above used assembly: pasta_curves
+0.6.1 has an `asm` feature (AArch64 and x86_64 backends; the user's ARMv7E-M work is separate) that
+orchard does not enable, and zakura-udon 0.1.0 has `aarch64-asm`, which ragu's workspace does not
+enable (features traits, poseidon only). Rebuilt with them on rustc 1.100.0: Orchard 0.16.0
+(bench-0.16 with `pasta_curves = { version = "0.6.1", features = ["asm"] }`): all cores 0.34 / 0.35
+/ 0.62 / 1.16 / 2.35 s at 1 / 2 / 4 / 8 / 16 actions (was 0.47 / 0.46 / 0.83 / 1.60 / 3.15), one
+thread 1.83 / 1.88 / 3.75 s at 1 / 2 / 4 (was 2.55 / 2.77 / 4.89): 24–32% faster. Ragu fuse with
 `--features multicore,udon/aarch64-asm`: one worker 1.27 s (was 1.46), 16 workers 0.59 s (was
 0.63–0.70): 8–13% faster; the accelerated backend still equals the reference. So with assembly on
 both sides a Tachyon 1+1-action transaction is 9.8 s one thread / 4.6 s all cores against Halo 2's
 1.88 / 0.35 s for two actions (5.2× / 13×), and 8+8 actions 70 / 33 s against 16 actions' ~14
-(extrapolated at 0.93 s per action) / 2.35 s (5× / 14×). Logs: orchard/work/bench-0.16/bench-*-asm.log,
-ragu/work/bench-fuse-asm.log.
+(extrapolated at 0.93 s per action) / 2.35 s (5× / 14×). Logs:
+orchard/work/bench-0.16/bench-*-asm.log, ragu/work/bench-fuse-asm.log.
 
 ## 2026-11-14 16:08 UTC: Tachyon statements written; Tachyon runs Ragu's MOCK; gate-count probe blocked
 
@@ -1703,7 +1697,9 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at b1a58a0 plus this entry, unpushed after aedc6a2 (seven commits).
   PENDING unchanged: the zk-fold levers for the frontend; the Pallas factor at 147; generate
   the Transaction paragraph's figures from the model; re-render keep/tachyon-statements.md.
-- 18:32 UTC, addendum: the two measure groups share one full-width group laid out in two columns (bbd7dbe), since the two-column controls grid had put them diagonally; artifact v96. Main at bbd7dbe plus this line.
+- 18:32 UTC, addendum: the two measure groups share one full-width group laid out in two columns
+  (bbd7dbe), since the two-column controls grid had put them diagonally; artifact v96. Main at
+  bbd7dbe plus this line.
 
 ## 2026-11-14 19:22 UTC: the accumulation prover measure (the fold's sum-checks were missing)
 
@@ -1754,8 +1750,11 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at c2a9cf6 plus this entry, unpushed after aedc6a2. PENDING unchanged:
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md; maybe a memory column or note.
-- 19:44 UTC, addendum: a crosshair pointer over the plot in both views (ad78671, CSS on Plotly's drag layer and 3D canvas), since the arrow covered the hover box; artifact v98. Main at ad78671 plus this line.
-- 20:00 UTC, addendum: the measure radio labels are "accumulation prover" and "prover work (commitments only)" (3e2e255); artifact v99. Main at 3e2e255 plus this line.
+- 19:44 UTC, addendum: a crosshair pointer over the plot in both views (ad78671, CSS on Plotly's
+  drag layer and 3D canvas), since the arrow covered the hover box; artifact v98. Main at ad78671
+  plus this line.
+- 20:00 UTC, addendum: the measure radio labels are "accumulation prover" and "prover work
+  (commitments only)" (3e2e255); artifact v99. Main at 3e2e255 plus this line.
 
 ## 2026-11-14 20:07 UTC: accumulator memory as a measure
 
@@ -1782,8 +1781,22 @@ ragu/work/bench-fuse-asm.log.
 - STATE: pqzcash main at 31f4a07 plus this entry, unpushed after aedc6a2. PENDING unchanged:
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md.
-- 20:15 UTC, addendum: the memory knob's "packed storage a quarter or less" was wrong for the 64-bit rows; corrected in 904d78e (32-bit integers: half at 64 bits, a quarter at 128, an eighth at Pasta's modulus; the field form made on the fly per sum-check pass), artifact v101. The Akita and frontend rows' memory is the same under either hash policy (K x 2^rank digits); WHIR + ARC at rank 16 rate 1/8 is 74 GB with BLAKE3 and 1.2 GB with Poseidon. The user pushed main through 50ddcfc.
-- 20:23 UTC, addendum: the memory measure now counts the lattice rows' accumulator at the packed width of its norm bound (65f58f7, artifact v102; the user: a known per-level bound lets each accumulator be stored at its exact width): 21 bits a digit at the handoff, the certified l2 bound of about 2^19 plus a sign, five bits fewer per level below the top, the measure being of the top level; the field form (8/16/32 B) is computation. Figures: Akita Pasta claims rank 17 175 MB (was 535), Goldilocks 45 MB, fp128 89 MB, frontend rank 21 33 MB, BitZ rank 20 32 MB, F2 29 MB, Pedersen 25 MB. Norm growth: each fold multiplies the entries by up to 40 (ternary challenges of l1 weight 20, two children), about five bits a level, so the 2^19 handoff bound is a tree of three or four levels; growing beyond costs rows as the square of the bound's bits (five more bits about +40%), decomposing costs a recommitment of the accumulator, so within a transaction growth is the design and the aggregator decomposes (answered in chat).
+- 20:15 UTC, addendum: the memory knob's "packed storage a quarter or less" was wrong for the 64-bit
+  rows; corrected in 904d78e (32-bit integers: half at 64 bits, a quarter at 128, an eighth at
+  Pasta's modulus; the field form made on the fly per sum-check pass), artifact v101. The Akita and
+  frontend rows' memory is the same under either hash policy (K x 2^rank digits); WHIR + ARC at rank
+  16 rate 1/8 is 74 GB with BLAKE3 and 1.2 GB with Poseidon. The user pushed main through 50ddcfc.
+- 20:23 UTC, addendum: the memory measure now counts the lattice rows' accumulator at the packed
+  width of its norm bound (65f58f7, artifact v102; the user: a known per-level bound lets each
+  accumulator be stored at its exact width): 21 bits a digit at the handoff, the certified l2 bound
+  of about 2^19 plus a sign, five bits fewer per level below the top, the measure being of the top
+  level; the field form (8/16/32 B) is computation. Figures: Akita Pasta claims rank 17 175 MB (was
+  535), Goldilocks 45 MB, fp128 89 MB, frontend rank 21 33 MB, BitZ rank 20 32 MB, F2 29 MB,
+  Pedersen 25 MB. Norm growth: each fold multiplies the entries by up to 40 (ternary challenges of
+  l1 weight 20, two children), about five bits a level, so the 2^19 handoff bound is a tree of three
+  or four levels; growing beyond costs rows as the square of the bound's bits (five more bits about
+  +40%), decomposing costs a recommitment of the accumulator, so within a transaction growth is the
+  design and the aggregator decomposes (answered in chat).
 
 ## 2026-11-14 21:13 UTC: BitZ's prover in two phases; the family named Kishu; the review of Ulrich's and Quang's statements begun
 
@@ -1839,9 +1852,32 @@ ragu/work/bench-fuse-asm.log.
   PENDING: the review's remaining checks and its record under keep/; Kishu's application PIOP;
   the zk-fold levers; the Pallas factor at 147; generate the prose figures from the model;
   re-render keep/tachyon-statements.md.
-- 21:19 UTC, addendum: Kishu's application digits now pay Zinc+'s constraint PIOP (4cfc722, artifact v105): ZINC_PIOP_PER_DIGIT = 1.6 x BitZ's Table 10 prover per bit at 2^25 = 11.4 word multiplications a digit, on the step's digits only (the merge circuit's own PIOP is not charged, as for BitZ). Effect about 5%, since the fold's sum-checks dominate Kishu's step at ranks 19-21: recovery 0.43 s (was 0.41), zk 2.6 s, two tachyactions 0.22 s, sixteen 0.88 s; the earlier "a third more" guess predated the accumulation prover. The review finding is closed; the other checks continue.
-- 21:23 UTC, addendum: the review of Ulrich's and Quang's statements is done, record keep/ulrich-quang-review.md (fourteen statements with verdicts and evidence; all hold or are judgements except the Akita QROM proof, still future work, and "86 openings is more than needed", true only up to the refuted capacity regime; the 2026-10-21 sweep had settled U1-U3). Main at fede238 plus this line, unpushed after 50ddcfc.
-- 21:49 UTC, addendum: EVIDENCE PLAN agreed with the user (pen and paper with computational checks first, Lean once the statements hold still; the decoupled modulus first). The statements are drafted in keep/kishu-soundness-note.md for review before any proof. Findings while writing them: Kishu does NOT use the decoupled modulus (its claims live in F_q = 2^64 - 59 = the commitment modulus, over E = F_q[u]/(u^2 - 2); Pasta values come from 32-bit limbs, Lemma B3), so its obligations are Akita's own 64-bit soundness, the Booleanity certificate and the limb lemma, and the page's "same open soundness obligation" is wrong; design A (pasta_q64) is the one needing the no-wrap knowledge-soundness proof, where two details may bite: the quotient k's width grows with the accumulated norm (up to 2^49 at N = 2^22, 17 digits, not the 11 of pasta-proof-size.md 6.3), and a digit-range product identity over F_p cannot lift for accumulated witnesses (magnitude 2^270), so the range check must be the l2 norm or apply to fresh digits only. Cost consequence: design A's fold sum-checks run over F_p (32 word multiplications a multiplication), so the pasta_q64 accumulation term is low by 3-4x (Kishu unaffected: E at 64 bits, measured). Not yet changed on the page.
+- 21:19 UTC, addendum: Kishu's application digits now pay Zinc+'s constraint PIOP (4cfc722, artifact
+  v105): ZINC_PIOP_PER_DIGIT = 1.6 x BitZ's Table 10 prover per bit at 2^25 = 11.4 word
+  multiplications a digit, on the step's digits only (the merge circuit's own PIOP is not charged,
+  as for BitZ). Effect about 5%, since the fold's sum-checks dominate Kishu's step at ranks 19-21:
+  recovery 0.43 s (was 0.41), zk 2.6 s, two tachyactions 0.22 s, sixteen 0.88 s; the earlier "a
+  third more" guess predated the accumulation prover. The review finding is closed; the other checks
+  continue.
+- 21:23 UTC, addendum: the review of Ulrich's and Quang's statements is done, record
+  keep/ulrich-quang-review.md (fourteen statements with verdicts and evidence; all hold or are
+  judgements except the Akita QROM proof, still future work, and "86 openings is more than needed",
+  true only up to the refuted capacity regime; the 2026-10-21 sweep had settled U1-U3). Main at
+  fede238 plus this line, unpushed after 50ddcfc.
+- 21:49 UTC, addendum: EVIDENCE PLAN agreed with the user (pen and paper with computational checks
+  first, Lean once the statements hold still; the decoupled modulus first). The statements are
+  drafted in keep/kishu-soundness-note.md for review before any proof. Findings while writing them:
+  Kishu does NOT use the decoupled modulus (its claims live in F_q = 2^64 - 59 = the commitment
+  modulus, over E = F_q[u]/(u^2 - 2); Pasta values come from 32-bit limbs, Lemma B3), so its
+  obligations are Akita's own 64-bit soundness, the Booleanity certificate and the limb lemma, and
+  the page's "same open soundness obligation" is wrong; design A (pasta_q64) is the one needing the
+  no-wrap knowledge-soundness proof, where two details may bite: the quotient k's width grows with
+  the accumulated norm (up to 2^49 at N = 2^22, 17 digits, not the 11 of pasta-proof-size.md 6.3),
+  and a digit-range product identity over F_p cannot lift for accumulated witnesses (magnitude
+  2^270), so the range check must be the l2 norm or apply to fresh digits only. Cost consequence:
+  design A's fold sum-checks run over F_p (32 word multiplications a multiplication), so the
+  pasta_q64 accumulation term is low by 3-4x (Kishu unaffected: E at 64 bits, measured). Not yet
+  changed on the page.
 
 ## 2026-11-14 21:54 UTC: STATE for resumption (context low); the Pasta-claims sum-check field fixed
 
@@ -2022,24 +2058,25 @@ ragu/work/bench-fuse-asm.log.
   hold box now starts unticked, and ranges taken under the hold come from the plotted points
   (32e212c). Zero knowledge is on by default (e47747c). Artifact v115. STATE: main at e47747c plus
   this line, unpushed after 3ab8793.
-- 09:56 UTC, addendum: DEFAULTS and CONTROLS (the user): third measure = transaction prover (recovery
-  circuit), unit = microseconds (ae592ea); controls reordered: families; measures with the
+- 09:56 UTC, addendum: DEFAULTS and CONTROLS (the user): third measure = transaction prover
+  (recovery circuit), unit = microseconds (ae592ea); controls reordered: families; measures with the
   transaction selector (now full width); view, unit, frontier; floor, zk, hashes, changes; rank,
   "PCD headers" (was labelled Pedersen-IPA; it sets every family's headers), Pedersen-IPA's fixed
   circuits, grinding (936d7d0). Artifact v116.
 - 10:22 UTC, addendum: the WHIR-type families and Plonky3 start unticked (the user; Akita dominates
-  them and their rows crowd the picture), said in the hash-based families paragraph (8afe39b). Artifact
-  v117.
+  them and their rows crowd the picture), said in the hash-based families paragraph (8afe39b).
+  Artifact v117.
 - 10:41 UTC, addendum: WHIR-type and Plonky3 unticked by default (8afe39b); the Orchard all-cores
   sentence reworded (0a0f478); the controls REGROUPED after a headless-Chrome render (the user:
   look first; `Google Chrome --headless=new --screenshot --window-size=1920,2300` on a copy with the
   panel's max-height removed, cropped with sips; work/layout-controls*.png): View | unit and
   frontier; Security (floor, zk) | Allowed changes (hashes, parameter filter); rank boxes wrapped
   full width; PCD headers | Family knobs (fixed circuits, grinding) (215ddbb). Artifact v120.
-- 10:45 UTC, addendum: the regrouping revised after the user's look at the render: unit and frontier,
-  and fixed circuits and grinding, are separate groups stacked beside View and PCD headers;
-  eyebrows simplified and item labels clarified ("conventional hashes only (BLAKE3)" etc.); the
-  ranks a 7-column grid of bare numbers, their meaning in the Rank paragraph (073a408). Artifact v121.
+- 10:45 UTC, addendum: the regrouping revised after the user's look at the render: unit and
+  frontier, and fixed circuits and grinding, are separate groups stacked beside View and PCD
+  headers; eyebrows simplified and item labels clarified ("conventional hashes only (BLAKE3)" etc.);
+  the ranks a 7-column grid of bare numbers, their meaning in the Rank paragraph (073a408). Artifact
+  v121.
 - 10:49 UTC, addendum: the grinding select full width below the headers row with "best per row
   (smallest prover)" (the row's prover, which for the hash-based rows is also the accumulation
   prover) (1e2a9a9). Artifact v122.
@@ -2072,11 +2109,11 @@ ragu/work/bench-fuse-asm.log.
   references linked, its natural width with Family 26-30ch and Configuration 40-46ch (rows up
   to four lines); milliseconds with three significant figures below a second and whole ms
   above, prose times at three significant figures.
-- STATE: pqzcash main at the notes commit after 3456ff3; the user pushed everything through
-  3456ff3, so only this entry is unpushed. Artifact v128. Tree clean. Shannon's memory-seed has uncommitted edits
-  to feedback_durable_prose, feedback_git_safety, feedback_external_reports and
-  feedback_readable_prose (the generated-figures rule, the bare-rebase rule, machine details
-  out of tracked files, one subject per paragraph).
+- STATE: pqzcash main at the notes commit after 3456ff3; the user pushed everything through 3456ff3,
+  so only this entry is unpushed. Artifact v128. Tree clean. Shannon's memory-seed has uncommitted
+  edits to feedback_durable_prose, feedback_git_safety, feedback_external_reports and
+  feedback_readable_prose (the generated-figures rule, the bare-rebase rule, machine details out of
+  tracked files, one subject per paragraph).
 - PENDING: the user's review of the soundness statements (ragu-pcs/kishu-soundness-note.md),
   then Theorem B with the spike's adversarial cases, the certificate recomputation, Theorem A,
   Lean; the zk-fold levers; re-render keep/tachyon-statements.md; the Pasta-claims recovery
@@ -2119,7 +2156,9 @@ ragu/work/bench-fuse-asm.log.
   statements, then Theorem B; the zk-fold levers; re-render keep/tachyon-statements.md; the
   Pasta-claims recovery row's BLAKE3 figure; the user to ask Quang about the QROM proof and
   CertifiedJL's roadmap; whether the prose seconds should be at millisecond resolution.
-- 14:59 UTC, addendum: the page's fmtMs drops trailing zeros (8.9 ms for 8.90: `Number(v.toPrecision(3))` before `toLocaleString`); the model's sig() is right. Fix next session: keep toPrecision's digits, separators only for the whole-millisecond branch.
+- 14:59 UTC, addendum: the page's fmtMs drops trailing zeros (8.9 ms for 8.90:
+  `Number(v.toPrecision(3))` before `toLocaleString`); the model's sig() is right. Fix next session:
+  keep toPrecision's digits, separators only for the whole-millisecond branch.
 
 ## 2026-11-16 19:27 UTC: ruff at 100; the millisecond formatter; the table render; the PCD-headers eyebrow
 
@@ -2177,7 +2216,10 @@ ragu/work/bench-fuse-asm.log.
   re-render keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; the user
   to ask Quang about the QROM proof and CertifiedJL's roadmap; whether the prose seconds should
   be at millisecond resolution; the other Python files under ragu-pcs/ through ruff, if wanted.
-- 20:13 UTC, addendum: the Booleanity draft ("Efficient Booleanity Checking via Structured Modular Projections", 2026-09-23) and its extracted text moved from work/ to keep/bool-checking-private-main3.pdf and .txt, at the user's request; the 2026-10-15 entry names the old paths.
+- 20:13 UTC, addendum: the Booleanity draft ("Efficient Booleanity Checking via Structured Modular
+  Projections", 2026-09-23) and its extracted text moved from work/ to
+  keep/bool-checking-private-main3.pdf and .txt, at the user's request; the 2026-10-15 entry names
+  the old paths.
 
 ## 2026-11-16 20:53 UTC: the Booleanity exposition, on a private branch
 
@@ -2203,14 +2245,118 @@ ragu/work/bench-fuse-asm.log.
 - STATE: main at this entry; unpushed: the Booleanity draft's move (1e4cf45) and this entry;
   the branch booleanity-exposition at 3225356 is unpushed too (the user decides where it goes).
   Artifact v133. PENDING as before.
-- 01:42 UTC, addendum: the chapter revised on the branch after the user's reading (its commit amended, now db32ab6): "Composing the layers" is a subsection; it recalls the lower-tail estimate where $z$ is used, explains that $z$ is the argument of $Z_c$'s distribution function (not a chosen ratio: the one-layer bound holds for all $z$ at once, $z = 0$ being the zero-output event of probability $K^c$), defines stochastic dominance with a link and the coupling in plain words (quantile functions of one uniform); a figure of the law of $Z_c$ at widths 43 and 40 (density, and the distribution function on a log scale), drawn by ragu-pcs/scripts/zc-figure.py into book/src/proof-systems/booleanity-zc.svg, with a caption; the Lemma L paragraph cut as trivial; sentences split after the long-sentences check. The user left for a meeting with the chapter open in Firefox. STATE: main at this entry (unpushed from 1e4cf45 on: the draft's move and two notes commits); branch booleanity-exposition at db32ab6, unpushed, the checkout left on it. Artifact v133.
-- 02:01 UTC, addendum: the chapter's commit amended again (now 1033e1f on booleanity-exposition): the composition subsection is four paragraphs with the figure after the one that defines $Z_c$; "the ratio" is named as the energy ratio $E'/Q$; the magnitude paragraph says the zero-ratio atom is the floor of any certificate on this estimate, with the draft's within about a bit of it; the figure's labels have real subscripts and superscripts (shifted tspans from zc-figure.py's fmt()); every inline math span is on one source line (my first re-wrap cut spans at spaces; mdbook-katex does not join them; the check is an odd count of `$` on a line without `$$`), and §3's display equations are back on their own lines inside the list items. The user asked, for n = 2^27, the valid range of r (the revealed coordinates) and its prover/verifier trade-off; answered in chat: r ≥ 156 from the terminal atoms alone at 2^-136 (K^r), 160 is near the floor, r barely moves either party's cost; the geometry at fixed r is the trade-off, and n enters through Theorem 1's cap on Q_0.
-- 02:52 UTC, addendum: KISHU USES THE CONVENTIONAL BOOLEANITY SUM-CHECK, NOT THE PROJECTION (the user, after the shares and the recursion trade-off were computed). The Booleanity check is 22% of Kishu's step prover, 29% of its merge commitments, 10-15% of the accumulation prover, 12-16% of the transaction prover, 0.3% of the decider and 39% of the merge gates in the sum-check form at the page's rows (ranks 19 and 20); the projection form exists only from rank 23, where it saves 7% of the transaction at 0.8 ms more decider and twice the merge. In recursion each projection coefficient is a committed digit of the merge (26 word mults) against the 7.3 per bit the projection saves, so it is ahead only where 2^rank ≳ 3.6 V − 4.6 V_s − H (rank 23 at the draft's geometry); the widths are set by the error target and the first layer's V × S = (g c_1)^2 n, so geometry trades verifier description for prover memory only; one digit per coefficient is generous (regeneration and E-arithmetic per coefficient, ~100 digits). Ranks of 21 and up are too slow for a Zcash transaction (the user). So formally verifying the projection is NOT a blocker for Zcash's use of Kishu: the model's comment says so (ba6021a); the soundness note's Theorem B is restated for the sum-check form, error (4m+1)/|E| plus Akita's, no integer lift, with the projection form kept as Theorem B′ and its certificate recomputation marked not a blocker (9ca1aa1, amended); the chapter's §7 on the branch says the same (its commit amended). r at n = 2^27: floor 156 from the terminal atoms (K^r) at 2^-136, 160 near it; r barely moves either party's cost.
-- 03:17 UTC, addendum: a cheaper Booleanity for Kishu was proposed and REFUTED against the Akita paper (ragu-pcs/work/akita.txt): taking the energy bound from Akita's own norm certification and checking the unweighted identity Σ s² = Σ s (one evaluation claim at (1/2, …, 1/2)) does not work, because Akita's range and norm checks (§6) cover the successor witness, the decomposed response, and the fresh source is bound only as a weak opening (Definition 10.22, a short unit times the source is short), so nothing certifies the committed table's integer energy; and a field identity Σ s² = v cannot bound integers by itself. Smallness per entry is certified by a vanishing identity per entry under random weights, i.e. the conventional check; the group-sum range check the user floated has the same gap (small field sums do not lift; x² − x − 1 = 0 has roots when 5 is a square). The saving left is batching the Booleanity identity into another sum-check over the same table (the step's constraint check). The chapter's §7 records both the recursion trade-off and this dead end (branch commit 87aecbc). The pinned Akita checkout's book (mdbook-katex + mermaid) renders with `mdbook build --dest-dir` inside the nix shell to ragu-pcs/work/akita-book/ (opened once in Firefox; the user reloads); its chapters on the fold, the sum-check stages, security and binding are the relevant ones; main's book may be newer, which needs the user's fetch.
-- 03:28 UTC, addendum: the user fetched the Akita checkout; a worktree ragu-pcs/work/akita-main at origin/main (d50f700, 2026-11-12) has its book rendered to ragu-pcs/work/akita-book-main/ (41 chapters differ from the pinned 60b82bc; the pinned render is ragu-pcs/work/akita-book/). The book's Jolt chapter is Jolt proving Akita's verifier, not Akita as Jolt's commitment. Answered in chat: (1) Akita's "optimized digit range check" (§2.3, §6.1) is not the projection: it is the per-entry vanishing check of the alphabet, made cheaper by the involution w -> w(w+1) that halves the degree and by a product tree of degree-2/4 sum-checks, still under random equality weights; the projection replaces the weighted per-entry check by an unweighted integer identity plus a sketched norm bound. (2) Lookups for Booleanity: for a bit-valued committed table a lookup into {0,1} is no cheaper, since logUp needs committed inverses (a field element, ~22 Akita digits, per bit) plus a per-entry product identity of the same shape as s(s-1) = 0, or LogUp-GKR with a log^2-round verifier in the merge; the real form of the idea is a word-level arithmetization (k-bit words committed as one digit each, ranges and bit operations by lookups, Lasso-style small committed values suiting Akita), a Jolt-style frontend rather than Kishu's, whose lookup verifier must be accumulated in Ragu's PCD to pay, as keep/lookups-in-ragu.md concluded (logUp is the argument to emulate; accumulation is a Ragu design change).
-- 03:38 UTC, addendum: the user asked whether q = 2^64 − 59 can be exploited, e.g. a 64-bit value as i + j with i any field element and 0 <= j < 59. Answered: j needs 60 values (0 <= j <= 59) to reach 2^64 − 1, since i <= q − 1 = 2^64 − 60; any field element is already an integer in [0, q), so the range of i costs nothing and only j (6 bits, excluding 60..63) and carries need Booleanity; and 2^64 ≡ 59 (mod q) turns 64-bit carries into a + b = c + 59·carry in F_q and 128-bit limb products into a·b = lo + 59·hi, both with free-range field elements lo, hi. So a word-level arithmetization over F_q (non-native Pasta arithmetic in four 64-bit limbs, each a field element plus a 6-bit correction) would confine Booleanity to corrections, carries and genuinely bitwise values, commit about 112 Akita digits per Pasta value (4 × (22 base-8 digits + 6 bits)) against Kishu's 255 bits, cut the constraint work for field arithmetic from bit circuits to a few quadratic constraints per limb product, and give four limb claims instead of eight; its soundness is elementary lifts with explicit bounds, with no decoupling (it sidesteps Theorem A). Canonical form: j > 0 only with i = q − 1, enforced by j·(i − (q−1)) = 0. A new frontend to price, not a change to Kishu as modelled.
-- 03:49 UTC, addendum: the 64-bit-word frontend was NOT built: checked before pricing, the representation is unsound for arithmetic over F_q. The field identity a + b = c + 59·carry for a 64-bit addition also accepts (c − 59, carry + 1) and (c + q, carry), since the identity only fixes the integer relation modulo q and q is the word size; a 64 × 64 -> 128-bit split a·b = lo + 59·hi has one passing lo for every hi, so it fixes nothing. Disambiguation needs sub-word information, i.e. range-checked decompositions, which the free range of a field element does not compose with (i = low + 64·high is not unique without bounding high). So the only sound word-level route is the standard small-limb emulation already on the page as the Goldilocks variant (a 64-bit field is a 64-bit field; 1,100 gates a Pasta multiplication without lookups), dominated by Kishu. Verified numerically. FOUND MEANWHILE, to raise with the user: Kishu's recovery cost still charges 255 digits per Pasta multiplication "no quotient", the 2026-11-12 accounting for the DECOUPLED design (claims native over Pasta); since 2026-11-14 Kishu is design B (F_q claims, limbs, Zinc+'s integer PIOP), under which a·b = k·p + r needs the committed quotient as BitZ's 510 bits do. With 510 digits a multiplication the recovery circuit is 8.4M digits instead of 4.7M (see the chat for the transaction figures).
-- 03:56 UTC, addendum: the user's refinement, a free-range 64-bit word plus 32 Booleanity checks implicitly checking the other 32 bits, for 32 × 32 -> 64-bit products: also not sound. W = L + 2^32·H with L the checked low half leaves H free: a fake L + 1 has a passing H = (W − L − 1)·2^−32 mod q, a 64-bit field element; and a·b = W with a 32-bit and W free pins b only modulo q, so any b passes. A field identity pins an integer relation only when every term is bounded within one modulus; the free range of one element never bounds a term scaled by 2^32 or by an unbounded factor. The one sound use is a product of two already bounded 32-bit values, which is below q (margin 2^33) and so needs no range check on its output; but in a limb multiplication the products are single constraints anyway, and the cost is the carries' and limbs' bounds (about 1,000 bits a Pasta multiplication, the Goldilocks-style 1,100), worse than the integer PIOP's 510 bits. Numerically checked. No frontend built.
+- 01:42 UTC, addendum: the chapter revised on the branch after the user's reading (its commit
+  amended, now db32ab6): "Composing the layers" is a subsection; it recalls the lower-tail estimate
+  where $z$ is used, explains that $z$ is the argument of $Z_c$'s distribution function (not a
+  chosen ratio: the one-layer bound holds for all $z$ at once, $z = 0$ being the zero-output event
+  of probability $K^c$), defines stochastic dominance with a link and the coupling in plain words
+  (quantile functions of one uniform); a figure of the law of $Z_c$ at widths 43 and 40 (density,
+  and the distribution function on a log scale), drawn by ragu-pcs/scripts/zc-figure.py into
+  book/src/proof-systems/booleanity-zc.svg, with a caption; the Lemma L paragraph cut as trivial;
+  sentences split after the long-sentences check. The user left for a meeting with the chapter open
+  in Firefox. STATE: main at this entry (unpushed from 1e4cf45 on: the draft's move and two notes
+  commits); branch booleanity-exposition at db32ab6, unpushed, the checkout left on it. Artifact
+  v133.
+- 02:01 UTC, addendum: the chapter's commit amended again (now 1033e1f on booleanity-exposition):
+  the composition subsection is four paragraphs with the figure after the one that defines $Z_c$;
+  "the ratio" is named as the energy ratio $E'/Q$; the magnitude paragraph says the zero-ratio atom
+  is the floor of any certificate on this estimate, with the draft's within about a bit of it; the
+  figure's labels have real subscripts and superscripts (shifted tspans from zc-figure.py's fmt());
+  every inline math span is on one source line (my first re-wrap cut spans at spaces; mdbook-katex
+  does not join them; the check is an odd count of `$` on a line without `$$`), and §3's display
+  equations are back on their own lines inside the list items. The user asked, for n = 2^27, the
+  valid range of r (the revealed coordinates) and its prover/verifier trade-off; answered in chat: r
+  ≥ 156 from the terminal atoms alone at 2^-136 (K^r), 160 is near the floor, r barely moves either
+  party's cost; the geometry at fixed r is the trade-off, and n enters through Theorem 1's cap on
+  Q_0.
+- 02:52 UTC, addendum: KISHU USES THE CONVENTIONAL BOOLEANITY SUM-CHECK, NOT THE PROJECTION (the
+  user, after the shares and the recursion trade-off were computed). The Booleanity check is 22% of
+  Kishu's step prover, 29% of its merge commitments, 10-15% of the accumulation prover, 12-16% of
+  the transaction prover, 0.3% of the decider and 39% of the merge gates in the sum-check form at
+  the page's rows (ranks 19 and 20); the projection form exists only from rank 23, where it saves 7%
+  of the transaction at 0.8 ms more decider and twice the merge. In recursion each projection
+  coefficient is a committed digit of the merge (26 word mults) against the 7.3 per bit the
+  projection saves, so it is ahead only where 2^rank ≳ 3.6 V − 4.6 V_s − H (rank 23 at the draft's
+  geometry); the widths are set by the error target and the first layer's V × S = (g c_1)^2 n, so
+  geometry trades verifier description for prover memory only; one digit per coefficient is generous
+  (regeneration and E-arithmetic per coefficient, ~100 digits). Ranks of 21 and up are too slow for
+  a Zcash transaction (the user). So formally verifying the projection is NOT a blocker for Zcash's
+  use of Kishu: the model's comment says so (ba6021a); the soundness note's Theorem B is restated
+  for the sum-check form, error (4m+1)/|E| plus Akita's, no integer lift, with the projection form
+  kept as Theorem B′ and its certificate recomputation marked not a blocker (9ca1aa1, amended); the
+  chapter's §7 on the branch says the same (its commit amended). r at n = 2^27: floor 156 from the
+  terminal atoms (K^r) at 2^-136, 160 near it; r barely moves either party's cost.
+- 03:17 UTC, addendum: a cheaper Booleanity for Kishu was proposed and REFUTED against the Akita
+  paper (ragu-pcs/work/akita.txt): taking the energy bound from Akita's own norm certification and
+  checking the unweighted identity Σ s² = Σ s (one evaluation claim at (1/2, …, 1/2)) does not work,
+  because Akita's range and norm checks (§6) cover the successor witness, the decomposed response,
+  and the fresh source is bound only as a weak opening (Definition 10.22, a short unit times the
+  source is short), so nothing certifies the committed table's integer energy; and a field identity
+  Σ s² = v cannot bound integers by itself. Smallness per entry is certified by a vanishing identity
+  per entry under random weights, i.e. the conventional check; the group-sum range check the user
+  floated has the same gap (small field sums do not lift; x² − x − 1 = 0 has roots when 5 is a
+  square). The saving left is batching the Booleanity identity into another sum-check over the same
+  table (the step's constraint check). The chapter's §7 records both the recursion trade-off and
+  this dead end (branch commit 87aecbc). The pinned Akita checkout's book (mdbook-katex + mermaid)
+  renders with `mdbook build --dest-dir` inside the nix shell to ragu-pcs/work/akita-book/ (opened
+  once in Firefox; the user reloads); its chapters on the fold, the sum-check stages, security and
+  binding are the relevant ones; main's book may be newer, which needs the user's fetch.
+- 03:28 UTC, addendum: the user fetched the Akita checkout; a worktree ragu-pcs/work/akita-main at
+  origin/main (d50f700, 2026-11-12) has its book rendered to ragu-pcs/work/akita-book-main/ (41
+  chapters differ from the pinned 60b82bc; the pinned render is ragu-pcs/work/akita-book/). The
+  book's Jolt chapter is Jolt proving Akita's verifier, not Akita as Jolt's commitment. Answered in
+  chat: (1) Akita's "optimized digit range check" (§2.3, §6.1) is not the projection: it is the
+  per-entry vanishing check of the alphabet, made cheaper by the involution w -> w(w+1) that halves
+  the degree and by a product tree of degree-2/4 sum-checks, still under random equality weights;
+  the projection replaces the weighted per-entry check by an unweighted integer identity plus a
+  sketched norm bound. (2) Lookups for Booleanity: for a bit-valued committed table a lookup into
+  {0,1} is no cheaper, since logUp needs committed inverses (a field element, ~22 Akita digits, per
+  bit) plus a per-entry product identity of the same shape as s(s-1) = 0, or LogUp-GKR with a
+  log^2-round verifier in the merge; the real form of the idea is a word-level arithmetization
+  (k-bit words committed as one digit each, ranges and bit operations by lookups, Lasso-style small
+  committed values suiting Akita), a Jolt-style frontend rather than Kishu's, whose lookup verifier
+  must be accumulated in Ragu's PCD to pay, as keep/lookups-in-ragu.md concluded (logUp is the
+  argument to emulate; accumulation is a Ragu design change).
+- 03:38 UTC, addendum: the user asked whether q = 2^64 − 59 can be exploited, e.g. a 64-bit value as
+  i + j with i any field element and 0 <= j < 59. Answered: j needs 60 values (0 <= j <= 59) to
+  reach 2^64 − 1, since i <= q − 1 = 2^64 − 60; any field element is already an integer in [0, q),
+  so the range of i costs nothing and only j (6 bits, excluding 60..63) and carries need Booleanity;
+  and 2^64 ≡ 59 (mod q) turns 64-bit carries into a + b = c + 59·carry in F_q and 128-bit limb
+  products into a·b = lo + 59·hi, both with free-range field elements lo, hi. So a word-level
+  arithmetization over F_q (non-native Pasta arithmetic in four 64-bit limbs, each a field element
+  plus a 6-bit correction) would confine Booleanity to corrections, carries and genuinely bitwise
+  values, commit about 112 Akita digits per Pasta value (4 × (22 base-8 digits + 6 bits)) against
+  Kishu's 255 bits, cut the constraint work for field arithmetic from bit circuits to a few
+  quadratic constraints per limb product, and give four limb claims instead of eight; its soundness
+  is elementary lifts with explicit bounds, with no decoupling (it sidesteps Theorem A). Canonical
+  form: j > 0 only with i = q − 1, enforced by j·(i − (q−1)) = 0. A new frontend to price, not a
+  change to Kishu as modelled.
+- 03:49 UTC, addendum: the 64-bit-word frontend was NOT built: checked before pricing, the
+  representation is unsound for arithmetic over F_q. The field identity a + b = c + 59·carry for a
+  64-bit addition also accepts (c − 59, carry + 1) and (c + q, carry), since the identity only fixes
+  the integer relation modulo q and q is the word size; a 64 × 64 -> 128-bit split a·b = lo + 59·hi
+  has one passing lo for every hi, so it fixes nothing. Disambiguation needs sub-word information,
+  i.e. range-checked decompositions, which the free range of a field element does not compose with
+  (i = low + 64·high is not unique without bounding high). So the only sound word-level route is the
+  standard small-limb emulation already on the page as the Goldilocks variant (a 64-bit field is a
+  64-bit field; 1,100 gates a Pasta multiplication without lookups), dominated by Kishu. Verified
+  numerically. FOUND MEANWHILE, to raise with the user: Kishu's recovery cost still charges 255
+  digits per Pasta multiplication "no quotient", the 2026-11-12 accounting for the DECOUPLED design
+  (claims native over Pasta); since 2026-11-14 Kishu is design B (F_q claims, limbs, Zinc+'s integer
+  PIOP), under which a·b = k·p + r needs the committed quotient as BitZ's 510 bits do. With 510
+  digits a multiplication the recovery circuit is 8.4M digits instead of 4.7M (see the chat for the
+  transaction figures).
+- 03:56 UTC, addendum: the user's refinement, a free-range 64-bit word plus 32 Booleanity checks
+  implicitly checking the other 32 bits, for 32 × 32 -> 64-bit products: also not sound. W = L +
+  2^32·H with L the checked low half leaves H free: a fake L + 1 has a passing H = (W − L − 1)·2^−32
+  mod q, a 64-bit field element; and a·b = W with a 32-bit and W free pins b only modulo q, so any b
+  passes. A field identity pins an integer relation only when every term is bounded within one
+  modulus; the free range of one element never bounds a term scaled by 2^32 or by an unbounded
+  factor. The one sound use is a product of two already bounded 32-bit values, which is below q
+  (margin 2^33) and so needs no range check on its output; but in a limb multiplication the products
+  are single constraints anyway, and the cost is the carries' and limbs' bounds (about 1,000 bits a
+  Pasta multiplication, the Goldilocks-style 1,100), worse than the integer PIOP's 510 bits.
+  Numerically checked. No frontend built.
 
 ## 2026-11-19 02:37 UTC: Kishu's Pasta multiplication carries its quotient; the Flock zk rows' history
 
@@ -2308,10 +2454,56 @@ ragu/work/bench-fuse-asm.log.
   user's review of the soundness statements, then Theorem B; the zk-fold levers; re-render
   keep/tachyon-statements.md; the Pasta-claims recovery row's BLAKE3 figure; ask Quang about
   the QROM proof and CertifiedJL's roadmap; the other Python files through ruff, if wanted.
-- 05:08 UTC, addendum: BitZ and Flock first in the family list's hash-based section (b7a94f2). Then the three items found, in 784d422 (artifact v138): Kishu's transcript and claims at E's 16 bytes (`CLAIM_BYTES["kishu"]`, `ATOMS_PER_COMMITMENT["kishu"]` = 8, a pseudo-variant outside VARIANTS), the Booleanity sum-check's 1,744-byte transcript absorbed with them, and under BLAKE3 a range check against q on every prover-supplied word before hashing (RANGE_CHECK_DIGITS = 63: 57 products for bits 63 to 6, about five for the low six, one constraint; the images are instance data and need none; Poseidon absorbs field elements and needs none). Effects: the per-circuit claim 4,400 digits under BLAKE3 and 4,900 under Poseidon (were 8,000 and 9,300), so Kishu has rows from rank 13 under both hashes (402 circuits at rank 13 under BLAKE3) and the rank claim is restated; rank-17 proofs 80 kbytes; the Poseidon merge 1.7M digits, prover 6.1e7. The family list's swatch box now takes the label's first line, level with the checkbox (the user's report; checked in a render). FOUND, NOT CHANGED: Kishu's decider is priced with the Pasta-claims factor of four (`akita_verify("pasta_q64")`) although its claims are E values at the 64-bit profile, where the Goldilocks entry applies; and its opening bytes come from the Pasta-claims plan (`akita_bytes("pasta_q64")`), whose extra bytes over the Goldilocks plan are Pasta-width elements. For the user's decision. The user asked how a claim's prose is kept in sync with it: it is not, mechanically; the claim's text is a label, the sentence has no marker, and the correspondence is by reading (answered in chat, with a marker-and-hash mechanism proposed).
-- 05:27 UTC, addendum: CLAIMS TIED TO THEIR SENTENCES (7fc1cf4; the user: "tie claims to a short name in the same way we do for figures"). `claim(name, text, holds)`; the guarded sentence sits between `<!--claim:NAME:HASH-->` and `<!--/claim-->` in the page or a note, HASH the first six hex digits of SHA-256 over the claim's text (several claims on one sentence: names comma-separated, the hash over their texts joined); the run fails on a stale hash, a failed claim, a claim with no marker in any file, a marker naming no claim, or unbalanced markers; `--fill` writes the hashes and prints each reworded claim's text; `--figures` lists the claims too. Sixty-three claims (one was a single-line call the first pass missed), fifty-eight sentences: 41 in the template, 7 in pasta-proof-size.md, 2 in the zk note. The mapping from claim to sentence was made by a scratch keyword-and-neighbouring-figure matcher over the prose, then reviewed by hand; the scratch scripts are not kept. REGENERATING.md describes the markers. FOUND BY THE MAPPING: pasta-proof-size.md's BitZ sentence still said "nothing with Pasta claims has both a smaller proof and a cheaper prover", which Kishu falsified on 2026-11-15 when the page's copy was restricted to the hash-based families; it now matches the page. Then (d2ef4f5; artifact v139): the family list under the headings Pre-quantum, Lattice-based and Hash-based in place of the group's eyebrow and the two rules, and the labels shorn of "(not post-quantum)", ", hash-based" and ", lattice" (the user). Checked in a render.
-- 05:30 UTC, addendum: KISHU ON THE GOLDILOCKS PLAN (9f77d80; artifact v140): its opening bytes and decider follow the Goldilocks variant (`akita_bytes("goldilocks")`, `akita_verify("goldilocks")`, log_len in that variant's 22-digit coefficients, its rank scale and image share), since Kishu's claims are at the 64-bit profile in a small extension as that variant's are; the Pasta-claims plan had Pasta-width elements and the decider the Pasta factor of four. Rank 17: proof 69 kbytes (was 80), decider 2.26 ms (was 6.55), 7.1 times smaller than BitZ's proof (was 6.1), the Pasta-group decider range from 2.22 ms; under Poseidon Kishu's proof is 10 kbytes smaller than the 64-bit variant's (new claim kishu_poseidon_proof_smaller on that sentence's marker). The two items found and not changed earlier today are thereby closed. STATE: main at this entry, unpushed from 1e4cf45 on; artifact v140. PENDING: constraint costs for the bit arithmetizations (not charged anywhere); the 2026-11-14 open modelling questions; the Pasta-claims recovery row's BLAKE3 figure; the zk-fold levers; the user's review of the soundness statements.
-- 05:38 UTC, addendum: the frontier table sorted every column as text since the units moved into the cells (816a30a): the sort now takes the leading number and ignores the unit (bf12dd4; artifact v141; the user's report).
+- 05:08 UTC, addendum: BitZ and Flock first in the family list's hash-based section (b7a94f2). Then
+  the three items found, in 784d422 (artifact v138): Kishu's transcript and claims at E's 16 bytes
+  (`CLAIM_BYTES["kishu"]`, `ATOMS_PER_COMMITMENT["kishu"]` = 8, a pseudo-variant outside VARIANTS),
+  the Booleanity sum-check's 1,744-byte transcript absorbed with them, and under BLAKE3 a range
+  check against q on every prover-supplied word before hashing (RANGE_CHECK_DIGITS = 63: 57 products
+  for bits 63 to 6, about five for the low six, one constraint; the images are instance data and
+  need none; Poseidon absorbs field elements and needs none). Effects: the per-circuit claim 4,400
+  digits under BLAKE3 and 4,900 under Poseidon (were 8,000 and 9,300), so Kishu has rows from rank
+  13 under both hashes (402 circuits at rank 13 under BLAKE3) and the rank claim is restated;
+  rank-17 proofs 80 kbytes; the Poseidon merge 1.7M digits, prover 6.1e7. The family list's swatch
+  box now takes the label's first line, level with the checkbox (the user's report; checked in a
+  render). FOUND, NOT CHANGED: Kishu's decider is priced with the Pasta-claims factor of four
+  (`akita_verify("pasta_q64")`) although its claims are E values at the 64-bit profile, where the
+  Goldilocks entry applies; and its opening bytes come from the Pasta-claims plan
+  (`akita_bytes("pasta_q64")`), whose extra bytes over the Goldilocks plan are Pasta-width elements.
+  For the user's decision. The user asked how a claim's prose is kept in sync with it: it is not,
+  mechanically; the claim's text is a label, the sentence has no marker, and the correspondence is
+  by reading (answered in chat, with a marker-and-hash mechanism proposed).
+- 05:27 UTC, addendum: CLAIMS TIED TO THEIR SENTENCES (7fc1cf4; the user: "tie claims to a short
+  name in the same way we do for figures"). `claim(name, text, holds)`; the guarded sentence sits
+  between `<!--claim:NAME:HASH-->` and `<!--/claim-->` in the page or a note, HASH the first six hex
+  digits of SHA-256 over the claim's text (several claims on one sentence: names comma-separated,
+  the hash over their texts joined); the run fails on a stale hash, a failed claim, a claim with no
+  marker in any file, a marker naming no claim, or unbalanced markers; `--fill` writes the hashes
+  and prints each reworded claim's text; `--figures` lists the claims too. Sixty-three claims (one
+  was a single-line call the first pass missed), fifty-eight sentences: 41 in the template, 7 in
+  pasta-proof-size.md, 2 in the zk note. The mapping from claim to sentence was made by a scratch
+  keyword-and-neighbouring-figure matcher over the prose, then reviewed by hand; the scratch scripts
+  are not kept. REGENERATING.md describes the markers. FOUND BY THE MAPPING: pasta-proof-size.md's
+  BitZ sentence still said "nothing with Pasta claims has both a smaller proof and a cheaper
+  prover", which Kishu falsified on 2026-11-15 when the page's copy was restricted to the hash-based
+  families; it now matches the page. Then (d2ef4f5; artifact v139): the family list under the
+  headings Pre-quantum, Lattice-based and Hash-based in place of the group's eyebrow and the two
+  rules, and the labels shorn of "(not post-quantum)", ", hash-based" and ", lattice" (the user).
+  Checked in a render.
+- 05:30 UTC, addendum: KISHU ON THE GOLDILOCKS PLAN (9f77d80; artifact v140): its opening bytes and
+  decider follow the Goldilocks variant (`akita_bytes("goldilocks")`, `akita_verify("goldilocks")`,
+  log_len in that variant's 22-digit coefficients, its rank scale and image share), since Kishu's
+  claims are at the 64-bit profile in a small extension as that variant's are; the Pasta-claims plan
+  had Pasta-width elements and the decider the Pasta factor of four. Rank 17: proof 69 kbytes (was
+  80), decider 2.26 ms (was 6.55), 7.1 times smaller than BitZ's proof (was 6.1), the Pasta-group
+  decider range from 2.22 ms; under Poseidon Kishu's proof is 10 kbytes smaller than the 64-bit
+  variant's (new claim kishu_poseidon_proof_smaller on that sentence's marker). The two items found
+  and not changed earlier today are thereby closed. STATE: main at this entry, unpushed from 1e4cf45
+  on; artifact v140. PENDING: constraint costs for the bit arithmetizations (not charged anywhere);
+  the 2026-11-14 open modelling questions; the Pasta-claims recovery row's BLAKE3 figure; the
+  zk-fold levers; the user's review of the soundness statements.
+- 05:38 UTC, addendum: the frontier table sorted every column as text since the units moved into the
+  cells (816a30a): the sort now takes the leading number and ignores the unit (bf12dd4; artifact
+  v141; the user's report).
 
 ## 2026-11-19 13:06 UTC: constraint costs charged; Kishu's multiplication by two routes; the Pasta arithmetic column; the 3D default view
 
@@ -2393,9 +2585,20 @@ ragu/work/bench-fuse-asm.log.
   row's BLAKE3 figure; the zk-fold levers; constraint costs for the other families' merges
   (Ragu's PIOP is evaluation-based and in the claims already, but the hash-based rows' PIOP
   verifiers in their merges are not counted, as the BitZ paragraph says).
-- 13:10 UTC, addendum: toggling the orthographic projection carries the live camera, so only the projection changes (0d5b4a4); the measure eyebrows shortened to "2D vertical axis" and "2D marker size, 3D vertical axis" with two lines reserved, since the swap column had made them wrap unequally (the user's report). Artifact v146.
-- 13:20 UTC, addendum: the commitments-only measure is "prover commitment work" everywhere it is named (4bceec6; the user), the two rank claims restated with it and their marker refilled; artifact v147; unpushed from 4bceec6.
-- 13:36 UTC, addendum: the user asked why the table never shows "relation, limbs": the two routes differ only in the application's cost, so under the transaction measure the fingerprint row dominates its limb twin (half the digits on the recovery circuit) and under any other third measure the rows are identical and both appear. Found on the way: the fingerprint route's per-step cost was charged on every step; now only on applications with multiplications (`route_step`, DATA.has_mults), so the routes tie on the path applications. The Pasta classes are a list on the page. Commits 4bceec6, 7c23f5a, b748596 and this one, unpushed; artifact v150.
+- 13:10 UTC, addendum: toggling the orthographic projection carries the live camera, so only the
+  projection changes (0d5b4a4); the measure eyebrows shortened to "2D vertical axis" and "2D marker
+  size, 3D vertical axis" with two lines reserved, since the swap column had made them wrap
+  unequally (the user's report). Artifact v146.
+- 13:20 UTC, addendum: the commitments-only measure is "prover commitment work" everywhere it is
+  named (4bceec6; the user), the two rank claims restated with it and their marker refilled;
+  artifact v147; unpushed from 4bceec6.
+- 13:36 UTC, addendum: the user asked why the table never shows "relation, limbs": the two routes
+  differ only in the application's cost, so under the transaction measure the fingerprint row
+  dominates its limb twin (half the digits on the recovery circuit) and under any other third
+  measure the rows are identical and both appear. Found on the way: the fingerprint route's per-step
+  cost was charged on every step; now only on applications with multiplications (`route_step`,
+  DATA.has_mults), so the routes tie on the path applications. The Pasta classes are a list on the
+  page. Commits 4bceec6, 7c23f5a, b748596 and this one, unpushed; artifact v150.
 
 ## 2026-11-20 03:08 UTC: Kishu's zero-knowledge cost; the mask's width and the sampler; rounded Gaussians
 
@@ -2500,45 +2703,465 @@ ragu/work/bench-fuse-asm.log.
   measure prefers a wider mask; then as before: the soundness note's lemmas for the two
   routes and the user's review; the 2026-11-14 open modelling questions; the Pasta-claims
   recovery row's BLAKE3 figure; the hash-based rows' PIOP verifiers in their merges.
-- 03:30 UTC, addendum: THE PAGE'S MASK IS NOW α = 48 WITH THE 20 NS ROUNDED-GAUSSIAN SAMPLER (847ec5f; artifact v152; the user: "use α = 48 and 20 ns", after the comparison of 48, 64 and 80: the worst excess over each application's optimum across the four sampler rates is 6.5% at 48, 3.7% at 64 and 2.6% at 80, all at Karney's rate on the path-only shapes, and under 1% at 20 ns or free; 48 is the widest of the sweep's widths with nine slices a coordinate, 64 and 80 take ten, and its rows term on the public merges is 3% below 80's). MASK_ALPHA = 48 (rank factor 2.45, log β 42.2, 49.3 word multiplications a masked digit, 1.28 attempts), MASK_SAMPLE_WORD_MULTS = 60; KARNEY_SAMPLE_WORD_MULTS = 900 and NOTE_MASK_ALPHA = 12 keep the zero-knowledge note's §5.3 and §5.4 example as it was, under the note's own figure names note_mask_attempts and note_sample_ns (its figures did not move). SAMPLER_RATES are now page (20 ns), karney (300), fast (100) and free. Results: Kishu's recovery with zk 1.54 s a note at rank 20 (was 3.90 at rank 18): fold 0.336 s (sampling 0.162, the masks' commitments 0.133, the fold's merge 0.041), nine steps at 134 ms, 1.20 s; with Karney's sampler it would be 3.00 s at rank 19, at 100 ns 2.19 s; four recovery inputs 1.02 s a note at rank 21; two tachyactions 0.780 s (was 2.05); Akita with Pasta claims 149 s (was 167) and two tachyactions 4.25 s (was 5.86). The α table on the page is at the page's sampler: 6 / 12 / 24 / 48 / 96 give 2.41 / 1.80 / 1.59 / 1.54 / 1.54 s at ranks 19 / 20 / 20 / 20 / 20, so the claim kishu_zk_falls_with_alpha now says it falls to 48 and is within two percent at 96. The optima at the page's sampler are 64 to 130 (recovery 76, within two percent from 32 to 260), at Karney's 110 to 300, at 100 ns 91 to 260, free 32 to 91; the page's 48 is within 2.8% of every application's optimum at its sampler (2 and 8 paths are the worst) and 6.5% at Karney's (the claim alpha_page_near_optimum, at three and seven percent). The page's zero-knowledge prose now says the page's sampler is the rounded Gaussian and quotes Karney's as the exact alternative; "a Gaussian width of twelve times the norm" became the figure mask_alpha; the transaction-prover paragraph no longer says the sampling is the larger part, which the Pasta variants' masked digit now outweighs. The zk note's §5.4 sentence on Karney and the CDT is still to be reworded, and its §5.6 could say what the page chose. The per-application table of the 03:08 entry stands, with the "20 ns" column now the page's.
-- 03:43 UTC, addendum: THE ZERO-KNOWLEDGE NOTE'S WORKED EXAMPLE IS AT THE PAGE'S PARAMETERS (b584a44; the user: "use the new parameters for the zk notes"). §5.3 now assumes weight-20 challenges in the accumulation matrix's ring dimension of 512 and α = 48: ‖cs‖₂ ≤ 2^17.3, σ ≈ 2^22.9, ‖z‖₂ ≈ 2^34.9, ‖z‖∞ ≈ 2^26.7, J = 9, masked β ≈ 2^42.2, masked rank 350 field elements (11.2 kbytes) by the (log β)² rule that §5.5 confirms at its bounds (Akita's estimator at 2^42.2 was started in the background at the end of the session, `cargo run --release --example pasta_rank -- 128 4194304 42.2 42.6 43.2` in work/akita-src, log work/pasta-rank-48.log; if it gives a different row count, the §5.3 row and note_masked_rows in the model should take it), padding ≈ 30K digits; the mask costs 2.45 times the rank, 9 times the witness, 1.3 attempts. §5.4: the commitment is N/d = 2^13 NTTs of size 512, 2^24.4 multiplications, 2^29.4 word multiplications, 0.232 s; the sampling 0.0839 s at 20 ns as a rounded Gaussian, an attempt 0.316 s, a fold 0.406 s (0.854 s at α = 12, 2.33 s at α = 6, 1.91 s with Karney's sampler); the fold is under three percent of a two-dozen-step proof (claim mask_fold_small_fraction, which replaces mask_fold_noticeable_fraction); the challenge-set point says why d = 512 and weight 20; the sampling point now carries Jeudy's theorem, the PKC 2018 sampler's rates, the exact-rounding argument and Karney's rate as the alternative (the §5.4 sentence "Karney's exact sampler or a high-precision CDT is the standard answer" is gone). §5.6's table has the weight-20 rows for α = 96, 48, 24, 12, 6, 4 first (10 slices and 15.7 Mbytes at 96), then the weight-32 and weight-16 rows, and its text records the page's choice and the measure's limits. §5.7: the block factor 2.00 instead of 2.45, eight digits, 12.6 Mbytes; k = 9 candidates a block. §5.8: the claim mask_fold_phone_seconds (renamed from mask_fold_under_second at the user's request, for what the sentence says: a fraction of a second on a fast core, a few seconds on a phone) replaces mask_fold_seconds; batches of 4 / 11 / 33 candidates for one percent at α = 48 / 12 / 6; the transfer 14 Mbytes at 27 bits a coordinate. §5.9: 350 rows, a fold of under half a second. The example's figures are generated from the page's constants (note_* figures in define_figures; NOTE_MASK_ALPHA is gone). The page itself did not change (artifact v152 stands). The sentence-length check was run on the rewritten passages and the new sentences split; the pre-existing long ones in §5.8 were left.
-- STATE: main at b584a44 plus this entry, unpushed from 8d7efa7 (the user pushes). Artifact v152. PENDING: the estimator's row count at 2^42.2 for §5.3 (above); then as before: the soundness note's lemmas for the two routes and the user's review; the 2026-11-14 open modelling questions; the Pasta-claims recovery row's BLAKE3 figure; the hash-based rows' PIOP verifiers in their merges. A measurement of a rounded-Gaussian sampler on the M4 Max (Box–Muller in doubles with the boundary check) would replace the 20 ns assumption; not started.
-- 03:44 UTC, addendum: the estimator run finished in seconds (726f62b): Pallas needs 349 rows at 2^42.2 (the rule's 350), 356 at 2^42.6 and 366 at 2^43.2, all at block 484; §5.3's masked rank row is the estimator's again (NOTE_MASKED_ROWS = 349 in the model, asserted within a percent of the rule), §5.5's ladder has the three new bounds, estimates/pasta-rank.csv was regenerated with them (the earlier rows reproduced exactly) and scripts/akita-pasta-estimates.sh lists them. So nothing is left to run overnight; the one open measurement is the rounded-Gaussian sampler's rate on the M4 Max. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); artifact v152 (the page did not change after 847ec5f).
-- 03:54 UTC, addendum: SHORTER SENTENCES ON THE PAGE (3eefd98; the user, on the zero-knowledge section's first sentence: "this is too long; look for other long sentences in existing prose"): a scan of the template's paragraphs found 127 sentences of 40 words or more; the zero-knowledge section's long ones (about twenty) and every sentence of 60 words or more elsewhere were split at clause boundaries, one claim to a sentence, with the markers kept; the eight of 60 or more that remain are lists of parallel values (the decider ranges, the three packings, the NTT's operations, the BLAKE3 accounting, the Boolean merge's parts, the per-scheme result lists, the shrink ranges). About ninety sentences of 40 to 59 words are left for a later pass. The claim bitz_recovery_zk_unchanged's sentence now says "since the masking fold grows with the rank" (it said the mask's sampling, which is small now). Artifact v153. STATE: main at this entry, unpushed from 8d7efa7.
-- 10:11 UTC, addendum: the two parenthetical section links, "prover commitment work (the section below)" and "with exact rounding (the zero-knowledge section)", are links on the phrases themselves (0809eb1; the user: "Just link \"prover commitment work\". Look for similar cases"); the other in-page links are clauses ("as the Hashes section says") and the controls' "(see text)" is the deliberate pattern, both left; the notes' "(§5.5)" references are section numbers, left. Artifact v154.
-- 10:14 UTC, addendum: the controls' "(see text)" and "(see the Rank/Knobs section)" are gone; the zero-knowledge checkbox label and the Rank and PCD header eyebrows are the links themselves, with the page's ordinary link underline and colour (ecee0e1; the user: "(see text) can also just make the label a link", "they should have the normal underline and highlight cues"; checked in a render of the three groups). Artifact v155.
-- 10:19 UTC, addendum: EVERY CONTROL EYEBROW IS A LINK (43854d8; the user: "all of the eyebrows have things they can usefully link to", and "can't that just be <a href class=eyebrow>"): second and third measure to #measures, the transaction select to #transaction-prover, view to #axes, work unit to #prover-work, frontier to #frontiers, security floor to #security-floor and zero knowledge to #zero-knowledge, allowed changes to #changes, rank, PCD header to #knobs, the fixed circuits to #circuit-budget, grinding to #grinding, and the family headings (GROUPS carries the href now) Pre-quantum to #circuit-budget, Lattice-based to #trust, Hash-based to #hash-based. An eyebrow that is wholly a link is `<a class="eyebrow">`, with `.group a.eyebrow { color: var(--accent-ink) }` so the muted eyebrow colour does not win over the link colour; one with a tail keeps `<span class="eyebrow"><a>…</a> tail</span>`. Checked in renders. Artifact v156.
-- 10:20 UTC, addendum: zero knowledge is its own control group with its own linked eyebrow, stacked under the security floor in the left column with the allowed changes on the right, as the view row is laid out (4319af9; the user: "make Zero knowledge its own eyebrow"); the checkbox label is plain again. Checked in a render. Artifact v157.
-- 10:25 UTC, addendum: the grinding eyebrow's tail is "(query phase proof-of-work)" so that it fits on one line (7f3429f; the user). Artifact v158.
-- 10:27 UTC, addendum: the limb hybrid is defined at its first mention in the ARC-against-recursion section (WHIR with the Pasta witness as four 64-bit limbs a coefficient tested over Goldilocks, a Pasta merge circuit; the family list's "Pasta claims, 64-bit limbs" rows), with an id that the later mentions link to, and the Knobs entry calls it the limb hybrid too (8ad075e; the user: "the limb hybrid is not explained"). Artifact v159.
-- 10:27 UTC, addendum: the lede's sentence on the drafts is the user's wording, naming Kishu ("Two experimental drafts join them: BitZ's arithmetization over Akita, called Kishu; and Flock-style Boolean circuits over Akita's binary groups.") (39bd038). Artifact v160.
-- 10:32 UTC, addendum: THE SCHEME SECTIONS ARE REGROUPED (08a868d; the user: headings "Pedersen-IPA", "Lattice-based" and "Hash-based" at the same level, "families" rather than "schemes" for consistency; "Knobs" is "Control knobs"): h2 Pedersen-IPA (h3 Circuit budget, id kept), h2 Lattice-based families (h3 Akita: the merge estimate and the circuits fixed point that were in Circuit budget; h3 Kishu; h3 the binary groups), h2 Hash-based families (h3 WHIR and FRI: the hash-based merge estimate from Circuit budget; h3 The 𝔽₂ family, id binary-field-systems kept; h3 BitZ). The Frontiers subsection "The hash-based families" is "Where the hash-based families stand" to avoid the clash; the family-list headings link to the three new sections; the two "binary-field section" links say "𝔽₂ family section"; Kishu's first mention of BitZ links to its section, which now follows it. The trust section stays its own h2. Artifact v161.
-- 10:36 UTC, addendum: the Frontiers subsection "Where the hash-based families stand" is gone (47af194; the user): its first sentence, that the WHIR-type and Plonky3 families start unticked since Akita dominates them, is the lede's last sentence, and the rest (Poseidon-tree figures, WHIR with ARC dominated, the decider's three oracles, the lower rates and grinding, Goldilocks and the limb hybrid, what the hash-based route has) opens the Hash-based families section before "WHIR and FRI"; the id hash-based had no other links. Artifact v162.
-- 10:40 UTC, addendum: the Hash-based families section opens with two short paragraphs (bbdaf48; the user: an introduction that reads first, without excessive detail): the families and what the route has that Akita does not, then the Poseidon-tree convention and a one-sentence verdict (WHIR with ARC dominated; the F2 family and BitZ the efficient end). The WHIR and FRI subsection took the detail: the dominance figures, the decider's three oracles, the rates and grinding with the extrapolation, Goldilocks and the limb hybrid, then its merge estimate ("The merge is estimated, as Akita's is", no longer "also"). The claims whir_rate32_third_off and whir_gold_sixth_off moved with their paragraphs. Artifact v163.
-- 11:03 UTC, addendum: THE PAGE IS A NATIVE BOOK CHAPTER (429af2d; the user: the iframe integration was clunky; keep the artifact updating; "the plot and controls should retain the dark background for contrast; the rest can follow the theme of the book"). One template, two outputs: `pareto.html` as before for the artifact, and for the book `pareto-book.html` (the text, no h1, no blank lines, so Markdown sees one HTML block; included by `{{#include}}` in pcs-frontier.md, which is now just the heading, a full-width style line and the include), `pareto.css` (write_book_files/scope_css in the model: every rule under `#pareto`, the page's variables mapped to mdbook's `--bg`, `--fg`, `--icons`, `--quote-border`, `--links`, `--mono-font`; the light family palette on `#pareto` and the dark one under `.coal`, `.navy`, `.ayu`; `#pareto .top` carries the standalone dark theme for the plot and controls; the page's body, h1–h3 and p rules and its font families dropped so the book's typography applies; mdbook's table striping and header background undone inside the page), `pareto.js` (the script in an IIFE over `window.PARETO_DATA`, with a message in #selfcheck if the data is missing) and `pareto-data.js` (the data as a script, not JSON fetched: a fetch fails from a file: URL, which the user hit, and a script keeps the 5 Mbytes out of mdbook's search index, which now holds the page's text). build-book.sh copies the four into book/src/proof-systems/ (ignored); the old pareto.html copy there is gone. The template now reads its theme from `#pareto .top` and the swatches use `var(--c-…)` in place, so the same script serves both pages; `#plot` is border-box so it matches the controls' height (the user noticed the 2 px). Checked: the built chapter from a file: URL in headless Chrome with software WebGL (rust theme; the prose area follows the theme, the panels stay dark; the frontier table in the theme), the standalone page unchanged in look, the search index holds the prose and not the data. mdbook-katex sees no `$` since the script is external and the prose has none. Artifact v164.
-- 11:08 UTC, addendum: the plot overlapped the controls after the book's sidebar was toggled (the user's screenshot): Plotly's responsive option follows window resizes only, so a ResizeObserver on #plot now calls Plotly.Plots.resize, debounced to a frame, and #plot clips its overflow (07043b2). Artifact v165.
-- 11:25 UTC, addendum: the one-column layout is a container query on `.wrap` (container-type: inline-size), so it applies at the page's own width in the book's column as in the standalone page (the user: that behaviour is good and should be retained in both); the camera's eye scales by max(1, 600 / plot width) at the first render and on width changes, through the ResizeObserver, since Plotly's vertical field of view is fixed and a narrow plot crops the scene sideways; css_rules skipped no whitespace before a comment, so the rule after a comment came out unscoped, found when the container rule did not fire in the book (bf73221). Checked at 1300 px (one column), 1700 px (two) and the standalone at 900 px (one). Artifact v166.
-- 12:11 UTC, addendum: FIREFOX WHEEL GESTURES OVER THE EMBEDDED PLOT, OPEN. The user (Firefox 158 on the MacBook, trackpad): on the book chapter the plot zooms much faster under a two-finger vertical scroll than on the artifact, and a horizontal scroll rotates only when zoomed far out; the standalone `pareto.html` opened as a file: URL behaves like the artifact, so the book page is the difference; Chrome is fine on both. Firefox's console warns on the book page about a scroll-linked positioning effect, which is mdbook's menu bar positioned from a document scroll handler (book.js `controllMenu`); staktrace.com/spout/entry.php?id=834 explains that Firefox scrolls wheel input on the compositor without waiting for the page. Plotly 2.27's 3D wheel handler (3d-view-controls): if |dx| > |dy| it rolls the camera about the view axis by dx·π·rotateSpeed/innerWidth, else it zooms by exp(zoomSpeed·dy/innerHeight·(now − lastT)/20), lastT the camera clock that the scene's rAF loop refreshes each frame; mouse-wheel scales line-mode deltas by the canvas's ex height. Measured, and all the same on both pages: the camera clock stays 17–25 ms behind (user's Firefox and headless); the user's event captures show pixel-mode deltas of 1–3 at 8–20 ms spacing, dy 1 → factor 1.0011, 2 → 1.0024, 3 → 1.0025–1.0065, exactly the rule, on both pages; dragmode and camera mode are turntable on both; headless Firefox through geckodriver with real WebDriver wheel input (bursts of 20 × 8 px) zooms ×1.07 per 50 px on both and never rolls on dx; one wheel listener on the canvas on both (render() re-runs on mdbook's root-class changes at load but Plotly.react adds no listener); no Plotly resize, relayout or react calls and one ResizeObserver callback over 3 s idle and 15 wheel events on both. Ruled out: a stale camera clock, doubled listeners, a resize feedback loop, line-mode deltas, the camera mode, my MutationObserver. Still open: whether the document scrolls under the pointer during the gesture on the book page (Firefox's compositor may scroll before the page's handler prevents it; the user was asked to log document scroll events); the plot is narrower in the book (574 px against 890 at a 1400 px window with the sidebar), with the eye scaled out by 600/574. The harnesses are ragu-pcs/work/firefox-wheel*.py, firefox-count.py and firefox-resize.py (geckodriver and python selenium are now in the user's nix profile; headless Firefox renders WebGL). Everything above 8d7efa7 is unpushed; artifact v166.
-- 12:12 UTC, addendum: the document does not move while scrolling over the plot on either page (the user), so page scrolling under the pointer is ruled out too; every measured quantity is now identical between the two pages and the Firefox difference stays unexplained. Untested ideas for the next session: compare the pages at the same plot width (the book's plot is 574 px against 890, which changes the eye scale and the scene's size in the view); the `container-type: inline-size` and `overflow: hidden` on the plot's box interacting with Firefox's wheel transactions; mdbook's `<html>` being in standards mode where the standalone, with no doctype, is in quirks mode; and recording a whole gesture's events and camera on both pages into a file for a side-by-side plot of distance against time.
-- 12:37 UTC, addendum: THE FIREFOX DIFFERENCE WAS STATE IN THE TAB, NOT THE PAGE. The user suggested quirks mode first: the standalone with a doctype added (standards mode) and the built chapter with its doctype removed (quirks mode) both behaved correctly on the trackpad. So did seven more variants in standards mode: the chapter without book.js, without the chrome stylesheet, with the content column's overflow visible, with the body's horizontal overflow visible, with the sidebar and menu bar hidden, with the menu bar alone hidden, and the standalone at the chapter's column width (plot 576 px). The original chapter still misbehaved in its own tab; then the user reloaded that tab and the misbehaviour did not reproduce. Nothing had changed: the tree is at 624b213 and the book's copies of pareto.js, pareto.css, pareto-data.js and pareto-book.html are identical to the model's outputs. The four slashes in the user's URL were a red herring (headless Firefox keeps `file:////` as the href and lays the page out the same). Headless probe (work/firefox-compat.py, log work/firefox-compat.log): the only quirks-mode differences are the scrolling element (body against html) and which of the two carries the viewport height. The plot box, the canvas, the camera and the zoom from twenty 8 px wheel events are the same on all four pages. The user's conclusion: something in the browser's state was broken and is no longer broken; closed, not to be pursued unless it recurs (reload first). The variant files are work/pareto-standards.html, work/pareto-standards-narrow.html and pcs-frontier-*.html in the book's output directory, which the next build wipes; the harnesses work/firefox-compat.py, firefox-loadcheck.py and firefox-href.py. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); artifact v166.
-- 12:51 UTC, addendum: THE BOOK'S TABLES FILL EVERY ROW (647547f; the user: the cells had the page's background, which looked odd, and after a first fix with mdbook's own striping, "I'd mildly prefer alternating between slightly contrasting and slightly more contrasting"). The book stylesheet's extra rules had switched off mdbook's header fill and striping, and `--surface` is the book's `--bg`, so the tables were flat. Now odd rows take `--table-alternate-bg`, even rows `color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%)`, the header mdbook's `--table-header-bg`, and the page's rule under each row stays in place of mdbook's cell grid. Checked in headless Firefox element screenshots (work/firefox-tables.py; rust and navy; work/tables-*.png); the user: "significantly better in all themes". The standalone page is byte-identical, so the artifact stays at v166. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
-- 13:49 UTC, addendum: THE PAGE'S FORMULAS ARE LATEX, RENDERED BY KATEX (18de138; the user: "can we have the math in KaTeX? (not plain numbers…)", "use your judgement about what counts as a plain number"): exponents, Greek symbols, norms, the binary fields (written `\mathbb{F}_{2^n}` throughout, GF dropped at the user's request), the attempts, openings and BKZ expressions are in `$…$`; counts, times, sizes, rates and ranks stay plain, as do the data labels. mdbook-katex renders them inside the included HTML block (tested with a marker: katex runs after links). The standalone page loads KaTeX 0.16.11 and its auto-render from cdnjs with MathML output, which needs no stylesheet, so the artifact's host cannot block it. The page now has a doctype: auto-render finds nothing to render in quirks mode (a minimal page: standards mode renders, the same page without a doctype renders nothing, Plotly irrelevant; the standards-mode copy had already passed the user's Firefox test with the same layout). `th .katex, th math { text-transform: none }` replaces `th .sym`. The conversion was work/tex-prose.py (a hand list of the composite expressions plus patterns); checked by counting formulas and leftover dollar signs on both pages (work/firefox-math.py) and by screenshots. A FIGURE MARKER NEVER SITS INSIDE A MATH SPAN (d403159): the zero-knowledge note's thirteen markers inside `$2^{…}$` had rendered the comment text literally since the 03:43 change (the user: "where are the figure markers in $...$?"); the twelve figures that stand as powers of two carry the whole span through tex_pow2 (note_cs_bound, note_sigma, note_z2, note_zinf, note_beta, note_ntts, note_pointwise, note_mults, note_word_mults, mask_rounded_divergence, mask_double_undecided, mask_double_undecided_folds), the note's and the page's markers wrap the span, and the relation sits in its own `$\le$` or `$\approx$`. HEADINGS IN THE BOOK (546c458; the user: clicking a section title gave no link or » cue): the book writer wraps each h2 and h3's text in `<a class="header" href="#id">` as mdbook does for Markdown headings, with `#pareto a.header { color: inherit }`; that also put the section outline in the sidebar (the user: "great"). WORDING (c746056, be37f4f; the user): Kishu's merge paragraph is three (the BLAKE3 accounting with the range check, the arithmetic over the extension, the Poseidon option and the consequence), "Kishu's merge is Akita's", the projection zero-knowledge sentence says what the projection reveals and the draft-certificates remark is its own paragraph, the naming sentence links the breed's Wikipedia article, "the merge prover does 2.9 to 3.3 times less work", the reference to an earlier version of the page is gone, and the Pasta-requirement list has "relation, limbs" and "relation, fingerprint" as separate entries. The user asked where the WHIR zero-knowledge sentence's 30.9 and 37.5 kbytes come from: they are the plain WHIR baseline of Plonky3's zk_overhead benchmark run on 2026-10-15 (entry above; work/plonky3-zk-overhead.log), at 100 bits under the capacity bound with 16 bits of grinding over KoalaBear's quintic extension, well below the page's floors; the sentence serves only the additive 73 kbytes. Artifact v167. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
-- 14:19 UTC, addendum: CITATIONS AND REFERENCES (bc3d34d; the user: References a level higher; "there are plain text citations such as (ePrint 2026/2583) that should be reference citations"; "the zero-knowledge note's section references can be made into links (when in the book)"): References is an h2; every plain-text citation on the page is a bracketed key in the style of the trust section's, linked to its entry (`<li id="ref-key">`), and the existing keys are linked too (38 links, checked against the ids); twelve entries added from the local PDFs and the ePrint/arXiv metadata pages (OS26 LaBinius, DP24 FRI-Binius, Ska26 the small-field survey, BGK+26 BitZ, AGK+26 Zinc+, CFW26 Zook, BRW26 Flock, Jeu26, HLS18, DFW20, Kar16, ZIP-2005), with "[DP24, §1.3]" for a section of a paper. References to the note's sections are `<span class="noteref" data-section="5.9">§5.9</span>` in the template; write_book_files turns them into links to working-notes/zk-fiat-shamir-with-aborts.html at the ids mdbook gives the note's headings (mdbook_id reproduces mdbook's rule, checked against the built ids; ten links, one to the chapter itself, which replaced the page's only direct link into the note, dead on the standalone); the standalone shows them as text. work/cite-prose.py did the rewrite. Checked: every link's target exists in the built book, a click lands on "5.3 A worked example". WORDING (bc3d34d, fe1c516; the user): "The rule counts the first three (native and the two relation variants)"; the binary-groups paragraph says the 80,000 word multiplications per Pasta gate are the recovery circuit's cost in that family and that the family would suit an application that is a Boolean circuit in its own right, such as Flock's hash batches (the user: "what boolean application?"). Artifact v168. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); about 52 commits.
-- 14:29 UTC, addendum: SUBSECTIONS (a0509a1; the user: "the Zero knowledge section should be split into subsections", "in particular, the three things referred to by 'Three things set it.' should be subsections", "paragraph anchors might be needed in some cases, but only where it doesn't make more sense as a subsection"). Zero knowledge (h3) has h4s Akita's mask, Pedersen-IPA, WHIR and FRI, the F2 family, Kishu (with h5s The sampler, The width of the mask, The transaction's shape) and BitZ; "rejection sampling" in its first paragraph is a noteref to the note's §2; "explained below" links to the width subsection. Kishu has h4s Digits and constraints, Pasta multiplication by two routes, The merge, Costs at rank 17, The recovery circuit, Zero knowledge and status, LaBinius; Transaction prover has The application in each arithmetization, The masking fold, Results. The Pasta-as-a-requirement list links each approach to its section (Pedersen-IPA, Akita, WHIR, the limb hybrid, the two routes, BitZ, the application costs, the F2 family, the binary groups; the user: the list "should itself link to the detailed explanations for each approach"), and the Transaction prover's emulation sentence refers to that list (the user). The standalone styles h4 and h5; the book drops those rules and gives the headings header links (write_book_files handles h2 to h5). Checked: every in-page link on both pages has a target, 57 headings with header links in the book, no KaTeX errors. Artifact v169. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
-- 15:14 UTC, addendum: TACHYON NODES OFF PASTA: BIT-LEVEL GATES PRICED AS BITS (4f44829; the user, on "the remaining gates are taken as Pallas multiplications, an overstatement where a gate only checks a bit": "Isn't that potentially quite a large error?"; yes). A node's gates beyond its permutations and window selections were all priced as Pallas multiplications (1,100 Goldilocks gates, 510 Kishu digits, 120,000 AND gates each), yet 55 to 64 percent of every step is that remainder and most of it is bit-level: the scalars' bit checks (3 a window), the digest canonicity comparison, the amount's range check and comparison, the step's glue. Now TACHYON_STEPS carries the openings at ζ (0, 2, 0, 2, 6, 4, 0 for SpendBind, SpendAction, OutputBind, OutputAction, ActionMerge, FeeFuse, Rerandomize); tachyon_node_cost prices the window additions (2 gates each) and the openings (2 gates each, from the action merge's 17 for six) as multiplications and the rest as bit operations, one gate, AND gate or committed bit each (BIT_GATE_OFF_PASTA; BIT_CHECK_PIOP (1, 2, 0) in Kishu's PIOP); `bits_as_mults=True` gives the old pricing for the prose's bound (claim tachyon_bits_as_mults_more_steps). Results: a node is 6 to 13 Goldilocks steps of rank 17 (was 27 to 36; the bound 27 to 36 stays in the prose) and 5 to 11 Boolean steps (was 23 to 30); two tachyactions: Goldilocks 5.30 s in 41 steps (was 19.5 in 151), the F2 family 5.48 s in 35 (was 20.2 in 129), Kishu 0.193 s (was 0.385; with zk 0.484, was 0.780), BitZ 0.160 s at rank 20 (was 0.214 at 22); sixteen: Goldilocks 29.8 s (was 132), Kishu 0.580 (was 1.56), BitZ 0.303 (was 0.454); the Karney-rate zk optima 91 to 260 (were 110 to 300). Pedersen-IPA and Akita with Pasta claims are native and unchanged, so the headline Tachyon comparison stands. The prose now says the post-quantum families are costed as a post-quantum variant of Tachyon in a new shielded pool, whose hashes follow the page's policy, and that the recovery circuit recovers notes of the existing pool, so its nullifier stays Poseidon over Pasta (the user; it is inside RECOVERY_MULTS, so it always was). The Poseidon permutations per step, for the record: Spend Bind the two nullifier derivations (epochs e and e + 1), Output Bind the note commitment and the padding tachygram, Spend Action the proof authorizing key, the randomizer and the action digest, Output Action the randomizer and the digest, Fee Fuse the fee blind, the fee digest, the change commitment and a fourth not named in the statements note. Artifact v170. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
-- 15:23 UTC, addendum: the width subsection's sensitivity sentence quotes Karney's rate alone (70ae607): after the Tachyon change the 100 ns range coincided with Karney's (91 to 260), so the 100 ns optimum figures are no longer defined (the fast rate itself stays, for the sampler subsection's 2.19 s). The user asked whether "48 keeps nine slices … within 2.8 percent … and within 6.5 percent at Karney's" still holds: it does; the claim alpha_page_near_optimum passed and `--figures` shows the worst cases are still the path shapes (2 paths at the page's sampler, 1 path at Karney's), the Tachyon shapes being within 2 percent at the page's sampler and 6.4 at Karney's (16 tachyactions). Artifact v171. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
-- 22:32 UTC, addendum: THE FEE FUSE STEP, READ OFF TACHYON'S CODE (448d899; the user: "please check the fee fuse step"). `FeeFuse::witness` (crates/tachyon/src/stamp/proof/stamp.rs at 73031f7) runs three sponges: `feemax_blind` inside `Note::cv_feemax` (gadgets/note.rs), `fee_digest`, and the change note's `commitment`; Ragu's circuit sponge (ragu_primitives poseidon/mod.rs) permutes only when four absorbed elements are followed by a fifth or by a squeeze, so each tagged hash of at most four elements is one permutation, and a nullifier group (two absorbed, four squeezed) is one too. The step's multiplications are two: `R_BASE.mul_digest` of the derived blind (255 bits, canonical) and `FEE_V_BASE.mul_amount` of the 51-bit slack onto the blind point; the maximum-money term is a constant point. So TACHYON_STEPS["FeeFuse"] is (1934, 3, 102, 4), not (1934, 4, 187, 4), and keep/tachyon-statements.md's cost table row is corrected with a note on the sponge. The other steps' counts match the code (SpendBind two nullifier groups and two multiplications, SpendAction three sponges and one, OutputBind two and two, OutputAction two and one). Results: a node is 6 to 8 Goldilocks steps of rank 17 (the bound 27 to 39), 5 to 7 Boolean; two tachyactions 4.53 s over Goldilocks in 35 steps (was 5.30 in 41), the F2 family 4.69 s in 30 (was 5.48 in 35); sixteen over Goldilocks 29.0 s; the Karney-rate zk optima 64 to 260. Artifact v172. STATE: main at this entry; everything through f9e3359 was pushed by the user at about 15:20 UTC; 448d899 and this entry are unpushed.
-- 22:42 UTC, addendum: the Rank section's "Mostly the field choice trades" sentence is "The more significant trade is the field choice: a smaller field buys fewer bytes and less prover commitment work at the cost of more atoms absorbed per merge" (cf4a779; the user: odd wording). Artifact v173. STATE: main at this entry; 448d899 and after are unpushed.
-- 22:49 UTC, addendum: the book's table headings are in `--fg` (a6c3128; the user: low-contrast in rust, navy and ayu, nearly invisible in coal, since `--muted` maps to mdbook's `--icons`); checked in the four themes with work/firefox-tables-th.py; the standalone is unchanged, artifact v174. STATE: main at this entry; 448d899 and after are unpushed.
-- 22:53 UTC, addendum: the frontier table's accent bar on each row's first cell now runs through the header too (64545ee; the user: the header's left edge was a lighter colour; "that's better"). Artifact v175. STATE: main at this entry; 448d899 and after are unpushed.
+- 03:30 UTC, addendum: THE PAGE'S MASK IS NOW α = 48 WITH THE 20 NS ROUNDED-GAUSSIAN SAMPLER
+  (847ec5f; artifact v152; the user: "use α = 48 and 20 ns", after the comparison of 48, 64 and 80:
+  the worst excess over each application's optimum across the four sampler rates is 6.5% at 48, 3.7%
+  at 64 and 2.6% at 80, all at Karney's rate on the path-only shapes, and under 1% at 20 ns or free;
+  48 is the widest of the sweep's widths with nine slices a coordinate, 64 and 80 take ten, and its
+  rows term on the public merges is 3% below 80's). MASK_ALPHA = 48 (rank factor 2.45, log β 42.2,
+  49.3 word multiplications a masked digit, 1.28 attempts), MASK_SAMPLE_WORD_MULTS = 60;
+  KARNEY_SAMPLE_WORD_MULTS = 900 and NOTE_MASK_ALPHA = 12 keep the zero-knowledge note's §5.3 and
+  §5.4 example as it was, under the note's own figure names note_mask_attempts and note_sample_ns
+  (its figures did not move). SAMPLER_RATES are now page (20 ns), karney (300), fast (100) and free.
+  Results: Kishu's recovery with zk 1.54 s a note at rank 20 (was 3.90 at rank 18): fold 0.336 s
+  (sampling 0.162, the masks' commitments 0.133, the fold's merge 0.041), nine steps at 134 ms, 1.20
+  s; with Karney's sampler it would be 3.00 s at rank 19, at 100 ns 2.19 s; four recovery inputs
+  1.02 s a note at rank 21; two tachyactions 0.780 s (was 2.05); Akita with Pasta claims 149 s (was
+  167) and two tachyactions 4.25 s (was 5.86). The α table on the page is at the page's sampler: 6 /
+  12 / 24 / 48 / 96 give 2.41 / 1.80 / 1.59 / 1.54 / 1.54 s at ranks 19 / 20 / 20 / 20 / 20, so the
+  claim kishu_zk_falls_with_alpha now says it falls to 48 and is within two percent at 96. The
+  optima at the page's sampler are 64 to 130 (recovery 76, within two percent from 32 to 260), at
+  Karney's 110 to 300, at 100 ns 91 to 260, free 32 to 91; the page's 48 is within 2.8% of every
+  application's optimum at its sampler (2 and 8 paths are the worst) and 6.5% at Karney's (the claim
+  alpha_page_near_optimum, at three and seven percent). The page's zero-knowledge prose now says the
+  page's sampler is the rounded Gaussian and quotes Karney's as the exact alternative; "a Gaussian
+  width of twelve times the norm" became the figure mask_alpha; the transaction-prover paragraph no
+  longer says the sampling is the larger part, which the Pasta variants' masked digit now outweighs.
+  The zk note's §5.4 sentence on Karney and the CDT is still to be reworded, and its §5.6 could say
+  what the page chose. The per-application table of the 03:08 entry stands, with the "20 ns" column
+  now the page's.
+- 03:43 UTC, addendum: THE ZERO-KNOWLEDGE NOTE'S WORKED EXAMPLE IS AT THE PAGE'S PARAMETERS
+  (b584a44; the user: "use the new parameters for the zk notes"). §5.3 now assumes weight-20
+  challenges in the accumulation matrix's ring dimension of 512 and α = 48: ‖cs‖₂ ≤ 2^17.3, σ ≈
+  2^22.9, ‖z‖₂ ≈ 2^34.9, ‖z‖∞ ≈ 2^26.7, J = 9, masked β ≈ 2^42.2, masked rank 350 field elements
+  (11.2 kbytes) by the (log β)² rule that §5.5 confirms at its bounds (Akita's estimator at 2^42.2
+  was started in the background at the end of the session,
+  `cargo run --release --example pasta_rank -- 128 4194304 42.2 42.6 43.2` in work/akita-src, log
+  work/pasta-rank-48.log; if it gives a different row count, the §5.3 row and note_masked_rows in
+  the model should take it), padding ≈ 30K digits; the mask costs 2.45 times the rank, 9 times the
+  witness, 1.3 attempts. §5.4: the commitment is N/d = 2^13 NTTs of size 512, 2^24.4
+  multiplications, 2^29.4 word multiplications, 0.232 s; the sampling 0.0839 s at 20 ns as a rounded
+  Gaussian, an attempt 0.316 s, a fold 0.406 s (0.854 s at α = 12, 2.33 s at α = 6, 1.91 s with
+  Karney's sampler); the fold is under three percent of a two-dozen-step proof (claim
+  mask_fold_small_fraction, which replaces mask_fold_noticeable_fraction); the challenge-set point
+  says why d = 512 and weight 20; the sampling point now carries Jeudy's theorem, the PKC 2018
+  sampler's rates, the exact-rounding argument and Karney's rate as the alternative (the §5.4
+  sentence "Karney's exact sampler or a high-precision CDT is the standard answer" is gone). §5.6's
+  table has the weight-20 rows for α = 96, 48, 24, 12, 6, 4 first (10 slices and 15.7 Mbytes at 96),
+  then the weight-32 and weight-16 rows, and its text records the page's choice and the measure's
+  limits. §5.7: the block factor 2.00 instead of 2.45, eight digits, 12.6 Mbytes; k = 9 candidates a
+  block. §5.8: the claim mask_fold_phone_seconds (renamed from mask_fold_under_second at the user's
+  request, for what the sentence says: a fraction of a second on a fast core, a few seconds on a
+  phone) replaces mask_fold_seconds; batches of 4 / 11 / 33 candidates for one percent at α = 48 /
+  12 / 6; the transfer 14 Mbytes at 27 bits a coordinate. §5.9: 350 rows, a fold of under half a
+  second. The example's figures are generated from the page's constants (note_* figures in
+  define_figures; NOTE_MASK_ALPHA is gone). The page itself did not change (artifact v152 stands).
+  The sentence-length check was run on the rewritten passages and the new sentences split; the
+  pre-existing long ones in §5.8 were left.
+- STATE: main at b584a44 plus this entry, unpushed from 8d7efa7 (the user pushes). Artifact v152.
+  PENDING: the estimator's row count at 2^42.2 for §5.3 (above); then as before: the soundness
+  note's lemmas for the two routes and the user's review; the 2026-11-14 open modelling questions;
+  the Pasta-claims recovery row's BLAKE3 figure; the hash-based rows' PIOP verifiers in their
+  merges. A measurement of a rounded-Gaussian sampler on the M4 Max (Box–Muller in doubles with the
+  boundary check) would replace the 20 ns assumption; not started.
+- 03:44 UTC, addendum: the estimator run finished in seconds (726f62b): Pallas needs 349 rows at
+  2^42.2 (the rule's 350), 356 at 2^42.6 and 366 at 2^43.2, all at block 484; §5.3's masked rank row
+  is the estimator's again (NOTE_MASKED_ROWS = 349 in the model, asserted within a percent of the
+  rule), §5.5's ladder has the three new bounds, estimates/pasta-rank.csv was regenerated with them
+  (the earlier rows reproduced exactly) and scripts/akita-pasta-estimates.sh lists them. So nothing
+  is left to run overnight; the one open measurement is the rounded-Gaussian sampler's rate on the
+  M4 Max. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); artifact v152 (the
+  page did not change after 847ec5f).
+- 03:54 UTC, addendum: SHORTER SENTENCES ON THE PAGE (3eefd98; the user, on the zero-knowledge
+  section's first sentence: "this is too long; look for other long sentences in existing prose"): a
+  scan of the template's paragraphs found 127 sentences of 40 words or more; the zero-knowledge
+  section's long ones (about twenty) and every sentence of 60 words or more elsewhere were split at
+  clause boundaries, one claim to a sentence, with the markers kept; the eight of 60 or more that
+  remain are lists of parallel values (the decider ranges, the three packings, the NTT's operations,
+  the BLAKE3 accounting, the Boolean merge's parts, the per-scheme result lists, the shrink ranges).
+  About ninety sentences of 40 to 59 words are left for a later pass. The claim
+  bitz_recovery_zk_unchanged's sentence now says "since the masking fold grows with the rank" (it
+  said the mask's sampling, which is small now). Artifact v153. STATE: main at this entry, unpushed
+  from 8d7efa7.
+- 10:11 UTC, addendum: the two parenthetical section links, "prover commitment work (the section
+  below)" and "with exact rounding (the zero-knowledge section)", are links on the phrases
+  themselves (0809eb1; the user: "Just link \"prover commitment work\". Look for similar cases");
+  the other in-page links are clauses ("as the Hashes section says") and the controls' "(see text)"
+  is the deliberate pattern, both left; the notes' "(§5.5)" references are section numbers, left.
+  Artifact v154.
+- 10:14 UTC, addendum: the controls' "(see text)" and "(see the Rank/Knobs section)" are gone; the
+  zero-knowledge checkbox label and the Rank and PCD header eyebrows are the links themselves, with
+  the page's ordinary link underline and colour (ecee0e1; the user: "(see text) can also just make
+  the label a link", "they should have the normal underline and highlight cues"; checked in a render
+  of the three groups). Artifact v155.
+- 10:19 UTC, addendum: EVERY CONTROL EYEBROW IS A LINK (43854d8; the user: "all of the eyebrows have
+  things they can usefully link to", and "can't that just be <a href class=eyebrow>"): second and
+  third measure to #measures, the transaction select to #transaction-prover, view to #axes, work
+  unit to #prover-work, frontier to #frontiers, security floor to #security-floor and zero knowledge
+  to #zero-knowledge, allowed changes to #changes, rank, PCD header to #knobs, the fixed circuits to
+  #circuit-budget, grinding to #grinding, and the family headings (GROUPS carries the href now)
+  Pre-quantum to #circuit-budget, Lattice-based to #trust, Hash-based to #hash-based. An eyebrow
+  that is wholly a link is `<a class="eyebrow">`, with
+  `.group a.eyebrow { color: var(--accent-ink) }` so the muted eyebrow colour does not win over the
+  link colour; one with a tail keeps `<span class="eyebrow"><a>…</a> tail</span>`. Checked in
+  renders. Artifact v156.
+- 10:20 UTC, addendum: zero knowledge is its own control group with its own linked eyebrow, stacked
+  under the security floor in the left column with the allowed changes on the right, as the view row
+  is laid out (4319af9; the user: "make Zero knowledge its own eyebrow"); the checkbox label is
+  plain again. Checked in a render. Artifact v157.
+- 10:25 UTC, addendum: the grinding eyebrow's tail is "(query phase proof-of-work)" so that it fits
+  on one line (7f3429f; the user). Artifact v158.
+- 10:27 UTC, addendum: the limb hybrid is defined at its first mention in the ARC-against-recursion
+  section (WHIR with the Pasta witness as four 64-bit limbs a coefficient tested over Goldilocks, a
+  Pasta merge circuit; the family list's "Pasta claims, 64-bit limbs" rows), with an id that the
+  later mentions link to, and the Knobs entry calls it the limb hybrid too (8ad075e; the user: "the
+  limb hybrid is not explained"). Artifact v159.
+- 10:27 UTC, addendum: the lede's sentence on the drafts is the user's wording, naming Kishu ("Two
+  experimental drafts join them: BitZ's arithmetization over Akita, called Kishu; and Flock-style
+  Boolean circuits over Akita's binary groups.") (39bd038). Artifact v160.
+- 10:32 UTC, addendum: THE SCHEME SECTIONS ARE REGROUPED (08a868d; the user: headings
+  "Pedersen-IPA", "Lattice-based" and "Hash-based" at the same level, "families" rather than
+  "schemes" for consistency; "Knobs" is "Control knobs"): h2 Pedersen-IPA (h3 Circuit budget, id
+  kept), h2 Lattice-based families (h3 Akita: the merge estimate and the circuits fixed point that
+  were in Circuit budget; h3 Kishu; h3 the binary groups), h2 Hash-based families (h3 WHIR and FRI:
+  the hash-based merge estimate from Circuit budget; h3 The 𝔽₂ family, id binary-field-systems kept;
+  h3 BitZ). The Frontiers subsection "The hash-based families" is "Where the hash-based families
+  stand" to avoid the clash; the family-list headings link to the three new sections; the two
+  "binary-field section" links say "𝔽₂ family section"; Kishu's first mention of BitZ links to its
+  section, which now follows it. The trust section stays its own h2. Artifact v161.
+- 10:36 UTC, addendum: the Frontiers subsection "Where the hash-based families stand" is gone
+  (47af194; the user): its first sentence, that the WHIR-type and Plonky3 families start unticked
+  since Akita dominates them, is the lede's last sentence, and the rest (Poseidon-tree figures, WHIR
+  with ARC dominated, the decider's three oracles, the lower rates and grinding, Goldilocks and the
+  limb hybrid, what the hash-based route has) opens the Hash-based families section before "WHIR and
+  FRI"; the id hash-based had no other links. Artifact v162.
+- 10:40 UTC, addendum: the Hash-based families section opens with two short paragraphs (bbdaf48; the
+  user: an introduction that reads first, without excessive detail): the families and what the route
+  has that Akita does not, then the Poseidon-tree convention and a one-sentence verdict (WHIR with
+  ARC dominated; the F2 family and BitZ the efficient end). The WHIR and FRI subsection took the
+  detail: the dominance figures, the decider's three oracles, the rates and grinding with the
+  extrapolation, Goldilocks and the limb hybrid, then its merge estimate ("The merge is estimated,
+  as Akita's is", no longer "also"). The claims whir_rate32_third_off and whir_gold_sixth_off moved
+  with their paragraphs. Artifact v163.
+- 11:03 UTC, addendum: THE PAGE IS A NATIVE BOOK CHAPTER (429af2d; the user: the iframe integration
+  was clunky; keep the artifact updating; "the plot and controls should retain the dark background
+  for contrast; the rest can follow the theme of the book"). One template, two outputs:
+  `pareto.html` as before for the artifact, and for the book `pareto-book.html` (the text, no h1, no
+  blank lines, so Markdown sees one HTML block; included by `{{#include}}` in pcs-frontier.md, which
+  is now just the heading, a full-width style line and the include), `pareto.css`
+  (write_book_files/scope_css in the model: every rule under `#pareto`, the page's variables mapped
+  to mdbook's `--bg`, `--fg`, `--icons`, `--quote-border`, `--links`, `--mono-font`; the light
+  family palette on `#pareto` and the dark one under `.coal`, `.navy`, `.ayu`; `#pareto .top`
+  carries the standalone dark theme for the plot and controls; the page's body, h1–h3 and p rules
+  and its font families dropped so the book's typography applies; mdbook's table striping and header
+  background undone inside the page), `pareto.js` (the script in an IIFE over `window.PARETO_DATA`,
+  with a message in #selfcheck if the data is missing) and `pareto-data.js` (the data as a script,
+  not JSON fetched: a fetch fails from a file: URL, which the user hit, and a script keeps the 5
+  Mbytes out of mdbook's search index, which now holds the page's text). build-book.sh copies the
+  four into book/src/proof-systems/ (ignored); the old pareto.html copy there is gone. The template
+  now reads its theme from `#pareto .top` and the swatches use `var(--c-…)` in place, so the same
+  script serves both pages; `#plot` is border-box so it matches the controls' height (the user
+  noticed the 2 px). Checked: the built chapter from a file: URL in headless Chrome with software
+  WebGL (rust theme; the prose area follows the theme, the panels stay dark; the frontier table in
+  the theme), the standalone page unchanged in look, the search index holds the prose and not the
+  data. mdbook-katex sees no `$` since the script is external and the prose has none. Artifact v164.
+- 11:08 UTC, addendum: the plot overlapped the controls after the book's sidebar was toggled (the
+  user's screenshot): Plotly's responsive option follows window resizes only, so a ResizeObserver on
+  #plot now calls Plotly.Plots.resize, debounced to a frame, and #plot clips its overflow (07043b2).
+  Artifact v165.
+- 11:25 UTC, addendum: the one-column layout is a container query on `.wrap` (container-type:
+  inline-size), so it applies at the page's own width in the book's column as in the standalone page
+  (the user: that behaviour is good and should be retained in both); the camera's eye scales by
+  max(1, 600 / plot width) at the first render and on width changes, through the ResizeObserver,
+  since Plotly's vertical field of view is fixed and a narrow plot crops the scene sideways;
+  css_rules skipped no whitespace before a comment, so the rule after a comment came out unscoped,
+  found when the container rule did not fire in the book (bf73221). Checked at 1300 px (one column),
+  1700 px (two) and the standalone at 900 px (one). Artifact v166.
+- 12:11 UTC, addendum: FIREFOX WHEEL GESTURES OVER THE EMBEDDED PLOT, OPEN. The user (Firefox 158 on
+  the MacBook, trackpad): on the book chapter the plot zooms much faster under a two-finger vertical
+  scroll than on the artifact, and a horizontal scroll rotates only when zoomed far out; the
+  standalone `pareto.html` opened as a file: URL behaves like the artifact, so the book page is the
+  difference; Chrome is fine on both. Firefox's console warns on the book page about a scroll-linked
+  positioning effect, which is mdbook's menu bar positioned from a document scroll handler (book.js
+  `controllMenu`); staktrace.com/spout/entry.php?id=834 explains that Firefox scrolls wheel input on
+  the compositor without waiting for the page. Plotly 2.27's 3D wheel handler (3d-view-controls): if
+  |dx| > |dy| it rolls the camera about the view axis by dx·π·rotateSpeed/innerWidth, else it zooms
+  by exp(zoomSpeed·dy/innerHeight·(now − lastT)/20), lastT the camera clock that the scene's rAF
+  loop refreshes each frame; mouse-wheel scales line-mode deltas by the canvas's ex height.
+  Measured, and all the same on both pages: the camera clock stays 17–25 ms behind (user's Firefox
+  and headless); the user's event captures show pixel-mode deltas of 1–3 at 8–20 ms spacing, dy 1 →
+  factor 1.0011, 2 → 1.0024, 3 → 1.0025–1.0065, exactly the rule, on both pages; dragmode and camera
+  mode are turntable on both; headless Firefox through geckodriver with real WebDriver wheel input
+  (bursts of 20 × 8 px) zooms ×1.07 per 50 px on both and never rolls on dx; one wheel listener on
+  the canvas on both (render() re-runs on mdbook's root-class changes at load but Plotly.react adds
+  no listener); no Plotly resize, relayout or react calls and one ResizeObserver callback over 3 s
+  idle and 15 wheel events on both. Ruled out: a stale camera clock, doubled listeners, a resize
+  feedback loop, line-mode deltas, the camera mode, my MutationObserver. Still open: whether the
+  document scrolls under the pointer during the gesture on the book page (Firefox's compositor may
+  scroll before the page's handler prevents it; the user was asked to log document scroll events);
+  the plot is narrower in the book (574 px against 890 at a 1400 px window with the sidebar), with
+  the eye scaled out by 600/574. The harnesses are ragu-pcs/work/firefox-wheel*.py, firefox-count.py
+  and firefox-resize.py (geckodriver and python selenium are now in the user's nix profile; headless
+  Firefox renders WebGL). Everything above 8d7efa7 is unpushed; artifact v166.
+- 12:12 UTC, addendum: the document does not move while scrolling over the plot on either page (the
+  user), so page scrolling under the pointer is ruled out too; every measured quantity is now
+  identical between the two pages and the Firefox difference stays unexplained. Untested ideas for
+  the next session: compare the pages at the same plot width (the book's plot is 574 px against 890,
+  which changes the eye scale and the scene's size in the view); the `container-type: inline-size`
+  and `overflow: hidden` on the plot's box interacting with Firefox's wheel transactions; mdbook's
+  `<html>` being in standards mode where the standalone, with no doctype, is in quirks mode; and
+  recording a whole gesture's events and camera on both pages into a file for a side-by-side plot of
+  distance against time.
+- 12:37 UTC, addendum: THE FIREFOX DIFFERENCE WAS STATE IN THE TAB, NOT THE PAGE. The user suggested
+  quirks mode first: the standalone with a doctype added (standards mode) and the built chapter with
+  its doctype removed (quirks mode) both behaved correctly on the trackpad. So did seven more
+  variants in standards mode: the chapter without book.js, without the chrome stylesheet, with the
+  content column's overflow visible, with the body's horizontal overflow visible, with the sidebar
+  and menu bar hidden, with the menu bar alone hidden, and the standalone at the chapter's column
+  width (plot 576 px). The original chapter still misbehaved in its own tab; then the user reloaded
+  that tab and the misbehaviour did not reproduce. Nothing had changed: the tree is at 624b213 and
+  the book's copies of pareto.js, pareto.css, pareto-data.js and pareto-book.html are identical to
+  the model's outputs. The four slashes in the user's URL were a red herring (headless Firefox keeps
+  `file:////` as the href and lays the page out the same). Headless probe (work/firefox-compat.py,
+  log work/firefox-compat.log): the only quirks-mode differences are the scrolling element (body
+  against html) and which of the two carries the viewport height. The plot box, the canvas, the
+  camera and the zoom from twenty 8 px wheel events are the same on all four pages. The user's
+  conclusion: something in the browser's state was broken and is no longer broken; closed, not to be
+  pursued unless it recurs (reload first). The variant files are work/pareto-standards.html,
+  work/pareto-standards-narrow.html and pcs-frontier-*.html in the book's output directory, which
+  the next build wipes; the harnesses work/firefox-compat.py, firefox-loadcheck.py and
+  firefox-href.py. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); artifact
+  v166.
+- 12:51 UTC, addendum: THE BOOK'S TABLES FILL EVERY ROW (647547f; the user: the cells had the page's
+  background, which looked odd, and after a first fix with mdbook's own striping, "I'd mildly prefer
+  alternating between slightly contrasting and slightly more contrasting"). The book stylesheet's
+  extra rules had switched off mdbook's header fill and striping, and `--surface` is the book's
+  `--bg`, so the tables were flat. Now odd rows take `--table-alternate-bg`, even rows
+  `color-mix(in srgb, var(--table-alternate-bg), var(--fg) 6%)`, the header mdbook's
+  `--table-header-bg`, and the page's rule under each row stays in place of mdbook's cell grid.
+  Checked in headless Firefox element screenshots (work/firefox-tables.py; rust and navy;
+  work/tables-*.png); the user: "significantly better in all themes". The standalone page is
+  byte-identical, so the artifact stays at v166. STATE: main at this entry, unpushed from 8d7efa7
+  (the user pushes).
+- 13:49 UTC, addendum: THE PAGE'S FORMULAS ARE LATEX, RENDERED BY KATEX (18de138; the user: "can we
+  have the math in KaTeX? (not plain numbers…)", "use your judgement about what counts as a plain
+  number"): exponents, Greek symbols, norms, the binary fields (written `\mathbb{F}_{2^n}`
+  throughout, GF dropped at the user's request), the attempts, openings and BKZ expressions are in
+  `$…$`; counts, times, sizes, rates and ranks stay plain, as do the data labels. mdbook-katex
+  renders them inside the included HTML block (tested with a marker: katex runs after links). The
+  standalone page loads KaTeX 0.16.11 and its auto-render from cdnjs with MathML output, which needs
+  no stylesheet, so the artifact's host cannot block it. The page now has a doctype: auto-render
+  finds nothing to render in quirks mode (a minimal page: standards mode renders, the same page
+  without a doctype renders nothing, Plotly irrelevant; the standards-mode copy had already passed
+  the user's Firefox test with the same layout). `th .katex, th math { text-transform: none }`
+  replaces `th .sym`. The conversion was work/tex-prose.py (a hand list of the composite expressions
+  plus patterns); checked by counting formulas and leftover dollar signs on both pages
+  (work/firefox-math.py) and by screenshots. A FIGURE MARKER NEVER SITS INSIDE A MATH SPAN
+  (d403159): the zero-knowledge note's thirteen markers inside `$2^{…}$` had rendered the comment
+  text literally since the 03:43 change (the user: "where are the figure markers in $...$?"); the
+  twelve figures that stand as powers of two carry the whole span through tex_pow2 (note_cs_bound,
+  note_sigma, note_z2, note_zinf, note_beta, note_ntts, note_pointwise, note_mults, note_word_mults,
+  mask_rounded_divergence, mask_double_undecided, mask_double_undecided_folds), the note's and the
+  page's markers wrap the span, and the relation sits in its own `$\le$` or `$\approx$`. HEADINGS IN
+  THE BOOK (546c458; the user: clicking a section title gave no link or » cue): the book writer
+  wraps each h2 and h3's text in `<a class="header" href="#id">` as mdbook does for Markdown
+  headings, with `#pareto a.header { color: inherit }`; that also put the section outline in the
+  sidebar (the user: "great"). WORDING (c746056, be37f4f; the user): Kishu's merge paragraph is
+  three (the BLAKE3 accounting with the range check, the arithmetic over the extension, the Poseidon
+  option and the consequence), "Kishu's merge is Akita's", the projection zero-knowledge sentence
+  says what the projection reveals and the draft-certificates remark is its own paragraph, the
+  naming sentence links the breed's Wikipedia article, "the merge prover does 2.9 to 3.3 times less
+  work", the reference to an earlier version of the page is gone, and the Pasta-requirement list has
+  "relation, limbs" and "relation, fingerprint" as separate entries. The user asked where the WHIR
+  zero-knowledge sentence's 30.9 and 37.5 kbytes come from: they are the plain WHIR baseline of
+  Plonky3's zk_overhead benchmark run on 2026-10-15 (entry above; work/plonky3-zk-overhead.log), at
+  100 bits under the capacity bound with 16 bits of grinding over KoalaBear's quintic extension,
+  well below the page's floors; the sentence serves only the additive 73 kbytes. Artifact v167.
+  STATE: main at this entry, unpushed from 8d7efa7 (the user pushes).
+- 14:19 UTC, addendum: CITATIONS AND REFERENCES (bc3d34d; the user: References a level higher;
+  "there are plain text citations such as (ePrint 2026/2583) that should be reference citations";
+  "the zero-knowledge note's section references can be made into links (when in the book)"):
+  References is an h2; every plain-text citation on the page is a bracketed key in the style of the
+  trust section's, linked to its entry (`<li id="ref-key">`), and the existing keys are linked too
+  (38 links, checked against the ids); twelve entries added from the local PDFs and the ePrint/arXiv
+  metadata pages (OS26 LaBinius, DP24 FRI-Binius, Ska26 the small-field survey, BGK+26 BitZ, AGK+26
+  Zinc+, CFW26 Zook, BRW26 Flock, Jeu26, HLS18, DFW20, Kar16, ZIP-2005), with "[DP24, §1.3]" for a
+  section of a paper. References to the note's sections are
+  `<span class="noteref" data-section="5.9">§5.9</span>` in the template; write_book_files turns
+  them into links to working-notes/zk-fiat-shamir-with-aborts.html at the ids mdbook gives the
+  note's headings (mdbook_id reproduces mdbook's rule, checked against the built ids; ten links, one
+  to the chapter itself, which replaced the page's only direct link into the note, dead on the
+  standalone); the standalone shows them as text. work/cite-prose.py did the rewrite. Checked: every
+  link's target exists in the built book, a click lands on "5.3 A worked example". WORDING (bc3d34d,
+  fe1c516; the user): "The rule counts the first three (native and the two relation variants)"; the
+  binary-groups paragraph says the 80,000 word multiplications per Pasta gate are the recovery
+  circuit's cost in that family and that the family would suit an application that is a Boolean
+  circuit in its own right, such as Flock's hash batches (the user: "what boolean application?").
+  Artifact v168. STATE: main at this entry, unpushed from 8d7efa7 (the user pushes); about 52
+  commits.
+- 14:29 UTC, addendum: SUBSECTIONS (a0509a1; the user: "the Zero knowledge section should be split
+  into subsections", "in particular, the three things referred to by 'Three things set it.' should
+  be subsections", "paragraph anchors might be needed in some cases, but only where it doesn't make
+  more sense as a subsection"). Zero knowledge (h3) has h4s Akita's mask, Pedersen-IPA, WHIR and
+  FRI, the F2 family, Kishu (with h5s The sampler, The width of the mask, The transaction's shape)
+  and BitZ; "rejection sampling" in its first paragraph is a noteref to the note's §2; "explained
+  below" links to the width subsection. Kishu has h4s Digits and constraints, Pasta multiplication
+  by two routes, The merge, Costs at rank 17, The recovery circuit, Zero knowledge and status,
+  LaBinius; Transaction prover has The application in each arithmetization, The masking fold,
+  Results. The Pasta-as-a-requirement list links each approach to its section (Pedersen-IPA, Akita,
+  WHIR, the limb hybrid, the two routes, BitZ, the application costs, the F2 family, the binary
+  groups; the user: the list "should itself link to the detailed explanations for each approach"),
+  and the Transaction prover's emulation sentence refers to that list (the user). The standalone
+  styles h4 and h5; the book drops those rules and gives the headings header links (write_book_files
+  handles h2 to h5). Checked: every in-page link on both pages has a target, 57 headings with header
+  links in the book, no KaTeX errors. Artifact v169. STATE: main at this entry, unpushed from
+  8d7efa7 (the user pushes).
+- 15:14 UTC, addendum: TACHYON NODES OFF PASTA: BIT-LEVEL GATES PRICED AS BITS (4f44829; the user,
+  on "the remaining gates are taken as Pallas multiplications, an overstatement where a gate only
+  checks a bit": "Isn't that potentially quite a large error?"; yes). A node's gates beyond its
+  permutations and window selections were all priced as Pallas multiplications (1,100 Goldilocks
+  gates, 510 Kishu digits, 120,000 AND gates each), yet 55 to 64 percent of every step is that
+  remainder and most of it is bit-level: the scalars' bit checks (3 a window), the digest canonicity
+  comparison, the amount's range check and comparison, the step's glue. Now TACHYON_STEPS carries
+  the openings at ζ (0, 2, 0, 2, 6, 4, 0 for SpendBind, SpendAction, OutputBind, OutputAction,
+  ActionMerge, FeeFuse, Rerandomize); tachyon_node_cost prices the window additions (2 gates each)
+  and the openings (2 gates each, from the action merge's 17 for six) as multiplications and the
+  rest as bit operations, one gate, AND gate or committed bit each (BIT_GATE_OFF_PASTA;
+  BIT_CHECK_PIOP (1, 2, 0) in Kishu's PIOP); `bits_as_mults=True` gives the old pricing for the
+  prose's bound (claim tachyon_bits_as_mults_more_steps). Results: a node is 6 to 13 Goldilocks
+  steps of rank 17 (was 27 to 36; the bound 27 to 36 stays in the prose) and 5 to 11 Boolean steps
+  (was 23 to 30); two tachyactions: Goldilocks 5.30 s in 41 steps (was 19.5 in 151), the F2 family
+  5.48 s in 35 (was 20.2 in 129), Kishu 0.193 s (was 0.385; with zk 0.484, was 0.780), BitZ 0.160 s
+  at rank 20 (was 0.214 at 22); sixteen: Goldilocks 29.8 s (was 132), Kishu 0.580 (was 1.56), BitZ
+  0.303 (was 0.454); the Karney-rate zk optima 91 to 260 (were 110 to 300). Pedersen-IPA and Akita
+  with Pasta claims are native and unchanged, so the headline Tachyon comparison stands. The prose
+  now says the post-quantum families are costed as a post-quantum variant of Tachyon in a new
+  shielded pool, whose hashes follow the page's policy, and that the recovery circuit recovers notes
+  of the existing pool, so its nullifier stays Poseidon over Pasta (the user; it is inside
+  RECOVERY_MULTS, so it always was). The Poseidon permutations per step, for the record: Spend Bind
+  the two nullifier derivations (epochs e and e + 1), Output Bind the note commitment and the
+  padding tachygram, Spend Action the proof authorizing key, the randomizer and the action digest,
+  Output Action the randomizer and the digest, Fee Fuse the fee blind, the fee digest, the change
+  commitment and a fourth not named in the statements note. Artifact v170. STATE: main at this
+  entry, unpushed from 8d7efa7 (the user pushes).
+- 15:23 UTC, addendum: the width subsection's sensitivity sentence quotes Karney's rate alone
+  (70ae607): after the Tachyon change the 100 ns range coincided with Karney's (91 to 260), so the
+  100 ns optimum figures are no longer defined (the fast rate itself stays, for the sampler
+  subsection's 2.19 s). The user asked whether "48 keeps nine slices … within 2.8 percent … and
+  within 6.5 percent at Karney's" still holds: it does; the claim alpha_page_near_optimum passed and
+  `--figures` shows the worst cases are still the path shapes (2 paths at the page's sampler, 1 path
+  at Karney's), the Tachyon shapes being within 2 percent at the page's sampler and 6.4 at Karney's
+  (16 tachyactions). Artifact v171. STATE: main at this entry, unpushed from 8d7efa7 (the user
+  pushes).
+- 22:32 UTC, addendum: THE FEE FUSE STEP, READ OFF TACHYON'S CODE (448d899; the user: "please check
+  the fee fuse step"). `FeeFuse::witness` (crates/tachyon/src/stamp/proof/stamp.rs at 73031f7) runs
+  three sponges: `feemax_blind` inside `Note::cv_feemax` (gadgets/note.rs), `fee_digest`, and the
+  change note's `commitment`; Ragu's circuit sponge (ragu_primitives poseidon/mod.rs) permutes only
+  when four absorbed elements are followed by a fifth or by a squeeze, so each tagged hash of at
+  most four elements is one permutation, and a nullifier group (two absorbed, four squeezed) is one
+  too. The step's multiplications are two: `R_BASE.mul_digest` of the derived blind (255 bits,
+  canonical) and `FEE_V_BASE.mul_amount` of the 51-bit slack onto the blind point; the maximum-money
+  term is a constant point. So TACHYON_STEPS["FeeFuse"] is (1934, 3, 102, 4), not (1934, 4, 187, 4),
+  and keep/tachyon-statements.md's cost table row is corrected with a note on the sponge. The other
+  steps' counts match the code (SpendBind two nullifier groups and two multiplications, SpendAction
+  three sponges and one, OutputBind two and two, OutputAction two and one). Results: a node is 6 to
+  8 Goldilocks steps of rank 17 (the bound 27 to 39), 5 to 7 Boolean; two tachyactions 4.53 s over
+  Goldilocks in 35 steps (was 5.30 in 41), the F2 family 4.69 s in 30 (was 5.48 in 35); sixteen over
+  Goldilocks 29.0 s; the Karney-rate zk optima 64 to 260. Artifact v172. STATE: main at this entry;
+  everything through f9e3359 was pushed by the user at about 15:20 UTC; 448d899 and this entry are
+  unpushed.
+- 22:42 UTC, addendum: the Rank section's "Mostly the field choice trades" sentence is "The more
+  significant trade is the field choice: a smaller field buys fewer bytes and less prover commitment
+  work at the cost of more atoms absorbed per merge" (cf4a779; the user: odd wording). Artifact
+  v173. STATE: main at this entry; 448d899 and after are unpushed.
+- 22:49 UTC, addendum: the book's table headings are in `--fg` (a6c3128; the user: low-contrast in
+  rust, navy and ayu, nearly invisible in coal, since `--muted` maps to mdbook's `--icons`); checked
+  in the four themes with work/firefox-tables-th.py; the standalone is unchanged, artifact v174.
+  STATE: main at this entry; 448d899 and after are unpushed.
+- 22:53 UTC, addendum: the frontier table's accent bar on each row's first cell now runs through the
+  header too (64545ee; the user: the header's left edge was a lighter colour; "that's better").
+  Artifact v175. STATE: main at this entry; 448d899 and after are unpushed.
 
 ## 2026-11-20 23:20 UTC: the mask sampler measured
 
-- THE SAMPLER'S RATE IS MEASURED (ae3ec50; the user: "sampler first. I'll plug in to mains"). scripts/sampler-bench.c, plain C with no dependencies: ChaCha20 (RFC 8439, scalar) or, with a fourth argument `aes`, AES-128-CTR through CommonCrypto (macOS; the M4's AES instructions); two 53-bit uniforms a Box–Muller pair in doubles; Sheppard's correction σ' = σ − 1/(24σ); the scaling; the tail check |x| ≤ 14σ; rounding with rint; a coordinate within |x|·2^-50 of a half-integer counted as undecided (the fold would refine it; one in 2^27 observed, none in most runs, against the page's bound of 2^-25). On one core of the M4 Max on mains, medians of three runs of 32 × 2^22 coordinates at σ = 2^22.9: AES-CTR 7.1 ns a coordinate (randomness 1.5), ChaCha20 14.0 ns (randomness 7.7). A run that straddled a switch to battery gave 11.9 ns for AES and was discarded (the user: invalid). Keystream alone (work/rng-bench.c): AES-128-CTR 0.37 ns per 8 bytes (21 GB/s), AES-256 0.50, scalar ChaCha20 7.2 (1.1 GB/s), so hardware AES is about twenty times cheaper than unvectorised ChaCha20 (the user: "thought so"); a first version of that benchmark reported 126 GB/s for ChaCha20 because the compiler dropped the unused words of each block. The page takes AES-CTR: MASK_SAMPLE_NS = 7.1, MASK_SAMPLE_WORD_MULTS = 21 (was 60 for the assumed 20 ns), with MASK_SAMPLE_RNG_NS, MASK_SAMPLE_CHACHA_NS and MASK_SAMPLE_CHACHA_RNG_NS as figures beside it; REGENERATING.md has the procedure. Results: the recovery with zk 1.44 s a note (was 1.54; the fold 0.231 s, of which the sampling 0.0566, was 0.336 and 0.162); four recovery inputs 0.971 s a note; two tachyactions with zk 0.432 s; the zk note's §5.4 attempt 0.261 s and fold 0.335 s (were 0.316 and 0.405), the sampling 0.13 times the commitment (was 0.36; "about a third" dropped from the sentence); the optimum width for the recovery circuit 91 (was 76), the page's optima 45 to 130, the recovery band 27 to 360, 48 within 2.5 percent at the page's sampler. HLS18's 7.7 to 13 ns on a 2014 Haswell is quoted beside the measurement. Artifact v176. STATE: main at this entry; everything through b4ab849 pushed; ae3ec50 and this entry unpushed. PENDING: the user's review of the soundness note; the 2026-11-14 open modelling questions; the Pasta-claims recovery row's BLAKE3 figure; the hash-based rows' PIOP verifiers in their merges; the readability pass over the 40-to-59-word sentences; classifying the Tachyon nodes' remaining gates from Ragu's synthesis analysis, if the counting adapter can tell a bit check from a multiplication.
-- 23:31 UTC, addendum: the Pasta-claims recovery row's BLAKE3 figure, pending since 2026-11-14, is on the page (1523b1f): tx_recovery_q64_blake3_s = 387 s at rank 17 under the default trees, beside the 142 s with Poseidon, from best_for("pasta_q64", "recovery", "blake3", hashes="blake3"). Artifact v177. STATE: main at this entry; ae3ec50 and after unpushed.
-- 23:39 UTC, addendum: THE READABILITY PASS (11494ab; the user: "3 first, then your suggested order"): of the 84 sentences of 40 to 59 words in the prose, 55 that joined a claim to a consequence or a qualification were split at the joint by exact fragment edits (work/split-sentences.py; one fragment had to carry the limb-hybrid link); the 35 left and the 6 of 60 or more are enumerations of parallel values or cases, kept whole. The claims' markers wrap the split sentences as before and every check passes. Artifact v178. STATE: main at this entry; everything through f426b3f pushed.
-- 00:02 UTC, addendum: THE HASH-BASED MERGES VERIFY THEIR PIOPs (3e24191). f2_piop_verifier_mults(log_bits) = 4 × (2 log N + 3 log2(BLAKE3_ANDS)) field multiplications an input (the zerocheck, the lincheck and a sum-check per base matrix of one compression's R1CS, in place of the native verifier's own evaluation of the small matrices, which a circuit should delegate to a committed evaluation that ARC accumulates); bitz_piop_verifier_mults adds the GKR's n(n+1)/2 rounds; a round is four multiplications (a degree-three univariate at the challenge and the eq factor); the Boolean merge multiplies by KARATSUBA_ANDS[chal] (f2_merge takes the design's challenge field now), BitZ's hybrid merge commits 128-bit products. At rate 1/8: the F2 family 350 multiplications an input, 1.5 million AND gates, 5.7 percent of the merge (claim f2_piop_verifier_small, under a fifth at every rate); BitZ 1,700 products, 424 thousand bits, 1.4 percent (claim bitz_piop_verifier_small, under two percent; the page had said "a few thousand constraints that are not counted"). The F2 merges are 17 to 77 million AND gates (were 14 to 74), two tachyactions 5.07 s (was 4.69); the F2 prover is least at rate 1/4 alone, 1/8 within a tenth (claim f2_prover_least_rate_4 replaces f2_prover_least_rates_4_8 and its two markers). TOOM–COOK FOR THE BINARY-FIELD MULTIPLICATIONS (the user: "Did we check Toom–Cook?", then "check whether Toom-k for larger k (8, 16) is worthwhile"): not adopted. A first count assumed Toom-k's 2k − 1 pointwise products have n/k bits and gave 1,875 (Toom-3) and 1,029 (Toom-3 and 4) AND gates at 128 bits against Karatsuba's 2,187; that is wrong in characteristic 2, where the evaluation points beyond 0, 1 and ∞ are polynomials x^d + … (Bodrato, WAIFI 2007) and evaluating a k-piece operand at one lengthens the piece by d(k − 1) bits, so for Toom-4 at 128 bits the pieces are 32 bits but the products at x and x + 1 are 35-bit and at x² and x² + 1 are 38-bit. Counting that, Toom-k for any k up to 16 gives no gain at 128 or 256 bits, where Karatsuba's halving is exact (2,187 and 6,075 against 6,561 by the model's constant at 256, a 7 percent gain only there), and at 192 bits 4,185 against the model's 4,374 (4 percent); larger k only lengthens the pieces more. Under a bit-level Karatsuba recursion a 35-bit product costs as much as a 64-bit one; with schoolbook on the extra bits it is about 444 AND gates and Toom-4 at 128 bits about 2,943, still above Karatsuba. The constants stay. Artifact v179. STATE: main at this entry; everything through f426b3f pushed. NEXT (the user): pause ragu-pcs for FROST analysis. PENDING: the user's review of the soundness note; the 2026-11-14 open modelling questions (the Pasta-claims rows' claim-field sum-check, witness generation, the aggregator's opening and compression, phone parallelism); classifying the Tachyon nodes' remaining gates from Ragu's synthesis analysis.
-- 00:06 UTC, addendum: TOOM-3 AT 192 BITS after all (d8f091d; the user: "it's worth accounting for Toom-3 being slightly better at 192-bit"): CLMUL_ANDS (was KARATSUBA_ANDS) prices a 192-bit (and 191-bit) carry-less product at 3 × 729 + 2 × (729 + 2 × 2 × 64 + 4) = 4,165 AND gates, Toom-3's five products (three of 64 bits at 0, 1 and ∞, two of 66 bits at x and x + 1) against the three-limb Karatsuba's six, 4,374; 128 and 256 bits stay Karatsuba. The F2 recursion rows' merges fall a little (the 192-bit design 87 million witness bits at rate 1/8, was 89; the 191-bit 133, was 137), two tachyactions 5.05 s. The PIOP commit is 3e24191 after the Pasta note's refreshed figures were folded in. Artifact v180. STATE: main at this entry; everything through f426b3f pushed; the five commits after it unpushed.
+- THE SAMPLER'S RATE IS MEASURED (ae3ec50; the user: "sampler first. I'll plug in to mains").
+  scripts/sampler-bench.c, plain C with no dependencies: ChaCha20 (RFC 8439, scalar) or, with a
+  fourth argument `aes`, AES-128-CTR through CommonCrypto (macOS; the M4's AES instructions); two
+  53-bit uniforms a Box–Muller pair in doubles; Sheppard's correction σ' = σ − 1/(24σ); the scaling;
+  the tail check |x| ≤ 14σ; rounding with rint; a coordinate within |x|·2^-50 of a half-integer
+  counted as undecided (the fold would refine it; one in 2^27 observed, none in most runs, against
+  the page's bound of 2^-25). On one core of the M4 Max on mains, medians of three runs of 32 × 2^22
+  coordinates at σ = 2^22.9: AES-CTR 7.1 ns a coordinate (randomness 1.5), ChaCha20 14.0 ns
+  (randomness 7.7). A run that straddled a switch to battery gave 11.9 ns for AES and was discarded
+  (the user: invalid). Keystream alone (work/rng-bench.c): AES-128-CTR 0.37 ns per 8 bytes (21
+  GB/s), AES-256 0.50, scalar ChaCha20 7.2 (1.1 GB/s), so hardware AES is about twenty times cheaper
+  than unvectorised ChaCha20 (the user: "thought so"); a first version of that benchmark reported
+  126 GB/s for ChaCha20 because the compiler dropped the unused words of each block. The page takes
+  AES-CTR: MASK_SAMPLE_NS = 7.1, MASK_SAMPLE_WORD_MULTS = 21 (was 60 for the assumed 20 ns), with
+  MASK_SAMPLE_RNG_NS, MASK_SAMPLE_CHACHA_NS and MASK_SAMPLE_CHACHA_RNG_NS as figures beside it;
+  REGENERATING.md has the procedure. Results: the recovery with zk 1.44 s a note (was 1.54; the fold
+  0.231 s, of which the sampling 0.0566, was 0.336 and 0.162); four recovery inputs 0.971 s a note;
+  two tachyactions with zk 0.432 s; the zk note's §5.4 attempt 0.261 s and fold 0.335 s (were 0.316
+  and 0.405), the sampling 0.13 times the commitment (was 0.36; "about a third" dropped from the
+  sentence); the optimum width for the recovery circuit 91 (was 76), the page's optima 45 to 130,
+  the recovery band 27 to 360, 48 within 2.5 percent at the page's sampler. HLS18's 7.7 to 13 ns on
+  a 2014 Haswell is quoted beside the measurement. Artifact v176. STATE: main at this entry;
+  everything through b4ab849 pushed; ae3ec50 and this entry unpushed. PENDING: the user's review of
+  the soundness note; the 2026-11-14 open modelling questions; the Pasta-claims recovery row's
+  BLAKE3 figure; the hash-based rows' PIOP verifiers in their merges; the readability pass over the
+  40-to-59-word sentences; classifying the Tachyon nodes' remaining gates from Ragu's synthesis
+  analysis, if the counting adapter can tell a bit check from a multiplication.
+- 23:31 UTC, addendum: the Pasta-claims recovery row's BLAKE3 figure, pending since 2026-11-14, is
+  on the page (1523b1f): tx_recovery_q64_blake3_s = 387 s at rank 17 under the default trees, beside
+  the 142 s with Poseidon, from best_for("pasta_q64", "recovery", "blake3", hashes="blake3").
+  Artifact v177. STATE: main at this entry; ae3ec50 and after unpushed.
+- 23:39 UTC, addendum: THE READABILITY PASS (11494ab; the user: "3 first, then your suggested
+  order"): of the 84 sentences of 40 to 59 words in the prose, 55 that joined a claim to a
+  consequence or a qualification were split at the joint by exact fragment edits
+  (work/split-sentences.py; one fragment had to carry the limb-hybrid link); the 35 left and the 6
+  of 60 or more are enumerations of parallel values or cases, kept whole. The claims' markers wrap
+  the split sentences as before and every check passes. Artifact v178. STATE: main at this entry;
+  everything through f426b3f pushed.
+- 00:02 UTC, addendum: THE HASH-BASED MERGES VERIFY THEIR PIOPs (3e24191).
+  f2_piop_verifier_mults(log_bits) = 4 × (2 log N + 3 log2(BLAKE3_ANDS)) field multiplications an
+  input (the zerocheck, the lincheck and a sum-check per base matrix of one compression's R1CS, in
+  place of the native verifier's own evaluation of the small matrices, which a circuit should
+  delegate to a committed evaluation that ARC accumulates); bitz_piop_verifier_mults adds the GKR's
+  n(n+1)/2 rounds; a round is four multiplications (a degree-three univariate at the challenge and
+  the eq factor); the Boolean merge multiplies by KARATSUBA_ANDS[chal] (f2_merge takes the design's
+  challenge field now), BitZ's hybrid merge commits 128-bit products. At rate 1/8: the F2 family 350
+  multiplications an input, 1.5 million AND gates, 5.7 percent of the merge (claim
+  f2_piop_verifier_small, under a fifth at every rate); BitZ 1,700 products, 424 thousand bits, 1.4
+  percent (claim bitz_piop_verifier_small, under two percent; the page had said "a few thousand
+  constraints that are not counted"). The F2 merges are 17 to 77 million AND gates (were 14 to 74),
+  two tachyactions 5.07 s (was 4.69); the F2 prover is least at rate 1/4 alone, 1/8 within a tenth
+  (claim f2_prover_least_rate_4 replaces f2_prover_least_rates_4_8 and its two markers). TOOM–COOK
+  FOR THE BINARY-FIELD MULTIPLICATIONS (the user: "Did we check Toom–Cook?", then "check whether
+  Toom-k for larger k (8, 16) is worthwhile"): not adopted. A first count assumed Toom-k's 2k − 1
+  pointwise products have n/k bits and gave 1,875 (Toom-3) and 1,029 (Toom-3 and 4) AND gates at 128
+  bits against Karatsuba's 2,187; that is wrong in characteristic 2, where the evaluation points
+  beyond 0, 1 and ∞ are polynomials x^d + … (Bodrato, WAIFI 2007) and evaluating a k-piece operand
+  at one lengthens the piece by d(k − 1) bits, so for Toom-4 at 128 bits the pieces are 32 bits but
+  the products at x and x + 1 are 35-bit and at x² and x² + 1 are 38-bit. Counting that, Toom-k for
+  any k up to 16 gives no gain at 128 or 256 bits, where Karatsuba's halving is exact (2,187 and
+  6,075 against 6,561 by the model's constant at 256, a 7 percent gain only there), and at 192 bits
+  4,185 against the model's 4,374 (4 percent); larger k only lengthens the pieces more. Under a
+  bit-level Karatsuba recursion a 35-bit product costs as much as a 64-bit one; with schoolbook on
+  the extra bits it is about 444 AND gates and Toom-4 at 128 bits about 2,943, still above
+  Karatsuba. The constants stay. Artifact v179. STATE: main at this entry; everything through
+  f426b3f pushed. NEXT (the user): pause ragu-pcs for FROST analysis. PENDING: the user's review of
+  the soundness note; the 2026-11-14 open modelling questions (the Pasta-claims rows' claim-field
+  sum-check, witness generation, the aggregator's opening and compression, phone parallelism);
+  classifying the Tachyon nodes' remaining gates from Ragu's synthesis analysis.
+- 00:06 UTC, addendum: TOOM-3 AT 192 BITS after all (d8f091d; the user: "it's worth accounting for
+  Toom-3 being slightly better at 192-bit"): CLMUL_ANDS (was KARATSUBA_ANDS) prices a 192-bit (and
+  191-bit) carry-less product at 3 × 729 + 2 × (729 + 2 × 2 × 64 + 4) = 4,165 AND gates, Toom-3's
+  five products (three of 64 bits at 0, 1 and ∞, two of 66 bits at x and x + 1) against the
+  three-limb Karatsuba's six, 4,374; 128 and 256 bits stay Karatsuba. The F2 recursion rows' merges
+  fall a little (the 192-bit design 87 million witness bits at rate 1/8, was 89; the 191-bit 133,
+  was 137), two tachyactions 5.05 s. The PIOP commit is 3e24191 after the Pasta note's refreshed
+  figures were folded in. Artifact v180. STATE: main at this entry; everything through f426b3f
+  pushed; the five commits after it unpushed.
 
 ## 2026-11-21 05:10 UTC: the hardware wallet's part of the recovery statement as applications
 
@@ -3386,28 +4009,28 @@ Four commits after 9e29be5: 8035755 (the width table and its script), 23d23c4 (t
 re-pricing), 2da6558 (the padding check), and 37e9684 (the 147-bit default). The user's
 thoughts note was checked against the model in chat, before and after.
 
-- **The accumulation matrix is priced as Akita's catalog shapes it** (23d23c4). A module of
-  `rank` rows over a ring of degree 512 or 1,024, the catalog's accumulation degrees, at
-  rank + log2(d)/2 field multiplications a digit. The rank and degree are the cheapest that
-  Akita's ℓ∞ estimator certifies at the floor for the row's bound and its accumulator's width
-  (`accumulation_matrix`, `LINF_WIDTHS`). The table, `estimates/linf-accumulation-widths.tsv`,
-  is extracted by `scripts/linf-accumulation-widths.py` from the estimator's own tables: the
-  64-bit and 128-bit moduli's production tables at 128 and 147 and their CSVs at 150, Pallas's
-  CSVs, and the Goldilocks CSVs, checked to coincide with the 64-bit modulus's to a tenth of a
-  percent. The estimator evaluates only the catalog's own cells, so a bound is rounded up to
-  the ladder. The bounds are the note's extraction argument's on the coefficient ℓ∞ norm.
-  Without the mask the bound is a fold's output, two children at the challenge's weight plus
-  the step's digits, times the slack 2 · 2‖c‖₁ · 2: 2^14.6 for base-8 digits, 2^12.6 for
-  Kishu's bits. With the mask it is the slack times 14σ, with σ = α‖c‖₁‖s‖₂ at the row's own
-  ‖s‖₂ = DIGIT_MAX √N. Before, the rows were the Euclidean estimator's scalar rows at the ℓ2 bound 2^27 spread over
-  degree 64, rows/64 + 3 a digit, times the (log β)² rule under the mask and the planner's
-  rank growth at 147. Now every unmasked row is rank 1, 5.5 multiplications a digit at degree
-  512 or 6.0 at 1,024 (the widest 64-bit-modulus accumulators); the mask costs a factor of 1.0
-  to 1.33 on the rate, 14/11 for Kishu (rank 2 at 1,024 against rank 1 at 512), where the
-  Euclidean route charged 2.4 to 3.1. Per digit in word multiplications, plain and masked:
-  Pasta modulus 167/410 → 176/176; 128-bit 60/146 → 44/48; 64-bit Pasta claims 23.7/58 →
-  11.0/14.0; Goldilocks 17.8/44 → 8.2/10.5; Kishu per bit 23.7/48.4 → 11.0/14.0. The 147-bit
-  floor's rank-growth factor now scales the verifier's inner-image share only.
+- **The accumulation matrix is priced as Akita's catalog shapes it** (23d23c4). A module of `rank`
+  rows over a ring of degree 512 or 1,024, the catalog's accumulation degrees, at rank + log2(d)/2
+  field multiplications a digit. The rank and degree are the cheapest that Akita's ℓ∞ estimator
+  certifies at the floor for the row's bound and its accumulator's width (`accumulation_matrix`,
+  `LINF_WIDTHS`). The table, `estimates/linf-accumulation-widths.tsv`, is extracted by
+  `scripts/linf-accumulation-widths.py` from the estimator's own tables: the 64-bit and 128-bit
+  moduli's production tables at 128 and 147 and their CSVs at 150, Pallas's CSVs, and the Goldilocks
+  CSVs, checked to coincide with the 64-bit modulus's to a tenth of a percent. The estimator
+  evaluates only the catalog's own cells, so a bound is rounded up to the ladder. The bounds are the
+  note's extraction argument's on the coefficient ℓ∞ norm. Without the mask the bound is a fold's
+  output, two children at the challenge's weight plus the step's digits, times the slack 2 · 2‖c‖₁ ·
+  2: 2^14.6 for base-8 digits, 2^12.6 for Kishu's bits. With the mask it is the slack times 14σ,
+  with σ = α‖c‖₁‖s‖₂ at the row's own ‖s‖₂ = DIGIT_MAX √N. Before, the rows were the Euclidean
+  estimator's scalar rows at the ℓ2 bound 2^27 spread over degree 64, rows/64 + 3 a digit, times the
+  (log β)² rule under the mask and the planner's rank growth at 147. Now every unmasked row is rank
+  1, 5.5 multiplications a digit at degree 512 or 6.0 at 1,024 (the widest 64-bit-modulus
+  accumulators); the mask costs a factor of 1.0 to 1.33 on the rate, 14/11 for Kishu (rank 2 at
+  1,024 against rank 1 at 512), where the Euclidean route charged 2.4 to 3.1. Per digit in word
+  multiplications, plain and masked: Pasta modulus 167/410 → 176/176; 128-bit 60/146 → 44/48; 64-bit
+  Pasta claims 23.7/58 → 11.0/14.0; Goldilocks 17.8/44 → 8.2/10.5; Kishu per bit 23.7/48.4 →
+  11.0/14.0. The 147-bit floor's rank-growth factor now scales the verifier's inner-image share
+  only.
 - **Figures that moved.** Kishu's recovery 0.399 → 0.283 s plain and 0.733 → 0.370 s with
   zero knowledge, the same at both floors since the matrices coincide; Zoodles by preimage
   0.154 → 0.0824 s zk; four tachyactions 0.481 → 0.241 s; qk 0.0790 → 0.0456 s; leanSPHINCS
@@ -3545,24 +4168,24 @@ pushed; PR #1 merged, PR #2 a draft; artifact version 212; the book builds.
   `estimates/` instead of paths under the scratch directory (the user: make it reproducible).
   The model's comments still name the scratch logs of the BitZ runs, which are developer-facing,
   and `estimates/summary.txt` is a generated log.
-- **Cross-references are links** (2813c5a, dac2c36, b506373). The repo-links preprocessor
-  resolves an included note's links from the note's own directory and maps a target that is a
-  chapter to the chapter (`pareto-template.html` stands for the frontier chapter,
-  `REGENERATING.md` for the regenerating one), so a note writes its links as neighbours
-  (`scripts/x.py`, `zk-fiat-shamir-with-aborts.md#…`) that work on GitHub and in the book
-  alike, and a link to a file that does not exist fails the build. The regenerating chapter
-  and the two notes link every tracked file they name (`work/link-files.py`); bare section
-  numbers link their headings, a section of another paper staying bare
-  (`work/section-links.py`); the zero-knowledge note is "the zk note" after a first mention in
-  each document, with a link on every reference, noteref spans in the frontier page and links
-  in the notes (the user: abbreviate so that every reference reads "in the zk note";
-  `work/note-refs.py`); the zk note links the frontier page's sections, the proof-size note,
-  the hardware-wallets chapter, and its open points; the hardware-wallets note's two
-  book-relative links are note-relative. A reference to another page gives the page's title as
-  the link text (the user: not its filename), and the preprocessor sends a link whose text is a
-  code span to the file on GitHub, a title to the chapter. The proof-size note's bare "§5.5",
-  which it has no section for, is read as the zk note's §5.5; the user checked the §5.5 links. The rendered chapters' 555 links were
-  checked by `work/check-links.py` (GitHub paths tracked, pages and ids present).
+- **Cross-references are links** (2813c5a, dac2c36, b506373). The repo-links preprocessor resolves
+  an included note's links from the note's own directory and maps a target that is a chapter to the
+  chapter (`pareto-template.html` stands for the frontier chapter, `REGENERATING.md` for the
+  regenerating one), so a note writes its links as neighbours (`scripts/x.py`,
+  `zk-fiat-shamir-with-aborts.md#…`) that work on GitHub and in the book alike, and a link to a file
+  that does not exist fails the build. The regenerating chapter and the two notes link every tracked
+  file they name (`work/link-files.py`); bare section numbers link their headings, a section of
+  another paper staying bare (`work/section-links.py`); the zero-knowledge note is "the zk note"
+  after a first mention in each document, with a link on every reference, noteref spans in the
+  frontier page and links in the notes (the user: abbreviate so that every reference reads "in the
+  zk note"; `work/note-refs.py`); the zk note links the frontier page's sections, the proof-size
+  note, the hardware-wallets chapter, and its open points; the hardware-wallets note's two
+  book-relative links are note-relative. A reference to another page gives the page's title as the
+  link text (the user: not its filename), and the preprocessor sends a link whose text is a code
+  span to the file on GitHub, a title to the chapter. The proof-size note's bare "§5.5", which it
+  has no section for, is read as the zk note's §5.5; the user checked the §5.5 links. The rendered
+  chapters' 555 links were checked by `work/check-links.py` (GitHub paths tracked, pages and ids
+  present).
 - **References give authors' first names in full** (dd9a302; the user's rule, for the reason
   that initials can hide diversity in gender and culture), taken from the papers' own pages
   where the lists had initials: Zinc+, Akita, BitZ, Flock, Zook, the small-field SoK, and the
@@ -3709,13 +4332,13 @@ commits after it are the section, the derivation and binding, CAPSS, and this on
   sentence that Tachyon's circuits in a post-quantum proof system are not a useful deployment is
   to be revised. Tachyon's book sketches the post-quantum upgrade and leaves it there; Zoodles
   is that upgrade. The book's URL is tachyon.z.cash/book/revisit.html.
-- **ZIP 2005's qk derivation in all three protocols** (the user: it is $\mathsf{H^{qk}}$ that
-  is the same, not the keys). The preimage method's image is derived from its preimage by the
-  ZIP's $\mathsf{H^{qk}}$, whose personalization names no pool on purpose (any domain
-  separation between the protocols affects how $\mathsf{qsk}$ is obtained, not the derivation;
-  a footnote on the page), so a native Zoodles spend, an Ironwood recovery on the
-  $\mathsf{use\_qsk}$ path, and a Tachyon recovery make the same check with keys of their own. What binds a Zoodles
-  note to its action without Tachyon's randomizer (the user's question from the book's
+- **ZIP 2005's qk derivation in all three protocols** (the user: it is $\mathsf{H^{qk}}$ that is the
+  same, not the keys). The preimage method's image is derived from its preimage by the ZIP's
+  $\mathsf{H^{qk}}$, whose personalization names no pool on purpose (any domain separation between
+  the protocols affects how $\mathsf{qsk}$ is obtained, not the derivation; a footnote on the page),
+  so a native Zoodles spend, an Ironwood recovery on the $\mathsf{use\_qsk}$ path, and a Tachyon
+  recovery make the same check with keys of their own. What binds a Zoodles note to its action
+  without Tachyon's randomizer (the user's question from the book's
   #pq-rerand): every published value is derived in the step that opens the note, the lineage's
   attestation arrives as a header the step checks, and the tree and the digest carry the rest.
 - **CAPSS** (the user: worth analysing as a third option). ePrint 2025/061 read from
@@ -3864,15 +4487,15 @@ STATE: branch book-reorganization at this entry's commit, 31 commits beyond main
 
 Later in the same session:
 
-- **Kishu's Arithmetization opens at the PCD level** (the user: cart before the horse; describe it as
-  it appears to circuit writers, assuming no familiarity with BitZ or Akita; "merge" and
+- **Kishu's Arithmetization opens at the PCD level** (the user: cart before the horse; describe it
+  as it appears to circuit writers, assuming no familiarity with BitZ or Akita; "merge" and
   "accumulation" are too low-level there): a section "Kishu as a Proof-Carrying-Data scheme" on
-  nodes, headers, the witness as bits, constraints as polynomial relations among words with
-  integer semantics below q/2, the unit costs, what is free; then "What Kishu is made of" defines
-  Akita and BitZ and places accumulation beneath the node interface. Terms: a NODE is a vertex of
-  the PCD graph (a Tachyon circuit), a STEP the accumulation scheme's unit, which packs several
-  nodes. Ragu's book calls the application circuit "a PCD step" and Tachyon's book names its
-  circuits steps, so their "step" is our node; in Ragu the two coincide, one circuit a step.
+  nodes, headers, the witness as bits, constraints as polynomial relations among words with integer
+  semantics below q/2, the unit costs, what is free; then "What Kishu is made of" defines Akita and
+  BitZ and places accumulation beneath the node interface. Terms: a NODE is a vertex of the PCD
+  graph (a Tachyon circuit), a STEP the accumulation scheme's unit, which packs several nodes.
+  Ragu's book calls the application circuit "a PCD step" and Tachyon's book names its circuits
+  steps, so their "step" is our node; in Ragu the two coincide, one circuit a step.
 - **Faerie gold is open for Zoodles** (the user, correcting the chat answer above): Tachyon's
   wallet-side detection does not survive a roadblock, since a sender can send two notes with the
   same ψ and the wallet cannot tell the payment from the roadblock, so spendability cannot be
@@ -3939,14 +4562,14 @@ pair is derived from the wallet's seed or quantum spending key, how its public k
 the Zoodles payment key and in a recovery arm, and what a FROST group does with it.
 
 The user pulled the Tachyon and Ragu checkouts (2026-11-24): Tachyon main is d1f5ffb (2026-11-23),
-15 commits past the 73031f7 the study read, among them "feat: use real proofs" (267a566: the
-mock `ragu` dependency replaced by `ragu_pcd` with the accelerated prover; the `relations` module
-gone, steps checking polynomial identities inline; FixedBase reads 254 bits), "hold rcm nonzero
-wherever a note commitment is derived" (a36788b, #324), the QR and pool refactors, and a parameters
-appendix in the book. Ragu main is 7914b3b8, 315 commits past 8109a41c. So keep/tachyon-statements.md
-and the measured gate counts (TACHYON_STEPS) describe the old revision; re-read the step circuits
-before the Zoodles statements page, and re-measure the counts when Ragu steps 2–4 come up. Every
-tachyon.z.cash link the pages cite resolves (payment-key, pq, pq-rerand, team, the Ragu chapter).
+15 commits past the 73031f7 the study read, among them "feat: use real proofs" (267a566: the mock
+`ragu` dependency replaced by `ragu_pcd` with the accelerated prover; the `relations` module gone,
+steps checking polynomial identities inline; FixedBase reads 254 bits), "hold rcm nonzero wherever a
+note commitment is derived" (a36788b, #324), the QR and pool refactors, and a parameters appendix in
+the book. Ragu main is 7914b3b8, 315 commits past 8109a41c. So keep/tachyon-statements.md and the
+measured gate counts (TACHYON_STEPS) describe the old revision; re-read the step circuits before the
+Zoodles statements page, and re-measure the counts when Ragu steps 2–4 come up. Every tachyon.z.cash
+link the pages cite resolves (payment-key, pq, pq-rerand, team, the Ragu chapter).
 
 Kishu's Arithmetization was reworked with the user sentence by sentence (the definition is the
 part a misreading would poison, so it got the time): "Kishu as a Proof-Carrying-Data scheme"

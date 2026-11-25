@@ -1,9 +1,10 @@
 # The soundness obligation behind the Pasta-claims Akita variant: the statement
 
-Statement drafted 2026-11-14, to be reviewed before any proof is attempted. Sources:
-[§6.3 of the Akita proof sizes at a Pasta modulus](pasta-proof-size.md#63-decoupling-the-commitment-modulus-from-the-claim-field)
-page (the decoupled commitment modulus), and LaBinius (ePrint 2026/2103). Kishu's obligations
-are different ones, the subject of [The soundness obligations behind Kishu](kishu-soundness.md).
+Statement drafted 2026-11-14, to be reviewed before any proof is attempted. Sources: [§6.3 of the
+Akita proof sizes at a Pasta
+modulus](pasta-proof-size.md#63-decoupling-the-commitment-modulus-from-the-claim-field) page (the
+decoupled commitment modulus), and LaBinius (ePrint 2026/2103). Kishu's obligations are different
+ones, the subject of [The soundness obligations behind Kishu](kishu-soundness.md).
 
 ## 1. The design and its obligation
 
