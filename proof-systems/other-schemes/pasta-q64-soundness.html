@@ -36,7 +36,7 @@
             const path_to_root = "../../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../../searchindex-207d5393.js";
+            window.path_to_searchindex_js = "../../searchindex-a64a2a25.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4ff39b87.js"></script>
@@ -177,10 +177,11 @@
                     <main>
                         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
 <h1 id="the-soundness-obligation-behind-the-pasta-claims-akita-variant-the-statement"><a class="header" href="#the-soundness-obligation-behind-the-pasta-claims-akita-variant-the-statement">The soundness obligation behind the Pasta-claims Akita variant: the statement</a></h1>
-<p>Statement drafted 2026-11-14, to be reviewed before any proof is attempted. Sources:
-<a href="pasta-proof-size.html#63-decoupling-the-commitment-modulus-from-the-claim-field">§6.3 of the Akita proof sizes at a Pasta modulus</a>
-page (the decoupled commitment modulus), and LaBinius (ePrint 2026/2103). Kishu’s obligations
-are different ones, the subject of <a href="../kishu/kishu-soundness.html">The soundness obligations behind Kishu</a>.</p>
+<p>Statement drafted 2026-11-14, to be reviewed before any proof is attempted. Sources: <a href="pasta-proof-size.html#63-decoupling-the-commitment-modulus-from-the-claim-field">§6.3 of the
+Akita proof sizes at a Pasta
+modulus</a> page (the
+decoupled commitment modulus), and LaBinius (ePrint 2026/2103). Kishu’s obligations are different
+ones, the subject of <a href="../kishu/kishu-soundness.html">The soundness obligations behind Kishu</a>.</p>
 <h2 id="1-the-design-and-its-obligation"><a class="header" href="#1-the-design-and-its-obligation">1. The design and its obligation</a></h2>
 <p><strong>Akita with Pasta claims over the 64-bit commitment (<code>pasta_q64</code>).</strong> The claim field is
 Pallas’s field <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.975em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathbb">F</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">p</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span>. The witness is the balanced base-8 digit vector of the

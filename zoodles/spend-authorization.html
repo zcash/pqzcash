@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../searchindex-207d5393.js";
+            window.path_to_searchindex_js = "../searchindex-a64a2a25.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4ff39b87.js"></script>
@@ -177,26 +177,60 @@
                     <main>
                         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
 <h1 id="spend-authorization"><a class="header" href="#spend-authorization">Spend authorization</a></h1>
-<p>A Zoodles spend is authorized in one of two ways, chosen per input and usually the same for all of a transaction’s inputs. The first is a hash preimage: knowledge of the secret behind the note’s payment key, proved inside the spend’s own step. The second is a hash-based signature, leanSPHINCS, made outside the proof and verified inside the host’s transaction. Neither uses a curve. Both serve a native Zoodles spend and a recovery spend of an Ironwood or a Tachyon note, whether or not the spend is made from a hardware wallet. The <a href="../proof-systems/pcs-frontier.html#transaction-prover">frontier page</a> prices both as applications of its transaction prover: the preimage statement as the device statement, one BLAKE3 compression, and the leanSPHINCS verifier with BLAKE3, BLAKE2s, or Keccak.</p>
-<p>Two methods are needed because signers differ. The hash preimage is what ZIP 2005 already specifies. It is much the more efficient for a signer that creates the transaction itself, with no separation between the device that holds the spending key and the one that builds the proof. The same holds for a signer that is not constrained in outgoing bandwidth or memory. The check is a hash inside a step it proves anyway. The leanSPHINCS signature is feasible on a wider range of devices, since signing is hashing alone and the signature is a few kilobytes. So it reaches an airgapped wallet on a QR channel or a secure element. It may also be compatible with Ethereum’s post-quantum signature, depending on the details of what Ethereum chooses. A third method, a signature whose verification is built for the circuit, is analysed on the CAPSS page.</p>
+<p>A Zoodles spend is authorized in one of two ways, chosen per input and usually the same for all of a
+transaction’s inputs. The first is a hash preimage: knowledge of the secret behind the note’s
+payment key, proved inside the spend’s own step. The second is a hash-based signature, leanSPHINCS,
+made outside the proof and verified inside the host’s transaction. Neither uses a curve. Both serve
+a native Zoodles spend and a recovery spend of an Ironwood or a Tachyon note, whether or not the
+spend is made from a hardware wallet. The <a href="../proof-systems/pcs-frontier.html#transaction-prover">frontier page</a>
+prices both as applications of its transaction prover: the preimage statement as the device
+statement, one BLAKE3 compression, and the leanSPHINCS verifier with BLAKE3, BLAKE2s, or Keccak.</p>
+<p>Two methods are needed because signers differ. The hash preimage is what ZIP 2005 already specifies.
+It is much the more efficient for a signer that creates the transaction itself, with no separation
+between the device that holds the spending key and the one that builds the proof. The same holds for
+a signer that is not constrained in outgoing bandwidth or memory. The check is a hash inside a step
+it proves anyway. The leanSPHINCS signature is feasible on a wider range of devices, since signing
+is hashing alone and the signature is a few kilobytes. So it reaches an airgapped wallet on a QR
+channel or a secure element. It may also be compatible with Ethereum’s post-quantum signature,
+depending on the details of what Ethereum chooses. A third method, a signature whose verification is
+built for the circuit, is analysed on the CAPSS page.</p>
 <p>The pages of this section:</p>
 <ul>
-<li><a href="spend-authorization/hash-preimage.html">Hash preimage</a>: the statement, and why it has to be a signature of knowledge when it is made outside the transaction’s own proof.</li>
-<li><a href="spend-authorization/leansphincs.html">leanSPHINCS</a>: the signature, its pruned key, and its verifier’s cost in the circuit.</li>
-<li><a href="spend-authorization/capss.html">CAPSS</a>: a SNARK-friendly signature as a third method, analysed and not adopted: the method for a prime-field proof system, and for Kishu a second signature route with another assumption and no clear gain.</li>
-<li><a href="spend-authorization/recovery-ironwood.html">Recovery from Ironwood</a>: ZIP 2005’s Recovery Statement, and how the two methods fit it.</li>
-<li><a href="spend-authorization/recovery-tachyon.html">Recovery from Tachyon</a>: Tachyon’s key structure, what it lacks for recovery, and the migration transaction.</li>
-<li><a href="spend-authorization/hardware-wallets.html">Hardware wallets</a>: what a wallet proves on its own under either method, and at what cost.</li>
+<li><a href="spend-authorization/hash-preimage.html">Hash preimage</a>: the statement, and why it has to be a signature of knowledge
+when it is made outside the transaction’s own proof.</li>
+<li><a href="spend-authorization/leansphincs.html">leanSPHINCS</a>: the signature, its pruned key, and its verifier’s cost in the
+circuit.</li>
+<li><a href="spend-authorization/capss.html">CAPSS</a>: a SNARK-friendly signature as a third method, analysed and not adopted:
+the method for a prime-field proof system, and for Kishu a second signature route with another
+assumption and no clear gain.</li>
+<li><a href="spend-authorization/recovery-ironwood.html">Recovery from Ironwood</a>: ZIP 2005’s Recovery Statement, and how the two
+methods fit it.</li>
+<li><a href="spend-authorization/recovery-tachyon.html">Recovery from Tachyon</a>: Tachyon’s key structure, what it lacks for recovery,
+and the migration transaction.</li>
+<li><a href="spend-authorization/hardware-wallets.html">Hardware wallets</a>: what a wallet proves on its own under either method, and
+at what cost.</li>
 </ul>
 <h2 id="quantum-recovery"><a class="header" href="#quantum-recovery">Quantum recovery</a></h2>
-<p>The two recovery pages share one definition. A note is quantum-recoverable when its owner can spend it, or move it to a post-quantum pool, after discrete logarithms fall, by a statement whose soundness rests on hash and lattice assumptions alone. That asks four things of the note and of the chain:</p>
+<p>The two recovery pages share one definition. A note is quantum-recoverable when its owner can spend
+it, or move it to a post-quantum pool, after discrete logarithms fall, by a statement whose
+soundness rests on hash and lattice assumptions alone. That asks four things of the note and of the
+chain:</p>
 <ul>
-<li>the note commits to an owner key <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathsf">qk</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathsf">H</span><span class="mopen">(</span><span class="mord"><span class="mord mathsf">qsk</span></span><span class="mclose">)</span></span></span></span> whose secret <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathsf">qsk</span></span></span></span></span> is in no key used to view or to scan, so that such a key does not become a spending key when the curve’s keys do;</li>
-<li>the commitment’s opening and the derivation of the note’s nullifier can be proved without discrete log, which means hash commitments, or commitments whose derivation is constrained so that a hash binds them;</li>
-<li>the note’s membership in the chain’s history and its nullifier’s absence from it can be proved from a hash-based structure over the published commitments and nullifiers, built from public data where the chain’s own structure is discrete-log-based;</li>
-<li>and the spend is authorized by one of the two methods above, with the message bound into the proof.</li>
+<li>the note commits to an owner key <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathsf">qk</span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathsf">H</span><span class="mopen">(</span><span class="mord"><span class="mord mathsf">qsk</span></span><span class="mclose">)</span></span></span></span> whose secret
+<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathsf">qsk</span></span></span></span></span> is in no key used to view or to scan, so that such a key does not become a spending
+key when the curve’s keys do;</li>
+<li>the commitment’s opening and the derivation of the note’s nullifier can be proved without discrete
+log, which means hash commitments, or commitments whose derivation is constrained so that a hash
+binds them;</li>
+<li>the note’s membership in the chain’s history and its nullifier’s absence from it can be proved
+from a hash-based structure over the published commitments and nullifiers, built from public data
+where the chain’s own structure is discrete-log-based;</li>
+<li>and the spend is authorized by one of the two methods above, with the message bound into the
+proof.</li>
 </ul>
-<p>ZIP 2005 gives Ironwood-pool notes all four, with the quantum spending key and the Recovery Statement. Tachyon’s notes have the hash commitments and the hash-based nullifier by design and lack the owner key, which the Tachyon page takes up.</p>
+<p>ZIP 2005 gives Ironwood-pool notes all four, with the quantum spending key and the Recovery
+Statement. Tachyon’s notes have the hash commitments and the hash-based nullifier by design and lack
+the owner key, which the Tachyon page takes up.</p>
 <script class="todo-data" type="application/json">["zoodles.html"]</script>
 
                     </main>
