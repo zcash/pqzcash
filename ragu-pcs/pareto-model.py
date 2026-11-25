@@ -214,7 +214,8 @@ def accumulator_bytes(variant, coefficients, digits=None):
 # The mask and the bounds follow the note's §5.1 to §5.3 at each row's own accumulator, its
 # coefficients (accumulator_coefficients) in digits; MASK_LOG_N = 22 is the note's N, for the
 # note's own figures. The digits are at most DIGIT_MAX in size, balanced base 8 for the Akita
-# variants and bits for Kishu, so ‖s‖₂ ≤ DIGIT_MAX √N; a challenge of ℓ1 norm MASK_CHALLENGE_L1
+# variants and for Kishu's integer-word digits (its bit positions are smaller, so its bound is
+# conservative), so ‖s‖₂ ≤ DIGIT_MAX √N; a challenge of ℓ1 norm MASK_CHALLENGE_L1
 # gives ‖cs‖₂ ≤ that times ‖s‖₂; the Gaussian mask has width σ = MASK_ALPHA ‖cs‖₂; and the
 # accepted response's coordinates are at most MASK_TAIL σ, which sets the bits a coordinate is
 # stored in and the base-8 slices it is handed over as. The relaxed opening that extraction
@@ -232,7 +233,7 @@ MASK_ALPHA = 48
 MASK_CHALLENGE_L1 = 20
 MASK_TAIL = 14
 MASK_LOG_N = 22
-DIGIT_MAX = {v: 4 for v in DIGITS} | {"kishu": 1}
+DIGIT_MAX = {v: 4 for v in DIGITS} | {"kishu": 4}
 EXTRACTION_SLACK = 2 * (2 * MASK_CHALLENGE_L1) * 2
 
 
@@ -251,6 +252,18 @@ def masked_log_beta_inf(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG
         math.log2(EXTRACTION_SLACK)
         + math.log2(MASK_TAIL)
         + mask_log_sigma(alpha, c_l1, log_n, digit_max)
+    )
+
+
+def masked_log_beta_inf_l2(log_l2, alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1):
+    """As masked_log_beta_inf, from the log of the vector's exact ℓ2 norm in place of
+    DIGIT_MAX √N, for a vector of mixed digit widths."""
+    return (
+        math.log2(EXTRACTION_SLACK)
+        + math.log2(MASK_TAIL)
+        + math.log2(alpha)
+        + math.log2(c_l1)
+        + log_l2
     )
 
 
@@ -757,7 +770,42 @@ def mult_ands(n):
 # bits or digits for BitZ and Kishu, and BOOL_STEP_BITS AND gates for the
 # Boolean families; rounded up, since a transaction smaller than a step pays a whole step.
 BITZ_GATE_BITS = 510  # a Pasta gate as committed bits in BitZ's arithmetization: a 255-bit value and a 255-bit quotient
-BITS_PER_VALUE = 255  # a Pasta value in Kishu's one-bit digits
+# Kishu's witness carries bits where the circuit needs bits as factors, in the hashes, and
+# wider digits for integer-word data, which enters constraints only through linear forms:
+# limbs, quotients, carries, claim-field values, amounts, hash inputs. A word of `bits` bits is
+# floor(bits / 3) tribits, digits of three bits in Akita's own balanced base-8 alphabet
+# (DIGIT_MAX 4), and a bit or a dibit, a digit of two bits, for the remainder if needed, so
+# that its range is exact. The commitment and the fold cost the
+# same per digit at any of these widths (the accumulation matrix stays rank 1 unmasked and
+# rank 2 masked at the wider bound), and the range check with Akita's paired predicate costs
+# b/2 products a digit for an alphabet of b values (b assumed even): one for a bit, which the per-digit
+# Booleanity rate charges, two for a dibit, four for a tribit. The products beyond one a digit
+# are charged to the application's PIOP (word_range_piop). Bitwise operations keep bits: a
+# dibit XOR is degree two only with a committed quotient digit, which is pinned only by
+# committing the reduced result, so dibits cannot leave every other XOR word uncommitted as
+# bits do, and tribits have no degree-two XOR at all.
+WORD_DIGIT_BITS = 3
+RANGE_PRODUCTS = {1: 1, 2: 2, 3: 4}  # products a digit of the range check, by the digit's bits
+
+
+def word_digits(bits):
+    """Digits of a `bits`-bit word: tribits and one narrower digit for the remainder."""
+    return math.ceil(bits / WORD_DIGIT_BITS)
+
+
+def word_range_products(bits):
+    """The range check's products over a word's digits beyond one a digit."""
+    whole, rest = divmod(bits, WORD_DIGIT_BITS)
+    return whole * (RANGE_PRODUCTS[3] - 1) + (RANGE_PRODUCTS[rest] - 1 if rest else 0)
+
+
+def word_range_piop(bits):
+    """The range check's surplus products as a PIOP part of their own."""
+    return (0, 0, 0, word_range_products(bits))
+
+
+BITS_PER_VALUE = 255  # a Pasta value's bits
+VALUE_DIGITS = word_digits(BITS_PER_VALUE)  # a Pasta value in Kishu's digits
 BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
 # A compression's committed digits in a degree-two arithmetization over bits (BitZ's and
 # Kishu's): per G function the four adders' sums and carries, and two of the four XOR words.
@@ -823,18 +871,34 @@ ADD64_PIOP = (2, 8, 0)
 ADD64_XOR_PIOP = (64, 136, 0)
 
 
+PIOP_PARTS = (
+    4  # product terms, small nonzeros, field nonzeros, range-check products beyond one a digit
+)
+
+
 def piop_sum(*parts):
-    """The constraint counts of `count` copies of each (count, counts) part, summed."""
-    return tuple(sum(count * part[i] for count, part in parts) for i in range(3))
+    """The constraint counts of `count` copies of each (count, counts) part, summed; a part of
+    three counts has no range-check products."""
+    return tuple(
+        sum(count * (part[i] if i < len(part) else 0) for count, part in parts)
+        for i in range(PIOP_PARTS)
+    )
 
 
 def piop_word_mults(piop):
-    terms, small, field = piop
+    """Word multiplications of the constraint PIOP and the range checks together; the range
+    checks' products run at the Booleanity sum-check's rate, as the constraint terms do."""
+    terms, small, field, *rest = piop
     return (
-        terms * CONSTRAINT_TERM_WORD_MULTS
+        (terms + sum(rest)) * CONSTRAINT_TERM_WORD_MULTS
         + small * NONZERO_SMALL_WORD_MULTS
         + field * NONZERO_FIELD_WORD_MULTS
     )
+
+
+def piop_range_word_mults(piop):
+    """The range checks' share of piop_word_mults."""
+    return sum(piop[3:]) * CONSTRAINT_TERM_WORD_MULTS
 
 
 def blake_piop(rounds, word_bits):
@@ -872,12 +936,13 @@ SINSEMILLA_CHUNK_PIOP = piop_sum(
         2,
         (
             SINSEMILLA_CROSS_PRODUCTS,
-            SINSEMILLA_CROSS_PRODUCTS + BITS_PER_VALUE,
+            SINSEMILLA_CROSS_PRODUCTS + VALUE_DIGITS,
             SINSEMILLA_CROSS_PRODUCTS + SINSEMILLA_COMMITTED_PRODUCTS + 10 + 1,
         ),
     ),
+    (2, word_range_piop(BITS_PER_VALUE)),
 )
-SINSEMILLA_CHUNK_DIGITS_KISHU = SINSEMILLA_COMMITTED_PRODUCTS + 2 * BITS_PER_VALUE
+SINSEMILLA_CHUNK_DIGITS_KISHU = SINSEMILLA_COMMITTED_PRODUCTS + 2 * VALUE_DIGITS
 REDUCTIONS_PIOP = (4000, 12000, 0)
 # Two routes for Kishu's Pasta multiplication a b = k p + r over committed bits, since Akita's
 # claims are in one fixed field and the relation cannot be checked modulo it alone: the prover
@@ -896,16 +961,27 @@ MULT_COEFFICIENTS = 2 * MULT_LIMBS - 1
 FINGERPRINT_INSTANCES = 3
 FINGERPRINT_PRIME_BYTES = 8
 COLUMN_SUM_BITS = 61
-MULT_ROUTES = {  # digits, and constraint counts, per multiplication
+MULT_LIMBS_TERMS = MULT_LIMBS**2 + MULT_COEFFICIENTS  # the limb products and the carry relations
+MULT_LIMBS_DIGITS = 2 * VALUE_DIGITS + MULT_COEFFICIENTS * word_digits(MULT_CARRY_BITS)
+MULT_FINGERPRINT_DIGITS = 2 * VALUE_DIGITS  # the value and the quotient
+# Digits, and constraint counts, per multiplication; the counts include the range checks'
+# products beyond one a digit on the result, the quotient and the carries.
+MULT_ROUTES = {
     "limbs": (
-        2 * BITS_PER_VALUE + MULT_COEFFICIENTS * MULT_CARRY_BITS,
-        (
-            MULT_LIMBS**2 + MULT_COEFFICIENTS,
-            2 * MULT_LIMBS**2 + MULT_COEFFICIENTS * (MULT_LIMBS + 3),
-            0,
+        MULT_LIMBS_DIGITS,
+        piop_sum(
+            (1, (MULT_LIMBS_TERMS, 2 * MULT_LIMBS**2 + MULT_COEFFICIENTS * (MULT_LIMBS + 3), 0)),
+            (2, word_range_piop(BITS_PER_VALUE)),
+            (MULT_COEFFICIENTS, word_range_piop(MULT_CARRY_BITS)),
         ),
     ),
-    "fingerprint": (BITZ_GATE_BITS, (FINGERPRINT_INSTANCES, 4 * FINGERPRINT_INSTANCES, 0)),
+    "fingerprint": (
+        MULT_FINGERPRINT_DIGITS,
+        piop_sum(
+            (1, (FINGERPRINT_INSTANCES, 4 * FINGERPRINT_INSTANCES, 0)),
+            (2, word_range_piop(BITS_PER_VALUE)),
+        ),
+    ),
 }
 KISHU_ARITHS = tuple(f"bits_pasta_{route}" for route in MULT_ROUTES)
 
@@ -914,8 +990,20 @@ def kishu_route(arith):
     return arith.removeprefix("bits_pasta_")
 
 
+def fingerprint_step_sums(rank):
+    """The fingerprint route's column sums a step: about sqrt(2^rank) for each instance."""
+    return FINGERPRINT_INSTANCES * math.ceil(2 ** (rank / 2))
+
+
 def fingerprint_step_digits(rank):
-    return FINGERPRINT_INSTANCES * math.ceil(2 ** (rank / 2)) * COLUMN_SUM_BITS
+    return fingerprint_step_sums(rank) * word_digits(COLUMN_SUM_BITS)
+
+
+def fingerprint_step_range_mults(rank):
+    """The column sums' range checks beyond one product a digit, in word multiplications."""
+    return piop_word_mults(
+        (fingerprint_step_sums(rank) * word_range_products(COLUMN_SUM_BITS), 0, 0)
+    )
 
 
 def bits_unit(field):
@@ -1096,6 +1184,7 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # Nano S+ hashes BLAKE2s about 500 times below a laptop core and a Trezor Safe 3 about 200
 # times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
 # that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
+HIDING_PADDING_SWEEP_ROWS = 1024  # the matrix rows the padding sweep below was run at
 HIDING_PADDING_ATTACK_BITS = {1024: 159.3, 1385: 140.5, 2048: 107.1}
 HIDING_PADDING_SWEEP = {
     3500: 83.8,
@@ -1134,52 +1223,62 @@ DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
 
 def hash_app_cost(field, hash_, calls, input_bytes=0):
     """`calls` of `hash_` and `input_bytes` of witness in the unit of `field`'s
-    arithmetization: the inputs are committed bits in the bit arithmetizations and
-    Boolean-checked wires in a field, and free wires in a Boolean circuit."""
+    arithmetization: the inputs are tribits in Kishu, since a hash consumes its message words
+    as addends, committed bits in BitZ, Boolean-checked wires in a field, and free wires in a
+    Boolean circuit."""
     unit = bits_unit(field)
     kind = unit if unit in ("boolean", "bits") else "gates"
-    inputs = 0 if kind == "boolean" else 8 * input_bytes
+    if kind == "boolean":
+        inputs = 0
+    elif field in KISHU_ARITHS:
+        inputs = word_digits(8 * input_bytes)
+    else:
+        inputs = 8 * input_bytes
     return calls * HASH_UNITS[hash_][kind] + inputs
 
 
-def hash_app_piop(hash_, calls):
-    """The constraint counts of `calls` of `hash_` in Kishu's PIOP; the input bits' Booleanity
-    is paid per digit."""
-    return piop_sum((calls, HASH_PIOPS[hash_]))
+def hash_app_piop(hash_, calls, input_bytes=0):
+    """The constraint counts of `calls` of `hash_` in Kishu's PIOP, with the input words' range
+    checks beyond one product a digit."""
+    return piop_sum((calls, HASH_PIOPS[hash_]), (1, word_range_piop(8 * input_bytes)))
 
 
 # Kishu's claim field and transcript: an F_q value as one-bit digits, a multiplication in E,
 # the Poseidon variant's rate and cost, the range check before BLAKE3 hashes a prover-supplied
 # word, and the digits and constraints of absorbing transcript bytes. Here, before the
 # applications, since Zoodles prices its set openings with them.
-Q64_DIGITS = 64  # an F_q value as one-bit digits
+Q64_BITS = 64
+Q64_DIGITS = word_digits(Q64_BITS)  # an F_q value as digits: 21 tribits and a bit
 E_MULT_DIGITS = 2 * Q64_DIGITS  # a multiplication in E: its output, two F_q values, as digits
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
 Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
-# A 64-bit decomposition of an F_q value is canonical only below q = 2^64 - 59, so a
-# prover-supplied word whose bytes BLAKE3 hashes is first checked to be below q: it is at or
-# above q exactly when bits 63 to 6 are all one and the low six bits are at least 5, so the
-# conjunction of 58 bits (57 products), the test on the low six (about five) and one
-# constraint forbidding both, about 63 committed bits and as many constraints. Poseidon absorbs
-# the field elements themselves and needs none.
-RANGE_CHECK_DIGITS = 57 + 5 + 1
+# A 64-bit value is a canonical F_q element only below q = 2^64 - 59, so a prover-supplied
+# word whose bytes BLAKE3 hashes is first checked to be below q: the difference q - 1 - w is
+# committed as a 64-bit word with one linear constraint, as many digits as the word. Poseidon
+# absorbs the field elements themselves and needs none. In BitZ's bits the check is the
+# conjunction of bits 63 to 6, the test on the low six bits, and one constraint forbidding
+# both, about 63 committed bits.
+RANGE_CHECK_DIGITS = word_digits(Q64_BITS)
+RANGE_CHECK_BITS = 57 + 5 + 1
 
 
-POSEIDON_Q64_PIOP = (
-    Q64_POSEIDON_MULTS,
-    0,
-    138 * 100,
-)  # two constraints per S-box, their linear forms over about fifty state words after the partial rounds' layers
-RANGE_CHECK_PIOP = (RANGE_CHECK_DIGITS, 3 * RANGE_CHECK_DIGITS, 0)
-E_MULT_PIOP = (3, 12, 0)  # three field products by Karatsuba
+# Two constraints per S-box, their linear forms over about fifty state words after the partial
+# rounds' layers; and the range checks of the multiplications' outputs beyond one product a digit.
+POSEIDON_Q64_PIOP = piop_sum(
+    (1, (Q64_POSEIDON_MULTS, 0, 138 * 100)), (Q64_POSEIDON_MULTS, word_range_piop(Q64_BITS))
+)
+RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
+# Three field products by Karatsuba; the output's two values' range checks.
+E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
 
 
-def absorb_digits(bytes_, hp, checked_words=0):
+def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS):
     """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
-    prover-supplied words range-checked before BLAKE3 hashes them."""
+    prover-supplied words range-checked before BLAKE3 hashes them, at `range_check` digits
+    each: Kishu's by default, RANGE_CHECK_BITS for BitZ."""
     if hp == "poseidon":
         return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
-    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * RANGE_CHECK_DIGITS
+    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * range_check
 
 
 def absorb_piop(bytes_, hp, checked_words=0):
@@ -1239,6 +1338,23 @@ WINDOW_ADDITION_GATES = 2  # Ragu's gates adding a window's point, field multipl
 OPENING_GATES = 2  # Ragu's gates evaluating a staged value at zeta, field multiplications
 BIT_GATE_OFF_PASTA = 1  # a bit check or a comparison's bit: one gate, AND gate or committed bit
 BIT_CHECK_PIOP = (1, 2, 0)  # b² = b in Kishu's PIOP: one product term, two small nonzeros
+# Tachyon's other gates stay priced as bits in Kishu too, since the measured counts do not
+# separate its scalars' bit checks, which are bits, from its comparisons, which word digits
+# would serve; Zoodles' range checks and sums, whose widths are known, take word digits.
+
+
+def range_digits(field, bits):
+    """A `bits`-bit range check or comparison in the unit of `field`'s arithmetization: the
+    value's tribits in Kishu, a committed bit or a gate per bit elsewhere."""
+    return word_digits(bits) if field in KISHU_ARITHS else bits * BIT_GATE_OFF_PASTA
+
+
+def range_check_piop(bits):
+    """A range check in Kishu's PIOP: one linear constraint over the value's digits, and the
+    range check's products beyond one a digit."""
+    return piop_sum((1, (1, word_digits(bits), 0)), (1, word_range_piop(bits)))
+
+
 TACHYON_TRANSACTIONS = {
     2: (1, 1),
     4: (2, 2),
@@ -1399,13 +1515,13 @@ def leansphincs_hash(auth):
     return auth.removeprefix("leansphincs_") if auth.startswith("leansphincs_") else None
 
 
-ZOODLES_NODES = {
-    "SpendBind": (2, 0, 0, ZOODLES_EPOCH_BITS + ZOODLES_AMOUNT_BITS),
-    "SpendAction": (1, 2, 1, 0),
-    "OutputBind": (2 * ZOODLES_NOTE_COMPRESSIONS, 0, 0, ZOODLES_AMOUNT_BITS),
-    "OutputAction": (0, 2, 1, 0),
-    "ActionMerge": (0, 1, 3, ZOODLES_SUM_BITS),
-    "FeeFuse": (ZOODLES_NOTE_COMPRESSIONS, 1, 2, 3 * ZOODLES_AMOUNT_BITS + ZOODLES_SUM_BITS),
+ZOODLES_NODES = {  # compressions, roots, openings, and the widths of the range checks and sums
+    "SpendBind": (2, 0, 0, (ZOODLES_EPOCH_BITS, ZOODLES_AMOUNT_BITS)),
+    "SpendAction": (1, 2, 1, ()),
+    "OutputBind": (2 * ZOODLES_NOTE_COMPRESSIONS, 0, 0, (ZOODLES_AMOUNT_BITS,)),
+    "OutputAction": (0, 2, 1, ()),
+    "ActionMerge": (0, 1, 3, (ZOODLES_SUM_BITS,)),
+    "FeeFuse": (ZOODLES_NOTE_COMPRESSIONS, 1, 2, 3 * (ZOODLES_AMOUNT_BITS,) + (ZOODLES_SUM_BITS,)),
 }
 # Multiplications in the claim field for one in its 256-bit extension, where the field is not
 # itself 256 bits wide; three elsewhere.
@@ -1418,14 +1534,19 @@ def zoodles_nodes(spends, outputs):
     return tachyon_nodes(spends, outputs)[:-2]
 
 
+BITZ_CLAIM_MULT_BITS = 128  # a product in BitZ's 128-bit field as committed bits
+
+
 def claim_mult_cost(field):
     """One multiplication in a 128-bit claim field in the unit of `field`'s arithmetization: a
-    native gate in a prime field, a carry-less Karatsuba product in a Boolean circuit, and the
-    product's two F_q values as digits in the bit arithmetizations."""
+    native gate in a prime field, a carry-less Karatsuba product in a Boolean circuit, the
+    product's two F_q values as tribits in Kishu, and its bits in BitZ."""
     if field == "boolean":
         return CLMUL_ANDS[128]
-    if bits_unit(field) == "bits":
+    if field in KISHU_ARITHS:
         return E_MULT_DIGITS
+    if bits_unit(field) == "bits":
+        return BITZ_CLAIM_MULT_BITS
     return 1
 
 
@@ -1439,9 +1560,12 @@ def zoodles_opening_cost(field, hp):
     it."""
     fold = CLAIM_GATES * claim_mult_cost(field)
     if bits_unit(field) == "bits":
-        hp = hp if field in KISHU_ARITHS else "blake3"
+        kishu = field in KISHU_ARITHS
+        hp = hp if kishu else "blake3"
         bytes_ = CLAIM_BYTES["kishu"]
-        return absorb_digits(bytes_, hp, bytes_ // 8 if hp == "blake3" else 0) + fold
+        checked = bytes_ // 8 if hp == "blake3" else 0
+        range_check = RANGE_CHECK_DIGITS if kishu else RANGE_CHECK_BITS
+        return absorb_digits(bytes_, hp, checked, range_check) + fold
     if field == "boolean":
         return CLAIM_BYTES["fp128"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
     if hp == "poseidon":
@@ -1453,7 +1577,7 @@ def zoodles_node_cost(field, hp, node, auth):
     """One Zoodles node in the unit of `field`'s arithmetization: its BLAKE3 compressions, its
     roots and openings, its bits, and under the signature authorization the leanSPHINCS
     verifier in a spend's action step and the transaction digest in the fee step."""
-    blake3, roots, openings, bits = ZOODLES_NODES[node]
+    blake3, roots, openings, widths = ZOODLES_NODES[node]
     verifier = 0
     if auth == "preimage" and node == "SpendAction":
         blake3 += 1  # qk = H^qk(qsk), beside the payment key's opening to (nk, qk)
@@ -1466,19 +1590,19 @@ def zoodles_node_cost(field, hp, node, auth):
         hash_app_cost(field, "blake3", blake3)
         + roots * zoodles_root_cost(field)
         + openings * zoodles_opening_cost(field, hp)
-        + bits * BIT_GATE_OFF_PASTA
+        + sum(range_digits(field, bits) for bits in widths)
         + verifier
     )
 
 
 def zoodles_node_piop(node, auth):
-    blake3, roots, openings, bits = ZOODLES_NODES[node]
+    blake3, roots, openings, widths = ZOODLES_NODES[node]
     parts = []
     if auth == "preimage" and node == "SpendAction":
         blake3 += 1
     if h := leansphincs_hash(auth):
         if node == "SpendAction":
-            parts.append((LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
+            parts.append((1, hash_app_piop(h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     claim_bytes = CLAIM_BYTES["kishu"]
@@ -1487,7 +1611,7 @@ def zoodles_node_piop(node, auth):
         (blake3, BLAKE3_PIOP),
         (3 * roots + CLAIM_GATES * openings, E_MULT_PIOP),
         (openings, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
-        (bits, BIT_CHECK_PIOP),
+        *((1, range_check_piop(bits)) for bits in widths),
     )
 
 
@@ -1497,24 +1621,20 @@ def zoodles_merkle_cost(field, hp, auth):
     authorization verifies its leanSPHINCS signature over the transaction digest; each output
     hashes its note; the fee step hashes the change note; the amounts are range-checked and
     summed."""
+    amount = range_digits(field, ZOODLES_AMOUNT_BITS)
+    total = range_digits(field, ZOODLES_SUM_BITS)
     spend = (
         path_cost(field, hp)
         + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
-        + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
+        + amount
     )
     sighash = 0
     if h := leansphincs_hash(auth):
         spend += hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
         sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
-    output = (
-        hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
-        + ZOODLES_AMOUNT_BITS * BIT_GATE_OFF_PASTA
-    )
-    fee = (
-        hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS)
-        + (3 * ZOODLES_AMOUNT_BITS + ZOODLES_SUM_BITS) * BIT_GATE_OFF_PASTA
-    )
-    sums = (ZOODLES_INPUTS + ZOODLES_OUTPUTS - 1) * ZOODLES_SUM_BITS * BIT_GATE_OFF_PASTA
+    output = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + amount
+    fee = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + 3 * amount + total
+    sums = (ZOODLES_INPUTS + ZOODLES_OUTPUTS - 1) * total
     return ZOODLES_INPUTS * spend + ZOODLES_OUTPUTS * output + fee + sighash + sums
 
 
@@ -1523,12 +1643,16 @@ def zoodles_merkle_piop(auth):
         ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
         + (ZOODLES_OUTPUTS + 1) * ZOODLES_NOTE_COMPRESSIONS
     )
-    bits = (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3) * ZOODLES_AMOUNT_BITS + (
-        ZOODLES_INPUTS + ZOODLES_OUTPUTS
-    ) * ZOODLES_SUM_BITS
-    parts = [(ZOODLES_INPUTS, path_piop()), (blake3, BLAKE3_PIOP), (bits, BIT_CHECK_PIOP)]
+    parts = [
+        (ZOODLES_INPUTS, path_piop()),
+        (blake3, BLAKE3_PIOP),
+        (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3, range_check_piop(ZOODLES_AMOUNT_BITS)),
+        (ZOODLES_INPUTS + ZOODLES_OUTPUTS, range_check_piop(ZOODLES_SUM_BITS)),
+    ]
     if h := leansphincs_hash(auth):
-        parts.append((ZOODLES_INPUTS * LEANSPHINCS_VERIFY[h], HASH_PIOPS[h]))
+        parts.append(
+            (ZOODLES_INPUTS, hash_app_piop(h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES))
+        )
         parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
@@ -1615,14 +1739,16 @@ def zoodles_epoch_cost(field, hp):
     return (
         hash_app_cost(field, "blake3", 1)
         + tree_path_cost(field, hp, ZOODLES_EPOCH_LOG)
-        + (2 * ZOODLES_TACHYGRAM_BITS + ZOODLES_EPOCH_BITS) * BIT_GATE_OFF_PASTA
+        + 2 * range_digits(field, ZOODLES_TACHYGRAM_BITS)
+        + range_digits(field, ZOODLES_EPOCH_BITS)
     )
 
 
 def zoodles_epoch_piop():
     return piop_sum(
         (ZOODLES_EPOCH_LOG + 2, BLAKE3_PIOP),
-        (2 * ZOODLES_TACHYGRAM_BITS + ZOODLES_EPOCH_BITS, BIT_CHECK_PIOP),
+        (2, range_check_piop(ZOODLES_TACHYGRAM_BITS)),
+        (1, range_check_piop(ZOODLES_EPOCH_BITS)),
     )
 
 
@@ -1686,7 +1812,10 @@ PIOP_WORK = {
     "path": {a: round(piop_word_mults(path_piop())) for a in KISHU_ARITHS},
     "qk": {a: round(piop_word_mults(hash_app_piop("blake3", 1))) for a in KISHU_ARITHS},
     **{
-        f"leansphincs_{h}": {a: round(piop_word_mults(hash_app_piop(h, n))) for a in KISHU_ARITHS}
+        f"leansphincs_{h}": {
+            a: round(piop_word_mults(hash_app_piop(h, n, LEANSPHINCS_SIG_BYTES)))
+            for a in KISHU_ARITHS
+        }
         for h, n in LEANSPHINCS_VERIFY.items()
     },
     **{
@@ -3497,7 +3626,10 @@ def kishu_costs(
         ),
         step_prover=round(step_digits * per_step_digit),
         route_step=(
-            round(fingerprint_step_extra_digits(rank, hp) * per_step_digit)
+            round(
+                fingerprint_step_extra_digits(rank, hp) * per_step_digit
+                + fingerprint_step_range_mults(rank)
+            )
             if route == "fingerprint"
             else 0
         ),
@@ -4310,9 +4442,18 @@ def define_figures():
     fig("app_recovery_bitz", millions(APP["recovery"]["bitz"]["blake3"]))
     for a in KISHU_ARITHS:
         fig(f"app_recovery_kishu_{kishu_route(a)}", millions(APP["recovery"][a]["blake3"]))
-        fig(f"piop_recovery_kishu_{kishu_route(a)}_s", secs(PIOP_WORK["recovery"][a]))
+        recovery_piop_ = recovery_piop(kishu_route(a))
+        fig(
+            f"piop_recovery_kishu_{kishu_route(a)}_s",
+            secs(piop_word_mults(recovery_piop_) - piop_range_word_mults(recovery_piop_)),
+        )
+        fig(f"range_recovery_kishu_{kishu_route(a)}_s", secs(piop_range_word_mults(recovery_piop_)))
     fig("mult_limbs_digits", fmt(MULT_ROUTES["limbs"][0]))
-    fig("mult_limbs_terms", MULT_ROUTES["limbs"][1][0])
+    fig("mult_limbs_terms", MULT_LIMBS_TERMS)
+    fig("mult_fingerprint_digits", MULT_FINGERPRINT_DIGITS)
+    fig("value_digits", VALUE_DIGITS)
+    fig("mult_carry_digits", word_digits(MULT_CARRY_BITS))
+    fig("column_sum_digits", word_digits(COLUMN_SUM_BITS))
     fig("sinsemilla_chunk_digits", fmt(SINSEMILLA_CHUNK_DIGITS_KISHU))
     fig("sinsemilla_committed_products", SINSEMILLA_COMMITTED_PRODUCTS)
     fig("sinsemilla_cross_products", SINSEMILLA_CROSS_PRODUCTS)
@@ -4474,44 +4615,65 @@ def define_figures():
     padding = HIDING_PADDING_BITS[DEFAULT_FLOOR]
     sumcheck_rounds = math.ceil(math.log2(leaf + padding))
     mask_elements = 2 * sumcheck_rounds * (SUMCHECK_MASK_DEGREE + 1)
-    device_digits = leaf + padding + mask_elements * Q64_DIGITS
-    # The leaf is committed under the masked matrix for the device's own vector.
-    masked_digit = (
-        ajtai_per_coefficient(
-            "pasta_q64",
-            True,
-            DEFAULT_FLOOR,
-            log_n=math.log2(device_digits),
-            digit_max=DIGIT_MAX["kishu"],
-        )
-        / DIGITS["pasta_q64"]
+    # The device's vector is the leaf's bits, the padding bits, and the sum-check mask
+    # elements, F_q values in the widest digits that keep its masked matrix at the padding
+    # sweep's rows, judged by the vector's exact ℓ2 norm rather than DIGIT_MAX √N: tribits at
+    # the 128-bit floor and balanced dibits at 147, where 33 digits in {-2, ..., 1} hold a
+    # signed residue of q (32 fall short of 2^63). The range check's products beyond one a
+    # digit join the device's online work.
+    element_widths = (  # digits a value, the digit's bits
+        (Q64_DIGITS, 3),
+        (Q64_BITS // 2 + 1, 2),
+        (Q64_BITS, 1),
     )
+
+    def device_vector(floor):
+        """The device vector's digits, the log of its ℓ2 norm, its mask elements' digits and
+        their bits, and its matrix's cost a digit and rows at `floor`."""
+        pad = HIDING_PADDING_BITS[floor]
+        for element_digits, digit_bits in element_widths:
+            bound = 1 if digit_bits == 1 else 2 ** (digit_bits - 1)
+            digits = leaf + pad + mask_elements * element_digits
+            log_l2 = math.log2(leaf + pad + mask_elements * element_digits * bound**2) / 2
+            cost, rank_, degree_, _ = accumulation_matrix(
+                "pasta_q64", floor, masked_log_beta_inf_l2(log_l2), math.log2(digits)
+            )
+            if rank_ * degree_ == HIDING_PADDING_SWEEP_ROWS:
+                return digits, log_l2, element_digits, digit_bits, cost, rank_ * degree_
+        raise ValueError(
+            f"no mask-element width keeps the device's matrix at the sweep's rows at {floor}"
+        )
+
+    device_digits, device_log_l2, element_digits, element_bits, matrix_cost, _ = device_vector(
+        DEFAULT_FLOOR
+    )
+    device_rows = {floor: device_vector(floor)[5] for floor in FLOORS}
+    element_bits_by_floor = {floor: device_vector(floor)[3] for floor in FLOORS}
+    # The leaf is committed under the masked matrix for the device's own vector.
+    masked_digit = matrix_cost * WORD_MULTS["pasta_q64"]
+    element_range = mask_elements * element_digits * (RANGE_PRODUCTS[element_bits] - 1)
     device_online = (
         device_digits * (masked_digit + BOOL_CHECK["sumcheck"][0])
         + piop_word_mults(BLAKE3_PIOP)
+        + piop_word_mults((0, 0, 0, element_range))
         + device_digits
     )
     device_idle = MASK_ATTEMPTS * device_digits * (MASK_SAMPLE_WORD_MULTS + masked_digit)
-    device_log_sigma = (
-        math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + math.log2(device_digits) / 2
-    )
+    device_log_sigma = math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + device_log_l2
     z_bits = math.ceil(math.log2(MASK_TAIL) + device_log_sigma)
     z_bytes = device_digits * z_bits / 8
     fig("qk_sumcheck_mask_elements", mask_elements)
+    fig("qk_device_element_digits", element_digits)
+    fig("qk_device_element_digits_128", device_vector(128)[2])
+    claim(
+        "device_element_widths",
+        "the device's sum-check mask elements are balanced dibits at the 147-bit floor and tribits at the 128-bit floor",
+        element_bits_by_floor == {128: 3, 147: 2},
+    )
     fig("hiding_padding_bits", fmt(padding))
     fig("hiding_padding_bits_128", fmt(HIDING_PADDING_BITS[128]))
     # The device's masked matrix at each floor's padding, and the note's leftover-hash padding
     # at its rows.
-    device_rows = {}
-    for floor in FLOORS:
-        digits = leaf + HIDING_PADDING_BITS[floor] + mask_elements * Q64_DIGITS
-        _, device_rank, device_degree, _ = accumulation_matrix(
-            "pasta_q64",
-            floor,
-            masked_log_beta_inf(log_n=math.log2(digits), digit_max=DIGIT_MAX["kishu"]),
-            math.log2(digits),
-        )
-        device_rows[floor] = device_rank * device_degree
     statistical_padding = device_rows[DEFAULT_FLOOR] * 64 + 256
     fig("qk_device_matrix_rows", fmt(device_rows[DEFAULT_FLOOR]))
     fig("hiding_padding_attack_bits", round(HIDING_PADDING_SWEEP[padding]))
@@ -4520,7 +4682,7 @@ def define_figures():
     claim(
         "hiding_padding_secure",
         "the device's matrix has the sweep's 1,024 rows at both floors, where each floor's padding is the least on the grid whose cheapest attack reaches the floor, the grid's previous point falling short; at the note's 1,385 rows 5,000 bits reach the 128-bit floor alone, and at 2,048 rows not even that",
-        all(rows == 1024 for rows in device_rows.values())
+        all(rows == HIDING_PADDING_SWEEP_ROWS for rows in device_rows.values())
         and all(
             HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f]] >= f
             and HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f] - 50] < f
@@ -5978,18 +6140,14 @@ def define_figures():
     fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
     fig("kishu_claim_bytes", CLAIM_BYTES["kishu"])
     fig("range_check_digits", RANGE_CHECK_DIGITS)
-    fig(
-        "q64_poseidon_over_blake3_pct",
-        round(
-            100
-            * (
-                Q64_POSEIDON_MULTS
-                * Q64_DIGITS
-                / Q64_POSEIDON_RATE_BYTES
-                / (BLAKE3_BITS / BLAKE3_BLOCK)
-                - 1
-            )
-        ),
+    poseidon_of_blake3 = (
+        Q64_POSEIDON_MULTS * Q64_DIGITS / Q64_POSEIDON_RATE_BYTES / (BLAKE3_BITS / BLAKE3_BLOCK)
+    )
+    fig("poseidon_of_blake3_digits_pct", round(100 * poseidon_of_blake3))
+    claim(
+        "poseidon_fewer_digits_than_blake3",
+        "Poseidon over the 64-bit field commits fewer digits per absorbed byte than BLAKE3 in Kishu's merge, since its wires are tribits where BLAKE3's are bits",
+        poseidon_of_blake3 < 1,
     )
     fig("sumcheck_gates", SUMCHECK_GATES)
     fig("claim_gates", CLAIM_GATES)

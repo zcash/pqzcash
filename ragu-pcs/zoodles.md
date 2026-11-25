@@ -130,7 +130,7 @@ tachygrams, <!--fig:zoodles_epoch_per_block-->256<!--/fig--> a block. The exclus
 nullifier's two neighbours as one leaf with its path of <!--fig:zoodles_epoch_hashes-->22<!--/fig-->
 hashes, two 256-bit comparisons, and the epoch range
 check: <!--fig:app_zoodles_epoch_kishu-->247,000<!--/fig--> Kishu digits. That
-takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0338<!--/fig--> s a note an epoch at
+takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0242<!--/fig--> s a note an epoch at
 rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig--> on one core, without zero knowledge, since
 the lineage never leaves the wallet. On that count the tree is well ahead. The bucket route as
 Tachyon folds it, at a capacity chosen for digits, is still to be priced beside it, and [The epoch's
@@ -140,15 +140,15 @@ tachygram set](zoodles-epoch-set.md) compares the representations.
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
 is <!--fig:app_zoodles_preimage_kishu-->259,000<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0717<!--/fig--> s with zero knowledge at
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0418<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->18<!--/fig-->,
-or <!--fig:tx_zoodles_preimage_kishu_s-->0.0338<!--/fig--> s without. One authorized by leanSPHINCS
+or <!--fig:tx_zoodles_preimage_kishu_s-->0.0243<!--/fig--> s without. One authorized by leanSPHINCS
 with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.03 million<!--/fig--> digits
-and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.318<!--/fig--> s with zero knowledge at
-rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->21<!--/fig-->,
-in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->4<!--/fig--> steps; the frontier page has
+and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.307<!--/fig--> s with zero knowledge at
+rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->20<!--/fig-->,
+in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->7<!--/fig--> steps; the frontier page has
 the BLAKE2s and Keccak variants. Tachyon's own four tachyactions in Kishu with zero knowledge
-take <!--fig:tx_tachyon4_kishu_zk_s-->0.240<!--/fig--> s, so Zoodles by preimage
+take <!--fig:tx_tachyon4_kishu_zk_s-->0.139<!--/fig--> s, so Zoodles by preimage
 is <!--fig:zoodles_preimage_of_tachyon_pct-->30<!--/fig--> percent of them; on Pedersen-IPA they
 take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these ranks a step commits
 $2^{\mathrm{rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas coefficients in
