@@ -4918,12 +4918,12 @@ def minutes(work):
 
 
 def sci(x):
-    """`x` as the text writes word multiplications: 7.5e7."""
+    """`x` as the text writes word multiplications, to two significant figures: 7.5e7, 1.0e9."""
     e = math.floor(math.log10(x))
     m = round(x / 10**e, 1)
     if m >= 10:
         m, e = m / 10, e + 1
-    return f"{m:g}e{e}"
+    return f"{m:.1f}e{e}"
 
 
 def auto(v, n):

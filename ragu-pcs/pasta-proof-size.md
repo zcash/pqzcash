@@ -554,10 +554,10 @@ arithmetic, which the Ironwood recovery circuit is made of, then pays the embedd
 overhead that the small-field survey (ePrint 2026/1371, §5) describes. The Pareto page prices the
 binary-field route in its own terms, with FRI-Binius's measured commitment proofs at the merge's
 witness size and Flock's measured throughput as prover time. At rate 1/8 it comes
-to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time of <!--fig:f2_1_8_prover-->1e9<!--/fig-->
-word multiplications per merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over
-Goldilocks with Poseidon still dominates it on both,
-at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
+to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time
+of <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> word multiplications per
+merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over Goldilocks with Poseidon still
+dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
 and <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->.<!--/claim--> The merge's Boolean size,
 about <!--fig:f2_1_8_gates-->67<!--/fig--> million AND gates, is not comparable with Pasta gates.
 LaBinius (ePrint 2026/2103) is a lattice scheme over a binary claim field. It reaches proofs under
@@ -626,7 +626,7 @@ digits: a committed bit is one digit, and its arithmetic is native over the 64-b
 quadratic extension, each product's output committed as
 tribits, <!--fig:e_mult_digits-->44<!--/fig--> digits. At rank 17 with BLAKE3 it comes to a proof
 of <!--fig:kishu17_blake3_kb-->74 kbytes<!--/fig-->, a merge prover
-of <!--fig:kishu17_blake3_prover-->3e7<!--/fig--> word multiplications and a merge
+of <!--fig:kishu17_blake3_prover-->3.0e7<!--/fig--> word multiplications and a merge
 of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-check form; with
 Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
