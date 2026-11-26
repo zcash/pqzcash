@@ -5127,15 +5127,14 @@ Further rulings on the level, the same day:
   illustrative". The level's key in the model is 165.
 - **The hash-based rows take 165 bits as their soundness level**, as they take 147 at that
   floor, so that they compare with the lattice rows. Their Merkle trees hash with SHA3-384.
-- **The transcripts stay on BLAKE3 at the level: generous, not fair** (the user's final ruling,
-  after reversing it once). No attack on a 256-bit transcript hash is known at the level: trying
-  many first messages against one challenge costs as much work as trying many challenges. But
-  the security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
-  T^2/2^c for work T and a state of c bits, which at 256 bits exceeds the level's T/2^192 beyond
-  2^64 work. The user: requiring a 384-bit hash would be fair to the argument for the higher
-  level, and allowing BLAKE3 generous; whether quantum attacks on hashes bear on it is a
-  controversy not to be resolved here. The page is to quote the fair reading's consequence
-  beside the rows (`fair` in the model's functions).
+- **The transcript's hash at the level is a choice on the page, BLAKE3 or SHA3-384** (the user,
+  after first ruling for BLAKE3 alone and reversing it once). No attack on a 256-bit transcript
+  hash is known at the level: trying many first messages against one challenge costs as much
+  work as trying many challenges. But the security proofs for Fiat–Shamir over a chained or
+  sponge hash lose a term of about T^2/2^c for work T and a state of c bits, which at 256 bits
+  exceeds the level's T/2^192 beyond 2^64 work. So the level is provable with SHA3-384 and not
+  with BLAKE3. The user: whether quantum attacks on hashes bear on it is a controversy not to be
+  resolved here. The options are named by their hashes, in the model and on the page.
 - **An extrapolation first, then a re-plan overnight** with Akita's planner; the re-plan is not
   urgent.
 
@@ -5145,8 +5144,8 @@ estimator's 147- and 150-bit widths from lower floors to a median error under 0.
 width; the opening's bytes, slope, and rank growth on the line through 128 and 147; images at
 twice the bytes for two compression maps; claims in a challenge field of 192 bits or more); the
 option in the page's floor control. At rank 16 with zero knowledge, Akita over Goldilocks takes
-108 circuits against 57 at 147 bits and 2.0 times the accumulation prover. Under the fair reading
-its merge converges only at rank 17, in 344 to 1,208 circuits.
+108 circuits against 57 at 147 bits and 2.0 times the accumulation prover. With SHA3-384
+transcripts its merge converges only at rank 17, in 344 to 1,208 circuits.
 
 TO DO for the level: Kishu's rows (its claims in a cubic extension, its mask and padding at the
 level); the binary-field family with SHA3-384 trees (Flock's Keccak block is 2^16 bits) in its
@@ -5177,10 +5176,12 @@ accumulation prover, +18% bytes; with SHA3-384 transcripts its merge converges a
 The hash-based families have no row: WHIR over Pasta would need 38,525 circuits at rank 16 against
 5,011, and the binary-field family's merge would be 323 million bits against 68 million.
 
-Still generous or unmodelled at the level: the opening's own compressed images (not separable in
-the re-pricing); the decider's work at the larger claim field; the application's own constraint
-PIOP at the cubic extension's rate; the prime-field gate count of a Keccak permutation, which is
-taken as Kishu's 92,160 digits; the level itself, 165 bits and not 192.
+What the level's rows still leave out, each of which would make them dearer: the opening's own
+compressed images at twice their bytes (not separable in the re-pricing); the decider's work at
+the larger claim field; and the application's own constraint PIOP at the cubic extension's rate.
+Two further points make the level cheaper than a strict 192 bits: it is 165 bits in the page's
+unit; and a Keccak permutation's prime-field gate count is not derived, but taken as Kishu's
+92,160 digits.
 
 TO DO: the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
 re-plan's pipeline at block size 623 (overnight, not urgent); a look at the page in a browser at
