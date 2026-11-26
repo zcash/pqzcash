@@ -4901,6 +4901,19 @@ cost about ten to sixteen bits of grinding. Then a sweep over Goldilocks2 at rat
 and 2^17 to 2^20, as `estimates/whir-sweep-grind.tsv` has for the other fields, plus BEEP's
 samples added in the model.
 
+Why no row goes beyond the Johnson bound, though BEEP needs only list decodability (the user's
+question): beyond that bound list decodability is a property of the particular code and field. Over
+binary fields there are counterexamples (ePrint 2026/2424). For Reed–Solomon codes in large
+characteristic, on any evaluation domain, Dao, Kominers, and Thaler (ePrint 2026/2056,
+keep/2026-2056.pdf) prove list-decoding and correlated-agreement bounds up to capacity, formally
+verified in ArkLib; from the abstract, the first step past Johnson has a list of O(n/η²) and an
+error of O(n²/(qη⁴)), and the reported savings in deployed systems are 4.6 to 11 percent. The page
+says this briefly. To expand, possibly as its own section, when the paper is read in detail: a row
+for the prime-field WHIR variants with a larger proximity parameter. Also found in the sweep of
+regime statements, for the user's ruling: the zero-knowledge overhead of the WHIR-type rows was
+measured under the capacity bound (Plonky3's HVZK-WHIR benchmark), so its mask spot checks are
+probably about half what the Johnson bound needs.
+
 To do after BitZ's product terms (the user, 2026-11-26): a security floor chosen independently for
 the lattice-based and the hash-based families; Pedersen-IPA's fixed, at about 126 bits strictly
 speaking, and documented as such; possibly finer control of the cost model for lattice attacks.
