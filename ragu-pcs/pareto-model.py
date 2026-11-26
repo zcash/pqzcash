@@ -1493,10 +1493,20 @@ RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
 E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
 # At the illustrative level Kishu's claims are in the cubic extension of F_q, 192 bits: an
 # element is three F_q values, and a multiplication is six field products by Karatsuba with
-# three values of output. The sum-checks' prover is left at the quadratic extension's measured
-# rate, which is in the level's favour.
+# three values of output. The sum-checks' prover, measured in the quadratic extension, is
+# scaled by the field products of a multiplication, six against three: after a sum-check's
+# first round its table is of extension elements, and folding it is their multiplications.
 E3_MULT_DIGITS = 3 * Q64_DIGITS
 E3_MULT_PIOP = piop_sum((1, (6, 24, 0)), (3, word_range_piop(Q64_BITS)))
+# The same scaling for the sum-checks of each row whose claim field grows at the level: the
+# 128-bit field's claims move to its quadratic extension, three products where there was
+# one, and the 64-bit profiles' from the quadratic extension to the cubic.
+LEVEL3_SUMCHECK_FACTOR = {"fp128": 3, "goldilocks": 2, "kishu": 2}
+
+
+def sumcheck_factor(variant, hp):
+    """The multiplier on a row's sum-check prover for its claim field under policy `hp`."""
+    return LEVEL3_SUMCHECK_FACTOR.get(variant, 1) if level3(hp) else 1
 
 
 def e_mult_digits(hp):
@@ -2632,7 +2642,8 @@ for variant, hp in itertools.product(
                         prover=round(circuits * 2**rank * per_coefficient),
                         accumulation_prover=round(
                             circuits * 2**rank * per_coefficient
-                            + accumulation_sumchecks(variant, accumulator)
+                            + sumcheck_factor(variant, hp)
+                            * accumulation_sumchecks(variant, accumulator)
                         ),
                         memory=accumulator_bytes(variant, accumulator),
                         peak_memory=round(
@@ -4248,9 +4259,12 @@ def kishu_costs(
     a fuse (LEAF_HANDOFF). `alpha` and `sample` stand in for the mask's Gaussian width and the
     sampler's cost, for the page's sweep of the two."""
     bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
+    in_field = sumcheck_factor("kishu", hp)  # the sum-checks at the row's claim field
+    bool_per_bit *= in_field
     digits, merge_piop = frontend_merge(
         K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
     )
+    merge_piop *= in_field
     accumulator = accumulator_coefficients("kishu", rank, circuits)
     log_n = math.log2(accumulator)  # the bounds' N: this row's accumulator in digits
     bits = DIGIT_MAX["kishu"]
@@ -4272,13 +4286,15 @@ def kishu_costs(
     commitments = (digits + overhead) * per_step_digit
     attempts = mask_attempts(alpha) if zk else 0
     handoff_digits, handoff_piop = handoff_merge_digits(K, circuits, hp)
-    handoff = handoff_digits * per_step_digit + handoff_piop
+    handoff = handoff_digits * per_step_digit + handoff_piop * in_field
     parts = dict(
         sampling=attempts * accumulator * sample,
         masks=attempts * accumulator * masked_digit,
         merge=handoff if zk else 0,
     )
-    acc_rate = accumulation_sumchecks("pasta_q64", 1, digits=1, word_mults=WORD_MULTS["pasta_q64"])
+    acc_rate = in_field * accumulation_sumchecks(
+        "pasta_q64", 1, digits=1, word_mults=WORD_MULTS["pasta_q64"]
+    )
     fields = dict(
         prover=round(commitments),
         accumulation_prover=round(commitments + merge_piop + acc_rate * accumulator),
