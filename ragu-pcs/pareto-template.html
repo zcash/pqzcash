@@ -916,26 +916,22 @@ code { font-family: var(--mono); font-size: 0.92em; }
   grinding in the query phase, in the proven, Johnson-bound regime. At $\lambda = 128$ and 16 bits
   of grinding that is 224, 112, 75, 56, 45 and 38 at rates 1/2 to 1/64, and 256, 128 and 85 at 1/2,
   1/4 and 1/8 without grinding. The factor of two is the Johnson bound's. The conjectures that would
-  remove it all the way to capacity were refuted in late 2025 <a href="#ref-cs25">[CS25]</a>.
-  Between the Johnson bound and capacity the question is open and moving. Proximity gaps beyond the
-  Johnson bound have since been proved for Reed–Solomon codes in fields of large characteristic, for
-  adequate parameters <a href="#ref-dkt26">[DKT26]</a>, and refuted over binary
-  fields <a href="#ref-dktz26">[DKTZ26]</a>. Every row's query counts are for a proximity parameter
-  within the Johnson bound. That includes the rows derived from BEEP <a href="#ref-bg26">[BG26]</a>.
-  BEEP's analysis needs only list decodability, which every code has up to the Johnson bound. It
-  would allow a larger proximity parameter, and so fewer queries, wherever the code is
-  list-decodable beyond that bound. The rows do not take one: what BEEP changes in them is the
-  folding error and the field.</p>
-  <p>The rows stay within the Johnson bound for now. Beyond it, list decodability is a property of
-  the particular code and field. Over binary fields, where BitZ and the $\mathbb{F}_2$ family work,
+  remove it all the way to capacity were refuted in late 2025 <a href="#ref-cs25">[CS25]</a>.</p>
+  <p>Between the Johnson bound and capacity the question is open and moving, and the answer depends
+  on the code and the field. Over binary fields, where BitZ and the $\mathbb{F}_2$ family work,
   there are counterexamples to proximity gaps beyond the bound <a href="#ref-dktz26">[DKTZ26]</a>.
   For Reed–Solomon codes over fields of sufficiently large characteristic, on any evaluation
   domain, <a href="#ref-dkt26">[DKT26]</a> proves list-decoding and correlated-agreement bounds
   beyond the Johnson bound and up to capacity, with the bounds and its concrete parameters formally
   verified in Lean.</p>
-  <p>That result would serve the prime-field WHIR rows, and its gain there is modest at first. Its
-  first step past the Johnson bound is an explicit agreement threshold below $\sqrt{\rho}$, where
-  the list has size $O_\rho(n/\eta^2)$ and the correlated-agreement error is
+  <p>Every row's query counts are for a proximity parameter within the Johnson bound, for now. That
+  includes the rows derived from BEEP <a href="#ref-bg26">[BG26]</a>. BEEP's analysis needs only
+  list decodability, which every code has up to the Johnson bound. It would allow a larger proximity
+  parameter, and so fewer queries, wherever the code is list-decodable beyond that bound. The rows
+  do not take one: what BEEP changes in them is the folding error and the field.</p>
+  <p>The result for large characteristic would serve the prime-field WHIR rows, and its gain there
+  is modest at first. Its first step past the Johnson bound is an explicit agreement threshold below
+  $\sqrt{\rho}$, where the list has size $O_\rho(n/\eta^2)$ and the correlated-agreement error is
   $O_\rho(n^2/(q\eta^4))$, for a code of length $n$ over a field of $q$ elements at a gap $\eta$
   above the threshold. So the list is long, and its size enters BEEP's errors at a cost in grinding
   or field size. The paper reports proofs 4.6 to 11 percent smaller in three deployed systems at
