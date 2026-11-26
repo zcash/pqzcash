@@ -46,8 +46,9 @@ DEFAULT_FLOOR = 147
 # page's quantum unit, so the level's key is 165. The hash-based rows take 165 bits as their
 # soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
 # Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
-# inside, so the hash of a Merkle tree and of a transcript is SHA3-384, which the rows carry as
-# their hash policy. Nothing at this level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
+# inside, so a Merkle tree's hash is SHA3-384, which the rows carry as their hash policy. The
+# transcripts stay on BLAKE3, the generous reading (conventional_hash_gates). Nothing at this
+# level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
 # the lattice rows are built), and the page marks them so.
 LEVEL3_FLOOR = 165
 LEVEL3_HASH = "sha3_384"
@@ -678,14 +679,16 @@ def image_bytes(hp):
     return 2 * IMAGE_BYTES if level3(hp) else IMAGE_BYTES
 
 
-def conventional_hash_gates(bytes_, hp):
-    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
-    the keyed BLAKE3 chain, or at the illustrative level SHA3-384's sponge, a Keccak
-    permutation for each SHA3_384_RATE bytes with its padding byte. The transcript needs the
-    larger hash for the level to be provable, not because an attack is known: the security
-    proofs for Fiat–Shamir over a chained or sponge hash lose a term of about T^2/2^c for work
-    T and a state of c bits, which at c = 256 is above the level's T/2^192 beyond 2^64 work."""
-    if level3(hp):
+def conventional_hash_gates(bytes_, hp, fair=False):
+    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash,
+    the keyed BLAKE3 chain. The illustrative level's rows keep it, which is the generous
+    reading of the level (the user, 2026-11-26). The fair reading (`fair`) hashes the
+    transcript with SHA3-384's sponge, a Keccak permutation for each SHA3_384_RATE bytes with
+    its padding byte: no attack on a 256-bit transcript hash is known at the level, but the
+    security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
+    T^2/2^c for work T and a state of c bits, which at c = 256 is above the level's T/2^192
+    beyond 2^64 work. The page quotes the fair reading's consequence beside the rows."""
+    if level3(hp) and fair:
         return ceil_div(bytes_ + 1, SHA3_384_RATE) * HASH_UNITS["keccak"]["gates"]
     return transcript_compressions(bytes_) * BLAKE3_GATES
 
@@ -698,10 +701,10 @@ def akita_absorbed_bytes(variant, K, circuits, zk, hp="blake3"):
     ) + K * image_bytes(hp)
 
 
-def akita_hash_gates(variant, K, circuits, zk, hp):
+def akita_hash_gates(variant, K, circuits, zk, hp, fair=False):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return conventional_hash_gates(akita_absorbed_bytes(variant, K, circuits, zk, hp), hp)
+    return conventional_hash_gates(akita_absorbed_bytes(variant, K, circuits, zk, hp), hp, fair)
 
 
 def circuit_slope(cost):
@@ -717,26 +720,26 @@ def circuit_slope(cost):
     return slope
 
 
-def akita_merge_gates(variant, K, circuits, zk, hp):
+def akita_merge_gates(variant, K, circuits, zk, hp, fair=False):
     return (
-        akita_hash_gates(variant, K, circuits, zk, hp)
+        akita_hash_gates(variant, K, circuits, zk, hp, fair)
         + 2 * K * FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES
         + SUMCHECK_GATES
         + CLAIM_GATES * circuits
     )
 
 
-def akita_circuits(variant, K, rank, zk, hp):
+def akita_circuits(variant, K, rank, zk, hp, fair=False):
     """The step circuits a merge needs at this rank: the gate estimate, which grows with the
     circuit count through each circuit's claim, divided by the budget, at its fixed point;
     None where each circuit adds more gates than the budget holds, so that no count
-    converges."""
-    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp))
+    converges. `fair` is the illustrative level's fair reading (conventional_hash_gates)."""
+    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp, fair))
     if per_circuit >= gate_budget(rank):
         return None
     circuits = 1
     for _ in range(2000):
-        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp) / gate_budget(rank))
+        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp, fair) / gate_budget(rank))
         if new == circuits:
             return circuits
         circuits = new

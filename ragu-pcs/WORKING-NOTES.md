@@ -5127,13 +5127,15 @@ Further rulings on the level, the same day:
   illustrative". The level's key in the model is 165.
 - **The hash-based rows take 165 bits as their soundness level**, as they take 147 at that
   floor, so that they compare with the lattice rows. Their Merkle trees hash with SHA3-384.
-- **The transcripts hash with SHA3-384 at the level too.** The user first ruled to leave them on
-  BLAKE3 as a documented gap, then reversed it on being told that a 256-bit state falls short.
-  The accurate reason, corrected afterwards: no attack from a prefix collision is known (trying
-  many first messages against one challenge costs as much work as trying many challenges), but
+- **The transcripts stay on BLAKE3 at the level: generous, not fair** (the user's final ruling,
+  after reversing it once). No attack on a 256-bit transcript hash is known at the level: trying
+  many first messages against one challenge costs as much work as trying many challenges. But
   the security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
   T^2/2^c for work T and a state of c bits, which at 256 bits exceeds the level's T/2^192 beyond
-  2^64 work. So the level is provable only with the larger hash.
+  2^64 work. The user: requiring a 384-bit hash would be fair to the argument for the higher
+  level, and allowing BLAKE3 generous; whether quantum attacks on hashes bear on it is a
+  controversy not to be resolved here. The page is to quote the fair reading's consequence
+  beside the rows (`fair` in the model's functions).
 - **An extrapolation first, then a re-plan overnight** with Akita's planner; the re-plan is not
   urgent.
 
@@ -5142,10 +5144,9 @@ Done so far on branch security-192: the level's constants; Akita's five variants
 estimator's 147- and 150-bit widths from lower floors to a median error under 0.1 in log2 of the
 width; the opening's bytes, slope, and rank growth on the line through 128 and 147; images at
 twice the bytes for two compression maps; claims in a challenge field of 192 bits or more); the
-option in the page's floor control. With SHA3-384 transcripts Akita's merge converges only at
-rank 17, in 344 to 1,208 circuits. (With the transcripts left on BLAKE3 it converged at the usual
-ranks: at rank 16 with zero knowledge, Akita over Goldilocks 108 circuits against 57 at 147 bits
-and 2.0 times the accumulation prover.)
+option in the page's floor control. At rank 16 with zero knowledge, Akita over Goldilocks takes
+108 circuits against 57 at 147 bits and 2.0 times the accumulation prover. Under the fair reading
+its merge converges only at rank 17, in 344 to 1,208 circuits.
 
 TO DO for the level: Kishu's rows (its claims in a cubic extension, its mask and padding at the
 level); the binary-field family with SHA3-384 trees (Flock's Keccak block is 2^16 bits) in its
