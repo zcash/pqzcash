@@ -5006,3 +5006,51 @@ QUEUE, in the user's order:
 6. The older queue: the mask width α, the online transaction measure, the Zoodles statements
    page, a model-diff view, a structural check for constraint programs, Tachyon's comparisons as
    tribits, the merge's transcript words' digits.
+
+## 2026-11-26 15:36 UTC: BLAKE AND counts from Flock's circuit, guards for the binary-field and BitZ sections
+
+Each of the branch's commits was exported and built on its own: all pass. The optimizer's BEEP
+condition is written `field_bits < lambda_bits`, with a comment on the one-bit allowance: the
+affine fold's error 2/|F| gives a field of λ bits λ − 1 bits, which the user accepts at 128.
+
+**The BLAKE AND counts were low, and Flock's block was half its size** (4911d9c). The user asked
+whether BitZ's claim line was right. It was, except that it borrowed Kishu's entry in
+`CLAIM_BYTES`, but the count it multiplies by was not. The model took four additions a G function.
+G has four addition statements, two of them of three words, so six additions of two words. Flock's
+own BLAKE3 circuit (`r1cs_hashes/blake3.rs` in its prover crate, vendored by the BitZ proof of
+concept) says so: 7 × 8 × 6 additions of 31 carries, 10,416 AND gates, in a block of 2^14 bits of
+which 15,409 are used (the carries, the b and d words of each G committed to keep the matrices
+sparse, the inputs and outputs). The 2^13 of 2026-11-21 was an inference: the paper gives the
+block for Keccak and not for BLAKE3, and the "(2^13)" in its Table 3 is the batch size of the
+best throughput. Effects: the binary-field family's and BitZ's merges are twice the bits; at rank
+13 and rate 1/8 their proofs are 12 and 10 percent larger and their merge provers 79 and 75 percent
+dearer; a BitZ recovery transaction 59 percent. BitZ's recursion row at the default floor now has
+a merge beyond the measured 2^29 bits and so no row (the user: not deployable anyway; compare at
+128 bits, which the page now does). Kishu's digit counts already had the three-word additions
+(`blake_bits`), except BLAKE2s, by one percent.
+
+Optimizations considered for the count, none applied: a carry-save first stage for the three-word
+additions saves one AND a word (about one percent); a Merkle node's constant chaining value saves
+about one percent in the first round; dropping the committed b and d words leaves 11,825 bits,
+still a block of 2^14, at denser matrices; five compressions in a block of 2^16 would then be 0.8
+of a block each, unmeasured. FOR THE USER'S RULING: an application's BLAKE3 compression in a
+Boolean circuit is counted at its 10,416 AND gates, 0.64 of the block that Flock's measured rate
+is per bit of; Flock's own layout would be 15,409.
+
+**Guards** (the same commit; the user: check for unguarded statements about the binary-field
+family and BitZ). Three guarded statements failed and are reworded with figures. The numbers the
+two sections stated bare are now figures or claims. Left bare, because the model does not hold
+the data: the unique-decoding proof-size minimum at rate 1/8 and the 1.6 times of a multi-core
+commitment (both from diagnostic runs), the Johnson profile's three bounds (118.7, 86 to 97, 95
+to 100 bits), and the optimizer's check against the reference WHIR implementation. NOT YET SWEPT:
+the two families' zero-knowledge subsections, the ARC-against-recursion subsection apart from
+BitZ's paragraph, the transaction sections, and the notes outside the frontier page.
+
+**The model-diff view, as the user specified it** (for later): any two commit ids can be given,
+and the plot is drawn with an arrow joining the two positions of each point that is plotted for
+both commits. A toggle selects "before" or "after", and the points of the one not selected are
+dimmed.
+
+STATE: branch accumulation-paragraph, rewritten since the last push (the optimizer comment folded
+into the binary-field BEEP commit) and three commits longer; it needs a force-push with lease.
+PR #8's description does not mention the corrected counts.
