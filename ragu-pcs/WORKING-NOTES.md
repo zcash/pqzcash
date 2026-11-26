@@ -4932,24 +4932,27 @@ Queued by the user on 2026-11-26, beyond the items above:
 - **The hash-based families section in BLAKE3 figures**, matching the default, with the Hashes
   section saying what allowing Poseidon changes. It is the other way round now.
 
-BitZ's accounting, in progress and not yet applied. The earlier note that BitZ "takes the
+BitZ's accounting, applied in the commit after this entry's. The earlier note that BitZ "takes the
 every-other-XOR saving without paying the extra products" had the direction wrong. In BitZ's own
 arithmetization bit logic is linear: XOR over GF(2) costs nothing and is not committed, and AND is
 the integer identity 2z = x + y − (x XOR y) with one committed bit (the paper's Lemma 2.5). The
-paper's hybrid SNARK proves hashing over the binary field and arithmetic over the integers, and
-its Table 14 measures it end to end at 1.2 to 1.5 times the PCS prover alone (mean 1.36), where
-the model charges 2.6 times on the application's bits and nothing on the merge's. So BitZ is
-overcharged on two counts: its hashes at Kishu's digit counts (BLAKE3 11,216 where a Boolean
-circuit has 7,168 AND gates; Keccak-f 92,160 against 38,400), and its PIOP share. The planned
-change: count BitZ's bit logic in AND gates, as the Boolean families do, keep 510 bits a Pasta
-multiplication, and charge a PIOP share of 0.36 on every committed bit. Several figures labelled
-as Kishu's digits read BitZ's counts and must be pointed at Kishu's own before the two diverge.
+paper's hybrid SNARK proves hashing over the binary field and arithmetic over the integers, and its
+Table 14 measures it end to end at 1.2 to 1.5 times the PCS prover alone (mean 1.36), where the
+model charges 2.6 times on the application's bits and nothing on the merge's. So BitZ is overcharged
+on two counts: its hashes at Kishu's digit counts (BLAKE3 11,216 where a Boolean circuit has 7,168
+AND gates; Keccak-f 92,160 against 38,400), and its PIOP share. The change: BitZ's bit logic is
+counted in AND gates, as the Boolean families' is; a Pasta multiplication stays 510 bits; and a PIOP
+share of 0.36 is charged on every committed bit, the merge's included, which had paid none. The net
+effect is small and upward, since a BitZ transaction is mostly merge: the recovery circuit 0.317 s
+(0.309), four tachyactions 0.705 s (0.571), the rank-13 merge prover 6.3e8 (4.6e8). Several figures
+labelled as Kishu's digits had been reading BitZ's counts, which stopped being Kishu's when tribits
+came in; they now read Kishu's own (a Zoodles preimage transaction 249,000 digits, not 259,000).
 Considered and set aside: leaving a round of Keccak's chi uncommitted in BitZ. Committing the 320
 column parities of a round's AND bits bounds the next round's constraints at 100 parity terms each
-(4 when the round is committed, 4,624 and 270,400 with two and three hidden ANDs an input), but
-the integer witness, which BitZ's grand-product GKR runs over, grows 13 to 38 times for 20 to 40
-percent fewer committed bits. Nothing of it transfers to Kishu, whose constraints are over F_q,
-where a parity is not free.
+(4 when the round is committed, 4,624 and 270,400 with two and three hidden ANDs an input), but the
+integer witness, which BitZ's grand-product GKR runs over, grows 13 to 38 times for 20 to 40 percent
+fewer committed bits. Nothing of it transfers to Kishu, whose constraints are over F_q, where a
+parity is not free.
 
 STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
 03aa05a, unpushed; PR #8's description predates them.
