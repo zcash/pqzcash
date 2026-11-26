@@ -40,6 +40,19 @@ HERE = pathlib.Path(__file__).resolve().parent
 # user, 2026-11-23); FLOORS below lists both. Pedersen-IPA and the binary-groups row exist at
 # the 128-bit floor alone, so their figures name it.
 DEFAULT_FLOOR = 147
+# An illustrative third level, to show what a move towards 192 bits costs (the user,
+# 2026-11-26). It is NIST's Level 3 as the Level 3 lattice standards meet it, ML-KEM-768 and
+# ML-DSA-65: a block size of about 623, which is 182 classical core-SVP bits and 165 in the
+# page's quantum unit, so the level's key is 165. The hash-based rows take 165 bits as their
+# soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
+# Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
+# inside, so the hash is SHA3-384, which the rows carry as their hash policy. Nothing at this
+# level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
+# the lattice rows are built), and the page marks them so.
+LEVEL3_FLOOR = 165
+LEVEL3_HASH = "sha3_384"
+SHA3_384_RATE = 104  # bytes absorbed a Keccak permutation
+SHA3_384_DIGEST = 48
 _model = {}
 exec((HERE / "ragu-size-model.py").read_text().split("CHECKED_IN = ")[0], _model)
 size, fixed_counts = _model["size"], _model["fixed_counts"]
@@ -84,6 +97,18 @@ AKITA_147 = {
 }
 AKITA = {128: AKITA_128, 147: AKITA_147}
 
+
+def extrapolate_floor(at128, at147, floor=LEVEL3_FLOOR):
+    """A planned quantity at an unplanned floor, on the line through its 128- and 147-bit
+    values. The floors are proportional to their block sizes, so the line is in either."""
+    return at147 + (at147 - at128) * (floor - 147) / (147 - 128)
+
+
+AKITA[LEVEL3_FLOOR] = {
+    v: [round(extrapolate_floor(a, b)) for a, b in zip(AKITA_128[v], AKITA_147[v])]
+    for v in AKITA_147
+}
+
 # Bytes per doubling of the polynomial, from the 2^14 and 2^24 rows of the same runs: the
 # growth is concave (fp128: 1,126 per doubling from 2^14 to 2^16, 459 from 2^16 to 2^24, 229
 # beyond), and the page extrapolates from 2^14 to about 2^23, so the slope over those ten
@@ -92,6 +117,9 @@ AKITA = {128: AKITA_128, 147: AKITA_147}
 SLOPE = {
     128: {"fp128": 592, "goldilocks": 555, "pasta_q64": 953, "pasta_sis": 1112, "pasta": 1371},
     147: {"fp128": 584, "goldilocks": 662, "pasta_q64": 1104, "pasta_sis": 1118, "pasta": 1175},
+}
+SLOPE[LEVEL3_FLOOR] = {
+    v: round(extrapolate_floor(SLOPE[128][v], SLOPE[147][v])) for v in SLOPE[147]
 }
 DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "pasta": 85}
 
@@ -139,12 +167,15 @@ def load_linf_widths():
     """{(modulus, floor): {(degree, rank): [(bound, width), ...]}}: the largest width in ring
     elements that the ℓ∞ estimator certifies at each bound of the ladder, in bound order."""
     table = {}
-    with (HERE / "estimates" / "linf-accumulation-widths.tsv").open() as f:
-        for r in csv.DictReader(f, delimiter="\t"):
-            cells = table.setdefault((r["modulus"], int(r["floor"])), {})
-            cells.setdefault((int(r["d"]), int(r["rank"])), []).append(
-                (int(r["bound"]), int(r["max_width"]))
-            )
+    # The second file is the illustrative level's table, derived from the 147-bit rows by
+    # scripts/derive-linf-widths.py.
+    for name in ("linf-accumulation-widths.tsv", "linf-accumulation-widths-derived.tsv"):
+        with (HERE / "estimates" / name).open() as f:
+            for r in csv.DictReader(f, delimiter="\t"):
+                cells = table.setdefault((r["modulus"], int(r["floor"])), {})
+                cells.setdefault((int(r["d"]), int(r["rank"])), []).append(
+                    (int(r["bound"]), int(r["max_width"]))
+                )
     for cells in table.values():
         for ladder in cells.values():
             ladder.sort()
@@ -528,7 +559,7 @@ def transcript_compressions(bytes_, whole=True):
     return sum(transcript_split(bytes_, whole))
 
 
-HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon"}
+HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon", "sha3_384": ", SHA3-384"}
 
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
 # today's native stages are, and every step circuit's witness goes into one more group, since
@@ -617,18 +648,57 @@ def akita_atoms(variant, K, circuits, zk):
     )
 
 
-def akita_absorbed_bytes(variant, K, circuits, zk):
+# What the illustrative level changes in a lattice row's merge, beside its hash:
+#   - A claim is an element of a challenge field of at least LEVEL3_CLAIM_BITS bits. The
+#     128-bit field's and Goldilocks's quadratic extension's 128 bits leave a sum-check at
+#     about 2^-120 a round, far above the level, so the 128-bit profile's claims move to its
+#     quadratic extension and the 64-bit profiles' to the cubic one. Pasta's field already
+#     serves.
+#   - A commitment's image is compressed by two maps where the 128- and 147-bit plans have
+#     one, since the rank-one maps certify at 147.3 bits: twice the image's bytes.
+LEVEL3_CLAIM_BYTES = {"fp128": 32, "goldilocks": 24, "kishu": 24}
+IMAGE_BYTES = 128
+
+
+def level3(hp):
+    return hp == LEVEL3_HASH
+
+
+def claim_bytes(variant, hp):
+    """A claim's bytes for `variant` under hash policy `hp`, which says whether the row is at
+    the illustrative level."""
+    return (
+        LEVEL3_CLAIM_BYTES.get(variant, CLAIM_BYTES[variant])
+        if level3(hp)
+        else CLAIM_BYTES[variant]
+    )
+
+
+def image_bytes(hp):
+    return 2 * IMAGE_BYTES if level3(hp) else IMAGE_BYTES
+
+
+def conventional_hash_gates(bytes_, hp):
+    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
+    the keyed BLAKE3 chain, or at the illustrative level SHA3-384's sponge, a Keccak
+    permutation for each SHA3_384_RATE bytes with its padding byte."""
+    if level3(hp):
+        return ceil_div(bytes_ + 1, SHA3_384_RATE) * HASH_UNITS["keccak"]["gates"]
+    return transcript_compressions(bytes_) * BLAKE3_GATES
+
+
+def akita_absorbed_bytes(variant, K, circuits, zk, hp="blake3"):
     """The bytes the merge absorbs: the sum-check elements and the claims at the claim
-    field's width, and the K commitment images of 128 bytes."""
-    return (SUMCHECK_ATOMS + circuits + (MASK_SUMCHECK_ATOMS if zk else 0)) * CLAIM_BYTES[
-        variant
-    ] + K * 128
+    field's width, and the K commitment images."""
+    return (SUMCHECK_ATOMS + circuits + (MASK_SUMCHECK_ATOMS if zk else 0)) * claim_bytes(
+        variant, hp
+    ) + K * image_bytes(hp)
 
 
 def akita_hash_gates(variant, K, circuits, zk, hp):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return transcript_compressions(akita_absorbed_bytes(variant, K, circuits, zk)) * BLAKE3_GATES
+    return conventional_hash_gates(akita_absorbed_bytes(variant, K, circuits, zk, hp), hp)
 
 
 def circuit_slope(cost):
@@ -647,7 +717,7 @@ def circuit_slope(cost):
 def akita_merge_gates(variant, K, circuits, zk, hp):
     return (
         akita_hash_gates(variant, K, circuits, zk, hp)
-        + 2 * K * FOLD_GATES_PER_IMAGE
+        + 2 * K * FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES
         + SUMCHECK_GATES
         + CLAIM_GATES * circuits
     )
@@ -1321,9 +1391,9 @@ HIDING_PADDING_SWEEP = {
 }
 HIDING_PADDING_BITS = {
     floor: min(bits for bits, attack in HIDING_PADDING_SWEEP.items() if attack >= floor)
-    for floor in (128, 147)
+    for floor in (128, 147, LEVEL3_FLOOR)
 }
-assert HIDING_PADDING_BITS == {128: 4400, 147: 4800}
+assert HIDING_PADDING_BITS == {128: 4400, 147: 4800, LEVEL3_FLOOR: 5250}
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
@@ -2295,6 +2365,11 @@ assert RANK_SCALE_147 == {
     "pasta": 1.01,
 }
 RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
+# At the illustrative level the summed ranks are extrapolated as the plan's bytes are.
+RANK_SCALE[LEVEL3_FLOOR] = {
+    v: round(extrapolate_floor(*RANK_SUMS_147[m][:2]) / RANK_SUMS_147[m][0], 2)
+    for v, m in RANK_MAPPING.items()
+}
 # WHIR at the higher floor: the reference implementation (WizardOfMenlo/whir at afec1fa) at
 # 2^17 variables over both fields and rates 1/2 to 1/8, 20 bits of proof of work, the Johnson
 # regime, at 128 and 147 bits (2026-11-15; scripts/whir-sweep-147.sh): proof KiB and verifier
@@ -2378,7 +2453,7 @@ assert DEFAULT_FLOOR in FLOORS
 # floor: the catalog's own check reports 128.26 bits at block 484 (its instances land at 484 to
 # 486), and its rank-one compression maps certify at 147.3 bits, block 556 (the margin section).
 CORE_SVP_EXPONENTS = {"classical": 0.292, "quantum": 0.265, "paranoid": 0.2075}
-BLOCK_SIZES = {128: 484, 147: 556}
+BLOCK_SIZES = {128: 484, 147: 556, LEVEL3_FLOOR: 623}
 # The share of the opening, and of the verifier's work, that scales with the commitment rank:
 # the terminal's clear inner images t_i, n_A d_A coordinates per block, 1,344 at the shipped
 # 2^14 geometry (seven blocks of rank 3 over ring dimension 64; pasta-proof-size.md §6.1). The
@@ -2400,7 +2475,13 @@ def rank_factor_share(variant, factor):
 
 
 def floor_label(floor):
-    return ", 147‑bit" if floor == 147 else ""
+    return {147: ", 147‑bit", LEVEL3_FLOOR: ", Level 3 (derived)"}.get(floor, "")
+
+
+def floor_policies(floor):
+    """The hash policies that rows exist under at a floor: SHA3-384 alone at the illustrative
+    level, where neither BLAKE3 nor the 128-bit Poseidon instances serve."""
+    return (LEVEL3_HASH,) if floor == LEVEL3_FLOOR else HASH_POLICIES
 
 
 # The user's handoff merge under the note's §5.8 deferral: its circuit derives the challenge
@@ -2413,8 +2494,12 @@ def handoff_merge_gates(variant, K, circuits, hp):
     if hp == "poseidon":
         hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
     else:
-        hashing = transcript_compressions(K * 128 + circuits * CLAIM_BYTES[variant]) * BLAKE3_GATES
-    return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
+        hashing = conventional_hash_gates(
+            K * image_bytes(hp) + circuits * claim_bytes(variant, hp), hp
+        )
+    return (
+        hashing + K * FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES + circuits * CLAIM_GATES
+    )
 
 
 def handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n):
@@ -2426,10 +2511,12 @@ def handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n):
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
 # from the merge circuit's gate estimate and the rank's budget.
 for variant, hp in itertools.product(
-    ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), HASH_POLICIES
+    ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), (*HASH_POLICIES, LEVEL3_HASH)
 ):
     K = STAGES + 1
-    for floor in FLOORS:
+    for floor in (*FLOORS, LEVEL3_FLOOR):
+        if hp not in floor_policies(floor):
+            continue
         for zk in (False, True):
             for rank in RANKS:
                 circuits = akita_circuits(variant, K, rank, zk, hp)
@@ -2447,7 +2534,9 @@ for variant, hp in itertools.product(
                 # (ajtai_per_coefficient); the terminal's images are under the terminal's own
                 # matrix.
                 opening = akita_bytes(variant, K - 1, log_len, floor)
-                instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES[variant]
+                instance = (
+                    K * image_bytes(hp) + 2 * K * 32 + 4 + circuits * claim_bytes(variant, hp)
+                )
                 accumulator = accumulator_coefficients(variant, rank, circuits)
                 # The bounds' N is this row's accumulator in digits, and the mask's
                 # coordinates are stored at their own width.
@@ -4443,7 +4532,10 @@ for p in points:
     p["pasta"] = p["pasta_arith"].split(",")[0] in PASTA_COUNTS
     # A row derived from an analysis that no implementation certifies (BitZ under BEEP) is ranked
     # with the strongest assumption, so that it removes no certified row from the frontier.
-    p["assumption"] = 2 if p.get("profile") == "beep" else ASSUMPTION_LEVEL[p["family"]]
+    # Rows that no implementation or plan backs are ranked with the strongest assumption: the
+    # rows derived from BEEP, and every row of the illustrative level.
+    derived = p.get("profile") == "beep" or p["floor"] == LEVEL3_FLOOR
+    p["assumption"] = 2 if derived else ASSUMPTION_LEVEL[p["family"]]
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS); Kishu's rows set theirs in kishu_costs.
@@ -4562,6 +4654,8 @@ for (cls, zk, floor), hp in itertools.product(
         (True, True, 128),
         (True, False, 147),
         (True, True, 147),
+        (True, False, LEVEL3_FLOOR),
+        (True, True, LEVEL3_FLOOR),
         (False, None, 128),
     ),
     HASH_POLICIES,
@@ -4573,7 +4667,7 @@ for (cls, zk, floor), hp in itertools.product(
             if p["pq"] == cls
             and p["zk"] in (zk, None)
             and p["floor"] == floor
-            and (p["hashes"] in ("blake3", "any") or hp == "poseidon")
+            and (p["hashes"] in ("blake3", "any", LEVEL3_HASH) or hp == "poseidon")
             and p.get("grind") in (None, grind)
         ]
         for p, on in zip(sub, pareto(sub)):
