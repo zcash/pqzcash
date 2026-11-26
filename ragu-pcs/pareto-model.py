@@ -1812,17 +1812,21 @@ def zoodles_epoch_piop():
 #   - An Ironwood input is the Ironwood recovery circuit (recovery_cost), ZIP 2005's Recovery
 #     Statement.
 #   - A Tachyon input is the recovery spend of the Recovery from Tachyon page, with the payment
-#     key changed as that page suggests: H^qk(qsk) = qk, one BLAKE3 compression, and qk's
-#     reduction modulo p, a 256-bit range check; four Poseidon permutations over Pallas
-#     (TACHYON_RECOVERY_PERMUTATIONS: the payment key, the note's master key, the note
-#     commitment, and the nullifier group's sponge, by Tachyon's key and nullifier definitions
-#     in keep/tachyon-statements.md); the commitment's path in a hash-based tree over Tachyon's
-#     published commitments and the nullifier's exclusion from a sorted tree over its published
-#     nullifiers, each MIGRATION_TREE_LEVELS levels and a leaf under the page's policy, the
-#     exclusion with its two 256-bit comparisons as the lineage step has them; and the amount's
-#     and the epoch's range checks. One nullifier is derived and excluded here; a note's
-#     nullifiers for the other epochs it has lived through are a lineage in the background, as
-#     Zoodles' own is, and are not counted.
+#     key changed as that page suggests. It proves:
+#       - H^qk(qsk) = qk, one BLAKE3 compression, and qk's reduction modulo p, a 256-bit range
+#         check;
+#       - four Poseidon permutations over Pallas (TACHYON_RECOVERY_PERMUTATIONS), by Tachyon's
+#         key and nullifier definitions: the payment key, the note's master key, the note
+#         commitment, and the nullifier group's sponge;
+#       - the commitment's path in a hash-based tree over Tachyon's published commitments,
+#         MIGRATION_TREE_LEVELS levels and a leaf under the page's policy;
+#       - the nullifier's exclusion from a sorted tree over Tachyon's published nullifiers, of
+#         the same depth and policy, with its two 256-bit comparisons as the lineage step has
+#         them; and
+#       - the amount's and the epoch's range checks.
+#     One nullifier is derived and excluded here. A note's nullifiers for the other epochs it
+#     has lived through are a lineage in the background, as Zoodles' own is, and are not
+#     counted.
 # Poseidon over Pallas is native over Pasta, POSEIDON_RAGU_GATES a permutation. In any other
 # unit a permutation's POSEIDON_PALLAS_SBOXES S-boxes of degree five are three Pallas
 # multiplications each, and one more reduces each S-box's input, a linear combination of
