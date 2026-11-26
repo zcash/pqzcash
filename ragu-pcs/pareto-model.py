@@ -2423,8 +2423,7 @@ for variant, hp in itertools.product(
 
 # WHIR (ePrint 2024/1586), hash-based, over a 255-bit field such as Pasta's, which is FFT
 # friendly. Measured with the reference implementation (WizardOfMenlo/whir at afec1fa; the
-# rows are in estimates/whir-sweep.tsv): 128-bit security in the proven Johnson regime, since
-# the capacity conjectures were refuted over large fields in 2025 (ePrint 2026/1367 §5.4);
+# rows are in estimates/whir-sweep.tsv): 128-bit security in the proven Johnson regime;
 # 20 bits of grinding; folding factor 4. Per rate: proof bytes at 2^17, the growth per
 # doubling of the witness, the verifier's hashes at 2^17, and the queries over all rounds,
 # which is also the growth in hashes per doubling, one more Merkle level per query.
@@ -2432,7 +2431,16 @@ for variant, hp in itertools.product(
 # 3): both fields, rates 1/2 to 1/64, and a maximum proof-of-work of 0, 16, 20 or 24 bits in
 # the query phase, at 2^17 and 2^18. The rate-1/8, 20-bit rows reproduce the earlier sweep
 # (122.7 and 128.0 KiB over the 256-bit field). Over Goldilocks the claims are in its cubic
-# extension, which 128-bit security needs (the quadratic extension cannot reach it).
+# extension, which 128-bit security needs under the correlated-agreement bound, where the
+# quadratic extension is left at about 87 bits. Under BEEP the quadratic one serves (the next
+# table).
+# On the regime: the conjectures up to capacity were refuted over large fields in late 2025
+# (Crites and Stewart, ePrint 2025/2046; ePrint 2026/1367 §5.4). Between the Johnson bound and
+# capacity the question is open: proximity gaps beyond Johnson have been proved for
+# Reed-Solomon codes in large characteristic and for adequate parameters (Dao, Kominers and
+# Thaler, ePrint 2026/2056), and refuted over binary fields (ePrint 2026/2424). Every
+# row's query counts are for a proximity parameter within the Johnson bound, the rows derived
+# from BEEP included: BEEP needs only list decodability, which every code has up to that bound.
 RATES = ("1/2", "1/4", "1/8", "1/16", "1/32", "1/64")
 GRIND_DEFAULT = 16  # the default of the functions below; the page picks per row
 WHIR_MEAS = {}
@@ -2597,7 +2605,7 @@ def whir_bytes(variant, rate, log_elems, grind=GRIND_DEFAULT):
 # A hash commitment is not homomorphic, so Ragu's split accumulation does not apply. ARC
 # (ePrint 2024/1731) accumulates Reed-Solomon proximity claims instead: its verifier checks
 # t = 2 lambda / log2(1/rate) Merkle openings per input in the proven, Johnson-bound regime
-# (the factor 2 goes away only under the list-decoding conjectures refuted in 2025), each a
+# (the factor 2 is that bound's; see the note on the regime at WHIR's measurements), each a
 # path through the accumulator's tree over N/rate elements, plus a few field operations per
 # opening. A merge has two inputs. A Merkle node is one Poseidon permutation, 288 gates in the
 # circuit and about 35,000 word multiplications natively over a 255-bit field, with the
@@ -2843,8 +2851,9 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # 𝔽₂, which 192 and 191 are not, so the second design packs into 𝔽₂^64 (kappa = 6) and needs
 # the ring-switching sum-check restated over L tensor 𝔽₂^64, and the third lays the witness
 # out as 191 columns that the PIOP batches and switches in one step of degree 191; both are
-# design changes that the paper does not write down. A 128-bit field cannot reach 128 bits
-# in any regime at these sizes. The first-round oracle has the same bytes under any packing,
+# design changes that the paper does not write down. Under the correlated-agreement bound a
+# 128-bit field cannot reach 128 bits at these sizes; under BEEP it can, which is the fourth
+# design (F2_DESIGNS). The first-round oracle has the same bytes under any packing,
 # so a query opens 32 bytes per 256 witness bits there and the challenge field's bytes per
 # element after it. The prover is counted in word multiplications, a 64-bit carry-less
 # multiplication as one: Flock's measured 82,100 BLAKE3 compressions per second on one core
@@ -3349,12 +3358,11 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                         )
 
 
-# Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
-# Appendix C and §5) folds two variables per level, five levels at rates 1/2, 1/4, 1/8, 1/16,
-# 1/32 with 218, 106, 71, 53, 43 queries at 100 bits, the queries linear in the security level
-# (Remark 10). A query opens a column of four 𝔽₂^128 elements, one hash compression, through a
-# path of the level's depth. The nodes are priced as BLAKE3 compressions in blocks of 2^13
-# committed bits, as the 𝔽₂ family's rows price them.
+# Ligerito's verifier, for the recursion of BitZ: its levels, their rates and their query counts
+# are the proof of concept's resolved configurations (bitz_levels, BITZ_QUERIES), by profile. A
+# query opens a column of the level's interleaved elements through a path of the level's depth.
+# The nodes are priced as BLAKE3 compressions in blocks of 2^13 committed bits, as the 𝔽₂ family's
+# rows price them.
 # Flock's implementation hashes with SHA-256 (§2), 31,400 witness bits per compression in its
 # arithmetization (BitZ, Table 2) at 42,100 per second: 3.8 times the merge bits and half
 # the throughput, for every row of these families alike. BitZ reports that proving many

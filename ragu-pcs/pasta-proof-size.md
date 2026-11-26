@@ -513,7 +513,10 @@ parameter changes only, code changes within the protocol, or design changes.
 (ePrint 2024/1731) over Pasta's own field, which is FFT friendly. The proof sizes come from WHIR's
 reference implementation at the batched witness size over a 256-bit field, at 128 bits of security
 in the proven Johnson regime. The conjectured sizes rest on capacity conjectures that were refuted
-over large fields in late 2025 (ePrint 2026/1367 §5.4), so they do not apply. The measured proofs
+over large fields in late 2025 (ePrint 2025/2046; ePrint 2026/1367 §5.4), so they do not apply. What
+has been proved beyond the Johnson bound since, for Reed–Solomon codes in fields of large
+characteristic (ePrint 2026/2056), is not used: the query counts stay those of the Johnson bound.
+The measured proofs
 are <!--fig:whir_sweep_1_2_kb-->250 kbytes<!--/fig-->, <!--fig:whir_sweep_1_4_kb-->158 kbytes<!--/fig-->
 and <!--fig:whir_sweep_1_8_kb-->126 kbytes<!--/fig--> at rates 1/2, 1/4 and 1/8,
 with <!--fig:whir_sweep_1_2_khashes-->2.7k<!--/fig-->, <!--fig:whir_sweep_1_4_khashes-->2.0k<!--/fig-->
@@ -718,11 +721,11 @@ sit between its levels 2 and 3 on the same model.
 random oracle and collision resistance only. Its soundness risk is concentrated in the proximity-gap
 conjectures, which is exactly where the 2025 refutations landed
 ([§8.1](#81-measured-pedersen-ipa-size-the-group-dependence-and-prover-commitment-work-in-word-multiplications)).
-The proven Johnson regime is therefore where that route is priced here. Pedersen-IPA rests on the
-discrete logarithm on Pasta, about 126 classical bits and nothing against a quantum adversary. So
-the fair statement is that Akita dominates on efficiency while adding one assumption whose concrete
-hardness is estimated rather than proven. That assumption has SIS studied since [Ajt96], Module-SIS
-since [LS15], and standardization behind it.
+So every hash-based row takes its query counts from the proven Johnson regime. Pedersen-IPA rests on
+the discrete logarithm on Pasta, about 126 classical bits and nothing against a quantum adversary.
+So the fair statement is that Akita dominates on efficiency while adding one assumption whose
+concrete hardness is estimated rather than proven. That assumption has SIS studied since [Ajt96],
+Module-SIS since [LS15], and standardization behind it.
 
 **A margin.** [The frontier page's](pareto-template.html#security-floor) higher floor is 147 quantum
 bits, which moves the block size from 484 to about 556. It was to be 150. The width tables were

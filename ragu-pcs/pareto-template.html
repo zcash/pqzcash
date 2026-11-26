@@ -910,8 +910,32 @@ code { font-family: var(--mono); font-size: 0.92em; }
   checks $2(\lambda - g)/\log_2(1/\rho)$ Merkle openings per input at rate $\rho$ with $g$ bits of
   grinding in the query phase, in the proven, Johnson-bound regime. At $\lambda = 128$ and 16 bits
   of grinding that is 224, 112, 75, 56, 45 and 38 at rates 1/2 to 1/64, and 256, 128 and 85 at 1/2,
-  1/4 and 1/8 without grinding. The factor of two would go away only under the list-decoding
-  conjectures refuted in late 2025.</p>
+  1/4 and 1/8 without grinding. The factor of two is the Johnson bound's. The conjectures that would
+  remove it all the way to capacity were refuted in late 2025 <a href="#ref-cs25">[CS25]</a>.
+  Between the Johnson bound and capacity the question is open and moving. Proximity gaps beyond the
+  Johnson bound have since been proved for Reed–Solomon codes in fields of large characteristic, for
+  adequate parameters <a href="#ref-dkt26">[DKT26]</a>, and refuted over binary
+  fields <a href="#ref-dktz26">[DKTZ26]</a>. Every row's query counts are for a proximity parameter
+  within the Johnson bound. That includes the rows derived from BEEP <a href="#ref-bg26">[BG26]</a>.
+  BEEP's analysis needs only list decodability, which every code has up to the Johnson bound. It
+  would allow a larger proximity parameter, and so fewer queries, wherever the code is
+  list-decodable beyond that bound. The rows do not take one: what BEEP changes in them is the
+  folding error and the field.</p>
+  <p>The rows stay within the Johnson bound for now. Beyond it, list decodability is a property of
+  the particular code and field. Over binary fields, where BitZ and the $\mathbb{F}_2$ family work,
+  there are counterexamples to proximity gaps beyond the bound <a href="#ref-dktz26">[DKTZ26]</a>.
+  For Reed–Solomon codes over fields of sufficiently large characteristic, on any evaluation
+  domain, <a href="#ref-dkt26">[DKT26]</a> proves list-decoding and correlated-agreement bounds
+  beyond the Johnson bound and up to capacity, with the bounds and its concrete parameters formally
+  verified in Lean.</p>
+  <p>That result would serve the prime-field WHIR rows, and its gain there is modest at first. Its
+  first step past the Johnson bound is an explicit agreement threshold below $\sqrt{\rho}$, where
+  the list has size $O_\rho(n/\eta^2)$ and the correlated-agreement error is
+  $O_\rho(n^2/(q\eta^4))$, for a code of length $n$ over a field of $q$ elements at a gap $\eta$
+  above the threshold. So the list is long, and its size enters BEEP's errors at a cost in grinding
+  or field size. The paper reports proofs 4.6 to 11 percent smaller in three deployed systems at
+  unchanged security, which is the order of gain to expect here, not the halving of the openings
+  that capacity would give. This page does not use the result yet.</p>
   <p>Each opening is a path through the accumulator's tree over the witness divided by the rate, one
   hash per node, a BLAKE3 compression at 14,900 gates by default or a Poseidon permutation at 288
   under the option. A merge has two inputs. The step circuits follow as for Akita, with the tree's
@@ -1555,8 +1579,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p><!--claim:blake3_whir_grind_24:c6a1a5-->With BLAKE3 trees, the default, the WHIR-type rows take
   24 bits, the most measured, since $2^{24}$ compressions are a small part of a merge spread over
   tens of thousands of circuits.<!--/claim--> The settings and the lower rates follow Ulrich
-  Haböck's questions. The capacity regime, which would halve the openings again, is not offered,
-  since its conjectures were refuted.</p>
+  Haböck's questions. The capacity regime, which would halve the openings again, is not offered: its
+  conjectures were refuted in their strongest form, and what has been proved beyond the Johnson
+  bound since does not reach it (see <a href="#whir">WHIR and FRI</a>).</p>
   <h3 id="hashes-in-circuits">Hashes in circuits</h3>
   <p>Every hash that a merge circuit computes is one of two. The default is a conventional hash,
   BLAKE3, at 14,900 gates per 64-byte compression in a lookup-free R1CS over Pasta or Goldilocks and
@@ -2023,8 +2048,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <h3 id="other-assumptions">Against the other assumptions</h3>
   <p>The hash-based route's assumption is weaker in the good sense: a random oracle and collision
   resistance only. Its soundness risk is concentrated in the proximity-gap conjectures, which is
-  exactly where the 2025 refutations landed. The proven Johnson regime is therefore where that route
-  is priced here.</p>
+  exactly where the 2025 refutations landed. So every hash-based row here takes its query counts
+  from the proven Johnson regime. The rows derived from BEEP rest on an analysis of November 2026
+  that no implementation uses yet, which is why they are ranked with the strongest assumption.</p>
   <p>Pedersen-IPA rests on the discrete logarithm on Pasta, about 126 classical bits and nothing
   against a quantum adversary. So the fair statement is that Akita dominates on efficiency while
   adding one assumption whose concrete hardness is estimated rather than proven. That assumption has
@@ -2124,6 +2150,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <li id="ref-cn11">[CN11] Yuanmi Chen, Phong Q. Nguyen. BKZ 2.0: better lattice security
     estimates. ASIACRYPT
     2011. <a href="https://doi.org/10.1007/978-3-642-25385-0_1">doi:10.1007/978-3-642-25385-0_1</a></li>
+    <li id="ref-cs25">[CS25] Elizabeth Crites, Alistair Stewart. On Reed–Solomon Proximity Gaps
+    Conjectures. Cryptology ePrint Archive, Paper 2025/2046,
+    2025. <a href="https://eprint.iacr.org/2025/2046">eprint.iacr.org/2025/2046</a></li>
     <li id="ref-dbk26">[DBK+26] Quang Dao, Omid Bodaghi, Amirhossein Khajehpour, Giuseppe Vitto,
     Mohammadtaghi Badakhshan, Markos Georghiades, Fengrun Liu, Jiapeng Zhang, Justin Thaler. Akita:
     a high-performance lattice-based polynomial commitment scheme.
@@ -2135,6 +2164,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
     Schwabe, Gregor Seiler, Damien Stehlé. CRYSTALS-Dilithium: algorithm specifications and
     supporting documentation, version 3.1,
     2021. <a href="https://pq-crystals.org/dilithium/data/dilithium-specification-round3-20210208.pdf">pq-crystals.org</a></li>
+    <li id="ref-dkt26">[DKT26] Quang Dao, Scott Duke Kominers, Justin Thaler. Reed-Solomon Codes
+    Beyond Johnson: Efficient Decoding and Smaller Cryptographic Proofs. Cryptology ePrint Archive,
+    Paper 2026/2056,
+    2026. <a href="https://eprint.iacr.org/2026/2056">eprint.iacr.org/2026/2056</a></li>
+    <li id="ref-dktz26">[DKTZ26] Quang Dao, Scott Duke Kominers, Justin Thaler, Kai Zhe Zheng.
+    Counterexamples to Beyond-Johnson Proximity Gaps over Binary Fields. Cryptology ePrint Archive,
+    Paper 2026/2424,
+    2026. <a href="https://eprint.iacr.org/2026/2424">eprint.iacr.org/2026/2424</a></li>
     <li id="ref-dp23">[DP23] Léo Ducas, Ludo Pulles. Does the dual-sieve attack on Learning with
     Errors even work? CRYPTO
     2023. <a href="https://eprint.iacr.org/2023/302">eprint.iacr.org/2023/302</a></li>
