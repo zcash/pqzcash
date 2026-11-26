@@ -5120,3 +5120,31 @@ permutation, 38,400 AND gates against BLAKE3's 10,416, and 92,160 of Kishu's dig
 bytes. BitZ's proof of concept is fixed to a 128-bit field and cannot reach the level.
 Pedersen-IPA over Pasta has about 126 bits. Kishu's sum-checks run in a 128-bit extension, which
 is short of the level too.
+
+Further rulings on the level, the same day:
+
+- **Its label** on the page: "165 quantum bits (ADPS16 core-SVP) / 192 classical bits,
+  illustrative". The level's key in the model is 165.
+- **The hash-based rows take 165 bits as their soundness level**, as they take 147 at that
+  floor, so that they compare with the lattice rows. Their Merkle trees hash with SHA3-384.
+- **The transcripts stay on BLAKE3 at the level**, documented as a gap that is, perhaps
+  unrealistically, favourable to the argument for the higher level. (A 256-bit chaining value
+  lets a collision between two transcript prefixes be found in about 2^128 work, so a transcript
+  at the level would need SHA3-384 too.)
+- **An extrapolation first, then a re-plan overnight** with Akita's planner; the re-plan is not
+  urgent.
+
+Done so far on branch security-192: the level's constants; Akita's five variants' rows derived
+(the accumulation-width table by `scripts/derive-linf-widths.py`, whose rule predicts the
+estimator's 147- and 150-bit widths from lower floors to a median error under 0.1 in log2 of the
+width; the opening's bytes, slope, and rank growth on the line through 128 and 147; images at
+twice the bytes for two compression maps; claims in a challenge field of 192 bits or more); the
+option in the page's floor control. At rank 16 with zero knowledge the level costs Akita over
+Goldilocks 108 circuits against 57 and 2.0 times the accumulation prover, and the 128-bit field
+158 against 57 and 2.9 times.
+
+TO DO for the level: Kishu's rows (its claims in a cubic extension, its mask and padding at the
+level); the binary-field family with SHA3-384 trees (Flock's Keccak block is 2^16 bits) in its
+256-bit design; WHIR over Pasta with SHA3-384 trees, and why the Goldilocks variants and BitZ drop
+out; the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
+page's section on the level, with its gaps; the re-plan's pipeline at the level's block size.

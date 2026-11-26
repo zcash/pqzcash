@@ -46,8 +46,9 @@ DEFAULT_FLOOR = 147
 # page's quantum unit, so the level's key is 165. The hash-based rows take 165 bits as their
 # soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
 # Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
-# inside, so the hash is SHA3-384, which the rows carry as their hash policy. Nothing at this
-# level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
+# inside, so a Merkle tree's hash is SHA3-384, which the rows carry as their hash policy. The
+# transcripts stay on BLAKE3, a gap in the level's favour (conventional_hash_gates). Nothing
+# at this level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
 # the lattice rows are built), and the page marks them so.
 LEVEL3_FLOOR = 165
 LEVEL3_HASH = "sha3_384"
@@ -679,11 +680,12 @@ def image_bytes(hp):
 
 
 def conventional_hash_gates(bytes_, hp):
-    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
-    the keyed BLAKE3 chain, or at the illustrative level SHA3-384's sponge, a Keccak
-    permutation for each SHA3_384_RATE bytes with its padding byte."""
-    if level3(hp):
-        return ceil_div(bytes_ + 1, SHA3_384_RATE) * HASH_UNITS["keccak"]["gates"]
+    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash,
+    the keyed BLAKE3 chain. At the illustrative level this is a gap in the level's favour,
+    perhaps unrealistically so (the user, 2026-11-26): the transcript stays on BLAKE3, whose
+    256-bit chaining value lets a collision between two transcript prefixes be found in about
+    2^128 work, below the level. A transcript at the level would hash with SHA3-384, a Keccak
+    permutation for each SHA3_384_RATE bytes, at several times the gates."""
     return transcript_compressions(bytes_) * BLAKE3_GATES
 
 
