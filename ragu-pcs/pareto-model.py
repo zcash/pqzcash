@@ -2841,7 +2841,22 @@ F2_DESIGNS = {
     256: dict(pack=256, twiddle=4, label="256-bit field"),
     192: dict(pack=64, twiddle=1, label="64-bit packing, 192-bit field"),
     191: dict(pack=191, twiddle=7, label="191-bit field, direct packing"),
+    # FRI-Binius under BEEP with affine folding challenges (frib_optimizer's `beep_samples`):
+    # the folding error is 2/|F| at any list size, so the paper's own 128-bit field serves at
+    # the 128-bit floor, 127 bits, and the list can sit near the Johnson bound. No
+    # implementation exists, so the rows are derived, at that floor alone, and ranked with the
+    # strongest assumption, as BitZ's are. The list's batching error L/|F| is left to
+    # F2_BEEP_LIST_BITS bits of grinding. The samples' evaluations, a multiplication an
+    # element a sample, are under a percent of the prover and are not added.
+    128: dict(
+        pack=128,
+        twiddle=2,
+        label="128-bit field, Johnson bound with BEEP (derived)",
+        beep=5,
+        floors=(128,),
+    ),
 }
+F2_BEEP_LIST_BITS = 8
 F2_FIRST_BYTES = 32  # opened bytes per 256 witness bits in the first round, under any packing
 CLMULS = {
     64: 1,
@@ -2983,6 +2998,8 @@ def frib_at(w, rate_bits, floor, grind, chal, trees, zk):
         field_bits=chal,
         first_bytes=F2_FIRST_BYTES,
         first_trees=trees,
+        beep_samples=F2_DESIGNS[chal].get("beep"),
+        list_bits=F2_BEEP_LIST_BITS if F2_DESIGNS[chal].get("beep") else None,
     )
     rounds = out["rounds"]
     folds = [
@@ -3124,12 +3141,15 @@ for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
             for chal, design in F2_DESIGNS.items():
+                if floor not in design.get("floors", FLOORS):
+                    continue
                 hashes, ands = f2_merge(rate, floor, grind, chal)
                 for zk in ZK_LABEL:
                     p = frib_proof(ands, rate, floor, grind, chal, ARC_DECIDER_TREES, zk == "mask")
                     points.append(
                         dict(
                             family="flock",
+                            profile="beep" if design.get("beep") else None,
                             pq=True,
                             rank=None,
                             E=None,
@@ -3322,6 +3342,8 @@ for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
             for chal, design in F2_DESIGNS.items():
+                if floor not in design.get("floors", FLOORS):
+                    continue
                 for zk in ZK_LABEL:
                     # Under recursion only the user's last proof is masked (see the WHIR recursion
                     # rows): the rows equal the plain rows but for the fold.
@@ -3330,6 +3352,7 @@ for grind in GRINDS:
                     points.append(
                         dict(
                             family="flock_rec",
+                            profile="beep" if design.get("beep") else None,
                             pq=True,
                             rank=None,
                             E=None,
@@ -6287,6 +6310,27 @@ def define_figures():
         abs(less[0] - less[1]) < 0.01,
     )
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
+    # The design under BEEP, against the 192-bit design, both at the 128-bit floor.
+    beep_floor = F2_DESIGNS[128]["floors"][0]
+    f128 = {p["rate"]: p for p in shown("flock", floor=beep_floor, field=128, zkv=None)}
+    f192_low = {p["rate"]: p for p in shown("flock", floor=beep_floor, field=192, zkv=None)}
+    for rate in ("1/8", "1/64"):
+        tag = rate.replace("/", "_")
+        fig(f"f2_beep_{tag}_kb", kb(f128[rate]["bytes"]))
+        fig(f"f2_192_low_{tag}_kb", kb(f192_low[rate]["bytes"]))
+    bytes_less = [100 * (1 - f128[r]["bytes"] / f192_low[r]["bytes"]) for r in RATES]
+    prover_less = [100 * (1 - f128[r]["prover"] / f192_low[r]["prover"]) for r in RATES]
+    fig("f2_beep_less_pct_min", sig(min(bytes_less), 1))
+    fig("f2_beep_less_pct_max", sig(max(bytes_less), 1))
+    fig("f2_beep_prover_less_pct_min", sig(min(prover_less), 2))
+    fig("f2_beep_prover_less_pct_max", sig(max(prover_less), 2))
+    fig("f2_beep_list_bits", tex_pow2(F2_BEEP_LIST_BITS))
+    fig("f2_beep_samples", F2_DESIGNS[128]["beep"])
+    claim(
+        "f2_beep_smaller_cheaper",
+        "at the 128-bit floor the binary-field design under BEEP has a smaller proof and a cheaper merge prover than the 192-bit design at every rate",
+        min(bytes_less) > 0 and min(prover_less) > 0,
+    )
     f256 = {p["rate"]: p for p in shown("flock", field=256, zkv=None)}
     f191 = {p["rate"]: p for p in shown("flock", field=191, zkv=None)}
     r256 = [f256[r]["prover"] / f192[r]["prover"] for r in f192 if r in f256]

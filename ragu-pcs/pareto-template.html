@@ -953,9 +953,28 @@ code { font-family: var(--mono); font-size: 0.92em; }
   selected grinding, the folding schedule chosen to minimise the compressed proof, and Merkle-cap
   multiproofs. Checked against the reference WHIR implementation at the same witness, field, regime
   and grinding, its query counts are within one to five of WHIR's and its proofs about a tenth
-  smaller, from the optimised schedule. A 128‑bit field cannot reach 128 bits in any regime at these
-  sizes, since the agreement term alone is about 100 bits, which is why FRI-Binius's published
-  figures are at 100.</p>
+  smaller, from the optimised schedule. Under that bound a 128‑bit field cannot reach 128 bits in
+  any regime at these sizes, since the agreement term alone is about 100 bits, which is why
+  FRI-Binius's published figures are at 100.</p>
+  <p>BEEP <a href="#ref-bg26">[BG26]</a> replaces the correlated-agreement bound,
+  as <a href="#bitz">the BitZ section</a> describes. With affine folding challenges its folding
+  error is $2/|\mathbb{F}|$ at any list size, so FRI-Binius's own $\mathbb{F}_{2^{128}}$ serves at
+  the 128‑bit floor, with no second field: the witness is packed into the challenge field itself and
+  ring-switched as the paper has it, where the 192‑bit design restates the ring switching over two
+  fields. The rows marked "128‑bit field, Johnson bound with BEEP (derived)" are the optimizer's
+  proof in that field, with a list of <!--fig:f2_beep_list_bits-->$2^{8}$<!--/fig--> and
+  BEEP's <!--fig:f2_beep_samples-->5<!--/fig--> samples before each
+  fold. <!--claim:f2_beep_smaller_cheaper:c0e846-->Against the 192‑bit design at the same floor they
+  are <!--fig:f2_beep_less_pct_min-->7<!--/fig--> to <!--fig:f2_beep_less_pct_max-->8<!--/fig-->
+  percent smaller, <!--fig:f2_beep_1_8_kb-->164 kbytes<!--/fig-->
+  against <!--fig:f2_192_low_1_8_kb-->176 kbytes<!--/fig--> at rate 1/8
+  and <!--fig:f2_beep_1_64_kb-->102 kbytes<!--/fig-->
+  against <!--fig:f2_192_low_1_64_kb-->110 kbytes<!--/fig--> at 1/64, and their merge prover
+  is <!--fig:f2_beep_prover_less_pct_min-->11<!--/fig-->
+  to <!--fig:f2_beep_prover_less_pct_max-->25<!--/fig--> percent cheaper.<!--/claim--> The gain is
+  smaller than BitZ's because these rows were already at the Johnson bound; what BEEP buys here is
+  the smaller field. As for BitZ, no implementation exists, so the rows are at the 128‑bit floor
+  alone and are ranked with the strongest assumption.</p>
   <p>Ring switching <a href="#ref-dp24">[DP24, §1.3]</a> packs $2^{\kappa}$ bits into each element
   and assumes a power-of-two degree over $\mathbb{F}_2$, which 192 and 191 are not. So the 192‑bit
   design packs into $\mathbb{F}_{2^{64}}$ ($\kappa = 6$) and needs the ring-switching sum-check
