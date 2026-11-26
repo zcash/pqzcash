@@ -4810,3 +4810,78 @@ accumulation prover paragraph is no longer parked: it is rebased onto the wrappe
 holds and carries its hash, and the book builds with 823 links checking. It sits with this notes
 entry on the local branch `accumulation-paragraph`, two commits on the merged `hard-wrap` tip,
 unpushed and without a PR. The other parked items stand.
+
+## 2026-11-26 09:02 UTC: migrations, whole counts, BitZ on one true thread, BEEP rows, the frontier to a tolerance
+
+PR #7 merged as f6be1c2. PR #8 (branch `accumulation-paragraph`, draft) carries the accumulation
+prover paragraph and, since, five more commits, with the book built and 831 links checking:
+
+- **Whole counts** (dc169d1). `ceil_div` rounds up the compressions of a merge's whole transcript,
+  the range-checked words, Ligerito's queries, and a Kishu step's capacity on the fingerprint route
+  (a float capacity had made a packed tree's step count `1.0`). A share of a larger transcript stays
+  a quotient. With whole compressions the cost of one more circuit is lumpy, so `circuit_slope`
+  takes it over a block's worth of circuits between two powers of two and asserts it positive; the
+  fixed-point guards and the two per-claim figures use it. An audit of every division in the model
+  found no other count that should be whole.
+- **Migrations** (dd0cf7b). What a post-quantum system proves for the older pools is a migration:
+  1 or 4 recovery spends from Tachyon or from Ironwood and one Zoodles output, in Zoodles' tree
+  (`tachyon_zoodles{1,4}`, `ironwood_zoodles{1,4}`). The user: the page's Tachyon transactions are
+  there to compare with Ragu and are not what Kishu would prove. With Kishu and zero knowledge, one
+  core: 0.113 and 0.226 s for Tachyon, 0.221 and 0.513 s for Ironwood. The zk note's comparison
+  with "two to four dozen rank-13 steps" is replaced by these. Assumptions for the user to rule on:
+  Poseidon over Pallas off Pasta at four Pallas multiplications an S-box (three for the fifth
+  power, one to reduce the linear layer's output); four permutations a Tachyon recovery spend; one
+  epoch's nullifier derived and excluded, the other epochs' needing a lineage that is not priced.
+- **BitZ on one true thread** (5033944). The benchmark's `--threads 1` sizes only its main pool;
+  the library's Merkle trees (from 8 Mbytes), encoder (from 64 Mbytes), combine step and lincheck
+  fold hop onto a second pool of every core unless `RAYON_NUM_THREADS` is set. Every earlier
+  "one-thread" time had multi-core Merkle hashing in it, and probably the paper's Table 10 too. The
+  rows also took the opening alone, at the paper's machine's speed. They are now priced from this
+  machine's measurements, commitment and opening, 2^22 to 2^29 bits (`BITZ_MEASURED`, by
+  `scripts/bitz-st-sweep.sh`); a row outside the measured sizes is not priced (the user: no
+  extrapolation). BitZ's transaction figures about double (recovery 0.309 s, was 0.167).
+- **BEEP rows** (6ff01c3). The session with Ulrich Haböck, str4d, and Joseph Johnston asked why
+  BitZ's proofs are so large. The rows were in the unique-decoding regime, the only profile the
+  proof of concept certifies at 128 bits, where a query is worth under a bit and rates below 1/8
+  make the proof larger. Under the Johnson bound squaring the rate halves a level's queries
+  (Ulrich's rule, which the measurements follow exactly), but in a 128-bit field that profile
+  stops at 118.7 bits (level-0 binding), 86 to 97 (folding), and 95 to 100 (the outer round's
+  out-of-domain bound, which the code ground for 28 to 33 bits). BEEP (ePrint 2026/2930, Bloemen
+  and Garreta) meets them: m samples before each fold, a folding error of (δn+1)/|F|, or 2/|F|
+  with affine challenges (127 bits; the user: fine in practice, 120 and below would need
+  grinding). Rows derived from it: the Johnson profile measured at a 128-bit target under a
+  diagnostic switch (`scripts/patches/bitz/`), rates 1/2 to 1/64, plus five samples at each of
+  thirteen folds. At the 128-bit floor alone (the user: the 147-bit floor is a hedge against
+  lattice attacks), and ranked with the strongest assumption (the user: level 2). Smallest row
+  with ARC: 190 kbytes at rate 1/64, against 423 under unique decoding.
+- **The frontier to a tolerance** (7bc9bd8). Epsilon-dominance (Laumanns, Thiele, Deb, and
+  Zitzler, 2002), 2% by default with exact and 5% selectable (the user's choices). A grid of cells
+  was tried first and dropped: two configurations within the tolerance of each other both stayed
+  when a cell boundary fell between them, and the choice of a cell's representative needed a
+  metric that correlated measures could sway. The user's construction has neither problem: take
+  the configurations in increasing order of the product of their measures, and keep one unless a
+  kept one is no more than the tolerance worse on every measure and no worse on the requirements.
+  Exact ties stay across families and collapse within one. The default table goes from 62 rows to
+  31.
+
+Generosities found and fixed, as the user asked to be told: BitZ's commit left out; BitZ's times
+from a faster machine; multi-core hashing in one-thread times. Still open from before: BitZ's
+per-bit pricing takes the every-other-XOR saving without paying the extra products.
+
+Tooling gap: `scripts/wrap-prose.py` refills only single-line `<p>` and `<li>` elements of the
+template, so a paragraph that a fill lengthens stays long and unflagged (the user: occasional long
+lines are no worry; a scratch script rejoins them meanwhile).
+
+NEXT, in the user's order: BEEP for the other hash-based families (Flock through Ulrich's optimizer,
+whose error terms take the regime; WHIR and Plonky3 as derived adjustments to measured rows), at the
+128-bit floor and assumption level 2 as for BitZ; immediately after that, BitZ's PIOP pricing, which
+the user calls important: its rows are charged per committed bit, so they took the every-other-XOR
+saving without paying for the product terms it adds; then the frontier page, which the user finds
+far too long: it should keep what is needed to understand the plot, the table, and how things are
+measured, and say plainly that the table follows the controls beside the plot. Then the older queue:
+the mask width α, the online transaction measure, the Zoodles statements page, a model-diff view, a
+structural check for constraint programs, Tachyon's comparisons as tribits, the merge's transcript
+words' digits.
+
+STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
+03aa05a, unpushed; PR #8's description predates them.
