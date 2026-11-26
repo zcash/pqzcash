@@ -287,7 +287,7 @@ def mask_coordinate_bits(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LO
 
 def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
     """Base-8 slices per masked coordinate."""
-    return math.ceil(mask_coordinate_bits(alpha, c_l1, log_n, digit_max) / 3)
+    return ceil_div(mask_coordinate_bits(alpha, c_l1, log_n, digit_max), 3)
 
 
 def mask_sumcheck_atoms(slices):
@@ -867,7 +867,7 @@ RANGE_PRODUCTS = {1: 1, 2: 2, 3: 4}  # products a digit of the range check, by t
 
 def word_digits(bits):
     """Digits of a `bits`-bit word: tribits and one narrower digit for the remainder."""
-    return math.ceil(bits / WORD_DIGIT_BITS)
+    return ceil_div(bits, WORD_DIGIT_BITS)
 
 
 def word_range_products(bits):
@@ -1633,13 +1633,13 @@ ZOODLES_TACHYGRAM_BITS = 256
 ZOODLES_SIGHASH_BYTES = (
     (2 * ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
-    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+    + ceil_div(ZOODLES_EPOCH_BITS, 8)
 )
 ZOODLES_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_SIGHASH_BYTES)
 ZOODLES_MERKLE_SIGHASH_BYTES = (
     (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
-    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+    + ceil_div(ZOODLES_EPOCH_BITS, 8)
 )
 ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_MERKLE_SIGHASH_BYTES)
 # The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
@@ -1861,7 +1861,7 @@ def bucket_proof_hashes(B, K, tag_bits=None):
     """The exclusion proof's hashes: the path and the bucket's K entries, full suffixes or
     `tag_bits`-bit tags, hashed by BLAKE3."""
     bits = K * (tag_bits if tag_bits else ZOODLES_TACHYGRAM_BITS - B)
-    return B + blake3_compressions(math.ceil(bits / 8))
+    return B + blake3_compressions(ceil_div(bits, 8))
 
 
 def bucket_tag_bits(log_m, B, lam):
