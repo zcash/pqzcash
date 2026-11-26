@@ -679,6 +679,11 @@ def image_bytes(hp):
     return 2 * IMAGE_BYTES if level3(hp) else IMAGE_BYTES
 
 
+def fold_gates_per_image(hp):
+    """Gates, or digits, to reduce one child image in the fold: one a bit."""
+    return FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES
+
+
 def conventional_hash_gates(bytes_, hp, fair=False):
     """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash,
     the keyed BLAKE3 chain. The illustrative level's rows keep it, which is the generous
@@ -1469,6 +1474,20 @@ POSEIDON_Q64_PIOP = piop_sum(
 RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
 # Three field products by Karatsuba; the output's two values' range checks.
 E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
+# At the illustrative level Kishu's claims are in the cubic extension of F_q, 192 bits: an
+# element is three F_q values, and a multiplication is six field products by Karatsuba with
+# three values of output. The sum-checks' prover is left at the quadratic extension's measured
+# rate, which is in the level's favour.
+E3_MULT_DIGITS = 3 * Q64_DIGITS
+E3_MULT_PIOP = piop_sum((1, (6, 24, 0)), (3, word_range_piop(Q64_BITS)))
+
+
+def e_mult_digits(hp):
+    return E3_MULT_DIGITS if level3(hp) else E_MULT_DIGITS
+
+
+def e_mult_piop(hp):
+    return E3_MULT_PIOP if level3(hp) else E_MULT_PIOP
 
 
 def absorb_calls(bytes_, block, whole):
@@ -4052,22 +4071,22 @@ def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=
     merge's 18 more sum-check elements, as for the lattice rows."""
     rounds = piop_rounds(circuits * 2**rank)
     absorbed = (
-        akita_absorbed_bytes("kishu", K, circuits, zk)
+        akita_absorbed_bytes("kishu", K, circuits, zk, hp)
         + bool_bytes
-        + rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
+        + rounds * PIOP_ROUND_ELEMENTS * claim_bytes("kishu", hp)
     )
-    checked = 0 if hp == "poseidon" else ceil_div(absorbed - K * 128, 8)
+    checked = 0 if hp == "poseidon" else ceil_div(absorbed - K * image_bytes(hp), 8)
     mults = SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults + rounds * PIOP_ROUND_MULTS
     digits = (
         absorb_digits(absorbed, hp, checked, whole=True)
-        + 2 * K * FOLD_GATES_PER_IMAGE
-        + mults * E_MULT_DIGITS
+        + 2 * K * fold_gates_per_image(hp)
+        + mults * e_mult_digits(hp)
         + bool_bits
     )
     piop = piop_sum(
         (1, absorb_piop(absorbed, hp, checked, whole=True)),
-        (2 * K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
-        (mults, E_MULT_PIOP),
+        (2 * K * fold_gates_per_image(hp), BIT_GATE_PIOP),
+        (mults, e_mult_piop(hp)),
         (bool_bits, BIT_GATE_PIOP),
     )
     return digits, piop_word_mults(piop)
@@ -4081,9 +4100,9 @@ def kishu_step_overhead_digits(rank, hp):
     """Digits an application step adds to its 2^rank by either route: its PIOP transcript over
     the 64-bit field, absorbed and verified in the merge above."""
     rounds = piop_rounds(2**rank)
-    transcript = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
+    transcript = rounds * PIOP_ROUND_ELEMENTS * claim_bytes("kishu", hp)
     checked = 0 if hp == "poseidon" else ceil_div(transcript, 8)
-    return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
+    return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * e_mult_digits(hp)
 
 
 def fingerprint_step_extra_digits(rank, hp):
@@ -4096,7 +4115,7 @@ def fingerprint_step_extra_digits(rank, hp):
     return (
         fingerprint_step_digits(rank)
         + absorb_digits(transcripts, hp, checked)
-        + FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
+        + FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_MULTS * e_mult_digits(hp)
     )
 
 
@@ -4143,18 +4162,18 @@ def handoff_merge_digits(K, circuits, hp):
     """Kishu's handoff merge under the note's §5.8 deferral (handoff_merge_gates for the lattice
     rows): its digits and its PIOP's word multiplications, for the mask's K images and claim
     evaluations absorbed, the images' reductions, and the claims' fold."""
-    absorbed = K * 128 + circuits * CLAIM_BYTES["kishu"]
-    checked = 0 if hp == "poseidon" else ceil_div(circuits * CLAIM_BYTES["kishu"], 8)
+    absorbed = K * image_bytes(hp) + circuits * claim_bytes("kishu", hp)
+    checked = 0 if hp == "poseidon" else ceil_div(circuits * claim_bytes("kishu", hp), 8)
     mults = CLAIM_GATES * circuits
     digits = (
         absorb_digits(absorbed, hp, checked, whole=True)
-        + K * FOLD_GATES_PER_IMAGE
-        + mults * E_MULT_DIGITS
+        + K * fold_gates_per_image(hp)
+        + mults * e_mult_digits(hp)
     )
     piop = piop_sum(
         (1, absorb_piop(absorbed, hp, checked, whole=True)),
-        (K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
-        (mults, E_MULT_PIOP),
+        (K * fold_gates_per_image(hp), BIT_GATE_PIOP),
+        (mults, e_mult_piop(hp)),
     )
     return digits, piop_word_mults(piop)
 
@@ -4241,10 +4260,12 @@ def kishu_costs(
 
 
 for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(
-    BOOL_CHECK.items(), HASH_POLICIES
+    BOOL_CHECK.items(), (*HASH_POLICIES, LEVEL3_HASH)
 ):
     K = STAGES + 1
-    for floor in FLOORS:
+    for floor in (*FLOORS, LEVEL3_FLOOR):
+        if hp not in floor_policies(floor):
+            continue
         for zk in (False,) if check == "projection" else (False, True):
             for rank in FRONTEND_RANKS:
                 circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
@@ -4258,13 +4279,15 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                 log_len = rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
                 rank_scale = RANK_SCALE[floor]["goldilocks"]
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
-                instance = K * 128 + 2 * K * 32 + 4 + circuits * CLAIM_BYTES["kishu"]
+                instance = (
+                    K * image_bytes(hp) + 2 * K * 32 + 4 + circuits * claim_bytes("kishu", hp)
+                )
                 accumulator = accumulator_coefficients("kishu", rank, circuits)
                 for route in MULT_ROUTES:
                     fields, _ = kishu_costs(K, circuits, rank, hp, check, floor, zk, route)
                     points.append(
                         dict(
-                            family="bits_q64" if hp == "blake3" else "bits_q64_poseidon",
+                            family="bits_q64_poseidon" if hp == "poseidon" else "bits_q64",
                             pq=True,
                             rank=rank,
                             E=None,
