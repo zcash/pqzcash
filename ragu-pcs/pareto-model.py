@@ -2804,6 +2804,11 @@ def hv(variant, hp):
     v = HASH_VARIANTS[variant]
     if hp == "poseidon":
         return v
+    if level3(hp):
+        # SHA3-384 trees: a Keccak permutation a node, and the leaf's bytes at the sponge's rate.
+        return dict(
+            v, gates=HASH_UNITS["keccak"]["gates"], leaf_perms=v["leaf_bytes"] / SHA3_384_RATE
+        )
     return dict(
         v, gates=BLAKE3_GATES, native=BLAKE3_NATIVE, leaf_perms=v["leaf_bytes"] / BLAKE3_BLOCK
     )
@@ -3385,17 +3390,20 @@ def bitz_piop_verifier_mults(log_bits):
     return f2_piop_verifier_mults(log_bits) + PIOP_ROUND_MULTS * n * (n + 1) / 2
 
 
-def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
+KECCAK_FLOCK_BLOCK = 2**16  # Flock's block for one Keccak permutation (K_LOG in its keccak.rs)
+
+
+def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128, block=BLAKE3_ANDS_PADDED):
     """(hashes, AND gates) of a merge: two inputs, ARC's openings, paths through the tree of
     the 𝔽₂^128-packed witness divided by the rate, at its fixed point, plus the grinding
     check per input and the inputs' PIOP verifiers in the challenge field `chal`."""
     inv = int(rate.split("/")[1])
     t = arc_openings(rate, floor, grind)
     hashes = 2 * t * 30
-    ands = hashes * BLAKE3_ANDS_PADDED
+    ands = hashes * block
     for _ in range(40):
         verifier = 2 * f2_piop_verifier_mults(math.log2(ands)) * CLMUL_ANDS[chal]
-        ands = hashes * BLAKE3_ANDS_PADDED + verifier
+        ands = hashes * block + verifier
         depth = (
             math.log2(ands / 128 * inv / 16) + 4
         )  # path nodes, plus four compressions for a 256-byte leaf
@@ -3403,7 +3411,7 @@ def f2_merge(rate, floor, grind=GRIND_DEFAULT, chal=128):
         if abs(new - hashes) < 1:
             break
         hashes = new
-    return round(hashes), round(hashes * BLAKE3_ANDS_PADDED + verifier)
+    return round(hashes), round(hashes * block + verifier)
 
 
 for grind in GRINDS:
@@ -4894,7 +4902,7 @@ def shown(family, policy="blake3", zk=False, floor=DEFAULT_FLOOR, **where):
     """A family's rows as the page shows them under a hash policy (the arithmetic-hash option
     adds the Poseidon-priced rows to the BLAKE3 ones), a zero-knowledge setting and a floor,
     with the grinding chosen per row; `where` pins further fields."""
-    allowed = ("any", "blake3") + (("poseidon",) if policy == "poseidon" else ())
+    allowed = ("any", "blake3", LEVEL3_HASH) + (("poseidon",) if policy == "poseidon" else ())
     return [
         p
         for p in points
@@ -6322,6 +6330,72 @@ def define_figures():
     for v in VARIANTS:
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
     fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1)))
+    # The illustrative level: its lattice rows beside the 147-bit ones, the fair reading's
+    # consequence for them, and why the hash-based families have no row.
+    fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
+    fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
+    g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
+    g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR)
+    fig("level3_goldilocks_16_circuits", g165["circuits"])
+    fig("goldilocks_16_zk_circuits", g147["circuits"])
+    fig(
+        "level3_goldilocks_16_accumulation_x",
+        sig(g165["accumulation_prover"] / g147["accumulation_prover"]),
+    )
+    fig("level3_goldilocks_16_bytes_pct", round(100 * (g165["bytes"] / g147["bytes"] - 1)))
+    k147 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", hashes="blake3")
+    k165 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", floor=LEVEL3_FLOOR)
+    fig("level3_kishu_17_circuits", k165["circuits"])
+    fig("kishu_17_zk_circuits", k147["circuits"])
+    fig("level3_kishu_17_digits_m", sig(k165["gates"] / 1e6, 2))
+    fig("kishu_17_zk_digits_m", sig(k147["gates"] / 1e6, 2))
+    fig(
+        "level3_kishu_17_accumulation_pct",
+        round(100 * (k165["accumulation_prover"] / k147["accumulation_prover"] - 1)),
+    )
+    fig("level3_kishu_17_bytes_pct", round(100 * (k165["bytes"] / k147["bytes"] - 1)))
+    claim(
+        "level3_lattice_rows_dearer",
+        "at the illustrative level Akita over Goldilocks at rank 16 and Kishu at rank 17 take more circuits, more accumulation prover, and more bytes than at 147 bits",
+        all(
+            hi[k] > lo[k]
+            for lo, hi in ((g147, g165), (k147, k165))
+            for k in ("circuits", "accumulation_prover", "bytes")
+        ),
+    )
+    lattice_variants = ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta")
+    fair = {
+        rank: [
+            akita_circuits(v, STAGES + 1, rank, True, LEVEL3_HASH, fair=True)
+            for v in lattice_variants
+        ]
+        for rank in RANKS
+    }
+    fair_rank = min(r for r in RANKS if all(c is not None for c in fair[r]))
+    fig("level3_fair_rank", fair_rank)
+    fig("level3_fair_circuits_min", fmt(min(fair[fair_rank])))
+    fig("level3_fair_circuits_max", fmt(max(fair[fair_rank])))
+    claim(
+        "level3_fair_reading_one_rank",
+        "with SHA3-384 transcripts Akita's merge converges for no variant below the highest rank",
+        fair_rank == max(RANKS) and all(c is None for r in RANKS if r < fair_rank for c in fair[r]),
+    )
+    w147 = arc_circuits("whir", "1/8", 16, DEFAULT_FLOOR, GRIND_DEFAULT, "blake3")
+    w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_HASH)
+    fig("whir_16_blake3_circuits", fmt(w147))
+    fig("level3_whir_16_circuits", fmt(w165))
+    fig("level3_whir_circuits_x", sig(w165 / w147))
+    fig("keccak_over_blake3_gates", sig(HASH_UNITS["keccak"]["gates"] / BLAKE3_GATES))
+    f2_147 = f2_merge("1/8", DEFAULT_FLOOR, GRIND_DEFAULT, 256)[1]
+    f2_165 = f2_merge("1/8", LEVEL3_FLOOR, GRIND_DEFAULT, 256, block=KECCAK_FLOCK_BLOCK)[1]
+    fig("level3_f2_merge_mbits", mil(f2_165))
+    fig("f2_256_merge_mbits", mil(f2_147))
+    fig("level3_f2_merge_x", sig(f2_165 / f2_147))
+    claim(
+        "level3_hash_based_impractical",
+        "at the illustrative level WHIR over Pasta would need over five times the circuits at rank 16 and the binary-field family's merge would be over four times the bits",
+        w165 > 5 * w147 and f2_165 > 4 * f2_147,
+    )
     fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
     fig("arc_floor_pct", ARC_FLOOR_PCT)
     # The width shrink by ring-dimension group, across the moduli; the medians of 30 and more are

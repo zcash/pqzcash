@@ -1587,6 +1587,63 @@ code { font-family: var(--mono); font-size: 0.92em; }
   one of the dominance test's requirements (<a href="#requirements">Pasta and the scheme
   assumption</a>). <a href="#trust">The next section</a> says how much to trust the Module-SIS
   figures.</p>
+  <h4 id="level-3">The illustrative third level</h4>
+  <p>The third option is for illustration only: it shows what a move towards 192 bits costs a
+  post-quantum proof system. It is NIST's Level 3 as the lattice standards at that level meet it,
+  ML-KEM-768 and ML-DSA-65: a block size of about <!--fig:level3_block-->623<!--/fig-->, which
+  is <!--fig:level3_classical_bits-->182<!--/fig--> classical core-SVP bits and 165 in this page's
+  quantum unit. That is a generous reading of 192 bits. The hash-based families take 165 bits as
+  their soundness level, as they take 147 at the default floor. Nothing at the level is planned or
+  measured: every row there is derived from its 147‑bit row, and is ranked with the
+  strongest <a href="#requirements">assumption</a>.</p>
+  <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
+  256‑bit bottlenecks inside, so the trees hash with SHA3-384. The transcripts stay on BLAKE3, which
+  is generous again. No attack on a 256‑bit transcript hash is known at the level, but the security
+  proofs for Fiat–Shamir over a chained or sponge hash lose a term of about $T^2/2^c$ for work $T$
+  and a state of $c$ bits, so the level is not provable with
+  one. <!--claim:level3_fair_reading_one_rank:e65ec1-->With SHA3-384 transcripts Akita's merge
+  converges at rank <!--fig:level3_fair_rank-->17<!--/fig--> alone,
+  in <!--fig:level3_fair_circuits_min-->378<!--/fig-->
+  to <!--fig:level3_fair_circuits_max-->1,208<!--/fig--> circuits.<!--/claim--></p>
+  <p>Akita's rows at the level are derived as follows:</p>
+  <ul>
+    <li>the accumulation matrix is looked up in a width table extrapolated from the 147‑bit one, by
+    a rule that reproduces the estimator's own 147‑ and 150‑bit widths from the lower floors';</li>
+    <li>the opening's bytes, their growth with the witness, and the rank growth are on the line
+    through their 128‑ and 147‑bit values;</li>
+    <li>a commitment's image is twice its bytes, for two compression maps where the rank-one maps
+    stop at 147.3 bits; and</li>
+    <li>a claim is in a challenge field of 192 bits or more, where the 128‑bit field and
+    Goldilocks's quadratic extension leave a sum-check far short of the level.</li>
+  </ul>
+  <p><!--claim:level3_lattice_rows_dearer:c99147-->At rank 16 with zero knowledge, Akita over
+  Goldilocks then takes <!--fig:level3_goldilocks_16_circuits-->108<!--/fig--> circuits
+  against <!--fig:goldilocks_16_zk_circuits-->57<!--/fig--> at 147
+  bits, <!--fig:level3_goldilocks_16_accumulation_x-->2.0<!--/fig--> times the accumulation prover,
+  and <!--fig:level3_goldilocks_16_bytes_pct-->11<!--/fig-->% more bytes.</p>
+  <p>Kishu's claims move to the cubic extension of its 64‑bit field, where a multiplication is six
+  field products with three values of output. At rank 17 with zero knowledge its merge
+  is <!--fig:level3_kishu_17_digits_m-->1.9<!--/fig--> million digits
+  in <!--fig:level3_kishu_17_circuits-->18<!--/fig--> circuits,
+  against <!--fig:kishu_17_zk_digits_m-->1.3<!--/fig--> million
+  in <!--fig:kishu_17_zk_circuits-->13<!--/fig-->, with the accumulation
+  prover <!--fig:level3_kishu_17_accumulation_pct-->44<!--/fig-->% dearer and the
+  proof <!--fig:level3_kishu_17_bytes_pct-->8<!--/fig-->% larger.<!--/claim--> Its sum-checks'
+  prover is left at the quadratic extension's measured rate, which is in the level's favour.</p>
+  <p>The hash-based families have no row at the level, because none would be
+  practical. <!--claim:level3_hash_based_impractical:00d6f0-->A tree node under SHA3-384 is a Keccak
+  permutation, <!--fig:keccak_over_blake3_gates-->6.2<!--/fig--> times BLAKE3's gates in a prime
+  field, and the openings grow with the level. So WHIR over Pasta at rate 1/8 and rank 16 would
+  need <!--fig:level3_whir_16_circuits-->38,525<!--/fig--> circuits
+  against <!--fig:whir_16_blake3_circuits-->5,011<!--/fig--> with BLAKE3 at 147
+  bits, <!--fig:level3_whir_circuits_x-->7.7<!--/fig--> times as many. The $\mathbb{F}_2$ family's
+  merge, with Flock's block of $2^{16}$ bits for a Keccak permutation, would
+  be <!--fig:level3_f2_merge_mbits-->323<!--/fig--> million bits
+  against <!--fig:f2_256_merge_mbits-->68<!--/fig--> million in its 256‑bit
+  design, <!--fig:level3_f2_merge_x-->4.7<!--/fig--> times.<!--/claim--> The Goldilocks variants
+  would also need a challenge field beyond the cubic extension. BitZ's proof of concept is fixed to
+  a 128‑bit field and cannot reach the level, and Pedersen-IPA and the binary-groups row stop at 128
+  bits as they do at the default floor.</p>
   <h3 id="grinding">Grinding</h3>
   <p>The hash-based families can spend proof of work in the query phase: with $g$ bits of grinding
   the queries need carry only $\lambda - g$ bits. So ARC's openings per input fall to
@@ -1641,12 +1698,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
   in <!--fig:akita16_compressions_min-->55<!--/fig-->
   to <!--fig:akita16_compressions_max-->133<!--/fig--> compressions instead
   of <!--fig:akita16_atoms_min-->146<!--/fig--> to <!--fig:akita16_atoms_max-->218<!--/fig-->
-  Poseidon atoms. The transcript is a Merkle–Damgård chain at the application level: each block is one
-  keyed BLAKE3 call, whose key is the previous call's output. That is one compression a block, where
-  one BLAKE3 call over the whole transcript would add a parent compression for
+  Poseidon atoms. The transcript is a Merkle–Damgård chain at the application level: each block is
+  one keyed BLAKE3 call, whose key is the previous call's output. That is one compression a block,
+  where one BLAKE3 call over the whole transcript would add a parent compression for
   each <!--fig:blake3_chunk_bytes-->1,024<!--/fig-->-byte
-  chunk, <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more. So the merge
-  grows from
+  chunk, <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more. So the merge grows from
   about <!--fig:fp128_16_poseidon_gates-->25 thousand<!--/fig--> gates
   to <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> at the 128‑bit field and on Goldilocks
   and <!--fig:q64_16_blake3_gates-->2.0 million<!--/fig--> for the Pasta variants, at rank
