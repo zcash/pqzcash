@@ -1620,7 +1620,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <li>the accumulation matrix is looked up in a width table extrapolated from the 147‑bit one, by
     a rule that reproduces the estimator's own 147‑ and 150‑bit widths from the lower floors';</li>
     <li>the opening's bytes, their growth with the witness, and the rank growth are on the line
-    through their 128‑ and 147‑bit values;</li>
+    through their 128‑ and 147‑bit values, and the
+    opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are at the
+    level's claim field;</li>
     <li>a commitment's image is twice its bytes, for two compression maps where the rank-one maps
     stop at 147.3 bits; and</li>
     <li>a claim is in a challenge field of 192 bits or more, where the 128‑bit field and
@@ -1631,7 +1633,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Goldilocks then takes <!--fig:level3_goldilocks_16_circuits-->108<!--/fig--> circuits
   against <!--fig:goldilocks_16_zk_circuits-->57<!--/fig--> at 147
   bits, <!--fig:level3_goldilocks_16_accumulation_x-->3.2<!--/fig--> times the accumulation prover,
-  and <!--fig:level3_goldilocks_16_bytes_pct-->11<!--/fig-->% more bytes.</p>
+  and <!--fig:level3_goldilocks_16_bytes_pct-->18<!--/fig-->% more bytes.</p>
   <p>Kishu's claims move to the cubic extension of its 64‑bit field, where a multiplication is six
   field products with three values of output. At rank 17 with zero knowledge its merge
   is <!--fig:level3_kishu_17_digits_m-->1.9<!--/fig--> million digits
@@ -1639,7 +1641,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   against <!--fig:kishu_17_zk_digits_m-->1.3<!--/fig--> million
   in <!--fig:kishu_17_zk_circuits-->13<!--/fig-->, with the accumulation
   prover <!--fig:level3_kishu_17_accumulation_pct-->156<!--/fig-->% dearer and the
-  proof <!--fig:level3_kishu_17_bytes_pct-->8<!--/fig-->% larger.<!--/claim--> Its sum-checks'
+  proof <!--fig:level3_kishu_17_bytes_pct-->16<!--/fig-->% larger.<!--/claim--> Its sum-checks'
   prover, measured in the quadratic extension, is taken at twice that rate, for the six field
   products of a multiplication against three.</p>
   <p>The hash-based families have no row at the level, because none would be

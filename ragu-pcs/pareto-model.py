@@ -111,8 +111,45 @@ def extrapolate_floor(at128, at147, floor=LEVEL3_FLOOR):
     return at147 + (at147 - at128) * (floor - 147) / (147 - 128)
 
 
+def opening_challenge_atoms():
+    """The challenge-field atoms in the non-terminal levels of the shipped schedule's opening,
+    and the bytes of the 64-bit profile's extension-opening reduction, from the planner's
+    re-pricing of that schedule (estimates/reprice-replan-base.tsv, the row whose total is
+    AKITA_128's first). The re-pricings give the non-terminal bytes with base-field and
+    challenge-field atoms both at 16 bytes, both at 32, and at 8 and 32, which three sums
+    determine the two counts and the bytes that do not scale."""
+    with (HERE / "estimates" / "reprice-replan-base.tsv").open() as f:
+        row = next(
+            r
+            for r in csv.DictReader(f, delimiter="\t")
+            if int(r["original_total"]) == AKITA_128["fp128"][0] and r["logical_key"].endswith("=")
+        )
+    at16, at32, at8_32 = (
+        int(row[f"{k}_nonterminal"]) for k in ("original", "pallas", "pallas_q64")
+    )
+    fixed = 2 * at16 - at32
+    atoms = (at16 - fixed) // 16
+    challenge = (at8_32 - fixed - 8 * atoms) // 24
+    assert 16 * atoms + fixed == at16 and 8 * (atoms - challenge) + 32 * challenge + fixed == at8_32
+    return challenge, int(row["goldilocks_terminal_eor"])
+
+
+OPENING_CHALLENGE_ATOMS, GOLDILOCKS_EOR_BYTES = opening_challenge_atoms()
+# At the illustrative level the plan's bytes are on the line through 128 and 147 bits, and
+# the challenge-field atoms are at the level's claim field: 16 bytes more each where the
+# 128-bit field's claims move to its quadratic extension, 8 more where the 64-bit profile's
+# move to the cubic one, whose extension-opening reduction grows by half. The opening's own
+# compressed images, which two compression maps would double, are not separated from its
+# other base-field atoms in the re-pricing and are left as they are.
+LEVEL3_OPENING_EXTRA = {
+    "fp128": 16 * OPENING_CHALLENGE_ATOMS,
+    "goldilocks": 8 * OPENING_CHALLENGE_ATOMS + GOLDILOCKS_EOR_BYTES // 2,
+}
 AKITA[LEVEL3_FLOOR] = {
-    v: [round(extrapolate_floor(a, b)) for a, b in zip(AKITA_128[v], AKITA_147[v])]
+    v: [
+        round(extrapolate_floor(a, b)) + LEVEL3_OPENING_EXTRA.get(v, 0)
+        for a, b in zip(AKITA_128[v], AKITA_147[v])
+    ]
     for v in AKITA_147
 }
 
@@ -6388,6 +6425,7 @@ def define_figures():
     # The illustrative level: its lattice rows beside the 147-bit ones, the fair reading's
     # consequence for them, and why the hash-based families have no row.
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
+    fig("opening_challenge_atoms", OPENING_CHALLENGE_ATOMS)
     fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
     g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
     g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
