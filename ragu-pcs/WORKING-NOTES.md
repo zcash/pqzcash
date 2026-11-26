@@ -4883,5 +4883,27 @@ the mask width α, the online transaction measure, the Zoodles statements page, 
 structural check for constraint programs, Tachyon's comparisons as tribits, the merge's transcript
 words' digits.
 
+Addendum: the binary-field family under BEEP (c9be6be). Its rows were already at the Johnson
+bound, so BEEP buys the field: FRI-Binius's own 128-bit one at the 128-bit floor, through a fourth
+extension of the optimizer (`beep_samples`), with a list of 2^8 and five samples a fold. Against
+the 192-bit design at that floor: 7 to 8 percent fewer bytes, 11 to 25 percent less merge prover.
+The user: the smaller field is a nice simplification.
+
+WHIR next, then Plonky3 by its factors over WHIR. WHIR's rows are at the proven Johnson bound
+over a 256-bit field or Goldilocks's cubic extension, so again the gain is the field: the
+quadratic extension at the 128-bit floor. The reference implementation at 128 bits over
+Goldilocks2 grinds without end, as BitZ's Johnson profile did: its proof of work is the
+security level less the least of its error terms, and its proximity-gap term is far below 128 in
+a 128-bit field (`src/protocols/whir/config.rs`). The diagnostic patch to write: take that term
+as BEEP's affine fold, the field's bits less one, in the three places it is computed; the
+sum-check and combination terms, the field less the list's and the count's logarithms, stay and
+cost about ten to sixteen bits of grinding. Then a sweep over Goldilocks2 at rates 1/2 to 1/64
+and 2^17 to 2^20, as `estimates/whir-sweep-grind.tsv` has for the other fields, plus BEEP's
+samples added in the model.
+
+To do after BitZ's product terms (the user, 2026-11-26): a security floor chosen independently for
+the lattice-based and the hash-based families; Pedersen-IPA's fixed, at about 126 bits strictly
+speaking, and documented as such; possibly finer control of the cost model for lattice attacks.
+
 STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
 03aa05a, unpushed; PR #8's description predates them.
