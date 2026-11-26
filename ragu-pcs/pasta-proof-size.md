@@ -594,8 +594,8 @@ out-of-domain samples before each fold. No implementation of it exists; the fron
 rows from it, at the 128-bit floor, where the stand-alone proof
 is <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at rate 1/8
 and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at 1/64. The figures below are the certified
-ones. With Zinc+'s PIOP added, BitZ with ARC at rank 13 and rate 1/8 comes
-to <!--fig:bitz13_kb-->488 kbytes<!--/fig-->, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word
+ones. With its hybrid SNARK's PIOPs added, BitZ with ARC at rank 13 and rate 1/8 comes
+to <!--fig:bitz13_kb-->488 kbytes<!--/fig-->, <!--fig:bitz13_prover-->6.3e8<!--/fig--> word
 multiplications, a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge and
 a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms
 decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-product
@@ -632,8 +632,8 @@ Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_pos
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
 cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->6.6<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->15<!--/fig-->
-to <!--fig:kishu_vs_bitz_prover_max-->27<!--/fig-->
+times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->21<!--/fig-->
+to <!--fig:kishu_vs_bitz_prover_max-->36<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
 is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller, so under conventional hashes

@@ -767,8 +767,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   dominates that variant on every measure but the merge's count, whose units differ; under Poseidon
   Kishu's proof is <!--fig:kishu_vs_q64_poseidon_kb-->10 kbytes<!--/fig--> smaller.<!--/claim-->
   Against BitZ at rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->6.6<!--/fig--> times smaller
-  and the merge prover does <!--fig:kishu_vs_bitz_prover_min-->15<!--/fig-->
-  to <!--fig:kishu_vs_bitz_prover_max-->27<!--/fig--> times less work.</p>
+  and the merge prover does <!--fig:kishu_vs_bitz_prover_min-->21<!--/fig-->
+  to <!--fig:kishu_vs_bitz_prover_max-->36<!--/fig--> times less work.</p>
   <p>Quang Dao thinks the prover here is likely overestimated: the commitment is priced at rows
   sized by the loose security analysis, with its grinding, and a tighter analysis would cut them. So
   the family's prover should be read as an upper bound. The plot's measures are the recursion's: the
@@ -1093,12 +1093,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the integers, through a random prime where R is large, and proved in the exponent of
   $\mathbb{F}_{2^{128}}$ by batched GKR grand products. So its cost is per committed bit and does
   not depend on R.</p>
-  <p>With the Universal Constraint Systems of Zinc+ <a href="#ref-agk26">[AGK+26]</a> the
-  application's Pasta arithmetic is integer relations, integer witnesses with ideal membership
-  modulo p, projected to a random prime field for the PIOP. So the Ironwood recovery circuit stays
-  Pasta arithmetic: a field multiplication is 255 bits of value and 255 of quotient, 510 committed
-  bits, and a hash gate is one bit. So the recovery circuit is
-  about <!--fig:app_recovery_bitz-->8.1 million<!--/fig--> bits, as
+  <p>The application is proved by the paper's hybrid SNARK: a PIOP over the integers for arithmetic,
+  and a binary-field PIOP for bit logic, over one commitment to every witness bit. So the Ironwood
+  recovery circuit stays Pasta arithmetic. A field multiplication is an integer relation, 255 bits
+  of value and 255 of quotient, 510 committed bits. Bit logic is counted as a Boolean circuit's AND
+  gates, one committed bit each, since XOR is linear over the binary field and costs nothing. So the
+  recovery circuit is about <!--fig:app_recovery_bitz-->8.0 million<!--/fig--> bits, as
   the <a href="#transaction-prover">Transaction prover section</a> counts. A step of rank $r$
   commits $2^r$ bits of application witness, beside the Merkle hashing of the merge, which is most
   of its witness. The merge is a hybrid circuit: the Merkle hashing over $\mathbb{F}_2$ as for the
@@ -1121,10 +1121,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
   grand-product GKR is just really expensive. The commitment doubles with each halving of the
   rate: <!--fig:bitz_commit_25_r1_ms-->8.10<!--/fig--> ms at rate
   1/2, <!--fig:bitz_commit_25_r3_ms-->31.7<!--/fig--> at 1/8,
-  and <!--fig:bitz_commit_25_r6_ms-->248<!--/fig--> at 1/64. Zinc+'s PIOP is added from its Table
-  4: <!--fig:bitz_piop_prover_factor-->1.6<!--/fig--> times the PCS prover on the application's
-  share, <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of verifier,
-  and <!--fig:bitz_piop_kb-->36 kbytes<!--/fig--> of proof.</p>
+  and <!--fig:bitz_commit_25_r6_ms-->248<!--/fig--> at 1/64. The hybrid SNARK's two PIOPs come on
+  top. The paper's Table 14 measures the whole prover on witnesses split evenly between SHA-256 and
+  multiplications modulo $2^{32}$, and its Table 10 the PCS alone at the same size. The ratio is 1.2
+  to 1.5 from $2^{23}$ to $2^{29}$ bits, so the model
+  adds <!--fig:bitz_piop_prover_factor-->0.36<!--/fig--> of the PCS prover on every committed bit,
+  the merge's as well as the application's, with <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of
+  verifier and <!--fig:bitz_piop_kb-->36 kbytes<!--/fig--> of proof.</p>
   <p>The implementation certifies 128 bits only in the unique-decoding regime, with grinding on the
   fold challenges. There a query is worth under one bit, so each of Ligerito's levels needs about
   130 queries whatever its rate, <!--fig:bitz_udr_queries_25-->567<!--/fig--> in all at rate 1/8.
@@ -1152,16 +1155,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
   is <!--fig:bitz_beep_25_r1_kb-->236 kbytes<!--/fig--> at rate
   1/2, <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at 1/8,
   and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at
-  1/64. <!--claim:bitz_beep_halves_proof:95dcf8-->With ARC at the 128-bit floor, BitZ's smallest row
-  is <!--fig:bitz_beep128_min_kb-->190 kbytes<!--/fig--> under BEEP, at
+  1/64. <!--claim:bitz_beep_halves_proof:665368-->With ARC at the 128-bit floor, BitZ's smallest row
+  is <!--fig:bitz_beep128_min_kb-->189 kbytes<!--/fig--> under BEEP, at
   rate <!--fig:bitz_beep128_min_rate-->1/64<!--/fig-->,
   against <!--fig:bitz_udr128_min_kb-->423 kbytes<!--/fig--> under unique decoding,
-  at <!--fig:bitz_beep128_min_prover_over_udr-->0.92<!--/fig--> times the merge prover: the
-  commitment costs more at the lower rate, and the merge has fewer openings to
-  hash.<!--/claim--></p>
+  at <!--fig:bitz_beep128_min_prover_over_udr-->1.2<!--/fig--> times the merge prover, since the
+  commitment costs more at the lower rate.<!--/claim--></p>
   <p>At rank 13 and rate 1/8 with ARC, under unique decoding at the default floor, it comes
   to <!--fig:bitz13_kb-->488 kbytes<!--/fig--> with the decider's three first-round
-  trees, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word multiplications,
+  trees, <!--fig:bitz13_prover-->6.3e8<!--/fig--> word multiplications,
   a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge, and
   a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms
   decider. <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:5de217-->Its Pasta arithmetic
@@ -1708,7 +1710,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>In BitZ's integer arithmetization a multiplication is <!--fig:bitz_gate_bits-->510<!--/fig-->
   committed bits, the value and the quotient, checked as one integer relation, while a hash gate is
   one bit and a 64‑bit addition 65, so the circuit
-  is <!--fig:app_recovery_bitz-->8.1 million<!--/fig--> bits. In Kishu over Akita the claims are in
+  is <!--fig:app_recovery_bitz-->8.0 million<!--/fig--> bits. In Kishu over Akita the claims are in
   one fixed field, so a multiplication is either <!--fig:mult_limbs_digits-->374<!--/fig--> digits
   by the limb route or <!--fig:mult_fingerprint_digits-->170<!--/fig--> by the fingerprint route,
   which pays per step instead. The circuit
@@ -1717,22 +1719,22 @@ code { font-family: var(--mono); font-size: 0.92em; }
   PIOP, which the <a href="#kishu">Kishu section</a> prices. The bit arithmetizations hash the path
   with BLAKE3 under either policy, since Poseidon over Pallas's field would cost them 240
   multiplications a node.</p>
-  <p><!--claim:path_blake3_any_field,path_bits_digits_equal,path_gold_fp128_equal:24d92c-->A Merkle
+  <p><!--claim:path_blake3_any_field,path_bitz_boolean_equal,path_gold_fp128_equal:d18a80-->A Merkle
   path check is 33 nodes: <!--fig:app_path_pasta_poseidon-->9,500<!--/fig--> Pasta gates,
   or <!--fig:app_path_goldilocks_poseidon-->15,600<!--/fig--> Goldilocks or 128‑bit-field gates,
   with Poseidon in the field; <!--fig:app_path_pasta_blake3-->492,000<!--/fig--> gates in any prime
-  field with BLAKE3; <!--fig:app_path_boolean-->240,000<!--/fig--> AND gates;
-  or <!--fig:app_path_bitz-->370,000<!--/fig--> bits or digits.<!--/claim--> So the recovery
-  circuit's hashes are what make the bit arithmetizations cheap, a path-heavy application makes them
-  cheaper still, and the Boolean families pay for every Pallas multiplication.</p>
+  field with BLAKE3; <!--fig:app_path_boolean-->240,000<!--/fig--> AND gates, which are also BitZ's
+  committed bits; or <!--fig:app_path_kishu-->370,000<!--/fig--> Kishu digits.<!--/claim--> So the
+  recovery circuit's hashes are what make the bit arithmetizations cheap, a path-heavy application
+  makes them cheaper still, and the Boolean families pay for every Pallas multiplication.</p>
   <p>Further applications price the hardware wallet's part of the Recovery Statement, which ZIP
   2005's Option A proves on the device that holds the quantum spending key, the host proving the
   rest (<a href="#ref-zip2005">[ZIP-2005]</a>, Key storage options). The device's own statement,
   $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ with the linking commitment left out, is one BLAKE3
   compression: <!--fig:app_qk_gates-->14,900<!--/fig--> gates in any prime
   field, <!--fig:app_qk_boolean-->7,170<!--/fig--> AND gates,
-  or <!--fig:app_qk_bits-->11,200<!--/fig--> bits or digits. If the device instead signs SigHash
-  with leanSPHINCS, the stateless hash-based signature of post-quantum
+  or <!--fig:app_qk_bits-->11,200<!--/fig--> Kishu digits. If the device instead signs SigHash with
+  leanSPHINCS, the stateless hash-based signature of post-quantum
   Ethereum <a href="#ref-eip8288">[EIP-8288]</a> <a href="#ref-lit26">[Lit26]</a>, the host proves
   the verifier with the signature and the public key as witnesses.
   For <a href="#ref-wam26">[Wam26]</a>'s pruned key that
@@ -1793,8 +1795,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   are <!--fig:tx_zoodles_preimage_kishu_s-->0.0273<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_kishu_s-->0.163<!--/fig--> s. In the other families,
   preimage then BLAKE3 signature: BitZ with zero
-  knowledge <!--fig:tx_zoodles_preimage_bitz_zk_s-->0.159<!--/fig-->
-  and <!--fig:tx_zoodles_leansphincs_blake3_bitz_zk_s-->0.310<!--/fig--> s; Boolean over
+  knowledge <!--fig:tx_zoodles_preimage_bitz_zk_s-->0.213<!--/fig-->
+  and <!--fig:tx_zoodles_leansphincs_blake3_bitz_zk_s-->0.319<!--/fig--> s; Boolean over
   Akita <!--fig:tx_zoodles_preimage_bits_akita_s-->0.0768<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_bits_akita_s-->0.154<!--/fig--> s at its 128‑bit floor;
   Flock <!--fig:tx_zoodles_preimage_flock_s-->0.195<!--/fig-->
@@ -1804,7 +1806,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   s. <!--claim:zoodles_preimage_beats_tachyon:db8cb2-->Tachyon's own four tachyactions, with their
   curve arithmetic, take <!--fig:tx_tachyon4_kishu_zk_s-->0.144<!--/fig--> s in Kishu with zero
   knowledge and <!--fig:tx_tachyon4_kishu_s-->0.105<!--/fig--> without,
-  and <!--fig:tx_tachyon4_bitz_zk_s-->0.571<!--/fig--> s in BitZ, so Zoodles by preimage costs less
+  and <!--fig:tx_tachyon4_bitz_zk_s-->0.705<!--/fig--> s in BitZ, so Zoodles by preimage costs less
   in each, <!--fig:zoodles_preimage_of_tachyon_pct-->35<!--/fig--> percent of Tachyon with zero
   knowledge.<!--/claim--> <!--claim:zoodles_merkle_beats_tachyon:6c09f8-->A simpler Zoodles that
   proves a 32-level Merkle path in each spend, opening the note there and deriving one nullifier,
@@ -1845,7 +1847,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   hash to the step, and a shorter epoch adds steps a day. Kishu
   takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0274<!--/fig--> s a note an epoch on one core at
   rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig-->, without zero knowledge, since the
-  lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.158<!--/fig--> s,
+  lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.212<!--/fig--> s,
   Flock <!--fig:tx_zoodles_epoch_flock_s-->0.195<!--/fig--> s, Akita over
   Goldilocks <!--fig:tx_zoodles_epoch_goldilocks_s-->0.0319<!--/fig--> s, and
   Pedersen-IPA <!--fig:tx_zoodles_epoch_pedersen_s-->6.33<!--/fig--> s at its 128‑bit
@@ -1885,7 +1887,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rank <!--fig:tx_recovery_kishu_rank-->22<!--/fig-->,
   in <!--fig:tx_recovery_kishu_steps-->1<!--/fig--> merges by
   the <!--fig:tx_recovery_kishu_route-->fingerprint<!--/fig--> route, and BitZ with
-  ARC <!--fig:tx_recovery_bitz_s-->0.309<!--/fig--> s at
+  ARC <!--fig:tx_recovery_bitz_s-->0.317<!--/fig--> s at
   rank <!--fig:tx_recovery_bitz_rank-->23<!--/fig-->, where one step holds the circuit; Akita with
   Pasta claims over 64‑bit commitments takes about <!--fig:tx_recovery_q64_s-->25.1<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
@@ -1905,7 +1907,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the <!--fig:tx_recovery_kishu_zk_route-->fingerprint<!--/fig--> route, and Akita with Pasta claims
   about <!--fig:tx_recovery_q64_zk_s-->25.7<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_zk_rank-->17<!--/fig-->. BitZ stays
-  at <!--fig:tx_recovery_bitz_zk_s-->0.310<!--/fig--> s, having no rejection-sampling fold,
+  at <!--fig:tx_recovery_bitz_zk_s-->0.319<!--/fig--> s, having no rejection-sampling fold,
   with <!--fig:tx_recovery_bitz_zk_more_kb-->21 kbytes<!--/fig--> more proof.<!--/claim--></p>
   <h3 id="tachyon-transactions">Tachyon transactions</h3>
   <p>The transaction options of 2, 4, 8 or 16 tachyactions, half spends and half outputs, keep
@@ -1960,7 +1962,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   fuses, <!--fig:tx_tachyon2_pedersen15_s-->6.33<!--/fig--> s; Akita with Pasta claims over 64‑bit
   commitments <!--fig:tx_tachyon2_q64_s-->3.08<!--/fig--> s at
   rank <!--fig:tx_tachyon2_q64_rank-->15<!--/fig--> with Poseidon;
-  BitZ <!--fig:tx_tachyon2_bitz_s-->0.513<!--/fig--> s at
+  BitZ <!--fig:tx_tachyon2_bitz_s-->0.664<!--/fig--> s at
   rank <!--fig:tx_tachyon2_bitz_rank-->20<!--/fig-->;
   Kishu <!--fig:tx_tachyon2_kishu_s-->0.0868<!--/fig--> s at
   rank <!--fig:tx_tachyon2_kishu_rank-->19<!--/fig-->
@@ -1977,7 +1979,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   or <!--fig:tx_tachyon16_pedersen15_s-->19.0<!--/fig--> s
   in <!--fig:tx_tachyon16_pedersen15_steps-->9<!--/fig--> steps at rank 15; Akita with Pasta
   claims <!--fig:tx_tachyon16_q64_s-->5.58<!--/fig--> s;
-  BitZ <!--fig:tx_tachyon16_bitz_s-->0.688<!--/fig--> s;
+  BitZ <!--fig:tx_tachyon16_bitz_s-->0.790<!--/fig--> s;
   Kishu <!--fig:tx_tachyon16_kishu_s-->0.175<!--/fig--> s;
   Goldilocks <!--fig:tx_tachyon16_goldilocks_s-->7.17<!--/fig--> s.</p>
   <p>For scale, Orchard's Halo 2 prover, measured on the same machine with assembly,

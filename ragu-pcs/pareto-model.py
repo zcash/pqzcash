@@ -1029,6 +1029,14 @@ def bits_unit(field):
     return "bits" if field == "bitz" or field.startswith("bits_pasta") else field
 
 
+def logic_unit(field):
+    """The unit that counts `field`'s hashing and bit logic. Kishu's is its committed digits.
+    BitZ's is the AND gates of a Boolean circuit: its hybrid SNARK proves bit logic over the
+    binary field, where XOR is linear and free and each AND gate is one committed bit, and
+    keeps the integers for arithmetic (the BitZ paper's Section 2.4.1 and Table 14)."""
+    return "boolean" if field == "bitz" else bits_unit(field)
+
+
 RECOVERY_MULTS = 14_500
 RECOVERY_CURVE_PASTA = (
     16_100  # the multiplications as native gates, with the selectors and identity cases
@@ -1066,7 +1074,7 @@ def recovery_cost(field, hp):
     """The reference circuit in the unit of `field`'s arithmetization, its Merkle path under
     policy `hp` where the field has a Poseidon; the bit arithmetizations hash it with BLAKE3
     under either."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if field == "pasta":
         mult = RECOVERY_CURVE_PASTA / RECOVERY_MULTS
     elif field == "boolean":
@@ -1086,7 +1094,7 @@ def path_cost(field, hp):
     """One Merkle path check, 32 levels and the leaf, in the unit of `field`'s
     arithmetization: hashed under policy `hp` where the field has a Poseidon, by BLAKE3 in
     the bit arithmetizations under either."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON:
         return RECOVERY_PATH_POSEIDON[field]
     return RECOVERY_PATH_BLAKE3[unit]
@@ -1256,9 +1264,9 @@ def hash_app_cost(field, hash_, calls, input_bytes=0):
     arithmetization: the inputs are tribits in Kishu, since a hash consumes its message words
     as addends, committed bits in BitZ, Boolean-checked wires in a field, and free wires in a
     Boolean circuit."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     kind = unit if unit in ("boolean", "bits") else "gates"
-    if kind == "boolean":
+    if field == "boolean":
         inputs = 0
     elif field in KISHU_ARITHS:
         inputs = word_digits(8 * input_bytes)
@@ -1423,7 +1431,7 @@ def tachyon_node_cost(field, hp, node, bits_as_mults=False):
     multiplications, and its other gates as bit operations, or as multiplications too under
     `bits_as_mults`."""
     gates, perms, windows, openings = TACHYON_STEPS[node]
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if field == "pasta":
         mult = 1
     elif field == "boolean":
@@ -1604,13 +1612,12 @@ def zoodles_opening_cost(field, hp):
     the field has a Poseidon and by BLAKE3 otherwise, and CLAIM_GATES multiplications folding
     it."""
     fold = CLAIM_GATES * claim_mult_cost(field)
-    if bits_unit(field) == "bits":
-        kishu = field in KISHU_ARITHS
-        hp = hp if kishu else "blake3"
+    if field == "bitz":
+        return CLAIM_BYTES["kishu"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+    if field in KISHU_ARITHS:
         bytes_ = CLAIM_BYTES["kishu"]
         checked = bytes_ // 8 if hp == "blake3" else 0
-        range_check = RANGE_CHECK_DIGITS if kishu else RANGE_CHECK_BITS
-        return absorb_digits(bytes_, hp, checked, range_check) + fold
+        return absorb_digits(bytes_, hp, checked) + fold
     if field == "boolean":
         return CLAIM_BYTES["fp128"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
     if hp == "poseidon":
@@ -3457,7 +3464,29 @@ for grind in GRINDS:
 # halving of the rate. Beyond the measured floor the Ligerito bytes and the verifier scale
 # with the floor, as queries do. The PIOP of Zinc+ adds, per its Table 4, 1.6 times the PCS
 # prover's time on the application's share, 2 ms of verifier, and 36 kbytes of proof.
-BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
+# The application and the merge are proved by the paper's hybrid SNARK, not by the PCS alone:
+# its PIOP over the integers for arithmetic and a binary-field PIOP for bit logic, over one
+# commitment to every witness bit. Its Table 14 measures that end to end, on witnesses split
+# evenly between SHA-256 and multiplications modulo 2^32, beside Table 10's PCS alone at the
+# same size, both at rate 1/2 and 100 bits on one thread of the paper's machine. Each entry is
+# (log2 witness bits): (Table 14's prover ms, Table 10's). The PIOP's share is the mean ratio
+# less one, on every committed bit, the merge's as well as the application's. The hybrid's
+# proof is 33 kbytes more than the PCS's at 2^23 bits and its verifier 1.5 ms more, which the
+# allowances below cover.
+BITZ_HYBRID_MS = {
+    23: (35.4, 24.3),
+    24: (57.1, 47.3),
+    25: (108, 79.9),
+    26: (199, 151),
+    27: (390, 298),
+    28: (794, 537),
+    29: (1509, 1094),
+}
+BITZ_PIOP = dict(
+    prover=round(statistics.mean(a / b for a, b in BITZ_HYBRID_MS.values()) - 1, 2),
+    verify_ms=2.0,
+    bytes=36000,
+)
 # The measurements behind BitZ's rows, by profile, rate exponent, and the logarithm of the
 # committed bits. Each entry is (commit ms, prove ms, the grand-product GKR's part of the prove
 # ms, verify ms, non-Ligerito bytes, Ligerito bytes). They are the proof of concept's
@@ -3691,7 +3720,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
     commit_ms, prove_ms, _, verify_ms, nonlig, lig = measured
     scale = floor / BITZ_MEASURED_FLOOR  # the Ligerito bytes and the verifier, as queries do
     deep_bytes, deep_ms = bitz_beep_overhead(log_bits, r) if beep else (0, 0)
-    prover_ms = (commit_ms + prove_ms + deep_ms) * (1 + BITZ_PIOP["prover"] * app_bits / bits)
+    prover_ms = (commit_ms + prove_ms + deep_ms) * (1 + BITZ_PIOP["prover"])
     # the decider's extra first-round trees, on the Ligerito part and, as a bound, on the whole verifier
     level_hashes = bitz_level_hashes(profile, log_bits, r, floor)
     extra = (ARC_DECIDER_TREES - 1) * level_hashes[0] / sum(level_hashes) if mode == "arc" else 0
@@ -4948,10 +4977,11 @@ def define_figures():
         == APP["path"]["fp128"]["blake3"],
     )
     claim(
-        "path_bits_digits_equal",
-        "a Merkle path costs the same in bits for BitZ and in digits for Kishu",
-        all(APP["path"]["bitz"]["blake3"] == APP["path"][a]["blake3"] for a in KISHU_ARITHS),
+        "path_bitz_boolean_equal",
+        "a Merkle path costs BitZ as many committed bits as a Boolean circuit has AND gates",
+        APP["path"]["bitz"]["blake3"] == APP["path"]["boolean"]["blake3"],
     )
+    fig("app_path_kishu", sig(APP["path"][KISHU_ARITHS[0]]["blake3"], 3))
     claim(
         "path_gold_fp128_equal",
         "the recovery circuit's Goldilocks and 128-bit Poseidon paths cost the same gates",
@@ -6558,10 +6588,10 @@ def define_figures():
     fig("bitz_beep128_min_prover_over_udr", sig(least["beep"]["prover"] / least["udr"]["prover"]))
     claim(
         "bitz_beep_halves_proof",
-        "at the 128-bit floor BitZ's smallest row under the Johnson bound with BEEP is under half of its smallest unique-decoding row's bytes, at the lowest rate and within a tenth of its merge prover",
+        "at the 128-bit floor BitZ's smallest row under the Johnson bound with BEEP is under half of its smallest unique-decoding row's bytes, at the lowest rate and a greater merge prover",
         least["beep"]["bytes"] < 0.5 * least["udr"]["bytes"]
         and least["beep"]["rate"] == RATES[-1]
-        and abs(least["beep"]["prover"] / least["udr"]["prover"] - 1) < 0.1,
+        and least["beep"]["prover"] > least["udr"]["prover"],
     )
     b12 = pick("bitz", rank=12, rate="1/8")
     claim(
