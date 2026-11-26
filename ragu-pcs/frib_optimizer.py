@@ -18,6 +18,15 @@ authentication paths are multiplied by it, and the schedule is optimised with th
 `list_bits` in `optimize` is optional; left out, the largest list that the agreement bound
 admits at the security level is taken, as the original now does.
 
+A fourth extension, `beep_samples` in `optimize` (default None), prices the proximity test
+under BEEP (Bloemen and Garreta, ePrint 2026/2930) with affine folding challenges, in place of
+the correlated-agreement bound. Before each fold by two the prover sends the two halves'
+evaluations at that many sample points, 2 * beep_samples field elements, which are added to
+the round's bytes. The folding error is then 2/|F| whatever the list size (the paper's Theorem
+5.3). The fold is allowed one bit less than the security level, so the field needs lambda_bits
+bits or more: a 128-bit field gives the fold 127 bits. `list_bits` must be given: the list is
+bounded by the samples' error and by the batching error L/|F|, not by the fold.
+
 Changes in the original since the first port: the list size is automatic and the agreement
 check counts the codeword's length in field elements (`w - 8 + rate_bits`) rather than in
 bits; zero knowledge is a mask of the witness's size added in the first round, which doubles
@@ -114,7 +123,8 @@ def expected_multiproof_hashes(height, t):
 # which is added in the first round (as for the sumcheck intermediate steps, no explict commit of the random linear combination).
 def optimize(w, rate_bits, lambda_bits, grind_bits,
             zk='true',
-            optimize_for='compressed', list_bits=None, field_bits=256, first_bytes=None, first_trees=1):
+            optimize_for='compressed', list_bits=None, field_bits=256, first_bytes=None, first_trees=1,
+            beep_samples=None):
     global FIELD_BYTES
     FIELD_BYTES = (field_bits + 7) // 8
     first = FIELD_BYTES if first_bytes is None else first_bytes
@@ -123,12 +133,23 @@ def optimize(w, rate_bits, lambda_bits, grind_bits,
     if optimize_for not in ('compressed', 'uncompressed'):
         raise ValueError('optimize_for must be compressed or uncompressed')
 
-    # determine best possible list size for proximity testing
-    if list_bits is None:
-        list_bits = max_list_size(w-8+rate_bits, lambda_bits, field_bits)
-    # sanity check.
-    if CAT_bits(w - 8 + rate_bits,list_bits, field_bits) > -lambda_bits:
-        raise ValueError('CAT error too large for given list size')
+    if beep_samples is not None:
+        # BEEP with affine folding challenges: the folding error is 2/|F|, at any list size.
+        if list_bits is None:
+            raise ValueError('list_bits must be given with beep_samples')
+        # The fold's error 2/|F| is 2^(1 - field_bits). It is allowed to fall one bit short of
+        # the security level, so that a field of lambda_bits bits qualifies: at the 128-bit
+        # level a 128-bit field gives the fold 127 bits, which is taken as enough in practice.
+        # A fold at the full level would need a field of lambda_bits + 1 bits.
+        if field_bits < lambda_bits:
+            raise ValueError('field too small for the BEEP folding error')
+    else:
+        # determine best possible list size for proximity testing
+        if list_bits is None:
+            list_bits = max_list_size(w-8+rate_bits, lambda_bits, field_bits)
+        # sanity check.
+        if CAT_bits(w - 8 + rate_bits,list_bits, field_bits) > -lambda_bits:
+            raise ValueError('CAT error too large for given list size')
 
     t = queries(rate_bits, lambda_bits, 2**list_bits,grind_bits)
 
@@ -194,21 +215,24 @@ def optimize(w, rate_bits, lambda_bits, grind_bits,
             opened = b * t * trees
             uncompressed_auth = HASH_BYTES * t * h * trees
             compressed_auth = HASH_BYTES * expected_multiproof_hashes(h, t) * trees
+            # BEEP's samples: the two halves' evaluations before each of the round's ell folds
+            deep = ell * 2 * beep_samples * FIELD_BYTES if beep_samples else 0
 
             # recursive call
             child = solve(m - ell, zk='false', top=False)
 
             candidate = dict(
-                compressed=opened + compressed_auth + child['compressed'],
-                uncompressed=opened + uncompressed_auth + child['uncompressed'],
+                compressed=opened + compressed_auth + deep + child['compressed'],
+                uncompressed=opened + uncompressed_auth + deep + child['uncompressed'],
                 rounds=[dict(ell= ell,
                             zk= zk,
                             height=h,
                             opened_bytes=opened,
+                            deep_bytes=deep,
                             compressed_auth_bytes=compressed_auth,
                             uncompressed_auth_bytes=uncompressed_auth,
-                            compressed=opened + compressed_auth,
-                            uncompressed=opened + uncompressed_auth
+                            compressed=opened + compressed_auth + deep,
+                            uncompressed=opened + uncompressed_auth + deep
                             )] + child['rounds'],
                 terminal_elements=child['terminal_elements']
             )

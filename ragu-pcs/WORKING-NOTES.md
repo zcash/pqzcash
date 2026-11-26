@@ -4762,3 +4762,328 @@ is the application's own hashing, a few percent of a merge-dominated transaction
 application's hashing dominates (the leanSPHINCS verifiers) the two multiply. The last column
 keeps the page's default policy, BLAKE3 alone: there the XOR trick's merge saving stays in the
 chosen row, and the gap to the column before it is what Poseidon over F_q buys the merge.
+
+## 2026-11-25 08:27 UTC: PR #6 merged, PR #7 hard-wraps the prose; what is parked
+
+PR #6 (circuit-improvements, seven commits) was merged as 22eb745. PR #7 (`hard-wrap`, draft,
+06a0200) hard-wraps every note and chapter and the frontier template at 100 columns, with
+`scripts/wrap-prose.py` (`--write` refills, `--check` fails the build on a prose line it would
+have shortened; build-book.sh runs the check first). The filler keeps figure and claim markers,
+noteref spans, inline math, inline code and HTML tags whole, and glues comments and tags to the
+word before them so that none starts a line. Every rendered page was identical to the build
+before, ignoring whitespace (a scratch comparison stripped all whitespace and the search index's
+hash); a first version lost the bullets of lists that were already within the width, and a noteref
+span wrapped across lines escaped the model's link conversion, both fixed before the commit.
+
+Parked, to take up after #7 merges (rebased onto the wrapped text):
+
+- The accumulation prover paragraph of the frontier page (local branch `accumulation-paragraph`,
+  one WIP commit): the measure includes the merge's constraint PIOP; Kishu's range check is the
+  Booleanity sum-check on bits and three products more a tribit in the merge's PIOP; the stage
+  values are digits; and the measure is within a tenth of flat from rank 15 to 19, rising with the
+  application's circuit from there, with the accumulator doubling each rank from the rank where
+  one circuit holds the merge (claim kishu_accumulation_flat_then_doubles; the zk BLAKE3 limb
+  rows: 99.8M word multiplications at rank 15, 105M at 19, 129M at 20, 152M at 21, 245M at 22).
+- The zk note's comparison of the masking fold with "an ordinary user proof of two to four dozen
+  rank-13 steps over Pasta, 36.4 to 72.8 s" (figures zk_note_proof24_s/48_s from pasta_sis at rank
+  13) is stale as a description of a transaction: restate it against the page's Tachyon
+  transactions (two to sixteen tachyactions) and their Pedersen rows.
+- The mask width α: the measure's least is at the grid's top at every sampler rate; at the page's
+  sampler α = 48 is within 9.9% of it, 64 within 7.1%, 128 within 3.1%, 256 within 1.3%; nine
+  slices a coordinate stop at about 54 at the recovery's accumulator and ten reach 256. The user:
+  Karney's sampler does not matter, the nine-slice limit was for the old parameters, and whether
+  a fixed α is sufficient at all is to be revisited: a per-row width needs the slices' cost priced
+  (the aggregator's first fold over the slices, the response's bytes, the peak memory).
+- The queue as before: the online transaction measure beside the transaction prover; the Zoodles
+  statements page; a diff view between model versions on the page; a structural check or type
+  system for constraint programs; Tachyon's comparisons as tribits; the merge's transcript
+  words' digits; BitZ's per-bit pricing, which takes the every-other saving without paying the
+  extra products.
+
+STATE: `hard-wrap` pushed and open as PR #7; this notes entry is on the local branch
+`notes-2026-11-25` from it, unpushed; `accumulation-paragraph` local, one WIP commit on main.
+
+Addendum (11:52 UTC): PR #7 was merged as f6be1c2 with a second commit (31fa3be) that pins the
+frontier page's three cdnjs scripts (Plotly, KaTeX, and its auto-render) with the SHA-512
+integrity hashes cdnjs publishes and `crossorigin="anonymous"`, after a code-scanning warning. The
+accumulation prover paragraph is no longer parked: it is rebased onto the wrapped text, its claim
+holds and carries its hash, and the book builds with 823 links checking. It sits with this notes
+entry on the local branch `accumulation-paragraph`, two commits on the merged `hard-wrap` tip,
+unpushed and without a PR. The other parked items stand.
+
+## 2026-11-26 09:02 UTC: migrations, whole counts, BitZ on one true thread, BEEP rows, the frontier to a tolerance
+
+PR #7 merged as f6be1c2. PR #8 (branch `accumulation-paragraph`, draft) carries the accumulation
+prover paragraph and, since, five more commits, with the book built and 831 links checking:
+
+- **Whole counts** (dc169d1). `ceil_div` rounds up the compressions of a merge's whole transcript,
+  the range-checked words, Ligerito's queries, and a Kishu step's capacity on the fingerprint route
+  (a float capacity had made a packed tree's step count `1.0`). A share of a larger transcript stays
+  a quotient. With whole compressions the cost of one more circuit is lumpy, so `circuit_slope`
+  takes it over a block's worth of circuits between two powers of two and asserts it positive; the
+  fixed-point guards and the two per-claim figures use it. An audit of every division in the model
+  found no other count that should be whole.
+- **Migrations** (dd0cf7b). What a post-quantum system proves for the older pools is a migration:
+  1 or 4 recovery spends from Tachyon or from Ironwood and one Zoodles output, in Zoodles' tree
+  (`tachyon_zoodles{1,4}`, `ironwood_zoodles{1,4}`). The user: the page's Tachyon transactions are
+  there to compare with Ragu and are not what Kishu would prove. With Kishu and zero knowledge, one
+  core: 0.113 and 0.226 s for Tachyon, 0.221 and 0.513 s for Ironwood. The zk note's comparison
+  with "two to four dozen rank-13 steps" is replaced by these. Assumptions for the user to rule on:
+  Poseidon over Pallas off Pasta at four Pallas multiplications an S-box (three for the fifth
+  power, one to reduce the linear layer's output); four permutations a Tachyon recovery spend; one
+  epoch's nullifier derived and excluded, the other epochs' needing a lineage that is not priced.
+- **BitZ on one true thread** (5033944). The benchmark's `--threads 1` sizes only its main pool;
+  the library's Merkle trees (from 8 Mbytes), encoder (from 64 Mbytes), combine step and lincheck
+  fold hop onto a second pool of every core unless `RAYON_NUM_THREADS` is set. Every earlier
+  "one-thread" time had multi-core Merkle hashing in it, and probably the paper's Table 10 too. The
+  rows also took the opening alone, at the paper's machine's speed. They are now priced from this
+  machine's measurements, commitment and opening, 2^22 to 2^29 bits (`BITZ_MEASURED`, by
+  `scripts/bitz-st-sweep.sh`); a row outside the measured sizes is not priced (the user: no
+  extrapolation). BitZ's transaction figures about double (recovery 0.309 s, was 0.167).
+- **BEEP rows** (6ff01c3). The session with Ulrich Haböck, str4d, and Joseph Johnston asked why
+  BitZ's proofs are so large. The rows were in the unique-decoding regime, the only profile the
+  proof of concept certifies at 128 bits, where a query is worth under a bit and rates below 1/8
+  make the proof larger. Under the Johnson bound squaring the rate halves a level's queries
+  (Ulrich's rule, which the measurements follow exactly), but in a 128-bit field that profile
+  stops at 118.7 bits (level-0 binding), 86 to 97 (folding), and 95 to 100 (the outer round's
+  out-of-domain bound, which the code ground for 28 to 33 bits). BEEP (ePrint 2026/2930, Bloemen
+  and Garreta) meets them: m samples before each fold, a folding error of (δn+1)/|F|, or 2/|F|
+  with affine challenges (127 bits; the user: fine in practice, 120 and below would need
+  grinding). Rows derived from it: the Johnson profile measured at a 128-bit target under a
+  diagnostic switch (`scripts/patches/bitz/`), rates 1/2 to 1/64, plus five samples at each of
+  thirteen folds. At the 128-bit floor alone (the user: the 147-bit floor is a hedge against
+  lattice attacks), and ranked with the strongest assumption (the user: level 2). Smallest row
+  with ARC: 190 kbytes at rate 1/64, against 423 under unique decoding.
+- **The frontier to a tolerance** (7bc9bd8). Epsilon-dominance (Laumanns, Thiele, Deb, and
+  Zitzler, 2002), 2% by default with exact and 5% selectable (the user's choices). A grid of cells
+  was tried first and dropped: two configurations within the tolerance of each other both stayed
+  when a cell boundary fell between them, and the choice of a cell's representative needed a
+  metric that correlated measures could sway. The user's construction has neither problem: take
+  the configurations in increasing order of the product of their measures, and keep one unless a
+  kept one is no more than the tolerance worse on every measure and no worse on the requirements.
+  Exact ties stay across families and collapse within one. The default table goes from 62 rows to
+  31.
+
+Generosities found and fixed, as the user asked to be told: BitZ's commit left out; BitZ's times
+from a faster machine; multi-core hashing in one-thread times. Still open from before: BitZ's
+per-bit pricing takes the every-other-XOR saving without paying the extra products.
+
+Tooling gap: `scripts/wrap-prose.py` refills only single-line `<p>` and `<li>` elements of the
+template, so a paragraph that a fill lengthens stays long and unflagged (the user: occasional long
+lines are no worry; a scratch script rejoins them meanwhile).
+
+NEXT, in the user's order: BEEP for the other hash-based families (Flock through Ulrich's optimizer,
+whose error terms take the regime; WHIR and Plonky3 as derived adjustments to measured rows), at the
+128-bit floor and assumption level 2 as for BitZ; immediately after that, BitZ's PIOP pricing, which
+the user calls important: its rows are charged per committed bit, so they took the every-other-XOR
+saving without paying for the product terms it adds; then the frontier page, which the user finds
+far too long: it should keep what is needed to understand the plot, the table, and how things are
+measured, and say plainly that the table follows the controls beside the plot. Then the older queue:
+the mask width α, the online transaction measure, the Zoodles statements page, a model-diff view, a
+structural check for constraint programs, Tachyon's comparisons as tribits, the merge's transcript
+words' digits.
+
+Addendum: the binary-field family under BEEP (c9be6be). Its rows were already at the Johnson
+bound, so BEEP buys the field: FRI-Binius's own 128-bit one at the 128-bit floor, through a fourth
+extension of the optimizer (`beep_samples`), with a list of 2^8 and five samples a fold. Against
+the 192-bit design at that floor: 7 to 8 percent fewer bytes, 11 to 25 percent less merge prover.
+The user: the smaller field is a nice simplification.
+
+WHIR next, then Plonky3 by its factors over WHIR. WHIR's rows are at the proven Johnson bound
+over a 256-bit field or Goldilocks's cubic extension, so again the gain is the field: the
+quadratic extension at the 128-bit floor. The reference implementation at 128 bits over
+Goldilocks2 grinds without end, as BitZ's Johnson profile did: its proof of work is the
+security level less the least of its error terms, and its proximity-gap term is far below 128 in
+a 128-bit field (`src/protocols/whir/config.rs`). The diagnostic patch to write: take that term
+as BEEP's affine fold, the field's bits less one, in the three places it is computed; the
+sum-check and combination terms, the field less the list's and the count's logarithms, stay and
+cost about ten to sixteen bits of grinding. Then a sweep over Goldilocks2 at rates 1/2 to 1/64
+and 2^17 to 2^20, as `estimates/whir-sweep-grind.tsv` has for the other fields, plus BEEP's
+samples added in the model.
+
+Why no row goes beyond the Johnson bound, though BEEP needs only list decodability (the user's
+question): beyond that bound list decodability is a property of the particular code and field. Over
+binary fields there are counterexamples (ePrint 2026/2424). For Reed–Solomon codes in large
+characteristic, on any evaluation domain, Dao, Kominers, and Thaler (ePrint 2026/2056,
+keep/2026-2056.pdf) prove list-decoding and correlated-agreement bounds up to capacity, formally
+verified in ArkLib; from the abstract, the first step past Johnson has a list of O(n/η²) and an
+error of O(n²/(qη⁴)), and the reported savings in deployed systems are 4.6 to 11 percent. The page
+says this briefly. To expand, possibly as its own section, when the paper is read in detail: a row
+for the prime-field WHIR variants with a larger proximity parameter. Also found in the sweep of
+regime statements, for the user's ruling: the zero-knowledge overhead of the WHIR-type rows was
+measured under the capacity bound (Plonky3's HVZK-WHIR benchmark), so its mask spot checks are
+probably about half what the Johnson bound needs.
+
+To do after BitZ's product terms (the user, 2026-11-26): a security floor chosen independently for
+the lattice-based and the hash-based families; Pedersen-IPA's fixed, at about 126 bits strictly
+speaking, and documented as such; possibly finer control of the cost model for lattice attacks.
+
+Queued by the user on 2026-11-26, beyond the items above:
+
+- **A "paranoid" cost model for lattices**, selectable. The user: there has been much speculation
+  recently about AI making huge advances in attacks against structured public-key cryptography
+  problems, and all bases should be covered. The trust section already quotes a paranoid model's
+  bits beside the classical and quantum ones (`CORE_SVP_EXPONENTS`); the request is to offer it as
+  a cost model that the rows are sized under. It belongs with the independent security floors
+  for the lattice-based and hash-based families.
+- **Circuit optimization for the schemes other than Kishu**, thorough enough that the comparison
+  is fair to them, and a page, perhaps "Optimizations for other schemes", saying which
+  optimizations each is assumed to have. Kishu's own are on the Kishu's Arithmetization page.
+- **The hash-based families section in BLAKE3 figures**, matching the default, with the Hashes
+  section saying what allowing Poseidon changes. It is the other way round now.
+
+BitZ's accounting, applied in the commit after this entry's. The earlier note that BitZ "takes the
+every-other-XOR saving without paying the extra products" had the direction wrong. In BitZ's own
+arithmetization bit logic is linear: XOR over GF(2) costs nothing and is not committed, and AND is
+the integer identity 2z = x + y − (x XOR y) with one committed bit (the paper's Lemma 2.5). The
+paper's hybrid SNARK proves hashing over the binary field and arithmetic over the integers, and its
+Table 14 measures it end to end at 1.2 to 1.5 times the PCS prover alone (mean 1.36), where the
+model charges 2.6 times on the application's bits and nothing on the merge's. So BitZ is overcharged
+on two counts: its hashes at Kishu's digit counts (BLAKE3 11,216 where a Boolean circuit has 7,168
+AND gates; Keccak-f 92,160 against 38,400), and its PIOP share. The change: BitZ's bit logic is
+counted in AND gates, as the Boolean families' is; a Pasta multiplication stays 510 bits; and a PIOP
+share of 0.36 is charged on every committed bit, the merge's included, which had paid none. The net
+effect is small and upward, since a BitZ transaction is mostly merge: the recovery circuit 0.317 s
+(0.309), four tachyactions 0.705 s (0.571), the rank-13 merge prover 6.3e8 (4.6e8). Several figures
+labelled as Kishu's digits had been reading BitZ's counts, which stopped being Kishu's when tribits
+came in; they now read Kishu's own (a Zoodles preimage transaction 249,000 digits, not 259,000).
+Considered and set aside: leaving a round of Keccak's chi uncommitted in BitZ. Committing the 320
+column parities of a round's AND bits bounds the next round's constraints at 100 parity terms each
+(4 when the round is committed, 4,624 and 270,400 with two and three hidden ANDs an input), but the
+integer witness, which BitZ's grand-product GKR runs over, grows 13 to 38 times for 20 to 40 percent
+fewer committed bits. Nothing of it transfers to Kishu, whose constraints are over F_q, where a
+parity is not free.
+
+STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
+03aa05a, unpushed; PR #8's description predates them.
+
+## 2026-11-26 13:14 UTC: state at the end of the session
+
+PR #8 (branch `accumulation-paragraph`, draft) now carries everything since PR #7: the
+accumulation prover paragraph, whole counts, the migrations, BitZ re-measured, the rows derived
+from BEEP for BitZ, the binary-field family, and WHIR with the limb hybrid and Plonky3, the
+frontier's tolerance, the regime statements, Kishu's digit figures from Kishu's own counts, and
+BitZ's corrected accounting. The user asked for all of it in the one PR.
+
+STATE: the branch was pushed, then rebased onto main at the merge of PR #7 after a fetch, and the
+notes' cited hashes corrected again; so the local branch is ahead of the pushed one by a rewrite
+and needs a force-push with lease. The book builds at the tip and 851 links check. NOT YET DONE,
+asked by the user: check that each of the branch's commits builds on its own (export each with
+`git archive` and run `scripts/build-book.sh` in it). Then update PR #8's description, which
+still describes the first two commits only.
+
+Things learnt this session that the next should not relearn:
+
+- Read formulas from the rendered page of a PDF, not from extracted text: "2^8" came out as "28"
+  and "2^9 rows" as "29 rows". Two of the copies under `work/` named as PDFs are saved
+  browser-challenge pages; the real ones are under `keep/`.
+- A benchmark's "one thread" needs checking in its source. BitZ's library hops onto a second
+  thread pool from 8 Mbytes of data.
+- The notes cite commits by hash, and every rewrite of the branch stales them. Correct them once,
+  just before a push, with `work/fix-note-hashes.py`, in the order of the notes commits, each
+  citing only commits before it.
+- "Priced" is ambiguous where a bound or a regime is meant: name the quantity (query counts, a
+  proximity parameter).
+- `scripts/wrap-prose.py` does not refill a multi-line `<p>` of the template;
+  `work/rejoin-long-p.py` rejoins the ones a fill has lengthened. The user is not worried by an
+  occasional long line.
+
+QUEUE, in the user's order:
+
+1. Independent security floors for the lattice-based and the hash-based families, with
+   Pedersen-IPA fixed at about 126 bits and documented, and a selectable "paranoid" cost model for
+   lattices.
+2. Circuit optimization for the schemes other than Kishu, thorough enough to be fair to them, and
+   a page on the optimizations each is assumed to have.
+3. The frontier page's prose: far shorter, keeping what explains the plot, the table, and the
+   measures; saying plainly that the table follows the controls and lists only frontier rows; the
+   hash-based families section in BLAKE3 figures, with the Hashes section on what Poseidon
+   changes.
+4. Dao, Kominers, and Thaler's bounds beyond the Johnson bound, read in detail, for the
+   prime-field WHIR rows; possibly its own section.
+5. For the user's ruling: the zero-knowledge overhead of the WHIR-type rows was measured under the
+   capacity bound; the three assumptions in the Tachyon recovery spend.
+6. The older queue: the mask width α, the online transaction measure, the Zoodles statements
+   page, a model-diff view, a structural check for constraint programs, Tachyon's comparisons as
+   tribits, the merge's transcript words' digits.
+
+## 2026-11-26 15:36 UTC: BLAKE AND counts from Flock's circuit, guards for the binary-field and BitZ sections
+
+Each of the branch's commits was exported and built on its own: all pass. The optimizer's BEEP
+condition is written `field_bits < lambda_bits`, with a comment on the one-bit allowance: the
+affine fold's error 2/|F| gives a field of λ bits λ − 1 bits, which the user accepts at 128.
+
+**The BLAKE AND counts were low, and Flock's block was half its size** (4911d9c). The user asked
+whether BitZ's claim line was right. It was, except that it borrowed Kishu's entry in
+`CLAIM_BYTES`, but the count it multiplies by was not. The model took four additions a G function.
+G has four addition statements, two of them of three words, so six additions of two words. Flock's
+own BLAKE3 circuit (`r1cs_hashes/blake3.rs` in its prover crate, vendored by the BitZ proof of
+concept) says so: 7 × 8 × 6 additions of 31 carries, 10,416 AND gates, in a block of 2^14 bits of
+which 15,409 are used (the carries, the b and d words of each G committed to keep the matrices
+sparse, the inputs and outputs). The 2^13 of 2026-11-21 was an inference: the paper gives the
+block for Keccak and not for BLAKE3, and the "(2^13)" in its Table 3 is the batch size of the
+best throughput. Effects: the binary-field family's and BitZ's merges are twice the bits; at rank
+13 and rate 1/8 their proofs are 12 and 10 percent larger and their merge provers 79 and 75 percent
+dearer; a BitZ recovery transaction 59 percent. BitZ's recursion row at the default floor now has
+a merge beyond the measured 2^29 bits and so no row (the user: not deployable anyway; compare at
+128 bits, which the page now does). Kishu's digit counts already had the three-word additions
+(`blake2or3_bits`), except BLAKE2s, by one percent.
+
+Optimizations considered for the count, none applied: a carry-save first stage for the three-word
+additions saves one AND a word (about one percent); a Merkle node's constant chaining value saves
+about one percent in the first round; dropping the committed b and d words leaves 11,825 bits,
+still a block of 2^14, at denser matrices; five compressions in a block of 2^16 would then be 0.8
+of a block each, unmeasured. FOR THE USER'S RULING: an application's BLAKE3 compression in a
+Boolean circuit is counted at its 10,416 AND gates, 0.64 of the block that Flock's measured rate
+is per bit of; Flock's own layout would be 15,409.
+
+**Guards** (the same commit; the user: check for unguarded statements about the binary-field
+family and BitZ). Three guarded statements failed and are reworded with figures. The numbers the
+two sections stated bare are now figures or claims. Left bare, because the model does not hold
+the data: the unique-decoding proof-size minimum at rate 1/8 and the 1.6 times of a multi-core
+commitment (both from diagnostic runs), the Johnson profile's three bounds (118.7, 86 to 97, 95
+to 100 bits), and the optimizer's check against the reference WHIR implementation. NOT YET SWEPT:
+the two families' zero-knowledge subsections, the ARC-against-recursion subsection apart from
+BitZ's paragraph, the transaction sections, and the notes outside the frontier page.
+
+**The model-diff view, as the user specified it** (for later): any two commit ids can be given,
+and the plot is drawn with an arrow joining the two positions of each point that is plotted for
+both commits. A toggle selects "before" or "after", and the points of the one not selected are
+dimmed.
+
+STATE: branch accumulation-paragraph, rewritten since the last push (the optimizer comment folded
+into the binary-field BEEP commit) and three commits longer; it needs a force-push with lease.
+PR #8's description does not mention the corrected counts.
+
+## 2026-11-26 16:55 UTC: BLAKE2 and BLAKE3 told apart, data outputs, the transcript as a keyed chain
+
+Four commits after the previous entry's, at the user's prompting on names (the original BLAKE's G
+function differs, so shared names say `BLAKE2OR3_`):
+
+- **BLAKE2's eight chaining words.** BLAKE3's finalisation XORs two state words, an expression in
+  a degree-two constraint, so a chained compression commits four output words. BLAKE2's XORs the
+  old chaining word in too, a chain of two XORs, so all eight are committed, at two terms a bit.
+  The model had used BLAKE3's four for both: BLAKE2b's digits in Kishu +0.7%, BLAKE2s's +0.8%.
+- **A BLAKE3 output that is data commits all eight words**: a Merkle node's and a hash call's are
+  message words of the next compression, addends in seven rounds, and a transcript's last is a
+  challenge. `BLAKE3_BITS` (11,344) is that count and `BLAKE3_CHAINED_BITS` (11,216) the chained
+  one; the constraints are the same. Digit counts of compressions and of applications under a
+  million digits are given exactly (the user: do not round digit counts).
+- **BLAKE3 as specified, and the transcript as a keyed chain.** BLAKE3 has chunks of 1,024 bytes
+  and a binary tree of parents, one a chunk: 6.25% more compressions than the blocks, and more
+  through the fixed point, since a dearer merge needs more circuits (Akita's rank-14 circuits went
+  from 1,740 to 4,948 with the parents counted). The user's design removes it: a Merkle–Damgård
+  chain at the application level, each link a keyed BLAKE3 call on one block with the previous
+  output as its key, so one compression a block. An intermediate design, chunk-sized segments
+  each opened by the previous hash, kept 3.2%. Hashes of data (the Zoodles transaction digest, a
+  bucket's entries) are one BLAKE3 call with its parents. Not modelled, for the design: nothing
+  marks the chain's last call, so a transcript's format or a final marker must tell a
+  block-aligned prefix apart; and the key is public, which should be checked against BLAKE3's
+  security analysis.
+
+Left as approximations: a Zoodles node's several compressions are all counted as data outputs
+(128 digits too many for each chained one); a Merkle parent's constant chaining value would save
+about four carry bits a node.
+
+STATE: branch accumulation-paragraph, five commits past the pushed e9b19c5 with this entry's, all
+local. PR #8's description does not mention them.

@@ -27,6 +27,14 @@ Writes pareto.html next to this script: a self-contained page with the data inli
 import csv, functools, hashlib, itertools, json, math, pathlib, re, statistics, subprocess, sys
 import frib_optimizer as frib
 
+
+def ceil_div(a, b):
+    """a / b rounded up to a whole number, for counts of whole things: the compressions that
+    hash a transcript, the words of a byte string, the queries at a floor. A share of a larger
+    whole, such as one claim's bytes within a merge's transcript, stays a plain quotient."""
+    return int(-(-a // b))
+
+
 HERE = pathlib.Path(__file__).resolve().parent
 # The page's default security floor, in quantum bits under the ADPS16 core-SVP model (the
 # user, 2026-11-23); FLOORS below lists both. Pedersen-IPA and the binary-groups row exist at
@@ -279,7 +287,7 @@ def mask_coordinate_bits(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LO
 
 def mask_length(alpha=MASK_ALPHA, c_l1=MASK_CHALLENGE_L1, log_n=MASK_LOG_N, digit_max=4):
     """Base-8 slices per masked coordinate."""
-    return math.ceil(mask_coordinate_bits(alpha, c_l1, log_n, digit_max) / 3)
+    return ceil_div(mask_coordinate_bits(alpha, c_l1, log_n, digit_max), 3)
 
 
 def mask_sumcheck_atoms(slices):
@@ -470,6 +478,56 @@ SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 eleme
 HASH_POLICIES = ("blake3", "poseidon")
 BLAKE3_GATES = 14900
 BLAKE3_BLOCK = 64
+# BLAKE3 as specified: a message is split into chunks of BLAKE3_CHUNK bytes, each a chain of
+# compressions over its blocks, and the chunks' outputs are joined by a binary tree of parent
+# compressions, one fewer than the chunks. The tree is binary, a parent compressing two
+# outputs in one block, so the parents are one per chunk, a sixteenth more compressions than
+# the blocks.
+BLAKE3_CHUNK = 1024
+
+
+def blake3_split(bytes_, whole=True):
+    """The compressions of BLAKE3 over `bytes_`, as (chained, data). A chained one passes its
+    output to the next block of its chunk as a chaining value. The last of each chunk and
+    every parent give an output that is data: a message word of a parent, or the hash. For a
+    whole message the counts are whole. For a share of a larger message (`whole` false) they
+    are the share's quotients: a block every BLAKE3_BLOCK bytes, and a chunk's last block and
+    a parent every BLAKE3_CHUNK."""
+    if whole:
+        blocks = max(1, ceil_div(bytes_, BLAKE3_BLOCK))
+        chunks = max(1, ceil_div(bytes_, BLAKE3_CHUNK))
+        return blocks - chunks, 2 * chunks - 1
+    chunks = bytes_ / BLAKE3_CHUNK
+    return bytes_ / BLAKE3_BLOCK - chunks, 2 * chunks
+
+
+def blake3_compressions(bytes_, whole=True):
+    """All of BLAKE3's compressions over `bytes_`, the parents included."""
+    return sum(blake3_split(bytes_, whole))
+
+
+# A transcript avoids the parents by a Merkle–Damgård chain at the application level, each
+# link a keyed BLAKE3 call on one block: the key is the previous call's output and the message
+# is the next BLAKE3_BLOCK bytes of transcript. Every call is BLAKE3 as specified, in its
+# keyed mode, on a single block, so it is one compression, and the transcript takes exactly
+# one compression a block. The key is the compression's chaining value, so each output but
+# the last is consumed as one.
+
+
+def transcript_split(bytes_, whole=True):
+    """The BLAKE3 compressions of a transcript of `bytes_` in that chain, as (chained, data):
+    one a block, the last one's output being data. A share of a larger transcript (`whole`
+    false) is its quotient of blocks, all chained."""
+    if not whole:
+        return bytes_ / BLAKE3_BLOCK, 0
+    return max(1, ceil_div(bytes_, BLAKE3_BLOCK)) - 1, 1
+
+
+def transcript_compressions(bytes_, whole=True):
+    """All the compressions of a transcript of `bytes_`."""
+    return sum(transcript_split(bytes_, whole))
+
+
 HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon"}
 
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
@@ -496,6 +554,7 @@ CLAIM_BYTES = {
     "pasta_sis": 32,
     "pasta": 32,
     "kishu": 16,
+    "bitz": 16,  # an element of BitZ's 128-bit binary field
 }
 CLAIM_GATES = 4
 
@@ -569,7 +628,20 @@ def akita_absorbed_bytes(variant, K, circuits, zk):
 def akita_hash_gates(variant, K, circuits, zk, hp):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return akita_absorbed_bytes(variant, K, circuits, zk) / BLAKE3_BLOCK * BLAKE3_GATES
+    return transcript_compressions(akita_absorbed_bytes(variant, K, circuits, zk)) * BLAKE3_GATES
+
+
+def circuit_slope(cost):
+    """What one more circuit adds to a merge whose cost is `cost(circuits)`: the slope over
+    BLAKE3_BLOCK circuits from 2 * BLAKE3_BLOCK + 1. Over that span the circuits' claims fill
+    whole hash blocks at any claim width, and the count stays between two powers of two, so
+    the slope holds neither a compression that one claim happened to start nor a round added
+    to the merge's sum-check. A difference of two neighbouring counts could hold either, or
+    come out zero."""
+    lo = 2 * BLAKE3_BLOCK + 1
+    slope = (cost(lo + BLAKE3_BLOCK) - cost(lo)) / BLAKE3_BLOCK
+    assert slope > 0
+    return slope
 
 
 def akita_merge_gates(variant, K, circuits, zk, hp):
@@ -586,9 +658,7 @@ def akita_circuits(variant, K, rank, zk, hp):
     circuit count through each circuit's claim, divided by the budget, at its fixed point;
     None where each circuit adds more gates than the budget holds, so that no count
     converges."""
-    per_circuit = akita_merge_gates(variant, K, 2, zk, hp) - akita_merge_gates(
-        variant, K, 1, zk, hp
-    )
+    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp))
     if per_circuit >= gate_budget(rank):
         return None
     circuits = 1
@@ -685,15 +755,22 @@ def pedersen_verify(rank, nat, nes):
 # Counted in AND gates with XOR free, which is the garbled-circuit cost model and the cost of
 # the Flock-style families' witnesses: a full adder is one AND, since the carry is
 # b ⊕ ((a ⊕ b) ∧ (b ⊕ c)), so an m-bit addition or subtraction is about m.
-# A BLAKE3 compression is its seven rounds of eight G functions with four 32-bit additions, as
-# BLAKE2B_ANDS counts BLAKE2b's. Flock lays a batch out as one block of 2^m0 committed bits per
-# instance (its §4.1), and a compression's 6,944 carries and 896 input bits fit the block of
-# 2^13, so BLAKE3_ANDS_PADDED is a compression's share of a Flock witness. It prices what is
-# Flock's witness or hypercube: the per-bit rate measured on Flock's BLAKE3 batches, the base
-# matrix's sum-check rounds, and the hashes of the Flock-style merges. An application's count
-# is the unpadded AND gates, the step doing the padding.
-BLAKE3_ANDS = 7 * 8 * 4 * 32
-BLAKE3_ANDS_PADDED = 2**13
+# A BLAKE3 compression is its seven rounds of eight G functions. A G function has four
+# addition statements, two of them of three words (a + b + m), so six additions of two 32-bit
+# words, each of 31 carries, the carry out of the top bit being discarded: 10,416 AND gates,
+# as Flock's own BLAKE3 circuit counts them (r1cs_hashes/blake3.rs in its prover crate, as
+# vendored by the BitZ proof of concept). BLAKE2B_ANDS and BLAKE2S_ANDS count the same G
+# function at their rounds and word sizes. Flock lays a batch out as one block of 2^m0
+# committed bits per instance (its §4.1). Its BLAKE3 block is 2^14 (K_LOG there), of which
+# 15,409 bits are used: the carries, two of a G function's words committed to keep the
+# matrices sparse, and the inputs and outputs. So BLAKE3_ANDS_PADDED is a compression's share
+# of a Flock witness. It is used where the count is Flock's witness or hypercube: the per-bit
+# rate measured on Flock's BLAKE3 batches, the base matrix's sum-check rounds, and the hashes
+# of the Flock-style merges. An application's count is the unpadded AND gates, the step doing
+# the padding.
+BLAKE2OR3_G_ADDITIONS = 6
+BLAKE3_ANDS = 7 * 8 * BLAKE2OR3_G_ADDITIONS * 31
+BLAKE3_ANDS_PADDED = 2**14
 
 
 @functools.lru_cache(maxsize=None)
@@ -790,7 +867,7 @@ RANGE_PRODUCTS = {1: 1, 2: 2, 3: 4}  # products a digit of the range check, by t
 
 def word_digits(bits):
     """Digits of a `bits`-bit word: tribits and one narrower digit for the remainder."""
-    return math.ceil(bits / WORD_DIGIT_BITS)
+    return ceil_div(bits, WORD_DIGIT_BITS)
 
 
 def word_range_products(bits):
@@ -806,36 +883,48 @@ def word_range_piop(bits):
 
 BITS_PER_VALUE = 255  # a Pasta value's bits
 VALUE_DIGITS = word_digits(BITS_PER_VALUE)  # a Pasta value in Kishu's digits
-BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
+BLAKE2B_ANDS = (
+    12 * 8 * BLAKE2OR3_G_ADDITIONS * 63
+)  # twelve rounds of eight G functions on 64-bit words
 # A compression's committed digits in a degree-two arithmetization over bits (BitZ's and
 # Kishu's): per G function the four adders' sums and carries, and two of the four XOR words.
 # Every word of G is used once as a factor, in an XOR, and once linearly, in an adder. A word
 # needs committing only to be a factor, and an uncommitted XOR word enters its adder as the
 # exact expressions x + y - 2xy of its bits. So of each chain of two XORs only the second's
 # word is committed, certified against both XORs' inputs at once (XOR_RELATION_PIOP); a third
-# XOR in the chain would need degree three. The finalisation's XORs are expressions too: a
-# compression in a chain commits only the four output words that are the next compression's b
-# inputs, its factors in the first round. Rotations are wiring.
-BLAKE_G_COMMITTED_XORS = 2
-BLAKE_CHAIN_WORDS = 4
+# XOR in the chain would need degree three. Rotations are wiring. The G function is the same
+# in BLAKE2 and BLAKE3; the finalisation is not. BLAKE3's XORs two state words into each output
+# word, which is an expression too. Where the output is the next compression's chaining value,
+# within one message, only the four words that are that compression's b inputs are committed,
+# its factors in the first round; the other four enter its first additions as expressions.
+# Where the output is data for its consumer, all eight words are committed, at one term a
+# bit: a Merkle node's output and a hash call's are message words of the next compression,
+# addends in seven rounds of it, and a transcript's last output is a challenge. BLAKE2's
+# finalisation XORs the old chaining word in as well, a chain of two XORs, so all eight
+# output words are committed in either place, each certified against its three inputs as a
+# G function's second XOR word is.
+BLAKE2OR3_G_COMMITTED_XORS = 2
+BLAKE2OR3_OUTPUT_WORDS = 8
+BLAKE3_CHAIN_WORDS = 4
+BLAKE2_CHAIN_WORDS = BLAKE2OR3_OUTPUT_WORDS
 
 
-def blake_bits(rounds, word_bits, add2, add3):
-    """A BLAKE compression's committed digits: per G function two additions of two words at
-    `add2` digits (the sum and a carry bit), two of three words at `add3` (the carry up to
-    two, two bits), and the committed XOR words; then the chaining words."""
+def blake2or3_bits(rounds, word_bits, add2, add3, chain_words):
+    """A BLAKE2 or BLAKE3 compression's committed digits: per G function two additions of two
+    words at `add2` digits (the sum and a carry bit), two of three words at `add3` (the carry
+    up to two, two bits), and the committed XOR words; then the committed chaining words."""
     g = rounds * 8
     return (
-        g * (2 * add2 + 2 * add3 + BLAKE_G_COMMITTED_XORS * word_bits)
-        + BLAKE_CHAIN_WORDS * word_bits
+        g * (2 * add2 + 2 * add3 + BLAKE2OR3_G_COMMITTED_XORS * word_bits) + chain_words * word_bits
     )
 
 
-BLAKE2B_BITS = blake_bits(12, 64, 65, 66)
-BLAKE3_BITS = blake_bits(7, 32, 33, 34)
+BLAKE2B_BITS = blake2or3_bits(12, 64, 65, 66, BLAKE2_CHAIN_WORDS)
+BLAKE3_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE2OR3_OUTPUT_WORDS)  # its output is data
+BLAKE3_CHAINED_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE3_CHAIN_WORDS)  # or a chaining value
 # As BLAKE2B_BITS, each 64-bit addition in two halves with a carry each, since a 64-bit sum
 # can wrap modulo q.
-BLAKE2B_BITS_KISHU = blake_bits(12, 64, 66, 68)
+BLAKE2B_BITS_KISHU = blake2or3_bits(12, 64, 66, 68, BLAKE2_CHAIN_WORDS)
 # Constraint counts for Kishu's PIOP, a sum-check over a constraint system on the committed
 # table (Zinc+'s UCS, R1CS or CCS alike), beside the digit counts, as (product terms, nonzeros
 # of small constants, nonzeros of field constants). A product term costs the prover the
@@ -901,24 +990,35 @@ def piop_range_word_mults(piop):
     return sum(piop[3:]) * CONSTRAINT_TERM_WORD_MULTS
 
 
-def blake_piop(rounds, word_bits):
-    """A BLAKE compression's constraint counts in Kishu's PIOP: per G function two plain
-    additions, two additions taking an uncommitted XOR word, and two committed XOR words
-    certified by XOR_RELATION_PIOP; then the chaining words, four committed by XOR_BIT_PIOP and
-    four entering the next compression's first additions as expressions."""
+def blake2or3_piop(rounds, word_bits, output):
+    """A BLAKE2 or BLAKE3 compression's constraint counts in Kishu's PIOP: per G function two
+    plain additions, two additions taking an uncommitted XOR word, and two committed XOR words
+    certified by XOR_RELATION_PIOP; then the output words, by `output`. A BLAKE3 chaining
+    value ("blake3-chained") is four words committed by XOR_BIT_PIOP and four entering the
+    next compression's first additions as expressions; a BLAKE3 output that is data
+    ("blake3") is eight committed by XOR_BIT_PIOP; BLAKE2's ("blake2") are eight committed
+    and certified by XOR_RELATION_PIOP."""
     add, add_xor = (ADD32_PIOP, ADD32_XOR_PIOP) if word_bits == 32 else (ADD64_PIOP, ADD64_XOR_PIOP)
     g = rounds * 8
+    chain = {
+        "blake3-chained": (
+            (BLAKE3_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
+            (BLAKE2OR3_OUTPUT_WORDS - BLAKE3_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+        ),
+        "blake3": ((BLAKE2OR3_OUTPUT_WORDS * word_bits, XOR_BIT_PIOP),),
+        "blake2": ((BLAKE2_CHAIN_WORDS * word_bits, XOR_RELATION_PIOP),),
+    }[output]
     return piop_sum(
         (2 * g, add),
         (2 * g, add_xor),
-        (BLAKE_G_COMMITTED_XORS * g * word_bits, XOR_RELATION_PIOP),
-        (BLAKE_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
-        (BLAKE_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+        (BLAKE2OR3_G_COMMITTED_XORS * g * word_bits, XOR_RELATION_PIOP),
+        *chain,
     )
 
 
-BLAKE3_PIOP = blake_piop(7, 32)
-BLAKE2B_PIOP = blake_piop(12, 64)
+BLAKE3_PIOP = blake2or3_piop(7, 32, "blake3")
+BLAKE3_CHAINED_PIOP = blake2or3_piop(7, 32, "blake3-chained")
+BLAKE2B_PIOP = blake2or3_piop(12, 64, "blake2")
 # A Sinsemilla chunk selects one of 1,024 generators by ten bits. Each coordinate of the
 # selected point is a fixed linear form in the subset products of the bits, one coefficient per
 # subset. Only a product that is a factor of another needs committing: the subsets within each
@@ -1010,6 +1110,14 @@ def bits_unit(field):
     return "bits" if field == "bitz" or field.startswith("bits_pasta") else field
 
 
+def logic_unit(field):
+    """The unit that counts `field`'s hashing and bit logic. Kishu's is its committed digits.
+    BitZ's is the AND gates of a Boolean circuit: its hybrid SNARK proves bit logic over the
+    binary field, where XOR is linear and free and each AND gate is one committed bit, and
+    keeps the integers for arithmetic (the BitZ paper's Section 2.4.1 and Table 14)."""
+    return "boolean" if field == "bitz" else bits_unit(field)
+
+
 RECOVERY_MULTS = 14_500
 RECOVERY_CURVE_PASTA = (
     16_100  # the multiplications as native gates, with the selectors and identity cases
@@ -1047,7 +1155,7 @@ def recovery_cost(field, hp):
     """The reference circuit in the unit of `field`'s arithmetization, its Merkle path under
     policy `hp` where the field has a Poseidon; the bit arithmetizations hash it with BLAKE3
     under either."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if field == "pasta":
         mult = RECOVERY_CURVE_PASTA / RECOVERY_MULTS
     elif field == "boolean":
@@ -1067,7 +1175,7 @@ def path_cost(field, hp):
     """One Merkle path check, 32 levels and the leaf, in the unit of `field`'s
     arithmetization: hashed under policy `hp` where the field has a Poseidon, by BLAKE3 in
     the bit arithmetizations under either."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON:
         return RECOVERY_PATH_POSEIDON[field]
     return RECOVERY_PATH_BLAKE3[unit]
@@ -1100,9 +1208,9 @@ def path_cost(field, hp):
 # BLAKE3's G function. In a Boolean circuit with XOR free Keccak-f is chi's 38,400 ANDs and
 # BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
-BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + BLAKE_G_COMMITTED_XORS * 32) + BLAKE_CHAIN_WORDS * 32
-BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32
-BLAKE2S_PIOP = blake_piop(BLAKE2S_ROUNDS, 32)
+BLAKE2S_BITS = blake2or3_bits(BLAKE2S_ROUNDS, 32, 33, 34, BLAKE2_CHAIN_WORDS)
+BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE2OR3_G_ADDITIONS * 31
+BLAKE2S_PIOP = blake2or3_piop(BLAKE2S_ROUNDS, 32, "blake2")
 KECCAK_ROUNDS = 24
 # Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
 KECCAK_ROUND_LANES = 2 * 5 + 25 + 25
@@ -1237,9 +1345,9 @@ def hash_app_cost(field, hash_, calls, input_bytes=0):
     arithmetization: the inputs are tribits in Kishu, since a hash consumes its message words
     as addends, committed bits in BitZ, Boolean-checked wires in a field, and free wires in a
     Boolean circuit."""
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     kind = unit if unit in ("boolean", "bits") else "gates"
-    if kind == "boolean":
+    if field == "boolean":
         inputs = 0
     elif field in KISHU_ARITHS:
         inputs = word_digits(8 * input_bytes)
@@ -1265,6 +1373,7 @@ STAGE_VALUE_COEFFICIENTS["kishu"] = (
     E_MULT_DIGITS  # a stage value, a claim-field element, as tribits
 )
 Q64_POSEIDON_RATE_BYTES = 8 * 8  # width 12, rate 8, 8-byte words
+assert BLAKE3_BLOCK % Q64_POSEIDON_RATE_BYTES == 0  # circuit_slope spans whole blocks of either
 Q64_POSEIDON_MULTS = 138 * 2  # 8 full and 42 partial rounds of x^3 (calc_round_numbers.py)
 # A 64-bit value is a canonical F_q element only below q = 2^64 - 59, so a prover-supplied
 # word whose bytes BLAKE3 hashes is first checked to be below q: the difference q - 1 - w is
@@ -1286,19 +1395,31 @@ RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
 E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
 
 
-def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS):
+def absorb_calls(bytes_, block, whole):
+    """The hash calls that absorb `bytes_` at `block` bytes a call: whole calls for a whole
+    transcript, the plain quotient for a share of a larger one."""
+    return ceil_div(bytes_, block) if whole else bytes_ / block
+
+
+def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS, whole=False):
     """Digits to absorb `bytes_` of transcript under policy `hp`, with `checked_words`
     prover-supplied words range-checked before BLAKE3 hashes them, at `range_check` digits
-    each: Kishu's by default, RANGE_CHECK_BITS for BitZ."""
+    each: Kishu's by default, RANGE_CHECK_BITS for BitZ. `whole` says the bytes are a
+    transcript of their own and not a share of the merge's."""
     if hp == "poseidon":
-        return bytes_ / Q64_POSEIDON_RATE_BYTES * Q64_POSEIDON_MULTS * Q64_DIGITS
-    return bytes_ / BLAKE3_BLOCK * BLAKE3_BITS + checked_words * range_check
+        calls = absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole)
+        return calls * Q64_POSEIDON_MULTS * Q64_DIGITS
+    chained, data = transcript_split(bytes_, whole)
+    return chained * BLAKE3_CHAINED_BITS + data * BLAKE3_BITS + checked_words * range_check
 
 
-def absorb_piop(bytes_, hp, checked_words=0):
+def absorb_piop(bytes_, hp, checked_words=0, whole=False):
     if hp == "poseidon":
-        return piop_sum((bytes_ / Q64_POSEIDON_RATE_BYTES, POSEIDON_Q64_PIOP))
-    return piop_sum((bytes_ / BLAKE3_BLOCK, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP))
+        return piop_sum((absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole), POSEIDON_Q64_PIOP))
+    chained, data = transcript_split(bytes_, whole)
+    return piop_sum(
+        (chained, BLAKE3_CHAINED_PIOP), (data, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
+    )
 
 
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
@@ -1393,7 +1514,7 @@ def tachyon_node_cost(field, hp, node, bits_as_mults=False):
     multiplications, and its other gates as bit operations, or as multiplications too under
     `bits_as_mults`."""
     gates, perms, windows, openings = TACHYON_STEPS[node]
-    unit = bits_unit(field)
+    unit = logic_unit(field)
     if field == "pasta":
         mult = 1
     elif field == "boolean":
@@ -1512,15 +1633,15 @@ ZOODLES_TACHYGRAM_BITS = 256
 ZOODLES_SIGHASH_BYTES = (
     (2 * ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
-    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+    + ceil_div(ZOODLES_EPOCH_BITS, 8)
 )
-ZOODLES_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_SIGHASH_BYTES / BLAKE3_BLOCK)
+ZOODLES_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_SIGHASH_BYTES)
 ZOODLES_MERKLE_SIGHASH_BYTES = (
     (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
-    + math.ceil(ZOODLES_EPOCH_BITS / 8)
+    + ceil_div(ZOODLES_EPOCH_BITS, 8)
 )
-ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_MERKLE_SIGHASH_BYTES / BLAKE3_BLOCK)
+ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_MERKLE_SIGHASH_BYTES)
 # The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
 ZOODLES_AUTHS = ("preimage", *(f"leansphincs_{h}" for h in LEANSPHINCS_VERIFY))
 
@@ -1574,18 +1695,17 @@ def zoodles_opening_cost(field, hp):
     the field has a Poseidon and by BLAKE3 otherwise, and CLAIM_GATES multiplications folding
     it."""
     fold = CLAIM_GATES * claim_mult_cost(field)
-    if bits_unit(field) == "bits":
-        kishu = field in KISHU_ARITHS
-        hp = hp if kishu else "blake3"
+    if field == "bitz":
+        return transcript_compressions(CLAIM_BYTES["bitz"], False) * BLAKE3_ANDS + fold
+    if field in KISHU_ARITHS:
         bytes_ = CLAIM_BYTES["kishu"]
         checked = bytes_ // 8 if hp == "blake3" else 0
-        range_check = RANGE_CHECK_DIGITS if kishu else RANGE_CHECK_BITS
-        return absorb_digits(bytes_, hp, checked, range_check) + fold
+        return absorb_digits(bytes_, hp, checked) + fold
     if field == "boolean":
-        return CLAIM_BYTES["fp128"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+        return transcript_compressions(CLAIM_BYTES["fp128"], False) * BLAKE3_ANDS + fold
     if hp == "poseidon":
         return RECOVERY_PATH_POSEIDON[field] / 33 + fold
-    return CLAIM_BYTES[field] / BLAKE3_BLOCK * BLAKE3_GATES + fold
+    return transcript_compressions(CLAIM_BYTES[field], False) * BLAKE3_GATES + fold
 
 
 def zoodles_node_cost(field, hp, node, auth):
@@ -1739,9 +1859,9 @@ def bucket_capacity(log_m, B, lam):
 
 def bucket_proof_hashes(B, K, tag_bits=None):
     """The exclusion proof's hashes: the path and the bucket's K entries, full suffixes or
-    `tag_bits`-bit tags, at 512 bits a compression."""
+    `tag_bits`-bit tags, hashed by BLAKE3."""
     bits = K * (tag_bits if tag_bits else ZOODLES_TACHYGRAM_BITS - B)
-    return B + math.ceil(bits / (8 * BLAKE3_BLOCK))
+    return B + blake3_compressions(ceil_div(bits, 8))
 
 
 def bucket_tag_bits(log_m, B, lam):
@@ -1765,6 +1885,117 @@ def zoodles_epoch_piop():
         (2, range_check_piop(ZOODLES_TACHYGRAM_BITS)),
         (1, range_check_piop(ZOODLES_EPOCH_BITS)),
     )
+
+
+# ---- Migration: recovery spends from an older pool with a Zoodles output ---------------------
+# What a post-quantum proof system proves for the older pools is a migration: recovery spends
+# of Tachyon or Ironwood notes and one Zoodles output, in Zoodles' proof tree with a recovery
+# node in place of each spend's two steps. The transactions offered spend MIGRATION_INPUTS
+# notes of one pool.
+#   - An Ironwood input is the Ironwood recovery circuit (recovery_cost), ZIP 2005's Recovery
+#     Statement.
+#   - A Tachyon input is the recovery spend of the Recovery from Tachyon page, with the payment
+#     key changed as that page suggests. It proves:
+#       - H^qk(qsk) = qk, one BLAKE3 compression, and qk's reduction modulo p, a 256-bit range
+#         check;
+#       - four Poseidon permutations over Pallas (TACHYON_RECOVERY_PERMUTATIONS), by Tachyon's
+#         key and nullifier definitions: the payment key, the note's master key, the note
+#         commitment, and the nullifier group's sponge;
+#       - the commitment's path in a hash-based tree over Tachyon's published commitments,
+#         MIGRATION_TREE_LEVELS levels and a leaf under the page's policy;
+#       - the nullifier's exclusion from a sorted tree over Tachyon's published nullifiers, of
+#         the same depth and policy, with its two 256-bit comparisons as the lineage step has
+#         them; and
+#       - the amount's and the epoch's range checks.
+#     One nullifier is derived and excluded here. A note's nullifiers for the other epochs it
+#     has lived through are a lineage in the background, as Zoodles' own is, and are not
+#     counted.
+# Poseidon over Pallas is native over Pasta, POSEIDON_RAGU_GATES a permutation. In any other
+# unit a permutation's POSEIDON_PALLAS_SBOXES S-boxes of degree five are three Pallas
+# multiplications each, and one more reduces each S-box's input, a linear combination of
+# earlier reduced values with constants of the field's size, whose relation is linear in the
+# witness but needs its own quotient and result.
+# Each recovery node joins the action tree as a spend's action step does, with that step's
+# roots and openings. The output, the merges, and the fee step are Zoodles' own.
+MIGRATION_INPUTS = (1, 4)
+MIGRATION_POOLS = ("tachyon", "ironwood")
+MIGRATION_TREE_LEVELS = 32
+POSEIDON_PALLAS_SBOXES = POSEIDON_RAGU_GATES // 2
+POSEIDON_PALLAS_MULTS = 4 * POSEIDON_PALLAS_SBOXES
+TACHYON_RECOVERY_PERMUTATIONS = 4
+TACHYON_RECOVERY_RANGES = 3 * (256,) + (ZOODLES_AMOUNT_BITS, ZOODLES_EPOCH_BITS)
+MIGRATION_RECOVERY_NODES = {"tachyon": "TachyonRecovery", "ironwood": "IronwoodRecovery"}
+
+
+def migration_nodes(pool, inputs):
+    """Zoodles' tree for `inputs` recovery spends from `pool` and one output: a recovery node
+    for each input, the output's two steps, a merge per action after the first, and the fee
+    step."""
+    return (
+        [MIGRATION_RECOVERY_NODES[pool]] * inputs
+        + ["OutputBind", "OutputAction"]
+        + ["ActionMerge"] * inputs
+        + ["FeeFuse"]
+    )
+
+
+def pallas_mult_cost(field):
+    """One Pallas base-field multiplication in the unit of `field`'s arithmetization."""
+    if field == "pasta":
+        return 1
+    if field == "boolean":
+        return (1 + BOOL_REDUCTION) * mult_ands(255)
+    return RECOVERY_MULT[field]
+
+
+def poseidon_pallas_cost(field):
+    """One Poseidon permutation over Pallas, which a recovery spend must open as Tachyon
+    computed it, whatever the page's hash policy."""
+    if field == "pasta":
+        return POSEIDON_RAGU_GATES
+    return POSEIDON_PALLAS_MULTS * pallas_mult_cost(field)
+
+
+def tachyon_recovery_cost(field, hp):
+    """One Tachyon recovery spend in the unit of `field`'s arithmetization."""
+    return (
+        hash_app_cost(field, "blake3", 1)
+        + TACHYON_RECOVERY_PERMUTATIONS * poseidon_pallas_cost(field)
+        + 2 * tree_path_cost(field, hp, MIGRATION_TREE_LEVELS)
+        + sum(range_digits(field, bits) for bits in TACHYON_RECOVERY_RANGES)
+    )
+
+
+def migration_node_cost(field, hp, node):
+    _, roots, openings, _ = ZOODLES_NODES["SpendAction"]
+    join = roots * zoodles_root_cost(field) + openings * zoodles_opening_cost(field, hp)
+    if node == "TachyonRecovery":
+        return tachyon_recovery_cost(field, hp) + join
+    if node == "IronwoodRecovery":
+        return recovery_cost(field, hp) + join
+    return zoodles_node_cost(field, hp, node, "preimage")
+
+
+def migration_node_piop(route, node):
+    if node not in MIGRATION_RECOVERY_NODES.values():
+        return zoodles_node_piop(node, "preimage")
+    _, roots, openings, _ = ZOODLES_NODES["SpendAction"]
+    claim_bytes = CLAIM_BYTES["kishu"]
+    join = (
+        (3 * roots + CLAIM_GATES * openings, E_MULT_PIOP),
+        (openings, absorb_piop(claim_bytes, "blake3", claim_bytes // 8)),
+    )
+    if node == "IronwoodRecovery":
+        return piop_sum((1, recovery_piop(route)), *join)
+    return piop_sum(
+        (1 + 2 * (MIGRATION_TREE_LEVELS + 1), BLAKE3_PIOP),
+        (TACHYON_RECOVERY_PERMUTATIONS * POSEIDON_PALLAS_MULTS, MULT_ROUTES[route][1]),
+        *((1, range_check_piop(bits)) for bits in TACHYON_RECOVERY_RANGES),
+        *join,
+    )
+
+
+MIGRATIONS = {f"{pool}_zoodles{n}": (pool, n) for pool in MIGRATION_POOLS for n in MIGRATION_INPUTS}
 
 
 ARITHS = ("pasta", "goldilocks", "fp128", "boolean", "bitz", *KISHU_ARITHS)
@@ -1818,6 +2049,17 @@ APPLICATIONS = {  # the page's transaction applications, in each arithmetization
         }
         for n, (s, o) in TACHYON_TRANSACTIONS.items()
     },
+    # A migration is Zoodles' tree with a recovery node for each input.
+    **{
+        app: {
+            a: {
+                hp: [round(migration_node_cost(a, hp, node)) for node in migration_nodes(pool, n)]
+                for hp in HASH_POLICIES
+            }
+            for a in ARITHS
+        }
+        for app, (pool, n) in MIGRATIONS.items()
+    },
 }
 # The work of Kishu's constraint PIOP per application, by multiplication route, which the
 # transaction measure adds to its rows (DATA.piop); the other families' PIOPs are inside their
@@ -1864,6 +2106,18 @@ PIOP_WORK = {
         }
         for n, (s, o) in TACHYON_TRANSACTIONS.items()
     },
+    **{
+        app: {
+            a: round(
+                sum(
+                    piop_word_mults(migration_node_piop(kishu_route(a), node))
+                    for node in migration_nodes(pool, n)
+                )
+            )
+            for a in KISHU_ARITHS
+        }
+        for app, (pool, n) in MIGRATIONS.items()
+    },
 }
 
 # Whether an application has Pasta multiplications, which is when Kishu's fingerprint route
@@ -1875,6 +2129,7 @@ APPLICATION_MULTS = (
     | {f"zoodles_merkle_{auth}": False for auth in ZOODLES_AUTHS}
     | {"zoodles_epoch": False}
     | {f"tachyon{n}": True for n in TACHYON_TRANSACTIONS}
+    | {app: True for app in MIGRATIONS}
 )
 # The proof trees whose last node, Ragu's rerandomization, is a step of its own when the tree
 # is re-packed into steps (DATA.own_last_steps), and how many such nodes end the list: two for
@@ -2158,7 +2413,7 @@ def handoff_merge_gates(variant, K, circuits, hp):
     if hp == "poseidon":
         hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
     else:
-        hashing = (K * 128 + circuits * CLAIM_BYTES[variant]) / BLAKE3_BLOCK * BLAKE3_GATES
+        hashing = transcript_compressions(K * 128 + circuits * CLAIM_BYTES[variant]) * BLAKE3_GATES
     return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
 
 
@@ -2262,8 +2517,7 @@ for variant, hp in itertools.product(
 
 # WHIR (ePrint 2024/1586), hash-based, over a 255-bit field such as Pasta's, which is FFT
 # friendly. Measured with the reference implementation (WizardOfMenlo/whir at afec1fa; the
-# rows are in estimates/whir-sweep.tsv): 128-bit security in the proven Johnson regime, since
-# the capacity conjectures were refuted over large fields in 2025 (ePrint 2026/1367 §5.4);
+# rows are in estimates/whir-sweep.tsv): 128-bit security in the proven Johnson regime;
 # 20 bits of grinding; folding factor 4. Per rate: proof bytes at 2^17, the growth per
 # doubling of the witness, the verifier's hashes at 2^17, and the queries over all rounds,
 # which is also the growth in hashes per doubling, one more Merkle level per query.
@@ -2271,15 +2525,32 @@ for variant, hp in itertools.product(
 # 3): both fields, rates 1/2 to 1/64, and a maximum proof-of-work of 0, 16, 20 or 24 bits in
 # the query phase, at 2^17 and 2^18. The rate-1/8, 20-bit rows reproduce the earlier sweep
 # (122.7 and 128.0 KiB over the 256-bit field). Over Goldilocks the claims are in its cubic
-# extension, which 128-bit security needs (the quadratic extension cannot reach it).
+# extension, which 128-bit security needs under the correlated-agreement bound, where the
+# quadratic extension is left at about 87 bits. Under BEEP the quadratic one serves (the next
+# table).
+# On the regime: the conjectures up to capacity were refuted over large fields in late 2025
+# (Crites and Stewart, ePrint 2025/2046; ePrint 2026/1367 §5.4). Between the Johnson bound and
+# capacity the question is open: proximity gaps beyond Johnson have been proved for
+# Reed-Solomon codes in large characteristic and for adequate parameters (Dao, Kominers and
+# Thaler, ePrint 2026/2056), and refuted over binary fields (ePrint 2026/2424). Every
+# row's query counts are for a proximity parameter within the Johnson bound, the rows derived
+# from BEEP included: BEEP needs only list decodability, which every code has up to that bound.
 RATES = ("1/2", "1/4", "1/8", "1/16", "1/32", "1/64")
 GRIND_DEFAULT = 16  # the default of the functions below; the page picks per row
 WHIR_MEAS = {}
-with (HERE / "estimates" / "whir-sweep-grind.tsv").open() as f:
-    header = f.readline().rstrip("\n").split("\t")
-    for line in f:
-        row = dict(zip(header, line.rstrip("\n").split("\t")))
-        key = ("pasta" if row["field"] == "Field256" else "gold", int(row["pow_max"]), row["rate"])
+# estimates/whir-sweep-beep.tsv is the same grid over Goldilocks's quadratic extension, by
+# scripts/whir-sweep-beep.sh, under the diagnostic switch of scripts/patches/whir/, which takes
+# the fold's error as BEEP's with affine folding challenges, 2/|F| (ePrint 2026/2930, Theorem
+# 5.3). The reference implementation's own proximity-gap term is about 87 bits in that field,
+# and it would grind for the rest. Its other terms stay and cost 7 to 21 bits of proof of
+# work. The query counts are those of the cubic extension.
+WHIR_FIELDS = {"Field256": "pasta", "Goldilocks3": "gold", "Goldilocks2": "gold2"}
+for table in ("whir-sweep-grind.tsv", "whir-sweep-beep.tsv"):
+    rows = (HERE / "estimates" / table).read_text().rstrip("\n").split("\n")
+    header = rows[0].split("\t")
+    for line in rows[1:]:
+        row = dict(zip(header, line.split("\t")))
+        key = (WHIR_FIELDS[row["field"]], int(row["pow_max"]), row["rate"])
         WHIR_MEAS.setdefault(key, {})[int(row["log2_size"])] = dict(
             bytes=float(row["proof_KiB"]) * 1024,
             hashes=float(row["verifier_khashes"]) * 1000,
@@ -2331,6 +2602,8 @@ def whir_meas(sizes, grind, rate):
 # paper's measured ratio at matched field, rate and 128-bit security (306 against 157 KiB at
 # 2^24, rate 1/2), which follows from FRI's queries scaling as lambda log d against WHIR's
 # lambda log log d. Its deployed parameters target about 100 bits under conjectures.
+BEEP_SAMPLES = 5  # DEEP samples a fold without an MCA bound (BEEP's Table 1: 4 to 5)
+BEEP_FLOOR = 128  # the floor of the rows derived from BEEP
 HASH_VARIANTS = {
     "whir": dict(
         sizes="pasta",
@@ -2375,6 +2648,30 @@ HASH_VARIANTS = {
 }
 
 
+# The Goldilocks variants under BEEP: the same variants with the claims in the quadratic
+# extension, which BEEP's folding error allows at the 128-bit floor, where the
+# correlated-agreement bound needs the cubic one. They are rows of the same families, derived
+# (no implementation of BEEP exists), at that floor alone, and ranked with the strongest
+# assumption, as BitZ's are.
+for name in ("whir_gold", "whir_hybrid", "plonky3"):
+    HASH_VARIANTS[name + "_beep"] = dict(
+        HASH_VARIANTS[name], sizes="gold2", family=name, profile="beep", floors=(BEEP_FLOOR,)
+    )
+
+
+def variant_family(variant):
+    return HASH_VARIANTS[variant].get("family", variant)
+
+
+def variant_floors(variant):
+    return HASH_VARIANTS[variant].get("floors", FLOORS)
+
+
+def variant_label(variant):
+    beep = HASH_VARIANTS[variant].get("profile") == "beep"
+    return ", quadratic extension, Johnson bound with BEEP (derived)" if beep else ""
+
+
 def hv(variant, hp):
     """The variant's hash figures under the policy: its Poseidon (`gates` and `native` per
     permutation, `leaf_perms` permutations per first-round leaf), or BLAKE3 at one
@@ -2389,15 +2686,20 @@ def hv(variant, hp):
 
 
 def whir_bytes(variant, rate, log_elems, grind=GRIND_DEFAULT):
+    """The stand-alone proof's bytes at 2^log_elems elements. Under BEEP each fold, one a
+    variable, also sends the two halves' evaluations at BEEP_SAMPLES points."""
     v = HASH_VARIANTS[variant]
     b17, slope, _, _ = whir_meas(v["sizes"], grind, rate)
-    return (b17 + slope * (log_elems - 17)) * v["size_factor"]
+    deep = (
+        log_elems * 2 * BEEP_SAMPLES * ELEM_BYTES[v["sizes"]] if v.get("profile") == "beep" else 0
+    )
+    return (b17 + slope * (log_elems - 17) + deep) * v["size_factor"]
 
 
 # A hash commitment is not homomorphic, so Ragu's split accumulation does not apply. ARC
 # (ePrint 2024/1731) accumulates Reed-Solomon proximity claims instead: its verifier checks
 # t = 2 lambda / log2(1/rate) Merkle openings per input in the proven, Johnson-bound regime
-# (the factor 2 goes away only under the list-decoding conjectures refuted in 2025), each a
+# (the factor 2 is that bound's; see the note on the regime at WHIR's measurements), each a
 # path through the accumulator's tree over N/rate elements, plus a few field operations per
 # opening. A merge has two inputs. A Merkle node is one Poseidon permutation, 288 gates in the
 # circuit and about 35,000 word multiplications natively over a 255-bit field, with the
@@ -2514,7 +2816,7 @@ def whir_verify_hashes(variant, rate, log_elems, floor, grind=GRIND_DEFAULT):
     return (
         (hashes + queries * (log_elems - 17))
         * WHIR_HASHES_SCALE[floor]
-        * (2.07 if variant == "plonky3" else 1)
+        * (2.07 if variant_family(variant) == "plonky3" else 1)
     )
 
 
@@ -2525,7 +2827,8 @@ WHIR_FOLD = 16  # the reference implementation's folding factor: elements per fi
 ELEM_BYTES = {
     "pasta": 32,
     "gold": 24,
-}  # a committed element: the 255-bit field; Goldilocks's cubic extension
+    "gold2": 16,
+}  # a committed element: the 255-bit field; Goldilocks's cubic extension; its quadratic one
 
 
 def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT, hp="blake3"):
@@ -2548,7 +2851,7 @@ def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT, hp="blake3")
 
 for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
-        for floor in FLOORS:
+        for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
                     for rank in HASH_RANKS:
@@ -2561,7 +2864,8 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                         )
                         points.append(
                             dict(
-                                family=variant,
+                                family=variant_family(variant),
+                                profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
                                 rank=rank,
                                 E=None,
@@ -2614,6 +2918,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 ),
                                 folded=2,
                                 label=f"rank {rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits"
+                                + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
                                 + floor_label(floor),
@@ -2640,8 +2945,9 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # 𝔽₂, which 192 and 191 are not, so the second design packs into 𝔽₂^64 (kappa = 6) and needs
 # the ring-switching sum-check restated over L tensor 𝔽₂^64, and the third lays the witness
 # out as 191 columns that the PIOP batches and switches in one step of degree 191; both are
-# design changes that the paper does not write down. A 128-bit field cannot reach 128 bits
-# in any regime at these sizes. The first-round oracle has the same bytes under any packing,
+# design changes that the paper does not write down. Under the correlated-agreement bound a
+# 128-bit field cannot reach 128 bits at these sizes; under BEEP it can, which is the fourth
+# design (F2_DESIGNS). The first-round oracle has the same bytes under any packing,
 # so a query opens 32 bytes per 256 witness bits there and the challenge field's bytes per
 # element after it. The prover is counted in word multiplications, a 64-bit carry-less
 # multiplication as one: Flock's measured 82,100 BLAKE3 compressions per second on one core
@@ -2680,7 +2986,22 @@ F2_DESIGNS = {
     256: dict(pack=256, twiddle=4, label="256-bit field"),
     192: dict(pack=64, twiddle=1, label="64-bit packing, 192-bit field"),
     191: dict(pack=191, twiddle=7, label="191-bit field, direct packing"),
+    # FRI-Binius under BEEP with affine folding challenges (frib_optimizer's `beep_samples`):
+    # the folding error is 2/|F| at any list size, so the paper's own 128-bit field serves at
+    # the 128-bit floor, 127 bits, and the list can sit near the Johnson bound. No
+    # implementation exists, so the rows are derived, at that floor alone, and ranked with the
+    # strongest assumption, as BitZ's are. The list's batching error L/|F| is left to
+    # F2_BEEP_LIST_BITS bits of grinding. The samples' evaluations, a multiplication an
+    # element a sample, are under a percent of the prover and are not added.
+    128: dict(
+        pack=128,
+        twiddle=2,
+        label="128-bit field, Johnson bound with BEEP (derived)",
+        beep=5,
+        floors=(128,),
+    ),
 }
+F2_BEEP_LIST_BITS = 8
 F2_FIRST_BYTES = 32  # opened bytes per 256 witness bits in the first round, under any packing
 CLMULS = {
     64: 1,
@@ -2822,6 +3143,8 @@ def frib_at(w, rate_bits, floor, grind, chal, trees, zk):
         field_bits=chal,
         first_bytes=F2_FIRST_BYTES,
         first_trees=trees,
+        beep_samples=F2_DESIGNS[chal].get("beep"),
+        list_bits=F2_BEEP_LIST_BITS if F2_DESIGNS[chal].get("beep") else None,
     )
     rounds = out["rounds"]
     folds = [
@@ -2904,7 +3227,7 @@ def f2_verify(p, grind, chal, zk=None):
     its authentication and leaf hashes, the grinding check, the Zook-style masks' spot
     checks, and its field multiplications."""
     return (
-        f2_bytes(p, zk) / 64
+        ceil_div(f2_bytes(p, zk), 64)
         + p["auth"]
         + p["opened"] / 64
         + (2 if grind else 0)
@@ -2963,12 +3286,15 @@ for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
             for chal, design in F2_DESIGNS.items():
+                if floor not in design.get("floors", FLOORS):
+                    continue
                 hashes, ands = f2_merge(rate, floor, grind, chal)
                 for zk in ZK_LABEL:
                     p = frib_proof(ands, rate, floor, grind, chal, ARC_DECIDER_TREES, zk == "mask")
                     points.append(
                         dict(
                             family="flock",
+                            profile="beep" if design.get("beep") else None,
                             pq=True,
                             rank=None,
                             E=None,
@@ -3061,7 +3387,7 @@ def rec_per_coefficient(variant, rate, log_len, hp="blake3"):
 
 for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
-        for floor in FLOORS:
+        for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
                     for rank in HASH_RANKS:
@@ -3075,7 +3401,8 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                         native = hv(variant, hp)["native"]
                         points.append(
                             dict(
-                                family=variant + "_rec",
+                                family=variant_family(variant) + "_rec",
+                                profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
                                 rank=rank,
                                 E=None,
@@ -3117,49 +3444,25 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 ),
                                 folded=2,
                                 label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, False, grind)):,} hashes/input, {circuits} circuits"
+                                + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
                                 + floor_label(floor),
                             )
                         )
 
-# Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
-# Appendix C and §5) folds two variables per level, five levels at rates 1/2, 1/4, 1/8, 1/16,
-# 1/32 with 218, 106, 71, 53, 43 queries at 100 bits, the queries linear in the security level
-# (Remark 10). A query opens a column of four 𝔽₂^128 elements, one hash compression, through a
-# path of the level's depth. The nodes are priced as BLAKE3 compressions in blocks of 2^13
-# committed bits, as the 𝔽₂ family's rows price them.
+
+# Ligerito's verifier, for the recursion of BitZ: its levels, their rates and their query counts
+# are the proof of concept's resolved configurations (bitz_levels, BITZ_QUERIES), by profile. A
+# query opens a column of the level's interleaved elements through a path of the level's depth.
+# The nodes are priced as BLAKE3 compressions in blocks of 2^13 committed bits, as the 𝔽₂ family's
+# rows price them.
 # Flock's implementation hashes with SHA-256 (§2), 31,400 witness bits per compression in its
 # arithmetization (BitZ, Table 2) at 42,100 per second: 3.8 times the merge bits and half
 # the throughput, for every row of these families alike. BitZ reports that proving many
 # hashes with a binary-field SNARK beats its 7,144-bit CM arithmetization, so the hybrid
 # merge takes the former. Ligerito's levels have their own rates, so a row's rate applies to
 # its proof bytes and, in the ARC rows, to the accumulator's openings, not to the verifier.
-LIGERITO_LEVELS = [(2, 218), (4, 106), (8, 71), (16, 53), (32, 43)]
-HASH_BITS = BLAKE3_ANDS_PADDED
-HASH_PER_SECOND = BLAKE3_PER_SECOND
-
-
-def ligerito_hashes(log_bits, floor):
-    m = log_bits - 7  # 𝔽₂^128 elements
-    total = 0
-    for inv, queries in LIGERITO_LEVELS:
-        total += queries * floor / 100 * (m - 2 + math.log2(inv) + 1)
-        m -= 2
-    return total
-
-
-def ligerito_first_share(log_bits):
-    """The first level's share of Ligerito's opened columns and paths, a column as two
-    hashes; what the decider's extra first-round trees multiply in the BitZ ARC rows."""
-    m = log_bits - 7
-    parts = []
-    for inv, queries in LIGERITO_LEVELS:
-        parts.append(queries * (2 + m - 2 + math.log2(inv) + 1))
-        m -= 2
-    return parts[0] / sum(parts)
-
-
 # The 𝔽₂ family's recursive merge verifies the step's own FRI-Binius proof twice: its hashes
 # as BLAKE3 compressions and its field multiplications by Karatsuba or Toom-3, at the fixed point.
 def f2_rec_merge(rate, floor, grind, chal, zk=None):
@@ -3185,6 +3488,8 @@ for grind in GRINDS:
     for floor in FLOORS:
         for rate in RATES:
             for chal, design in F2_DESIGNS.items():
+                if floor not in design.get("floors", FLOORS):
+                    continue
                 for zk in ZK_LABEL:
                     # Under recursion only the user's last proof is masked (see the WHIR recursion
                     # rows): the rows equal the plain rows but for the fold.
@@ -3193,6 +3498,7 @@ for grind in GRINDS:
                     points.append(
                         dict(
                             family="flock_rec",
+                            profile="beep" if design.get("beep") else None,
                             pq=True,
                             rank=None,
                             E=None,
@@ -3238,74 +3544,213 @@ for grind in GRINDS:
 # 255-bit quotient, 510 committed bits. The merge is a hybrid circuit: the two Ligerito
 # verifications as SHA-256 over 𝔽₂, and the GKR and PIOP verifiers native over 𝔽₂^128 and the
 # projection field, their products committed as 128-bit elements (bitz_piop_verifier_mults in
-# bitz_point). The PCS costs are the
-# paper's Table 10 (rate 1/2, 100 bits, one thread of a MacBook Air M5) at the committed
-# bits, interpolated in their logarithm: prover, verifier, and the proof's non-Ligerito and
-# Ligerito parts. The paper's benchmark (albert-garreta/BitZ-PoC at 8ced3b98, one thread,
-# this machine on battery, work/bitz-out/) reproduces Table 10's bytes exactly at 2^25 to
-# 2^27 and gives the ratios used here. Its Johnson-regime profile cannot reach 128 bits (the
-# validator wants more out-of-domain samples), so 128 bits is the unique-decoding regime with
-# fold grinding, the paper's own choice above 100 bits: the Ligerito part of the proof is 1.8
-# times the 100-bit one, the non-Ligerito part 1.05, the verifier 1.17, the prover the same.
-# Rate 1/8 at 128 bits has 0.83 of the Ligerito bytes. (Confirmed on mains, one and ten
-# threads, 2^25 to 2^28, work/bitz-out/overnight/ and work/bitz-out/rerun/: this M4 Max is 1.3
-# times the paper's M5 on one thread and matches it on ten.)
-# Beyond 128 bits the Ligerito bytes and the verifier scale with the floor, as queries do. The
-# prover has two phases, priced separately (BITZ_PHASES, from the reruns' phase timings): the
-# grand-product GKR, which lifts the integer claims into the exponent of a generator of
-# F_2^128 and does not depend on the rate, is 79 to 85 percent of the prover at rate 1/2 from
-# 2^25 to 2^28 bits (Quang Dao: the prover with grand-product GKR is just really expensive);
-# the Ligerito phase, the rest, costs more at rate 1/8 by a factor that depends on the size,
-# nothing at 2^25 and 2.8 at 2^27, where its time jumps. A single factor on the whole prover
-# overstated the rate-1/8 rows at the sizes the frontier uses by about a fifth. The PIOP of
-# Zinc+ adds, per its Table 4, 1.6 times the PCS prover's time on the application's share,
-# 2 ms of verifier, and 36 KB of proof. The pairs are (prover ms, verifier ms, non-Ligerito
-# KB, Ligerito KB).
-BITZ_T10 = {
-    20: (7.31, 0.82, 17.3, 84.1),
-    21: (12.0, 1.08, 18.2, 92.8),
-    22: (17.1, 1.46, 19.2, 103),
-    23: (24.3, 1.51, 27.7, 120),
-    24: (47.3, 2.22, 28.7, 133),
-    25: (79.9, 2.42, 45.8, 144),
-    26: (151, 3.38, 46.6, 162),
-    27: (298, 5.72, 47.6, 176),
-    28: (537, 6.02, 81.2, 190),
-    29: (1094, 9.95, 82.0, 210),
-    30: (2121, 11.1, 148, 225),
-    31: (4271, 21.0, 150, 238),
+# bitz_point). The PCS's sizes and times are measured (BITZ_MEASURED below). The prover is the
+# commitment and the opening. The opening's grand-product GKR, which lifts the integer claims
+# into the exponent of a generator of F_2^128, does not depend on the rate (Quang Dao: the
+# prover with grand-product GKR is just really expensive). The commitment doubles with each
+# halving of the rate. Beyond the measured floor the Ligerito bytes and the verifier scale
+# with the floor, as queries do. The PIOP of Zinc+ adds, per its Table 4, 1.6 times the PCS
+# prover's time on the application's share, 2 ms of verifier, and 36 kbytes of proof.
+# The application and the merge are proved by the paper's hybrid SNARK, not by the PCS alone:
+# its PIOP over the integers for arithmetic and a binary-field PIOP for bit logic, over one
+# commitment to every witness bit. Its Table 14 measures that end to end, on witnesses split
+# evenly between SHA-256 and multiplications modulo 2^32, beside Table 10's PCS alone at the
+# same size, both at rate 1/2 and 100 bits on one thread of the paper's machine. Each entry is
+# (log2 witness bits): (Table 14's prover ms, Table 10's). The PIOP's share is the mean ratio
+# less one, on every committed bit, the merge's as well as the application's. The hybrid's
+# proof is 33 kbytes more than the PCS's at 2^23 bits and its verifier 1.5 ms more, which the
+# allowances below cover.
+BITZ_HYBRID_MS = {
+    23: (35.4, 24.3),
+    24: (57.1, 47.3),
+    25: (108, 79.9),
+    26: (199, 151),
+    27: (390, 298),
+    28: (794, 537),
+    29: (1509, 1094),
 }
+BITZ_PIOP = dict(
+    prover=round(statistics.mean(a / b for a, b in BITZ_HYBRID_MS.values()) - 1, 2),
+    verify_ms=2.0,
+    bytes=36000,
+)
+# The measurements behind BitZ's rows, by profile, rate exponent, and the logarithm of the
+# committed bits. Each entry is (commit ms, prove ms, the grand-product GKR's part of the prove
+# ms, verify ms, non-Ligerito bytes, Ligerito bytes). They are the proof of concept's
+# (albert-garreta/BitZ-PoC at 8ced3b98) on one thread of this machine, by
+# scripts/bitz-st-sweep.sh.
+#
+# One thread means RAYON_NUM_THREADS=1. The benchmark's own --threads 1 sizes only its main
+# pool, and the library keeps a second pool of every core. Four phases hop onto that pool:
+# the Merkle trees, from 8 Mbytes of data; the encoder's deep pass, from 64 Mbytes; the
+# opening's combine step; and the lincheck's fold. A commit measured without the variable is
+# about 1.6 times too fast at the sizes here, and more at the lower rates.
+#
+# "udr" is the unique-decoding regime with fold grinding at 128 bits, the proof of concept's
+# profile udrg:<r>:4:128. It is what the proof of concept certifies at that level.
+#
+# "beep" is its Johnson profile at a 128-bit target (custom:<r>:4:128), under the diagnostic
+# switch of scripts/patches/bitz/. The switch drops three checks that the profile cannot meet
+# in a 128-bit field:
+#   - the folding-phase target, a proximity-gap term of 86 to 97 bits here, which the code
+#     otherwise makes up by grinding the fold challenges;
+#   - the level-0 binding target, 118.7 bits at rate 1/2; and
+#   - the outer round's grinding against an out-of-domain collision bound of 95 to 100 bits.
+# BEEP (ePrint 2026/2930) is what would meet them. It takes several DEEP samples before each
+# fold, in place of mutual correlated agreement. With affine folding challenges its folding
+# error is 2/|F| (its Theorem 5.3), which is 127 bits. Its batching error is L/|F|, about 120
+# bits, which a few bits of grinding cover. No implementation of BEEP exists. So these rows
+# are the profile's measured sizes and times plus BEEP's samples (bitz_beep_overhead). They
+# are at the 128-bit floor alone, since the 147-bit floor would require excessive grinding,
+# and is mainly a hedge against attacks on lattices.
+#
+# A row whose committed bits fall outside the measured sizes is not priced.
+BITZ_MEASURED = {
+    "udr": {
+        1: {
+            22: (0.9, 37.3, 31.5, 2.94, 20981, 174292),
+            23: (1.9, 50.8, 42.7, 2.92, 29865, 204068),
+            24: (3.8, 74.9, 62.7, 3.25, 30921, 226796),
+            25: (8.1, 113.8, 97.4, 3.16, 47961, 255860),
+            26: (16.3, 188.0, 159.4, 4.49, 49173, 295228),
+            27: (32.9, 355.4, 296.5, 6.77, 50349, 324956),
+            28: (67.1, 647.6, 531.7, 7.11, 83853, 358436),
+            29: (137.2, 1226.1, 1041.6, 12.28, 85185, 406716),
+        },
+        3: {
+            22: (3.5, 48.4, 35.5, 2.37, 20981, 138516),
+            23: (7.4, 69.1, 41.1, 2.42, 29865, 169100),
+            24: (15.2, 89.9, 64.2, 2.98, 30921, 184596),
+            25: (31.7, 123.8, 96.2, 2.96, 47961, 208700),
+            26: (63.2, 215.5, 164.8, 4.25, 49173, 248460),
+            27: (129.5, 454.7, 299.4, 6.58, 50349, 270764),
+            28: (268.3, 772.1, 531.4, 6.96, 83853, 297100),
+            29: (560.1, 1672.1, 1054.1, 11.97, 85185, 344116),
+        },
+    },
+    "beep": {
+        1: {
+            22: (1.1, 42.8, 35.0, 2.51, 21118, 130708),
+            23: (2.0, 52.8, 41.5, 2.28, 29770, 153356),
+            24: (3.9, 84.3, 67.3, 2.60, 30914, 169260),
+            25: (8.2, 115.1, 95.5, 2.81, 48170, 185420),
+            26: (16.5, 195.2, 163.7, 3.77, 49150, 209092),
+            27: (32.9, 349.3, 294.5, 6.17, 50414, 226308),
+            28: (67.8, 621.1, 527.4, 6.71, 84134, 243300),
+        },
+        2: {
+            22: (1.8, 41.3, 33.0, 2.21, 21118, 85844),
+            23: (3.8, 48.0, 40.3, 2.08, 29770, 102444),
+            24: (7.6, 86.0, 69.1, 2.45, 30914, 113836),
+            25: (15.8, 121.8, 97.4, 2.56, 48170, 123276),
+            26: (32.3, 194.0, 160.2, 3.58, 49150, 141388),
+            27: (64.4, 358.5, 295.0, 5.83, 50414, 152876),
+            28: (135.0, 654.8, 532.1, 6.49, 84134, 164620),
+        },
+        3: {
+            22: (3.6, 46.2, 33.9, 2.15, 21118, 69788),
+            23: (7.5, 53.6, 41.3, 1.99, 29770, 85244),
+            24: (15.1, 87.2, 67.8, 2.47, 30914, 91740),
+            25: (31.3, 116.1, 92.7, 2.47, 48170, 99516),
+            26: (63.3, 202.7, 161.9, 3.64, 49150, 116524),
+            27: (129.3, 371.8, 295.5, 5.77, 50414, 124908),
+            28: (267.6, 668.4, 530.0, 6.53, 84134, 133356),
+        },
+        4: {
+            22: (7.2, 38.3, 30.9, 2.18, 21118, 61676),
+            23: (14.9, 54.3, 39.9, 1.93, 29770, 74844),
+            24: (30.1, 78.7, 62.5, 2.54, 30914, 81308),
+            25: (61.7, 130.0, 99.4, 2.51, 48170, 87164),
+            26: (126.3, 213.5, 162.5, 3.44, 49150, 102324),
+            27: (259.8, 395.2, 297.6, 5.78, 50414, 108340),
+            28: (542.5, 716.3, 528.8, 6.38, 84134, 116596),
+        },
+        5: {
+            22: (14.1, 48.6, 34.1, 2.15, 21118, 56260),
+            23: (29.4, 58.0, 41.9, 2.02, 29770, 69724),
+            24: (59.7, 90.5, 63.6, 2.24, 30914, 74556),
+            25: (123.4, 145.4, 100.9, 2.41, 48170, 80316),
+            26: (253.3, 233.9, 160.2, 3.47, 49150, 94684),
+            27: (529.3, 447.1, 298.2, 5.74, 50414, 100316),
+            28: (1095.7, 815.9, 533.9, 6.20, 84134, 107292),
+        },
+        6: {
+            22: (28.5, 52.2, 35.8, 1.98, 21118, 53220),
+            23: (58.2, 61.6, 39.4, 1.82, 29770, 65252),
+            24: (120.7, 103.8, 65.2, 2.19, 30914, 69412),
+            25: (247.5, 166.4, 100.4, 2.34, 48170, 75524),
+            26: (510.2, 294.0, 167.7, 3.44, 49150, 89684),
+            27: (1075.1, 540.7, 298.4, 5.65, 50414, 94708),
+            28: (2217.2, 1019.3, 541.3, 6.22, 84134, 100180),
+        },
+    },
+}
+BITZ_MEASURED_FLOOR = 128
+HASH_BITS = BLAKE3_ANDS_PADDED  # a hash in the merge's Boolean witness
+# Queries a level by its rate exponent, from the profiles' resolved configurations at 128
+# bits. Under unique decoding a query is worth under one bit. Under the Johnson bound it is
+# worth half of log2(1/rate) bits, and each level also grinds 16 bits on its queries.
+BITZ_QUERIES = {
+    "udr": {1: 309, 2: 190, 3: 156, 4: 143, 5: 136, 6: 132, 7: 130, 8: 129},
+    "beep": {1: 244, 2: 119, 3: 79, 4: 60, 5: 48, 6: 41, 7: 35, 8: 32, 9: 29, 10: 27},
+}
+BITZ_INITIAL_K = 4  # the first level folds 2^4 interleaved rows
+BITZ_RECURSIVE_K = 3  # each later level 2^3
+BITZ_FINAL_LOG = 5  # the final block's variables, at most
+BITZ_ELEMENT_BYTES = BITZ_FIELD_BITS // 8
+BITZ_PROFILE_LABEL = {"udr": "unique decoding", "beep": "Johnson bound with BEEP (derived)"}
 
-BITZ_RATE = {"1/2": 1.0, "1/8": 0.83}  # Ligerito bytes against rate 1/2, measured at 128 bits
-BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
-BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
-# The prover's phases on this machine, one thread (work/bitz-out/rerun/summary.txt): the
-# grand-product share of the prover at rate 1/2 and 100 bits (Table 10's setting), and the
-# factor on the Ligerito phase at rate 1/8, both by the committed bits' logarithm; the factor
-# is what the measured whole-prover ratio at rate 1/8 (1.00, 1.09, 1.28, 1.18) leaves to the
-# Ligerito phase once the grand product is held fixed.
-BITZ_PHASES = {25: (0.787, 1.0), 26: (0.792, 1.43), 27: (0.845, 2.8), 28: (0.853, 2.2)}
+
+def bitz_levels(profile, log_bits, r):
+    """Ligerito's levels for a witness of 2^log_bits bits packed in 128-bit elements, from a
+    first level at rate 2^-r: (log2 message columns, log2 interleaved rows, rate exponent), by
+    the proof of concept's two ladders. The unique-decoding one stops at a final block of
+    exactly BITZ_FINAL_LOG variables; the Johnson one folds BITZ_RECURSIVE_K at every level."""
+    run = math.ceil(log_bits) - 7 - BITZ_INITIAL_K
+    levels = [(run, BITZ_INITIAL_K, r)]
+    while run > BITZ_FINAL_LOG:
+        k = min(BITZ_RECURSIVE_K, run - BITZ_FINAL_LOG) if profile == "udr" else BITZ_RECURSIVE_K
+        r += 1
+        run -= k
+        levels.append((run, k, r))
+    return levels
 
 
-def _interp(table, x):
-    """Linear interpolation of a table keyed by a number, clamped to its range."""
-    keys = sorted(table)
-    x = min(max(x, keys[0]), keys[-1])
-    lo = max(k for k in keys if k <= x)
-    hi = min(k for k in keys if k >= x)
-    t = 0 if hi == lo else (x - lo) / (hi - lo)
+def bitz_level_hashes(profile, log_bits, r, floor):
+    """The verifier's hashes at each level: for each query, the opened column's elements at
+    BLAKE3's block and its path, unpruned; the queries scale with the floor."""
+    return [
+        ceil_div(BITZ_QUERIES[profile][e] * floor, BITZ_MEASURED_FLOOR)
+        * (2**k * BITZ_ELEMENT_BYTES / BLAKE3_BLOCK + cols + e)
+        for cols, k, e in bitz_levels(profile, log_bits, r)
+    ]
+
+
+def bitz_queries(profile, log_bits, r, floor):
+    return sum(
+        ceil_div(BITZ_QUERIES[profile][e] * floor, BITZ_MEASURED_FLOOR)
+        for _, _, e in bitz_levels(profile, log_bits, r)
+    )
+
+
+def bitz_beep_overhead(log_bits, r):
+    """What BEEP adds to the measured Johnson profile: (proof bytes, prover ms). Each fold, one
+    per halving, sends the two halves' evaluations at BEEP_SAMPLES points, and computing them
+    costs a multiplication an element a sample, over folds whose sizes halve."""
+    folds = sum(k for _, k, _ in bitz_levels("beep", log_bits, r))
+    mults = 2 * BEEP_SAMPLES * 2 ** (log_bits - 7)
+    return folds * 2 * BEEP_SAMPLES * BITZ_ELEMENT_BYTES, mults * GF128_MEASURED_NS / 1e6
+
+
+def bitz_measured(profile, r, log_bits):
+    """The profile's measurement at the rate, interpolated in the bits' logarithm between the
+    two measured sizes around it; None outside the measured sizes."""
+    table = BITZ_MEASURED[profile][r]
+    lo, hi = math.floor(log_bits), math.ceil(log_bits)
+    if lo not in table or hi not in table:
+        return None
+    t = log_bits - lo
     return [a + t * (b - a) for a, b in zip(table[lo], table[hi])]
-
-
-def bitz_t10(log_bits):
-    return _interp(BITZ_T10, log_bits)
-
-
-def bitz_prover_scale(rate, log_bits):
-    """The prover at the rate against Table 10's rate 1/2: the grand-product phase as it is,
-    the Ligerito phase at the rate's measured factor for the size."""
-    gkr_share, lig_factor = _interp(BITZ_PHASES, log_bits)
-    return gkr_share + (1 - gkr_share) * (lig_factor if rate == "1/8" else 1.0)
 
 
 # Zero knowledge for BitZ is derived, since its paper offers succinctness only: Ligero's random
@@ -3327,26 +3772,26 @@ BITZ_ZK_ELEM = (
 BITZ_ZK_SUMCHECKS = 3  # the zero-check, the lincheck and Zinc+'s PIOP, each over log N variables; the GKR adds a layer per variable
 
 
-def bitz_zk_queries(floor):
-    """Ligerito's opened columns over its levels, which scale with the floor."""
-    return sum(q for _, q in LIGERITO_LEVELS) * floor / 100
-
-
 def bitz_mask_elements(log_bits):
     n = math.ceil(log_bits)
     return ZOOK_MASK_COEFFS * (BITZ_ZK_SUMCHECKS * n + n * (n + 1) / 2)
 
 
-def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
+def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
     app_bits = (
         2**rank
     )  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
     inv = int(rate.split("/")[1])
+    r = inv.bit_length() - 1
+    beep = profile == "beep"
     bits = app_bits + 2**25
     hashes = 0
     for _ in range(40):
         if mode == "rec":
-            hashes = 2 * ligerito_hashes(math.log2(bits), floor)
+            log_now = math.log2(bits)
+            hashes = 2 * sum(bitz_level_hashes(profile, log_now, r, floor))
+            if beep:
+                hashes += 2 * bitz_beep_overhead(log_now, r)[0] / BLAKE3_BLOCK
         else:
             depth = math.log2(bits / 128 * inv) + 1
             hashes = 2 * arc_openings(rate, floor, grind or 0) * depth + (2 if grind else 0)
@@ -3356,25 +3801,24 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
             break
         bits = new
     log_bits = math.log2(bits)
-    prover_ms, verify_ms, nonlig, lig = bitz_t10(log_bits)
-    lig_scale = BITZ_RATE[rate]
-    prover_ms *= (
-        bitz_prover_scale(rate, log_bits)
-        * BITZ_128["prover"]
-        * (1 + BITZ_PIOP["prover"] * app_bits / bits)
-    )
+    measured = bitz_measured(profile, r, log_bits)
+    if measured is None:
+        return None  # the merge's bits are outside the measured sizes
+    commit_ms, prove_ms, _, verify_ms, nonlig, lig = measured
+    scale = floor / BITZ_MEASURED_FLOOR  # the Ligerito bytes and the verifier, as queries do
+    deep_bytes, deep_ms = bitz_beep_overhead(log_bits, r) if beep else (0, 0)
+    prover_ms = (commit_ms + prove_ms + deep_ms) * (1 + BITZ_PIOP["prover"])
     # the decider's extra first-round trees, on the Ligerito part and, as a bound, on the whole verifier
-    extra = (ARC_DECIDER_TREES - 1) * ligerito_first_share(log_bits) if mode == "arc" else 0
-    proof = (
-        nonlig * BITZ_128["nonlig"] + lig * lig_scale * BITZ_128["lig"] * floor / 128 * (1 + extra)
-    ) * 1000 + BITZ_PIOP["bytes"]
-    verify_ms = verify_ms * BITZ_128["verify"] * floor / 128 * (1 + extra)
+    level_hashes = bitz_level_hashes(profile, log_bits, r, floor)
+    extra = (ARC_DECIDER_TREES - 1) * level_hashes[0] / sum(level_hashes) if mode == "arc" else 0
+    proof = nonlig + (lig * scale + deep_bytes) * (1 + extra) + BITZ_PIOP["bytes"]
+    verify_ms = verify_ms * scale * (1 + extra)
     prover = prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)
     # The zero-knowledge rows: the random rows' symbols and the masks' values in the decider's
     # proof under ARC; the masks' share of the witness in the fold, once per transaction.
     zk_bytes_ = (
         (
-            bitz_zk_queries(floor) * BITZ_ZK_ELEM * (1 + extra)
+            bitz_queries(profile, log_bits, r, floor) * BITZ_ZK_ELEM * (1 + extra)
             + 3 * (BITZ_ZK_SUMCHECKS + 1) * BITZ_ZK_ELEM
         )
         if zk and mode == "arc"
@@ -3383,6 +3827,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
     fold = round(prover * bitz_mask_elements(log_bits) * 128 / bits) if zk else 0
     return dict(
         family="bitz_rec" if mode == "rec" else "bitz",
+        profile=profile,
         pq=True,
         rank=rank,
         E=None,
@@ -3407,7 +3852,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
         gates=round(hashes * HASH_BITS + verifier),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
         folded=2,
-        label=f"rank {rank}, rate {rate}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
+        label=f"rank {rank}, rate {rate}, {BITZ_PROFILE_LABEL[profile]}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
         + (", ZK, derived" if zk else "")
         + floor_label(floor),
     )
@@ -3415,11 +3860,15 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
 
 for mode in ("arc", "rec"):
     for grind in GRINDS if mode == "arc" else (None,):
-        for floor in FLOORS:
-            for rate in ("1/2", "1/8"):
-                for zk in (False, True):
-                    for rank in BITZ_RANKS:
-                        points.append(bitz_point(mode, rate, rank, floor, grind, zk))
+        shapes = [("udr", floor, rate) for floor in FLOORS for rate in ("1/2", "1/8")] + [
+            ("beep", BITZ_MEASURED_FLOOR, rate) for rate in RATES
+        ]
+        for profile, floor, rate in shapes:
+            for zk in (False, True):
+                for rank in BITZ_RANKS:
+                    point = bitz_point(mode, rate, rank, floor, grind, zk, profile)
+                    if point is not None:
+                        points.append(point)
 
 # Kishu, a bit-decomposed witness over Akita (an internal research draft of 2026-09-23 on
 # Booleanity checking via structured modular projections, provisional): the application's
@@ -3502,16 +3951,16 @@ def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=
         + bool_bytes
         + rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
     )
-    checked = 0 if hp == "poseidon" else (absorbed - K * 128) / 8
+    checked = 0 if hp == "poseidon" else ceil_div(absorbed - K * 128, 8)
     mults = SUMCHECK_GATES + CLAIM_GATES * circuits + bool_mults + rounds * PIOP_ROUND_MULTS
     digits = (
-        absorb_digits(absorbed, hp, checked)
+        absorb_digits(absorbed, hp, checked, whole=True)
         + 2 * K * FOLD_GATES_PER_IMAGE
         + mults * E_MULT_DIGITS
         + bool_bits
     )
     piop = piop_sum(
-        (1, absorb_piop(absorbed, hp, checked)),
+        (1, absorb_piop(absorbed, hp, checked, whole=True)),
         (2 * K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
         (mults, E_MULT_PIOP),
         (bool_bits, BIT_GATE_PIOP),
@@ -3528,7 +3977,7 @@ def kishu_step_overhead_digits(rank, hp):
     the 64-bit field, absorbed and verified in the merge above."""
     rounds = piop_rounds(2**rank)
     transcript = rounds * PIOP_ROUND_ELEMENTS * CLAIM_BYTES["kishu"]
-    checked = 0 if hp == "poseidon" else transcript / 8
+    checked = 0 if hp == "poseidon" else ceil_div(transcript, 8)
     return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * E_MULT_DIGITS
 
 
@@ -3538,7 +3987,7 @@ def fingerprint_step_extra_digits(rank, hp):
     step of hashes alone runs no instance and pays nothing, so the routes tie there."""
     rounds = piop_rounds(2**rank)
     transcripts = FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
-    checked = 0 if hp == "poseidon" else transcripts / 8
+    checked = 0 if hp == "poseidon" else ceil_div(transcripts, 8)
     return (
         fingerprint_step_digits(rank)
         + absorb_digits(transcripts, hp, checked)
@@ -3553,12 +4002,11 @@ STEP_HEADROOM = 1.0
 
 
 def merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """The merge's digits for one more circuit in the step, its claim and the claim's
-    absorption, measured where one more does not add a round to the merge's own sum-check
-    transcript (six circuits against five; two against one would)."""
-    return frontend_merge_digits(
-        K, 6, rank, hp, bool_mults, bool_bits, bool_bytes, zk
-    ) - frontend_merge_digits(K, 5, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+    """The merge's digits for one more circuit in the step: its claim and the claim's
+    absorption (circuit_slope)."""
+    return circuit_slope(
+        lambda c: frontend_merge_digits(K, c, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+    )
 
 
 def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
@@ -3591,11 +4039,15 @@ def handoff_merge_digits(K, circuits, hp):
     rows): its digits and its PIOP's word multiplications, for the mask's K images and claim
     evaluations absorbed, the images' reductions, and the claims' fold."""
     absorbed = K * 128 + circuits * CLAIM_BYTES["kishu"]
-    checked = 0 if hp == "poseidon" else circuits * CLAIM_BYTES["kishu"] / 8
+    checked = 0 if hp == "poseidon" else ceil_div(circuits * CLAIM_BYTES["kishu"], 8)
     mults = CLAIM_GATES * circuits
-    digits = absorb_digits(absorbed, hp, checked) + K * FOLD_GATES_PER_IMAGE + mults * E_MULT_DIGITS
+    digits = (
+        absorb_digits(absorbed, hp, checked, whole=True)
+        + K * FOLD_GATES_PER_IMAGE
+        + mults * E_MULT_DIGITS
+    )
     piop = piop_sum(
-        (1, absorb_piop(absorbed, hp, checked)),
+        (1, absorb_piop(absorbed, hp, checked, whole=True)),
         (K * FOLD_GATES_PER_IMAGE, BIT_GATE_PIOP),
         (mults, E_MULT_PIOP),
     )
@@ -3670,7 +4122,7 @@ def kishu_costs(
         step_prover=round(capacity * per_step_digit),
         unit_cost=per_step_digit,
         step_units=capacity,
-        step_units_mults=capacity - route_extra if capacity > route_extra else None,
+        step_units_mults=math.floor(capacity - route_extra) if capacity > route_extra else None,
         route_step=(
             round(route_extra * per_step_digit + fingerprint_step_range_mults(rank))
             if route == "fingerprint"
@@ -3811,8 +4263,7 @@ def bits_akita_merge_parts(K, circuits, field):
     the claims, and the two inputs' Flock PIOP verifiers at the merge's own size, as the 𝔽₂
     family's merge counts them, at a fixed point."""
     parts = dict(
-        hashing=akita_absorbed_bytes("fp128", K, circuits, False)
-        / BLAKE3_BLOCK
+        hashing=transcript_compressions(akita_absorbed_bytes("fp128", K, circuits, False))
         * BLAKE3_ANDS_PADDED,
         fold=2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2),
         sumcheck=SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field)),
@@ -3990,7 +4441,9 @@ CHANGE_LEVEL = {"none": 0, "code": 1, "design": 2}
 for p in points:
     p["pasta_arith"] = PASTA_ARITH[p["family"]] + (f", {p['route']}" if p.get("route") else "")
     p["pasta"] = p["pasta_arith"].split(",")[0] in PASTA_COUNTS
-    p["assumption"] = ASSUMPTION_LEVEL[p["family"]]
+    # A row derived from an analysis that no implementation certifies (BitZ under BEEP) is ranked
+    # with the strongest assumption, so that it removes no certified row from the frontier.
+    p["assumption"] = 2 if p.get("profile") == "beep" else ASSUMPTION_LEVEL[p["family"]]
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS); Kishu's rows set theirs in kishu_costs.
@@ -4006,36 +4459,60 @@ for p in points:
         p["step_units"] = gate_budget(p["rank"])  # gates of four coefficients
 
 
-def pareto(pts):
-    keep = []
-    for p in pts:
-        dominated = any(
-            q is not p
-            and q["bytes"] <= p["bytes"]
-            and q["prover"] <= p["prover"]
-            and q["accumulation"] <= p["accumulation"]
-            and q["pasta"] >= p["pasta"]
-            and q["assumption"] <= p["assumption"]
-            and CHANGE_LEVEL[q["change"]] <= CHANGE_LEVEL[p["change"]]
-            and (
-                q["bytes"],
-                q["prover"],
-                q["accumulation"],
-                q["pasta"],
-                q["assumption"],
-                q["change"],
-            )
-            != (
-                p["bytes"],
-                p["prover"],
-                p["accumulation"],
-                p["pasta"],
-                p["assumption"],
-                p["change"],
-            )
-            for q in pts
-        )
-        keep.append(not dominated)
+# The frontier is taken to a tolerance (the user, 2026-11-25). A configuration that is ahead
+# of another by a hair on one measure is not thereby a different choice, and the low ranks of
+# a hash-based family, whose proofs differ in the fifth digit, crowded the frontier.
+#
+# This is epsilon-dominance (Laumanns, Thiele, Deb and Zitzler, 2002): q epsilon-dominates p
+# when q is no more than a factor 1 + eps worse than p on every measure, and no worse on the
+# three requirements. The paper keeps its set on a grid of boxes, which has an artifact: two
+# configurations within the tolerance of each other on every measure both stay when a box
+# boundary falls between them. So the set is built without a grid (the user's construction,
+# 2026-11-26). The configurations are taken in increasing order of the product of their
+# measures, and one is kept unless a configuration already kept epsilon-dominates it. Then:
+#   - every configuration left out is epsilon-dominated by a kept one;
+#   - every kept configuration is undominated in the exact sense, since one that dominated it
+#     would have a smaller product, and either was kept before it or was left out for a kept
+#     one that epsilon-dominates both; and
+#   - of two kept configurations with the same requirements, the one taken later is better
+#     than the other by more than the tolerance on some measure.
+# The product orders the configurations whatever the measures' units, and ties in it go by
+# family and then by label, so the order is fixed. Two configurations alike on every measure
+# and requirement both stay if they are of different families, since neither is a reason to
+# hide the other's scheme; of one family, the first stands for both. At eps = 0 this is exact
+# dominance. The page's frontierAmong is the same rule on the measures selected there.
+FRONTIER_TOLERANCES = (0, 0.02, 0.05)
+FRONTIER_TOLERANCE = 0.02
+
+
+def pareto(pts, eps=FRONTIER_TOLERANCE):
+    measures = ("bytes", "prover", "accumulation")
+
+    def requirements(p):
+        return (-p["pasta"], p["assumption"], CHANGE_LEVEL[p["change"]])
+
+    def product(p):
+        return sum(math.log(p[m]) if p[m] > 0 else -math.inf for m in measures)
+
+    def beats(q, p):
+        """q epsilon-dominates p. Two configurations alike on every measure and requirement
+        are a tie: of one family, the earlier in the order stands for both; of two families,
+        both stay."""
+        if not all(q[m] <= (1 + eps) * p[m] for m in measures):
+            return False
+        if not all(a <= b for a, b in zip(requirements(q), requirements(p))):
+            return False
+        tie = requirements(q) == requirements(p) and all(q[m] == p[m] for m in measures)
+        return not tie or q["family"] == p["family"]
+
+    order = sorted(
+        range(len(pts)), key=lambda i: (product(pts[i]), pts[i]["family"], pts[i]["label"], i)
+    )
+    kept, keep = [], [False] * len(pts)
+    for i in order:
+        if not any(beats(q, pts[i]) for q in kept):
+            kept.append(pts[i])
+            keep[i] = True
     return keep
 
 
@@ -4056,6 +4533,7 @@ def grind_key(p):
         p.get("field"),
         p.get("zkv"),
         p["hashes"],
+        p.get("profile"),
     )
 
 
@@ -4151,6 +4629,7 @@ def prune_key(p):
         p.get("route"),
         p.get("E"),
         p.get("binders"),
+        p.get("profile"),  # a derived row does not prune a certified one
     )
 
 
@@ -4365,6 +4844,7 @@ def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1)
 PAGE_APPLICATIONS = (
     ("recovery", 1),
     ("recovery", 4),
+    *((app, 1) for app in MIGRATIONS),
     ("qk", 1),
     *((f"leansphincs_{h}", 1) for h in LEANSPHINCS_VERIFY),
     *((f"zoodles_{auth}", 1) for auth in ZOODLES_AUTHS),
@@ -4438,12 +4918,12 @@ def minutes(work):
 
 
 def sci(x):
-    """`x` as the text writes word multiplications: 7.5e7."""
+    """`x` as the text writes word multiplications, to two significant figures: 7.5e7, 1.0e9."""
     e = math.floor(math.log10(x))
     m = round(x / 10**e, 1)
     if m >= 10:
         m, e = m / 10, e + 1
-    return f"{m:g}e{e}"
+    return f"{m:.1f}e{e}"
 
 
 def auto(v, n):
@@ -4539,7 +5019,7 @@ def define_figures():
     fig("mult_carry_bits", MULT_CARRY_BITS)
     fig("fingerprint_instances", FINGERPRINT_INSTANCES)
     fig("column_sum_bits", COLUMN_SUM_BITS)
-    fig("fingerprint_step_digits_21", sig(fingerprint_step_digits(21), 3))
+    fig("fingerprint_step_digits_21", fmt(round(fingerprint_step_digits(21))))
     fig("blake2b_bits_kishu", fmt(BLAKE2B_BITS_KISHU))
     fig("blake2b_piop_terms", fmt(BLAKE2B_PIOP[0]))
     fig("constraint_term_mults", sig(CONSTRAINT_TERM_WORD_MULTS))
@@ -4584,10 +5064,11 @@ def define_figures():
         == APP["path"]["fp128"]["blake3"],
     )
     claim(
-        "path_bits_digits_equal",
-        "a Merkle path costs the same in bits for BitZ and in digits for Kishu",
-        all(APP["path"]["bitz"]["blake3"] == APP["path"][a]["blake3"] for a in KISHU_ARITHS),
+        "path_bitz_boolean_equal",
+        "a Merkle path costs BitZ as many committed bits as a Boolean circuit has AND gates",
+        APP["path"]["bitz"]["blake3"] == APP["path"]["boolean"]["blake3"],
     )
+    fig("app_path_kishu", sig(APP["path"][KISHU_ARITHS[0]]["blake3"], 3))
     claim(
         "path_gold_fp128_equal",
         "the recovery circuit's Goldilocks and 128-bit Poseidon paths cost the same gates",
@@ -4605,7 +5086,7 @@ def define_figures():
     fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
-    fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
+    fig("app_qk_bits", fmt(round(APP["qk"][KISHU_ARITHS[0]]["blake3"])))
     fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
     fig("leansphincs_blake3_calls", LEANSPHINCS_VERIFY["blake3"])
@@ -4643,11 +5124,11 @@ def define_figures():
         "capss_device_sign_s_est",
         sig(capss_sign_64 * Q64_POSEIDON_MULTS / DEVICE_WORD_MULTS_PER_S["mcu"], 2),
     )
-    fig("keccak_bits", sig(KECCAK_BITS, 3))
-    fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
-    keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
-    blake2s_kishu = APP["leansphincs_blake2s"]["bitz"]["blake3"]
-    blake3_kishu = APP["leansphincs_blake3"]["bitz"]["blake3"]
+    fig("keccak_bits", fmt(KECCAK_BITS))
+    fig("blake2s_bits", fmt(BLAKE2S_BITS))
+    keccak_kishu = APP["leansphincs_keccak"][KISHU_ARITHS[0]]["blake3"]
+    blake2s_kishu = APP["leansphincs_blake2s"][KISHU_ARITHS[0]]["blake3"]
+    blake3_kishu = APP["leansphincs_blake3"][KISHU_ARITHS[0]]["blake3"]
     fig("app_leansphincs_keccak_kishu", millions(keccak_kishu, 3))
     fig("app_leansphincs_blake2s_kishu", millions(blake2s_kishu, 3))
     fig("app_leansphincs_blake3_kishu", millions(blake3_kishu, 3))
@@ -4688,7 +5169,7 @@ def define_figures():
     # The wallet's own share of the device statement with the host proving the handoff (the
     # constants' comment): its digits, its online and idle work, the response's size, and the
     # times on the assumed devices and link.
-    leaf = APP["qk"]["bitz"]["blake3"]
+    leaf = APP["qk"][KISHU_ARITHS[0]]["blake3"]
     # The chapter's figures are at the page's default floor; the other floor's padding is quoted.
     padding = HIDING_PADDING_BITS[DEFAULT_FLOOR]
     sumcheck_rounds = math.ceil(math.log2(leaf + padding))
@@ -4771,7 +5252,7 @@ def define_figures():
     )
     fig("hiding_padding_statistical_kbits", round(statistical_padding / 1000))
     fig("hiding_padding_statistical_over_statement", sig(statistical_padding / leaf))
-    fig("qk_device_digits", sig(device_digits, 3))
+    fig("qk_device_digits", fmt(round(device_digits)))
     fig("qk_device_online_ms", millis(device_online))
     fig("qk_device_idle_ms", millis(device_idle))
     fig("qk_device_z_bits", z_bits)
@@ -4867,10 +5348,10 @@ def define_figures():
         *(f"zoodles_merkle_{auth}" for auth in ZOODLES_AUTHS),
     ):
         full = not app.startswith("zoodles_merkle")
-        units = APP[app]["bitz"]["blake3"]
+        units = APP[app][KISHU_ARITHS[0]]["blake3"]
         digits = sum(units) if isinstance(units, list) else units
         if full or app == "zoodles_merkle_preimage":
-            fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else sig(digits, 3))
+            fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else fmt(round(digits)))
         p, w = kishu_best(app)
         zoodles_plain[app] = w
         p, w_zk = kishu_best(app, zk=True)
@@ -4897,12 +5378,19 @@ def define_figures():
     claim(
         "zoodles_merkle_paths_most",
         "the Merkle-path variant's two paths are more than half of its Kishu digits",
-        2 * APP["path"]["bitz"]["blake3"] > APP["zoodles_merkle_preimage"]["bitz"]["blake3"] / 2,
+        2 * APP["path"]["bitz"]["blake3"]
+        > APP["zoodles_merkle_preimage"][KISHU_ARITHS[0]]["blake3"] / 2,
     )
     p, tachyon4 = kishu_best("tachyon4")
     fig("tx_tachyon4_kishu_s", secs(tachyon4))
     p, tachyon4_zk = kishu_best("tachyon4", zk=True)
     fig("tx_tachyon4_kishu_zk_s", secs(tachyon4_zk))
+    # The migrations (the Recovery from Tachyon page).
+    kishu_limbs = "bits_pasta_limbs"
+    fig("app_tachyon_recovery_kishu", millions(APP["tachyon_zoodles1"][kishu_limbs]["blake3"][0]))
+    fig("app_tachyon_zoodles1_kishu", millions(sum(APP["tachyon_zoodles1"][kishu_limbs]["blake3"])))
+    for app in MIGRATIONS:
+        fig(f"tx_{app}_kishu_zk_s", secs(kishu_best(app, zk=True)[1]))
     p, tachyon4_bitz_zk = best_for("bitz", "tachyon4", zk=True)
     fig("tx_tachyon4_bitz_zk_s", secs(tachyon4_bitz_zk))
     p, tachyon4_flock = best_for("flock", "tachyon4")
@@ -4943,14 +5431,16 @@ def define_figures():
     # The Zoodles page's packing in numbers: the nodes' digits by kind, and how many actions a
     # step holds beside the fee, each action a spend or an output with its merge.
     node_names = tachyon_nodes(2, 2)[:-2]
-    node_digits = dict(zip(node_names, APP["zoodles_preimage"]["bitz"]["blake3"]))
+    node_digits = dict(zip(node_names, APP["zoodles_preimage"][KISHU_ARITHS[0]]["blake3"]))
     spend_digits = node_digits["SpendBind"] + node_digits["SpendAction"]
     output_digits = node_digits["OutputBind"] + node_digits["OutputAction"]
     fig("zoodles_spend_digits", fmt(spend_digits))
     fig("zoodles_output_digits", fmt(output_digits))
     fig("zoodles_merge_digits", fmt(node_digits["ActionMerge"]))
     fig("zoodles_fee_digits", fmt(node_digits["FeeFuse"]))
-    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs_blake3"]["bitz"]["blake3"]))
+    sphincs_nodes = dict(
+        zip(node_names, APP["zoodles_leansphincs_blake3"][KISHU_ARITHS[0]]["blake3"])
+    )
     fig(
         "zoodles_leansphincs_blake3_spend_digits",
         millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
@@ -4986,11 +5476,11 @@ def define_figures():
         "in every row of the epoch-set page's table the bucketed table's exclusion proof takes at least ten more hashes than the sorted tree's",
         min(gaps) >= 10,
     )
-    fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
+    fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"][KISHU_ARITHS[0]]["blake3"], 3))
     claim(
         "zoodles_tree_under_bucket",
         "the sorted tree's lineage step is under a sixth of the bucket's digits in Kishu",
-        6 * APP["zoodles_epoch"]["bitz"]["blake3"] < ZOODLES_BUCKET_DIGITS,
+        6 * APP["zoodles_epoch"][KISHU_ARITHS[0]]["blake3"] < ZOODLES_BUCKET_DIGITS,
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))
@@ -5447,10 +5937,25 @@ def define_figures():
     fig("kishu_stage_digits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
     # The least rank at which one circuit holds Kishu's merge, below which the batch is about
     # the merge's size whatever the rank.
-    fig(
-        "kishu_one_circuit_rank",
-        # The merge within one circuit, beside the application's.
-        min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2),
+    # The merge within one circuit, beside the application's.
+    one_circuit = min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2)
+    fig("kishu_one_circuit_rank", one_circuit)
+    zk_rows = {p["rank"]: p for p in shown("bits_q64", "blake3", zk=True, route="limbs")}
+    flat = [zk_rows[r]["accumulation_prover"] for r in range(15, 19)]
+    fig("kishu_accumulation_15_18_spread_pct", round(100 * (max(flat) / min(flat) - 1)))
+    claim(
+        "kishu_accumulation_flat_then_doubles",
+        "Kishu's accumulation prover is within a tenth of flat from rank 15 to 18, and its accumulator doubles with each rank from the rank where one circuit holds the merge",
+        max(flat) < 1.1 * min(flat)
+        and all(
+            abs(
+                accumulator_coefficients("kishu", r + 1, zk_rows[r + 1]["circuits"])
+                / accumulator_coefficients("kishu", r, zk_rows[r]["circuits"])
+                - 2
+            )
+            < 0.05
+            for r in range(one_circuit, max(zk_rows))
+        ),
     )
 
     # Accumulator memory (the axes list).
@@ -5596,8 +6101,10 @@ def define_figures():
     ]
     fig("akita16_absorbed_kb_min", sig(min(absorbed) / 1000, 1))
     fig("akita16_absorbed_kb_max", sig(max(absorbed) / 1000, 1))
-    fig("akita16_compressions_min", round(min(absorbed) / BLAKE3_BLOCK))
-    fig("akita16_compressions_max", round(max(absorbed) / BLAKE3_BLOCK))
+    fig("blake3_parent_overhead_pct", sig(100 * BLAKE3_BLOCK / BLAKE3_CHUNK, 3))
+    fig("blake3_chunk_bytes", fmt(BLAKE3_CHUNK))
+    fig("akita16_compressions_min", transcript_compressions(min(absorbed)))
+    fig("akita16_compressions_max", transcript_compressions(max(absorbed)))
     atoms = [a16[(v, "poseidon")]["accumulation"] for v in VARIANTS]
     fig("akita16_atoms_min", min(atoms))
     fig("akita16_atoms_max", max(atoms))
@@ -5964,19 +6471,68 @@ def define_figures():
     fig("f2_rate_lowest", max(f192, key=lambda r: int(r.split("/")[1])))
     for fld in (192, 191, 256):
         fig(f"f2_1_8_{fld}_kb", kb(pick("flock", rate="1/8", field=fld, zkv=None)["bytes"]))
-    less = [
-        1
-        - pick("flock", rate="1/8", field=fld, zkv=None)["bytes"]
-        / pick("flock", rate="1/8", field=256, zkv=None)["bytes"]
-        for fld in (192, 191)
-    ]
-    fig("f2_192_191_less_pct", sig(100 * sum(less) / 2, 1))
+    # The three designs at the rate-1/8 merge: the list and the queries of each row's proof at
+    # the row's own grinding, and the smaller fields' bytes against the 256-bit design's.
+    designs = {}
+    for fld in (256, 192, 191):
+        row = pick("flock", rate="1/8", field=fld, zkv=None)
+        proof = frib_proof(
+            row["gates"], "1/8", DEFAULT_FLOOR, row["grind_bits"], fld, ARC_DECIDER_TREES
+        )
+        designs[fld] = (row["bytes"], proof["lb"], proof["queries"])
+        fig(f"f2_1_8_{fld}_list_bits", proof["lb"])
+        fig(f"f2_1_8_{fld}_queries", proof["queries"])
+    for fld in (192, 191):
+        fig(f"f2_1_8_{fld}_bytes_less_pct", sig(100 * (1 - designs[fld][0] / designs[256][0]), 1))
     claim(
-        "f2_191_192_proofs_equal",
-        "the 192- and 191-bit designs' proofs are within a percent of each other at rate 1/8",
-        abs(less[0] - less[1]) < 0.01,
+        "f2_smaller_fields_smaller_proofs",
+        "at rate 1/8 the 192- and 191-bit designs have a smaller list than the 256-bit one, no fewer queries, and a smaller proof",
+        all(
+            designs[fld][0] < designs[256][0]
+            and designs[fld][1] < designs[256][1]
+            and designs[fld][2] >= designs[256][2]
+            for fld in (192, 191)
+        ),
     )
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
+    # WHIR over Goldilocks under BEEP: the quadratic extension against the cubic one, at the
+    # 128-bit floor and rank 13.
+    wg = {(q["rate"], q.get("profile")): q for q in shown("whir_gold", floor=BEEP_FLOOR, rank=13)}
+    wg_less = [100 * (1 - wg[(r, "beep")]["bytes"] / wg[(r, None)]["bytes"]) for r in RATES]
+    wg_memory = [100 * (1 - wg[(r, "beep")]["memory"] / wg[(r, None)]["memory"]) for r in RATES]
+    fig("whir_beep_less_pct_min", sig(min(wg_less), 2))
+    fig("whir_beep_less_pct_max", sig(max(wg_less), 2))
+    fig("whir_beep_memory_less_pct", sig(min(wg_memory), 2))
+    fig("whir_beep_1_8_kb", kb(wg[("1/8", "beep")]["bytes"]))
+    fig("whir_cubic_low_1_8_kb", kb(wg[("1/8", None)]["bytes"]))
+    claim(
+        "whir_beep_smaller_same_prover",
+        "at the 128-bit floor WHIR over Goldilocks's quadratic extension under BEEP has a smaller proof and accumulator than over the cubic extension at every rate, with the same merge and merge prover",
+        min(wg_less) > 0
+        and min(wg_memory) > 0
+        and all(wg[(r, "beep")][k] == wg[(r, None)][k] for r in RATES for k in ("prover", "gates")),
+    )
+    # The design under BEEP, against the 192-bit design, both at the 128-bit floor.
+    beep_floor = F2_DESIGNS[128]["floors"][0]
+    f128 = {p["rate"]: p for p in shown("flock", floor=beep_floor, field=128, zkv=None)}
+    f192_low = {p["rate"]: p for p in shown("flock", floor=beep_floor, field=192, zkv=None)}
+    for rate in ("1/8", "1/64"):
+        tag = rate.replace("/", "_")
+        fig(f"f2_beep_{tag}_kb", kb(f128[rate]["bytes"]))
+        fig(f"f2_192_low_{tag}_kb", kb(f192_low[rate]["bytes"]))
+    bytes_less = [100 * (1 - f128[r]["bytes"] / f192_low[r]["bytes"]) for r in RATES]
+    prover_less = [100 * (1 - f128[r]["prover"] / f192_low[r]["prover"]) for r in RATES]
+    fig("f2_beep_less_pct_min", sig(min(bytes_less), 1))
+    fig("f2_beep_less_pct_max", sig(max(bytes_less), 1))
+    fig("f2_beep_prover_less_pct_min", sig(min(prover_less), 2))
+    fig("f2_beep_prover_less_pct_max", sig(max(prover_less), 2))
+    fig("f2_beep_list_bits", tex_pow2(F2_BEEP_LIST_BITS))
+    fig("f2_beep_samples", F2_DESIGNS[128]["beep"])
+    claim(
+        "f2_beep_smaller_cheaper",
+        "at the 128-bit floor the binary-field design under BEEP has a smaller proof and a cheaper merge prover than the 192-bit design at every rate",
+        min(bytes_less) > 0 and min(prover_less) > 0,
+    )
     f256 = {p["rate"]: p for p in shown("flock", field=256, zkv=None)}
     f191 = {p["rate"]: p for p in shown("flock", field=191, zkv=None)}
     r256 = [f256[r]["prover"] / f192[r]["prover"] for r in f192 if r in f256]
@@ -6006,8 +6562,32 @@ def define_figures():
     fig("f2_192_prover_least", mil(f_least["prover"]))
     claim(
         "f2_prover_least_rate_4",
-        "the 𝔽₂ family's prover is least at rate 1/4, with rate 1/8 within a tenth of it",
-        f_least["rate"] == "1/4" and f192["1/8"]["prover"] <= 1.1 * f_least["prover"],
+        "the 𝔽₂ family's prover is least at rate 1/4",
+        f_least["rate"] == "1/4",
+    )
+    fig("f2_1_8_over_least_pct", round(100 * (f192["1/8"]["prover"] / f_least["prover"] - 1)))
+    below = [f192[r]["prover"] for r in RATES if int(r.split("/")[1]) >= 4]
+    claim(
+        "f2_prover_grows_below_quarter",
+        "the 𝔽₂ family's prover grows with each halving of the rate from 1/4",
+        len(below) >= 2 and all(a < b for a, b in zip(below, below[1:])),
+    )
+    # The constants that the 𝔽₂ family's paragraphs quote.
+    fig("flock_block_log", f"$2^{{{round(math.log2(BLAKE3_ANDS_PADDED))}}}$")
+    fig("flock_block_bits", fmt(BLAKE3_ANDS_PADDED))
+    fig("blake3_ands", fmt(BLAKE3_ANDS))
+    fig("flock_blake3_per_second", fmt(BLAKE3_PER_SECOND))
+    fig("flock_witness_pct", sig(100 * FLOCK_PIOP_SHARE[0], 2))
+    fig("flock_check_pct", sig(100 * FLOCK_PIOP_SHARE[1], 2))
+    for bits_ in (128, 192, 256, 191):
+        fig(f"clmuls_{bits_}", CLMULS[bits_])
+    fig("frib_commit_ms", FRIB_MEASURED_MS[0])
+    fig("frib_open_ms", FRIB_MEASURED_MS[1])
+    fig("f2_scale_commit", sig(F2_SCALE[0], 2))
+    fig("f2_scale_open", sig(F2_SCALE[1], 2))
+    fig(
+        "f2_flock_pipeline_m",
+        mil(f8["gates"] / BLAKE3_ANDS_PADDED * WORD_MULTS_PER_SECOND / BLAKE3_PER_SECOND),
     )
     fig(
         "f2_over_gold_poseidon",
@@ -6018,9 +6598,9 @@ def define_figures():
         sig(f_least["prover"] / a16[("goldilocks", "blake3")]["prover"]),
     )
     claim(
-        "f2_prover_fraction_of_gold_blake3",
-        "the 𝔽₂ family's least prover is between two thirds and nine tenths of Akita over Goldilocks's with BLAKE3",
-        2 / 3 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.9,
+        "f2_prover_more_than_gold_blake3",
+        "the 𝔽₂ family's least prover is more than Akita over Goldilocks's with BLAKE3, and less than twice it",
+        1 < f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] < 2,
     )
     fig("f2_1_8_prover", sci(f8["prover"]))
     fig("f2_1_8_kb", kb(f8["bytes"]))
@@ -6036,6 +6616,13 @@ def define_figures():
     frec8 = {fld: pick("flock_rec", rate="1/8", field=fld, zkv=None) for fld in (192, 191, 256)}
     for fld, p in frec8.items():
         fig(f"f2_rec_1_8_{fld}_bits", mil(p["gates"]))
+        fig(f"f2_pack_{fld}", F2_DESIGNS[fld]["pack"])
+    by_pack = sorted(frec8, key=lambda fld: F2_DESIGNS[fld]["pack"])
+    claim(
+        "f2_rec_merge_grows_with_packing",
+        "the 𝔽₂ family's recursion merge at rate 1/8 is larger the greater the design's packing degree, which the ring-switching verifier's multiplications are proportional to",
+        all(frec8[a]["gates"] < frec8[b]["gates"] for a, b in zip(by_pack, by_pack[1:])),
+    )
     rr = sorted(p["prover"] / f8["prover"] for p in frec8.values())
     fig("f2_rec_over_arc_prover_min", sig(rr[0]))
     fig("f2_rec_over_arc_prover_max", sig(rr[-1]))
@@ -6087,19 +6674,106 @@ def define_figures():
             for q in shown(f, "poseidon")
         ),
     )
+    fig("frontier_tolerance_pct", round(100 * FRONTIER_TOLERANCE))
     fig("bitz_piop_prover_factor", BITZ_PIOP["prover"])
     fig("bitz_piop_verify_ms", sig(BITZ_PIOP["verify_ms"], 3))
     fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
-    fig("bitz_rate_1_8_lig", BITZ_RATE["1/8"])
-    fig("bitz_27_rate_penalty", sig(bitz_prover_scale("1/8", 27), 3))
-    fig("bitz_t10_25_ms", sig(BITZ_T10[25][0]))
-    fig("bitz_gkr_25_ms", sig(BITZ_T10[25][0] * BITZ_PHASES[25][0]))
-    fig("bitz_t10_25_verify_ms", sig(BITZ_T10[25][1], 3))
-    fig("bitz_gkr_share_pct", round(100 * BITZ_PHASES[25][0]))
+    # BitZ's measurements at 2^25 bits and 128 bits of security (BITZ_MEASURED).
+    udr25 = {r: BITZ_MEASURED["udr"][r][25] for r in BITZ_MEASURED["udr"]}
+    beep25 = {r: BITZ_MEASURED["beep"][r][25] for r in BITZ_MEASURED["beep"]}
+    fig("bitz_rate_1_8_lig", sig(udr25[3][5] / udr25[1][5], 2))
+    fig("bitz_25_rate_penalty", sig((udr25[3][0] + udr25[3][1]) / (udr25[1][0] + udr25[1][1]), 3))
+    fig("bitz_prover_25_ms", sig(udr25[1][0] + udr25[1][1], 3))
+    fig("bitz_gkr_25_ms", sig(udr25[1][2]))
+    fig("bitz_25_verify_ms", sig(udr25[1][3], 3))
+    fig("bitz_gkr_share_pct", round(100 * udr25[1][2] / (udr25[1][0] + udr25[1][1])))
+    for r in udr25:
+        fig(f"bitz_commit_25_r{r}_ms", sig(udr25[r][0], 3))
+    fig("bitz_commit_25_r6_ms", sig(beep25[6][0], 3))
+    shares = {r: [v[2] / (v[0] + v[1]) for v in BITZ_MEASURED["udr"][r].values()] for r in udr25}
     claim(
         "bitz_gkr_four_fifths",
-        "the grand-product GKR is four fifths of BitZ's prover",
-        all(0.75 <= s <= 0.87 for s, _ in BITZ_PHASES.values()),
+        "the grand-product GKR is about four fifths of BitZ's prover at rate 1/2, and a smaller share at rate 1/8",
+        all(0.72 <= s <= 0.84 for s in shares[1]) and max(shares[3]) < min(shares[1]),
+    )
+    # The stand-alone proofs at 2^25 bits, by regime and rate, and BEEP's samples.
+    for r in udr25:
+        fig(f"bitz_udr_25_r{r}_kb", kb(udr25[r][4] + udr25[r][5]))
+    deep_bytes = bitz_beep_overhead(25, 1)[0]
+    for r in beep25:
+        fig(f"bitz_beep_25_r{r}_kb", kb(beep25[r][4] + beep25[r][5] + deep_bytes))
+    fig("bitz_beep_folds", sum(k for _, k, _ in bitz_levels("beep", 25, 1)))
+    fig("bitz_beep_samples", BEEP_SAMPLES)
+    fig("bitz_beep_deep_kb", kb(deep_bytes))
+    fig("bitz_udr_queries_25", bitz_queries("udr", 25, 3, BITZ_MEASURED_FLOOR))
+    # The constants and the shapes that the BitZ section's sentences state.
+    fig("bitz_gate_value_bits", BITZ_GATE_BITS // 2)
+    sizes = sorted(BITZ_MEASURED["udr"][3])
+    fig("bitz_measured_log_min", f"$2^{{{sizes[0]}}}$")
+    fig("bitz_measured_log_max", f"$2^{{{sizes[-1]}}}$")
+    ratios = [a / b for a, b in BITZ_HYBRID_MS.values()]
+    fig("bitz_hybrid_ratio_min", sig(min(ratios), 2))
+    fig("bitz_hybrid_ratio_max", sig(max(ratios), 2))
+    fig("bitz_hybrid_log_min", f"$2^{{{min(BITZ_HYBRID_MS)}}}$")
+    fig("bitz_hybrid_log_max", f"$2^{{{max(BITZ_HYBRID_MS)}}}$")
+    udr_q = BITZ_QUERIES["udr"]
+    fig("bitz_udr_level_queries_r1", udr_q[1])
+    fig("bitz_udr_level_queries_r3", udr_q[3])
+    fig("bitz_udr_level_queries_last", udr_q[max(udr_q)])
+    fig("bitz_udr_level_last_rate", f"1/{2 ** max(udr_q)}")
+    claim(
+        "bitz_udr_query_under_a_bit",
+        "under unique decoding every level takes more queries than the floor has bits, fewer at a lower rate",
+        all(q > BITZ_MEASURED_FLOOR for q in udr_q.values())
+        and all(udr_q[e] > udr_q[e + 1] for e in udr_q if e + 1 in udr_q),
+    )
+    beep_q = BITZ_QUERIES["beep"]
+    claim(
+        "bitz_johnson_squaring_halves",
+        "under the Johnson bound squaring the rate about halves a level's queries, to between 0.45 and 0.6 of them",
+        all(0.45 < beep_q[2 * e] / beep_q[e] < 0.6 for e in beep_q if 2 * e in beep_q),
+    )
+    per_halving = [
+        (udr25[3][0] / udr25[1][0]) ** (1 / 2),
+        (beep25[6][0] / udr25[3][0]) ** (1 / 3),
+    ]
+    claim(
+        "bitz_commit_doubles_per_halving",
+        "BitZ's commitment about doubles with each halving of the rate",
+        all(1.8 < x < 2.2 for x in per_halving),
+    )
+    b13_hash_bits = (
+        b13["gates"] - 2 * bitz_piop_verifier_mults(math.log2(b13["gates"])) * BITZ_FIELD_BITS
+    )
+    claim(
+        "bitz_merge_mostly_hashing",
+        "the Merkle hashing is most of a BitZ step's witness at rank 13, and the merge is the size of the 𝔽₂ family's at the same rate",
+        b13_hash_bits > 0.9 * (b13["gates"] + 2**13) and 0.5 < b13["gates"] / f8["gates"] < 2,
+    )
+    pasta_akita = [q for fam in ("pasta_q64", "pasta_sis") for q in shown(fam, policy="poseidon")]
+    claim(
+        "akita_pasta_smaller_than_bitz13",
+        "every Akita row over Pasta has a smaller proof than BitZ's rank-13 ARC row",
+        bool(pasta_akita) and all(q["bytes"] < b13["bytes"] for q in pasta_akita),
+    )
+    fig("bitz_beep_queries_25", bitz_queries("beep", 25, 3, BITZ_MEASURED_FLOOR))
+    fig("bitz_beep_queries_25_r6", bitz_queries("beep", 25, 6, BITZ_MEASURED_FLOOR))
+    # The rows at the 128-bit floor: the smallest proof under each regime.
+    rows128 = shown("bitz", floor=BITZ_MEASURED_FLOOR)
+    least = {
+        profile: min((q for q in rows128 if q["profile"] == profile), key=lambda q: q["bytes"])
+        for profile in BITZ_MEASURED
+    }
+    fig("bitz_udr128_min_kb", kb(least["udr"]["bytes"]))
+    fig("bitz_beep128_min_kb", kb(least["beep"]["bytes"]))
+    fig("bitz_beep128_min_rate", least["beep"]["rate"])
+    fig("bitz_beep128_min_prover_over_udr", sig(least["beep"]["prover"] / least["udr"]["prover"]))
+    claim(
+        "bitz_beep_halves_proof",
+        "at the 128-bit floor BitZ's smallest row under the Johnson bound with BEEP is under half of its smallest unique-decoding row's bytes, at the lowest rate and a greater merge prover",
+        least["beep"]["bytes"] < 0.5 * least["udr"]["bytes"]
+        and least["beep"]["rate"] == RATES[-1]
+        and least["beep"]["prover"] > least["udr"]["prover"],
     )
     b12 = pick("bitz", rank=12, rate="1/8")
     claim(
@@ -6107,20 +6781,26 @@ def define_figures():
         "rank 12 gives BitZ a slightly smaller proof and merge prover",
         b12["bytes"] < b13["bytes"] and b12["prover"] < b13["prover"],
     )
-    bz_rec13 = pick("bitz_rec", rank=13, rate="1/8")
+    # The recursion row beside the ARC row, both under unique decoding at the 128-bit floor: at
+    # the default floor the recursion's merge is larger than any measured size, so it has no
+    # row there.
+    arc128 = pick("bitz", rank=13, rate="1/8", floor=128, profile="udr")
+    bz_rec13 = pick("bitz_rec", rank=13, rate="1/8", floor=128, profile="udr")
+    fig("bitz13_128_merge_bits_m", mil(arc128["gates"]))
     fig("bitz_rec13_merge_bits", mil(bz_rec13["gates"]))
-    fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / b13["gates"], 1))
-    fig("bitz_rec_over_arc_prover", sig(bz_rec13["prover"] / b13["prover"]))
-    fig("bitz_rec_less_pct", round(100 * (1 - bz_rec13["bytes"] / b13["bytes"])))
+    fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / arc128["gates"], 1))
+    fig("bitz_rec_over_arc_prover", sig(bz_rec13["prover"] / arc128["prover"]))
+    fig("bitz_rec_less_pct", round(100 * (1 - bz_rec13["bytes"] / arc128["bytes"])))
     claim(
         "bitz_rec_smaller_proof_dearer",
-        "BitZ's recursion row has a smaller proof than its ARC row at a greater prover and merge",
-        bz_rec13["bytes"] < b13["bytes"]
-        and bz_rec13["prover"] > b13["prover"]
-        and bz_rec13["gates"] > b13["gates"],
+        "at the 128-bit floor BitZ's recursion row has a smaller proof than its ARC row at a greater prover and merge",
+        bz_rec13["bytes"] < arc128["bytes"]
+        and bz_rec13["prover"] > arc128["prover"]
+        and bz_rec13["gates"] > arc128["gates"],
     )
-    fig("ligerito_columns", sum(c for _, c in LIGERITO_LEVELS))
-    fig("ligerito_levels", len(LIGERITO_LEVELS))
+    fig("arc_openings_1_8_128", round(arc_openings("1/8", 128, 0)))
+    fig("ligerito_columns", bitz_queries("udr", math.log2(bz_rec13["gates"]), 3, 128))
+    fig("ligerito_levels", len(bitz_levels("udr", math.log2(bz_rec13["gates"]), 3)))
     b13z = pick("bitz", rank=13, rate="1/8", zk=True)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"]))
     fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))
@@ -6172,10 +6852,7 @@ def define_figures():
     for hp in HASH_POLICIES:
         fig(
             f"kishu_claim_digits_{hp}",
-            sig(
-                frontend_merge_digits(Kg, 6, 17, hp, sum_mults, sum_bits, sum_bytes)
-                - frontend_merge_digits(Kg, 5, 17, hp, sum_mults, sum_bits, sum_bytes)
-            ),
+            sig(merge_marginal_circuit(Kg, 17, hp, sum_mults, sum_bits, sum_bytes)),
         )
     fig(
         "kishu13_blake3_circuits",
@@ -6229,7 +6906,14 @@ def define_figures():
     fig("bool_sumcheck_per_bit", sig(sumc[0]))
     fig("bool_projection_scan", millions(proj[4]))
     fig("bool_sumcheck_merge_mults", fmt(sumc[3]))
-    fig("blake3_bits", sig(BLAKE3_BITS))
+    fig("blake3_bits", fmt(BLAKE3_BITS))
+    fig("blake3_chained_bits", fmt(BLAKE3_CHAINED_BITS))
+    claim(
+        "blake3_output_same_constraints",
+        "a BLAKE3 compression has the same number of constraints whether its output is a chaining value or data",
+        BLAKE3_CHAINED_PIOP[0] == BLAKE3_PIOP[0],
+    )
+    fig("blake3_data_more_digits", BLAKE3_BITS - BLAKE3_CHAINED_BITS)
     fig("q64_digits", Q64_DIGITS)
     fig("e_mult_digits", E_MULT_DIGITS)
     fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
@@ -6273,10 +6957,7 @@ def define_figures():
     for v, width in (("fp128", 16), ("pasta_q64", 32)):
         fig(
             f"claim_gates_blake3_{width}",
-            sig(
-                akita_merge_gates(v, Kg, 2, False, "blake3")
-                - akita_merge_gates(v, Kg, 1, False, "blake3")
-            ),
+            sig(circuit_slope(lambda c: akita_merge_gates(v, Kg, c, False, "blake3"))),
         )
     claim(
         "pedersen_only_under_poseidon",
@@ -6550,16 +7231,22 @@ def define_figures():
         "the masking fold is a fraction of a second on a fast core and a few seconds on a phone (the note's §5.8)",
         0.1 <= fold / RATE_PER_S < 1,
     )
-    # The user proof it is compared with: two to four dozen rank-13 steps over Pasta at the page's
-    # step and accumulation prover.
-    step = pick("pasta_sis", rank=13)
-    per_step = step["step_prover"] + step["accumulation_prover"]
-    fig("zk_note_proof24_s", secs(24 * per_step))
-    fig("zk_note_proof48_s", secs(48 * per_step))
+    # The note's example is at Pasta's modulus. The transactions a post-quantum Zcash would prove
+    # are the migrations, and the page prices them with Kishu, without zero knowledge and with
+    # it, on each one's best row.
+    plain = [kishu_best(app)[1] for app in MIGRATIONS]
+    masked = [kishu_best(app, zk=True)[1] for app in MIGRATIONS]
+    fig("zk_note_migration_min_s", secs(min(plain)))
+    fig("zk_note_migration_max_s", secs(max(plain)))
+    fig("zk_note_migration_zk_min_s", secs(min(masked)))
+    fig("zk_note_migration_zk_max_s", secs(max(masked)))
+    over = [100 * (m / q - 1) for m, q in zip(masked, plain)]
+    fig("zk_note_zk_over_plain_pct_min", sig(min(over), 2))
+    fig("zk_note_zk_over_plain_pct_max", sig(max(over), 2))
     claim(
-        "mask_fold_small_fraction",
-        "the masking fold is under three percent of a two-dozen-step user proof",
-        fold / (24 * per_step) < 0.03,
+        "kishu_migration_zk_overhead",
+        "zero knowledge adds more than a third and less than the whole of a Kishu migration's prover without it",
+        all(100 / 3 < x < 100 for x in over),
     )
 
     for r in (13, 14, 15, 16):
@@ -6664,6 +7351,7 @@ data = dict(
     own_last_steps=OWN_LAST_STEPS,
     leaf_handoff=sorted(LEAF_HANDOFF),
     change_level=CHANGE_LEVEL,
+    frontier_tolerance=FRONTIER_TOLERANCE,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,

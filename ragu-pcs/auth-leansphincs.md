@@ -36,25 +36,25 @@ against <!--fig:leansphincs_layered_blake2s_calls-->462<!--/fig--> compressions
 or <!--fig:leansphincs_layered_keccak_calls-->408<!--/fig--> permutations for the layered one
 and <!--fig:leansphincs_ethereum_perms-->515<!--/fig--> permutations for Ethereum's. XOR is not free
 in a digit arithmetization, so in Kishu a BLAKE3 compression
-is <!--fig:blake3_bits-->11,000<!--/fig--> committed bits, a BLAKE2s
-compression <!--fig:blake2s_bits-->15,800<!--/fig-->, and a Keccak-f
-permutation <!--fig:keccak_bits-->92,200<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
-verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.38 million<!--/fig--> digits with
-BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.74 million<!--/fig--> with BLAKE2s, so BLAKE3's
+is <!--fig:blake3_bits-->11,344<!--/fig--> committed bits, a BLAKE2s
+compression <!--fig:blake2s_bits-->16,096<!--/fig-->, and a Keccak-f
+permutation <!--fig:keccak_bits-->92,160<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
+verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
+BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3's
 is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s's, since its
 compression has seven rounds to BLAKE2s's
 ten.<!--/claim--> <!--claim:leansphincs_keccak_dearer:8d35d3-->With Keccak it
-is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.1<!--/fig-->
+is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->
 times BLAKE2s's, which is Ethereum's open hash question seen from the circuit.<!--/claim--> In a
 Boolean circuit with XOR free the Keccak-to-BLAKE2s ratio
-is <!--fig:leansphincs_keccak_over_blake2s_boolean-->3.3<!--/fig-->. With zero knowledge Kishu
+is <!--fig:leansphincs_keccak_over_blake2s_boolean-->2.3<!--/fig-->. With zero knowledge Kishu
 proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.173<!--/fig--> s on one
 M4 core at rank <!--fig:tx_leansphincs_blake3_kishu_zk_rank-->20<!--/fig-->, the BLAKE2s one
-in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.222<!--/fig--> s at
+in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.224<!--/fig--> s at
 rank <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->21<!--/fig-->, and the Keccak one
-in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.917<!--/fig--> s at
+in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.918<!--/fig--> s at
 rank <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->22<!--/fig-->,
-beside <!--fig:tx_recovery_kishu_zk_s-->0.220<!--/fig--> s for the recovery circuit itself.
+beside <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig--> s for the recovery circuit itself.
 Ethereum's draft fixes Keccak-256 as the scheme's only primitive, and the circuit and the device
 both argue against it. If Ethereum keeps Keccak, there is no compatibility to gain from BLAKE2s
 either, and the choice is between Keccak and BLAKE3, Zoodles' own hash and the cheapest of the three

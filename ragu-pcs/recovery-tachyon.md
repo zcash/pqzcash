@@ -45,7 +45,7 @@ knowledge of $\mathsf{qsk}$ and $\mathsf{nk}$ rather than of $\mathsf{ak}$ and $
 FROST group derives $\mathsf{qsk}$ from its privately agreed value as ZIP 2005 prescribes, with
 $\mathsf{ak}$ still the distributed key generation's output. The cost is one more field in the
 commitment and, in the recovery proof, one BLAKE3
-compression, <!--fig:app_qk_bits-->11,200<!--/fig--> Kishu digits, which the recovery circuit
+compression, <!--fig:app_qk_bits-->11,344<!--/fig--> Kishu digits, which the recovery circuit
 application already charges for $\mathsf{H^{qk}}$, and the reduction's range check of 256 bits.
 
 ## The migration transaction
@@ -58,9 +58,19 @@ membership of $\mathsf{cm}$ in a hash-based tree over Tachyon's published commit
 nullifier's derivation and its absence from Tachyon's published nullifiers. It cannot rely on
 Tachyon's set polynomials, which are Pedersen commitments, once discrete log is gone, so the tree is
 the structure for Tachyon's notes as it is for Zoodles' own epochs. The shape is ZIP 2005's Recovery
-Statement over Tachyon's note format, with Poseidon where Orchard has Sinsemilla. Pricing it as an
-application of the frontier page is pending; it is also why Tachyon's circuits are priced in each
-post-quantum proof system there.
+Statement over Tachyon's note format, with Poseidon where Orchard has Sinsemilla. The [frontier
+page](pareto-template.html#transaction-prover) prices the migration as an application, in Zoodles'
+proof tree with a recovery node for each input. With Kishu the recovery spend
+is <!--fig:app_tachyon_recovery_kishu-->1.3 million<!--/fig--> digits, by limbs, of a
+transaction's <!--fig:app_tachyon_zoodles1_kishu-->1.4 million<!--/fig-->. Recovering one note
+takes <!--fig:tx_tachyon_zoodles1_kishu_zk_s-->0.113<!--/fig--> s of prover on one core with zero
+knowledge, and four notes in one
+transaction <!--fig:tx_tachyon_zoodles4_kishu_zk_s-->0.226<!--/fig--> s. The spend derives and
+excludes one epoch's nullifier. A note's nullifiers for the other epochs it has lived through need a
+lineage of their own, as Zoodles' notes have, which is not priced.
+
+Tachyon's own circuits are priced there too in each post-quantum proof system. They are not what
+such a system would prove, but they compare it with Ragu on the same application.
 
 ## References
 

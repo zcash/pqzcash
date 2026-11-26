@@ -28,7 +28,7 @@ Kishu's 64-bit modulus a quartic extension, in which a root costs nine base mult
 wallet folds the bucket's contents every
 epoch, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits
 for <!--fig:zoodles_bucket_coeffs-->8,192<!--/fig--> tachygrams, against the
-tree's <!--fig:app_zoodles_epoch_kishu-->247,000<!--/fig-->.
+tree's <!--fig:app_zoodles_epoch_kishu-->250,000<!--/fig-->.
 
 The extension could be avoided by shortening the tachygrams, to 128 bits say, so that the
 polynomials live in Kishu's claim field. Secrecy does not protect a compression: a tachygram is
@@ -67,10 +67,10 @@ plus the bucket's $K (N - B)$ bits at 512 a compression:
 
 | tachygrams | prefix bits $B$ | mean load $\mu$ | $K$ at $2^{-64}$ | $K$ at $2^{-128}$ | proof hashes, table | sorted tree |
 |---|---|---|---|---|---|---|
-| $2^{20}$ | 16 | 16 | <!--fig:bucket_k64_20_16-->72<!--/fig--> | <!--fig:bucket_k128_20_16-->98<!--/fig--> | <!--fig:bucket_hashes_20_16-->50<!--/fig--> | <!--fig:tree_hashes_20-->21<!--/fig--> |
-| $2^{20}$ | 18 | 4 | <!--fig:bucket_k64_20_18-->39<!--/fig--> | <!--fig:bucket_k128_20_18-->56<!--/fig--> | <!--fig:bucket_hashes_20_18-->37<!--/fig--> | <!--fig:tree_hashes_20-->21<!--/fig--> |
+| $2^{20}$ | 16 | 16 | <!--fig:bucket_k64_20_16-->72<!--/fig--> | <!--fig:bucket_k128_20_16-->98<!--/fig--> | <!--fig:bucket_hashes_20_16-->52<!--/fig--> | <!--fig:tree_hashes_20-->21<!--/fig--> |
+| $2^{20}$ | 18 | 4 | <!--fig:bucket_k64_20_18-->39<!--/fig--> | <!--fig:bucket_k128_20_18-->56<!--/fig--> | <!--fig:bucket_hashes_20_18-->38<!--/fig--> | <!--fig:tree_hashes_20-->21<!--/fig--> |
 | $2^{20}$ | 20 | 1 | <!--fig:bucket_k64_20_20-->24<!--/fig--> | <!--fig:bucket_k128_20_20-->37<!--/fig--> | <!--fig:bucket_hashes_20_20-->32<!--/fig--> | <!--fig:tree_hashes_20-->21<!--/fig--> |
-| $2^{34}$ | 32 | 4 | <!--fig:bucket_k64_34_32-->43<!--/fig--> | <!--fig:bucket_k128_34_32-->60<!--/fig--> | <!--fig:bucket_hashes_34_32-->51<!--/fig--> | <!--fig:tree_hashes_34-->35<!--/fig--> |
+| $2^{34}$ | 32 | 4 | <!--fig:bucket_k64_34_32-->43<!--/fig--> | <!--fig:bucket_k128_34_32-->60<!--/fig--> | <!--fig:bucket_hashes_34_32-->52<!--/fig--> | <!--fig:tree_hashes_34-->35<!--/fig--> |
 | $2^{34}$ | 34 | 1 | <!--fig:bucket_k64_34_34-->27<!--/fig--> | <!--fig:bucket_k128_34_34-->40<!--/fig--> | <!--fig:bucket_hashes_34_34-->46<!--/fig--> | <!--fig:tree_hashes_34-->35<!--/fig--> |
 
 Even <!--claim:bucket_table_dearer:8b56f1-->at one expected tachygram a bucket the capacity has to

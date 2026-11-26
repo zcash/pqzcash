@@ -43,7 +43,7 @@ outputs.
 
 Two shapes are priced. The wallet can prove the preimage statement as a leaf of the transaction's
 own proof system, [Kishu on the frontier page](pareto-template.html#kishu): one BLAKE3
-compression, <!--fig:app_qk_bits-->11,200<!--/fig--> committed digits, with the linking commitment
+compression, <!--fig:app_qk_bits-->11,344<!--/fig--> committed digits, with the linking commitment
 of ZIP 2005's hardware-wallet section left out for now. Or the wallet can sign with leanSPHINCS and
 leave the verification to the host, which proves the verifier inside its own transaction with the
 signature and the public key as witnesses, so the spends stay unlinkable.
@@ -61,7 +61,7 @@ and a small merge of the handoff's own: the challenge derivation, the commitment
 claim fold. The decomposition and the range and norm proofs are deferred to the host (the zk note's
 [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a one-compression leaf the
 host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
-measure's <!--fig:tx_qk_kishu_zk_s-->0.0266<!--/fig--> s at
+measure's <!--fig:tx_qk_kishu_zk_s-->0.0267<!--/fig--> s at
 rank <!--fig:tx_qk_kishu_zk_rank-->16<!--/fig-->
 is <!--fig:tx_qk_kishu_zk_merges_pct-->88<!--/fig--> percent merge
 and <!--fig:tx_qk_kishu_zk_fold_pct-->12<!--/fig--> percent fold, and the circuit itself is a few
@@ -100,14 +100,14 @@ hedge of the 147-bit floor applies to it too. At the zk note's 1,385 rows 5,000 
 give <!--fig:hiding_padding_attack_bits_1385-->140<!--/fig--> bits, and at 2,048 rows they would
 fall short of the 128-bit floor.<!--/claim--> The statistical padding would
 be <!--fig:hiding_padding_statistical_kbits-->66<!--/fig--> thousand
-bits, <!--fig:hiding_padding_statistical_over_statement-->5.9<!--/fig--> times the statement.
+bits, <!--fig:hiding_padding_statistical_over_statement-->5.8<!--/fig--> times the statement.
 
-So the wallet commits <!--fig:qk_device_digits-->19,700<!--/fig-->
+So the wallet commits <!--fig:qk_device_digits-->19,840<!--/fig-->
 digits. <!--claim:qk_device_share_small:57d8a6-->That
-is <!--fig:qk_device_online_ms-->0.223<!--/fig--> ms of online work on one M4 core, under a tenth of
+is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4 core, under a tenth of
 the handoff fold that the measure charges the user,<!--/claim-->
-with <!--fig:qk_device_idle_ms-->0.278<!--/fig--> ms in idle time, and a response
-of <!--fig:qk_device_z_kbytes-->54 kbytes<!--/fig--> at <!--fig:qk_device_z_bits-->22<!--/fig-->
+with <!--fig:qk_device_idle_ms-->0.280<!--/fig--> ms in idle time, and a response
+of <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig--> at <!--fig:qk_device_z_bits-->22<!--/fig-->
 bits a coordinate. The device rates are assumptions, scaled from the hash rates that
 [\[Wam26\]](#ref-wam26)'s hardware-wallet benchmark measured on a Ledger Nano
 S+: <!--fig:device_mcu_rate-->10 million<!--/fig--> word multiplications a second for an MCU-class
@@ -116,7 +116,7 @@ computation takes <!--fig:qk_device_mcu_s-->0.067<!--/fig-->
 and <!--fig:qk_device_secure_element_s-->0.22<!--/fig--> s. The transfer of $z$ at that device's
 measured <!--fig:device_link_kbytes_s-->21<!--/fig--> kbytes a second over USB
 takes <!--fig:qk_device_link_s-->2.6<!--/fig--> s,
-or <!--fig:qk_device_link_pipelined_s-->0.93<!--/fig--> s with a pipelined transport. No merge
+or <!--fig:qk_device_link_pipelined_s-->0.94<!--/fig--> s with a pipelined transport. No merge
 circuit and no accumulator sit on the device, and the witness
 is <!--fig:qk_device_witness_kbytes-->2.9 kbytes<!--/fig--> packed at its digits' widths. So a Kishu
 signature of knowledge is within reach of a high-end hardware wallet on a USB link, and the transfer
@@ -128,7 +128,7 @@ An airgapped wallet of the Keystone kind exchanges data by animated QR codes, fo
 fragments read by a phone camera from the wallet's screen. Keystone's firmware sends fragments
 of <!--fig:qr_fragment_bytes-->200<!--/fig--> bytes at <!--fig:qr_frames_per_s-->5<!--/fig--> frames
 a second, <!--fig:qr_kbytes_per_s-->1<!--/fig--> kbyte a second. So the response
-takes <!--fig:qk_qr_current_s-->54<!--/fig--> s with no frame missed, and the fountain code's
+takes <!--fig:qk_qr_current_s-->55<!--/fig--> s with no frame missed, and the fountain code's
 redundancy after missed frames can double or treble that. Denser codes would cut it: a fragment
 of <!--fig:qr_dense_fragment_bytes-->800<!--/fig--> bytes at the same rate
 gives <!--fig:qk_qr_dense_s-->14<!--/fig--> s, and the format's ceiling, a version-40 symbol holding
@@ -136,14 +136,14 @@ about <!--fig:qr_max_fragment_bytes-->2,100<!--/fig--> bytes of
 fragment, <!--fig:qk_qr_max_s-->5.2<!--/fig--> s. Whether a camera reads the denser codes reliably
 depends on the screen, the light, and the camera, and gets worse toward the ceiling. So the transfer
 is slow at today's settings and within reach with denser codes on some devices. The device's memory
-is the other constraint: it holds the mask, about <!--fig:qk_device_z_kbytes-->54 kbytes<!--/fig-->,
+is the other constraint: it holds the mask, about <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig-->,
 over which the response is written in place, beside the witness. The response cannot be made much
 smaller, and the reason is not an encoding choice. <!--claim:qk_qr_channel_too_big:94cc38-->The
 accepted $z$ is a Gaussian of width $\sigma$ on every coordinate of the leaf, about
 $\log_2(\sigma\sqrt{2\pi e})$ bits of information each. It is secret-dependent, so it cannot be
 regenerated from a seed as the mask can. With no padding and no masking elements the leaf's
-own <!--fig:app_qk_bits-->11,200<!--/fig--> coordinates still
-make <!--fig:qk_z_floor_kbytes-->29 kbytes<!--/fig-->. A succinct Kishu proof of the leaf in place
+own <!--fig:app_qk_bits-->11,344<!--/fig--> coordinates still
+make <!--fig:qk_z_floor_kbytes-->30 kbytes<!--/fig-->. A succinct Kishu proof of the leaf in place
 of the response would be about <!--fig:qk_succinct_proof_kbytes-->72 kbytes<!--/fig-->, whatever the
 rank from <!--fig:qk_min_rank-->14<!--/fig--> up, since nearly all of it is the opening's fixed
 parts, the compression levels and the terminal.<!--/claim--> A narrower mask saves two or three bits
