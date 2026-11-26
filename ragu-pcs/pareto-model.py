@@ -2478,6 +2478,16 @@ def floor_label(floor):
     return {147: ", 147‑bit", LEVEL3_FLOOR: ", Level 3 (derived)"}.get(floor, "")
 
 
+def application_policy(hashes, policy):
+    """The hash policy that an application's own hashing is counted under for a row: the
+    page's policy for a row that has no hashing of its own, and BLAKE3's count at the
+    illustrative level, where the application's statement is unchanged and only the proof
+    system's hash differs."""
+    if hashes == "any":
+        return policy
+    return "blake3" if hashes == LEVEL3_HASH else hashes
+
+
 def floor_policies(floor):
     """The hash policies that rows exist under at a floor: SHA3-384 alone at the illustrative
     level, where neither BLAKE3 nor the 128-bit Poseidon instances serve."""
@@ -4778,7 +4788,7 @@ RATE_PER_S = 1000 * WORD_MULTS_PER_MS  # word multiplications per second of one 
 def app_units(p, app, policy):
     """The application's units in the row's arithmetization under the row's hash policy, or
     under the page's for a row priced under either: a number, or a proof tree's nodes."""
-    return APPLICATIONS[app][p["arith"]][policy if p["hashes"] == "any" else p["hashes"]]
+    return APPLICATIONS[app][p["arith"]][application_policy(p["hashes"], policy)]
 
 
 def pack_nodes(nodes, cap, own):
