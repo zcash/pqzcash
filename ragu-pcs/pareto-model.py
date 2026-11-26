@@ -718,8 +718,8 @@ def pedersen_verify(rank, nat, nes):
 # rate measured on Flock's BLAKE3 batches, the base matrix's sum-check rounds, and the hashes
 # of the Flock-style merges. An application's count is the unpadded AND gates, the step doing
 # the padding.
-BLAKE_G_ADDITIONS = 6
-BLAKE3_ANDS = 7 * 8 * BLAKE_G_ADDITIONS * 31
+BLAKE2OR3_G_ADDITIONS = 6
+BLAKE3_ANDS = 7 * 8 * BLAKE2OR3_G_ADDITIONS * 31
 BLAKE3_ANDS_PADDED = 2**14
 
 
@@ -833,7 +833,9 @@ def word_range_piop(bits):
 
 BITS_PER_VALUE = 255  # a Pasta value's bits
 VALUE_DIGITS = word_digits(BITS_PER_VALUE)  # a Pasta value in Kishu's digits
-BLAKE2B_ANDS = 12 * 8 * BLAKE_G_ADDITIONS * 63  # twelve rounds of eight G functions on 64-bit words
+BLAKE2B_ANDS = (
+    12 * 8 * BLAKE2OR3_G_ADDITIONS * 63
+)  # twelve rounds of eight G functions on 64-bit words
 # A compression's committed digits in a degree-two arithmetization over bits (BitZ's and
 # Kishu's): per G function the four adders' sums and carries, and two of the four XOR words.
 # Every word of G is used once as a factor, in an XOR, and once linearly, in an adder. A word
@@ -1136,7 +1138,7 @@ def path_cost(field, hp):
 # BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
 BLAKE2S_BITS = blake_bits(BLAKE2S_ROUNDS, 32, 33, 34)
-BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE_G_ADDITIONS * 31
+BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE2OR3_G_ADDITIONS * 31
 BLAKE2S_PIOP = blake_piop(BLAKE2S_ROUNDS, 32)
 KECCAK_ROUNDS = 24
 # Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
