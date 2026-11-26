@@ -51,6 +51,8 @@ a { color: var(--accent-ink); }
 .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
 .group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .group.wide { grid-column: 1 / -1; }
+.group .row { display: flex; flex-wrap: wrap; gap: 4px 18px; }  /* options laid out left to right */
+.group.off { opacity: 0.45; }  /* a control that does not apply to the current selection */
 /* Two cells side by side, whatever precedes them: the two measures; a group beside a stack of short groups. */
 .group.measures, .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
 /* The two measure groups with the swap button between them. */
@@ -65,6 +67,7 @@ a { color: var(--accent-ink); }
 .measures .group .eyebrow { min-height: 2.8em; }
 .measures .swap button { padding: 2px 7px; font-size: 16px; line-height: 1; }
 .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.stack.spread { justify-content: space-between; }  /* fill the neighbouring column's height, the groups evenly spaced */
 /* The rank boxes in a regular grid across the panel's width. */
 .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
 .group.grid .eyebrow { grid-column: 1 / -1; }
@@ -202,6 +205,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     </div>
     </div>
     <div class="group wide two">
+    <div class="stack spread">
     <div class="group"><a href="#axes" class="eyebrow">View</a>
       <label><input type="radio" name="view" value="2d" id="view2d"> 2D: bytes against the second measure, the third as marker size (log scale over the plotted points, 5 to 22 px)</label>
       <label><input type="radio" name="view" value="3d" checked id="view3d"> 3D: bytes, second measure, third measure</label>
@@ -212,7 +216,19 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <hr class="sep">
       <label><input type="checkbox" id="holdcamera"> hold the view (axes, camera, zoom) when options change</label>
     </div>
-    <div class="stack">
+    <div class="group"><a href="#security-floor" class="eyebrow">Security floor</a>
+      <label><input type="radio" name="floor" value="128" id="floor128"> 128 quantum bits (ADPS16 core-SVP; Pedersen‑IPA and the binary groups are shown here alone)</label>
+      <label><input type="radio" name="floor" value="147" checked id="floor147"> 147 quantum bits (the most Akita's compression maps allow)</label>
+      <label><input type="radio" name="floor" value="165" id="floor165"> 165 quantum bits (ADPS16 core-SVP) / 192 classical bits, illustrative</label>
+    </div>
+    <div class="group" id="transcriptgroup"><a href="#level-3" class="eyebrow">Transcript hash at floor 165</a>
+      <div class="row">
+      <label><input type="radio" name="transcript" value="level3_blake3" checked id="transcriptblake3"> BLAKE3</label>
+      <label><input type="radio" name="transcript" value="level3_sha3" id="transcriptsha3"> SHA3-384</label>
+      </div>
+    </div>
+    </div>
+    <div class="stack spread">
     <div class="group"><a href="#prover-work" class="eyebrow">Work unit</a>
       <label><input type="radio" name="unit" value="muls" id="unitmuls"> 64‑bit multiplications</label>
       <label><input type="radio" name="unit" value="ms" checked id="unitms"> milliseconds on one core, at 3e9 multiplications per second</label>
@@ -227,24 +243,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="radio" name="tolerance" value="0.02" checked id="tolerance2"> 2% on each measure</label>
       <label><input type="radio" name="tolerance" value="0.05" id="tolerance5"> 5% on each measure</label>
     </div>
-    </div>
-    </div>
-    <div class="group wide two">
-    <div class="stack">
-    <div class="group"><a href="#security-floor" class="eyebrow">Security floor</a>
-      <label><input type="radio" name="floor" value="128" id="floor128"> 128 quantum bits (ADPS16 core-SVP; Pedersen‑IPA and the binary groups are shown here alone)</label>
-      <label><input type="radio" name="floor" value="147" checked id="floor147"> 147 quantum bits (the most Akita's compression maps allow)</label>
-      <label><input type="radio" name="floor" value="165" id="floor165"> 165 quantum bits (ADPS16 core-SVP) / 192 classical bits, illustrative</label>
-    </div>
-    <div class="group"><a href="#zero-knowledge" class="eyebrow">Zero knowledge</a>
-      <label><input type="checkbox" id="zk" checked> zero knowledge</label>
-    </div>
-    </div>
     <div class="group"><a href="#changes" class="eyebrow">Allowed changes</a>
       <label><input type="radio" name="hashes" value="blake3" checked id="hashesblake3"> conventional hashes only (BLAKE3)</label>
       <label><input type="radio" name="hashes" value="poseidon" id="hashesposeidon"> arithmetic hashes allowed (Poseidon 1.1)</label>
       <hr class="sep">
       <label><input type="checkbox" id="paramsonly"> parameter changes only (&#9679;; &#9632; needs code or design changes)</label>
+    </div>
+    <div class="group"><a href="#zero-knowledge" class="eyebrow">Zero knowledge</a>
+      <label><input type="checkbox" id="zk" checked> zero knowledge</label>
+    </div>
     </div>
     </div>
     <div class="group wide grid"><a href="#rank" class="eyebrow">Rank</a>
@@ -1597,14 +1604,17 @@ code { font-family: var(--mono); font-size: 0.92em; }
   measured: every row there is derived from its 147‑bit row, and is ranked with the
   strongest <a href="#requirements">assumption</a>.</p>
   <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
-  256‑bit bottlenecks inside, so the trees hash with SHA3-384. The transcripts stay on BLAKE3, which
-  is generous again. No attack on a 256‑bit transcript hash is known at the level, but the security
-  proofs for Fiat–Shamir over a chained or sponge hash lose a term of about $T^2/2^c$ for work $T$
-  and a state of $c$ bits, so the level is not provable with
-  one. <!--claim:level3_fair_reading_one_rank:e65ec1-->With SHA3-384 transcripts Akita's merge
-  converges at rank <!--fig:level3_fair_rank-->17<!--/fig--> alone,
-  in <!--fig:level3_fair_circuits_min-->378<!--/fig-->
-  to <!--fig:level3_fair_circuits_max-->1,208<!--/fig--> circuits.<!--/claim--></p>
+  256‑bit bottlenecks inside, so the trees hash with SHA3-384. For the transcript the control offers
+  both readings. BLAKE3 is the generous one. No attack on a 256‑bit transcript hash is known at the
+  level, but the security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
+  $T^2/2^c$ for work $T$ and a state of $c$ bits, so the level is not provable with one. SHA3-384
+  is the fair reading. <!--claim:level3_fair_reading_one_rank:e65ec1-->With it Akita's merge
+  converges at rank <!--fig:level3_fair_rank-->17<!--/fig--> alone, in <!--fig:level3_fair_circuits_min-->378<!--/fig-->
+  to <!--fig:level3_fair_circuits_max-->1,208<!--/fig--> circuits.<!--/claim--> <!--claim:level3_sha3_kishu_dearer:80c260-->Kishu's
+  merge at rank 17 with zero knowledge is then <!--fig:level3_sha3_kishu_17_digits_m-->10<!--/fig--> million digits
+  in <!--fig:level3_sha3_kishu_17_circuits-->92<!--/fig--> circuits, and its accumulation
+  prover <!--fig:level3_sha3_kishu_17_accumulation_x-->9.4<!--/fig--> times the 147‑bit one.<!--/claim--> The figures
+  below are under BLAKE3.</p>
   <p>Akita's rows at the level are derived as follows:</p>
   <ul>
     <li>the accumulation matrix is looked up in a width table extrapolated from the 147‑bit one, by
@@ -2401,9 +2411,10 @@ function selected() {
   const floor = +document.querySelector('input[name=floor]:checked').value;
   const grind = document.getElementById('grind').value;
   const hashes = document.querySelector('input[name=hashes]:checked').value;
+  const transcript = document.querySelector('input[name=transcript]:checked').value;
   return DATA.points.filter(p => fams.includes(p.family) && (p.rank === null || ranks.includes(p.rank))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
     && (p.zk === null || p.zk === zk) && (p.floor === null || p.floor === floor)
-    && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === 'sha3_384' || hashes === 'poseidon')  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the illustrative level's rows hash with SHA3-384 alone
+    && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === transcript || (hashes === 'poseidon' && p.hashes === 'poseidon'))  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the illustrative level's rows are under its transcript hash alone
     && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
 }
 const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', bits_q64: 'Module-SIS, random oracle', bits_q64_poseidon: 'Module-SIS, random oracle', bits_akita: 'Module-SIS, random oracle; security ledger open',
@@ -2493,7 +2504,7 @@ function fmt(n) { return n.toLocaleString('en-GB'); }
 // Tachyon tree's last nodes, Ragu's two rerandomization fuses, are steps of their own. The
 // model's tx_steps is the same function.
 // An application's own hashing is counted under the page's policy for a row with no hashing of its own, and at BLAKE3's count for the illustrative level's rows, whose statement is unchanged.
-const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes === 'sha3_384' ? 'blake3' : p.hashes];
+const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes.startsWith('level3_') ? 'blake3' : p.hashes];
 // A proof tree's nodes packed into steps of capacity cap: a node larger than a step takes
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; the
 // tree's last `own` nodes, a Tachyon tree's rerandomization fuses, are steps of their own.
@@ -2588,6 +2599,10 @@ function hover(p) {
   return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure: ${fmtWork(val(p, `transaction_${side}`))} ${unitName()}`).join('')}<br>${CHANGE[p.change]}`;
 }
 function render() {
+  // The transcript's hash is a choice at the illustrative level alone.
+  const atLevel3 = document.querySelector('input[name=floor]:checked').value === '165';
+  for (const r of document.querySelectorAll('input[name=transcript]')) r.disabled = !atLevel3;
+  document.getElementById('transcriptgroup').classList.toggle('off', !atLevel3);
   // Each class, pre-quantum (Pedersen-IPA) and post‑quantum (Akita), has its
   // own frontier, taken among the selected configurations of that class, so
   // that fixing a rank or a header size gives the frontier at that circuit
@@ -2823,7 +2838,7 @@ document.querySelectorAll('table').forEach(table => {
     sortTable(table, i, dir);
   }));
 });
-document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=transcript], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 // The book switches themes by changing the root element's class.
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });

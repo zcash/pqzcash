@@ -46,12 +46,18 @@ DEFAULT_FLOOR = 147
 # page's quantum unit, so the level's key is 165. The hash-based rows take 165 bits as their
 # soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
 # Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
-# inside, so a Merkle tree's hash is SHA3-384, which the rows carry as their hash policy. The
-# transcripts stay on BLAKE3, the generous reading (conventional_hash_gates). Nothing at this
-# level is planned or measured: the rows are derived from the 147-bit ones (LEVEL3 below, where
-# the lattice rows are built), and the page marks them so.
+# inside, so a Merkle tree's hash is SHA3-384. For the transcript the page offers both
+# readings, as two hash policies that the level's rows carry: BLAKE3, the generous one, and
+# SHA3-384, the fair one (conventional_hash_gates). Nothing at this level is planned or
+# measured: the rows are derived from the 147-bit ones, where the lattice rows are built, and
+# the page marks them so.
 LEVEL3_FLOOR = 165
-LEVEL3_HASH = "sha3_384"
+LEVEL3_BLAKE3 = "level3_blake3"  # the level with BLAKE3 transcripts
+LEVEL3_SHA3 = "level3_sha3"  # the level with SHA3-384 transcripts
+LEVEL3_POLICIES = (LEVEL3_BLAKE3, LEVEL3_SHA3)
+# The transcript's hash under each conventional hash policy, by name. A policy that is not
+# listed is an error wherever a transcript is hashed.
+TRANSCRIPT_HASH = {"blake3": "blake3", LEVEL3_BLAKE3: "blake3", LEVEL3_SHA3: "sha3_384"}
 SHA3_384_RATE = 104  # bytes absorbed a Keccak permutation
 SHA3_384_DIGEST = 48
 _model = {}
@@ -560,7 +566,12 @@ def transcript_compressions(bytes_, whole=True):
     return sum(transcript_split(bytes_, whole))
 
 
-HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon", "sha3_384": ", SHA3-384"}
+HASH_LABEL = {
+    "blake3": ", BLAKE3",
+    "poseidon": ", Poseidon",
+    LEVEL3_BLAKE3: ", BLAKE3 transcript",
+    LEVEL3_SHA3: ", SHA3-384 transcript",
+}
 
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
 # today's native stages are, and every step circuit's witness goes into one more group, since
@@ -662,7 +673,7 @@ IMAGE_BYTES = 128
 
 
 def level3(hp):
-    return hp == LEVEL3_HASH
+    return hp in LEVEL3_POLICIES
 
 
 def claim_bytes(variant, hp):
@@ -684,18 +695,24 @@ def fold_gates_per_image(hp):
     return FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES
 
 
-def conventional_hash_gates(bytes_, hp, fair=False):
-    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash,
-    the keyed BLAKE3 chain. The illustrative level's rows keep it, which is the generous
-    reading of the level (the user, 2026-11-26). The fair reading (`fair`) hashes the
-    transcript with SHA3-384's sponge, a Keccak permutation for each SHA3_384_RATE bytes with
-    its padding byte: no attack on a 256-bit transcript hash is known at the level, but the
-    security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
-    T^2/2^c for work T and a state of c bits, which at c = 256 is above the level's T/2^192
-    beyond 2^64 work. The page quotes the fair reading's consequence beside the rows."""
-    if level3(hp) and fair:
-        return ceil_div(bytes_ + 1, SHA3_384_RATE) * HASH_UNITS["keccak"]["gates"]
-    return transcript_compressions(bytes_) * BLAKE3_GATES
+def conventional_hash_gates(bytes_, hp):
+    """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
+    the keyed BLAKE3 chain, or where TRANSCRIPT_HASH says so SHA3-384's sponge, a Keccak permutation for
+    each SHA3_384_RATE bytes with its padding byte. At the illustrative level BLAKE3 is the
+    generous reading and SHA3-384 the fair one (the user, 2026-11-26): no attack on a 256-bit
+    transcript hash is known at the level, but the security proofs for Fiat–Shamir over a
+    chained or sponge hash lose a term of about T^2/2^c for work T and a state of c bits,
+    which at c = 256 is above the level's T/2^192 beyond 2^64 work."""
+    return {
+        "blake3": lambda: transcript_compressions(bytes_) * BLAKE3_GATES,
+        "sha3_384": lambda: sha3_384_permutations(bytes_) * HASH_UNITS["keccak"]["gates"],
+    }[TRANSCRIPT_HASH[hp]]()
+
+
+def sha3_384_permutations(bytes_, whole=True):
+    """Keccak permutations for SHA3-384 to absorb `bytes_`: whole ones with the padding byte
+    for a whole transcript, the quotient for a share of a larger one."""
+    return ceil_div(bytes_ + 1, SHA3_384_RATE) if whole else bytes_ / SHA3_384_RATE
 
 
 def akita_absorbed_bytes(variant, K, circuits, zk, hp="blake3"):
@@ -706,10 +723,10 @@ def akita_absorbed_bytes(variant, K, circuits, zk, hp="blake3"):
     ) + K * image_bytes(hp)
 
 
-def akita_hash_gates(variant, K, circuits, zk, hp, fair=False):
+def akita_hash_gates(variant, K, circuits, zk, hp):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return conventional_hash_gates(akita_absorbed_bytes(variant, K, circuits, zk, hp), hp, fair)
+    return conventional_hash_gates(akita_absorbed_bytes(variant, K, circuits, zk, hp), hp)
 
 
 def circuit_slope(cost):
@@ -725,26 +742,26 @@ def circuit_slope(cost):
     return slope
 
 
-def akita_merge_gates(variant, K, circuits, zk, hp, fair=False):
+def akita_merge_gates(variant, K, circuits, zk, hp):
     return (
-        akita_hash_gates(variant, K, circuits, zk, hp, fair)
+        akita_hash_gates(variant, K, circuits, zk, hp)
         + 2 * K * FOLD_GATES_PER_IMAGE * image_bytes(hp) // IMAGE_BYTES
         + SUMCHECK_GATES
         + CLAIM_GATES * circuits
     )
 
 
-def akita_circuits(variant, K, rank, zk, hp, fair=False):
+def akita_circuits(variant, K, rank, zk, hp):
     """The step circuits a merge needs at this rank: the gate estimate, which grows with the
     circuit count through each circuit's claim, divided by the budget, at its fixed point;
     None where each circuit adds more gates than the budget holds, so that no count
-    converges. `fair` is the illustrative level's fair reading (conventional_hash_gates)."""
-    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp, fair))
+    converges."""
+    per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp))
     if per_circuit >= gate_budget(rank):
         return None
     circuits = 1
     for _ in range(2000):
-        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp, fair) / gate_budget(rank))
+        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp) / gate_budget(rank))
         if new == circuits:
             return circuits
         circuits = new
@@ -1504,17 +1521,31 @@ def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS, w
     if hp == "poseidon":
         calls = absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole)
         return calls * Q64_POSEIDON_MULTS * Q64_DIGITS
-    chained, data = transcript_split(bytes_, whole)
-    return chained * BLAKE3_CHAINED_BITS + data * BLAKE3_BITS + checked_words * range_check
+
+    def blake3():
+        chained, data = transcript_split(bytes_, whole)
+        return chained * BLAKE3_CHAINED_BITS + data * BLAKE3_BITS
+
+    hashing = {
+        "blake3": blake3,
+        "sha3_384": lambda: sha3_384_permutations(bytes_, whole) * KECCAK_BITS,
+    }[TRANSCRIPT_HASH[hp]]()
+    return hashing + checked_words * range_check
 
 
 def absorb_piop(bytes_, hp, checked_words=0, whole=False):
     if hp == "poseidon":
         return piop_sum((absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole), POSEIDON_Q64_PIOP))
-    chained, data = transcript_split(bytes_, whole)
-    return piop_sum(
-        (chained, BLAKE3_CHAINED_PIOP), (data, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
-    )
+
+    def blake3():
+        chained, data = transcript_split(bytes_, whole)
+        return ((chained, BLAKE3_CHAINED_PIOP), (data, BLAKE3_PIOP))
+
+    hashing = {
+        "blake3": blake3,
+        "sha3_384": lambda: ((sha3_384_permutations(bytes_, whole), KECCAK_PIOP),),
+    }[TRANSCRIPT_HASH[hp]]()
+    return piop_sum(*hashing, (checked_words, RANGE_CHECK_PIOP))
 
 
 # A Tachyon transaction keeps Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7,
@@ -2510,13 +2541,13 @@ def application_policy(hashes, policy):
     system's hash differs."""
     if hashes == "any":
         return policy
-    return "blake3" if hashes == LEVEL3_HASH else hashes
+    return "blake3" if hashes in LEVEL3_POLICIES else hashes
 
 
 def floor_policies(floor):
-    """The hash policies that rows exist under at a floor: SHA3-384 alone at the illustrative
-    level, where neither BLAKE3 nor the 128-bit Poseidon instances serve."""
-    return (LEVEL3_HASH,) if floor == LEVEL3_FLOOR else HASH_POLICIES
+    """The hash policies that rows exist under at a floor: at the illustrative level its two
+    readings of the transcript's hash, and no Poseidon, whose instances are at 128 bits."""
+    return LEVEL3_POLICIES if floor == LEVEL3_FLOOR else HASH_POLICIES
 
 
 # The user's handoff merge under the note's §5.8 deferral: its circuit derives the challenge
@@ -2546,7 +2577,7 @@ def handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n):
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
 # from the merge circuit's gate estimate and the rank's budget.
 for variant, hp in itertools.product(
-    ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), (*HASH_POLICIES, LEVEL3_HASH)
+    ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), (*HASH_POLICIES, *LEVEL3_POLICIES)
 ):
     K = STAGES + 1
     for floor in (*FLOORS, LEVEL3_FLOOR):
@@ -4268,7 +4299,7 @@ def kishu_costs(
 
 
 for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itertools.product(
-    BOOL_CHECK.items(), (*HASH_POLICIES, LEVEL3_HASH)
+    BOOL_CHECK.items(), (*HASH_POLICIES, *LEVEL3_POLICIES)
 ):
     K = STAGES + 1
     for floor in (*FLOORS, LEVEL3_FLOOR):
@@ -4701,8 +4732,6 @@ for (cls, zk, floor), hp in itertools.product(
         (True, True, 128),
         (True, False, 147),
         (True, True, 147),
-        (True, False, LEVEL3_FLOOR),
-        (True, True, LEVEL3_FLOOR),
         (False, None, 128),
     ),
     HASH_POLICIES,
@@ -4714,11 +4743,21 @@ for (cls, zk, floor), hp in itertools.product(
             if p["pq"] == cls
             and p["zk"] in (zk, None)
             and p["floor"] == floor
-            and (p["hashes"] in ("blake3", "any", LEVEL3_HASH) or hp == "poseidon")
+            and (p["hashes"] in ("blake3", "any") or hp == "poseidon")
             and p.get("grind") in (None, grind)
         ]
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
+
+# The illustrative level's frontiers, one for each reading of the transcript's hash.
+for zk, hp in itertools.product((False, True), LEVEL3_POLICIES):
+    sub = [
+        p
+        for p in points
+        if p["floor"] == LEVEL3_FLOOR and p["zk"] in (zk, None) and p["hashes"] in (hp, "any")
+    ]
+    for p, on in zip(sub, pareto(sub)):
+        p["frontier"] = p.get("frontier", False) or on
 
 # The rows that add no sum-check work have the merge's commitments as their accumulation
 # prover (see accumulation_sumchecks), and the sum-check rate is the measured one.
@@ -4902,7 +4941,7 @@ def shown(family, policy="blake3", zk=False, floor=DEFAULT_FLOOR, **where):
     """A family's rows as the page shows them under a hash policy (the arithmetic-hash option
     adds the Poseidon-priced rows to the BLAKE3 ones), a zero-knowledge setting and a floor,
     with the grinding chosen per row; `where` pins further fields."""
-    allowed = ("any", "blake3", LEVEL3_HASH) + (("poseidon",) if policy == "poseidon" else ())
+    allowed = ("any", "blake3", *LEVEL3_POLICIES) + (("poseidon",) if policy == "poseidon" else ())
     return [
         p
         for p in points
@@ -6335,7 +6374,7 @@ def define_figures():
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
     fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
     g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
-    g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR)
+    g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
     fig("level3_goldilocks_16_circuits", g165["circuits"])
     fig("goldilocks_16_zk_circuits", g147["circuits"])
     fig(
@@ -6344,7 +6383,21 @@ def define_figures():
     )
     fig("level3_goldilocks_16_bytes_pct", round(100 * (g165["bytes"] / g147["bytes"] - 1)))
     k147 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", hashes="blake3")
-    k165 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", floor=LEVEL3_FLOOR)
+    kishu17 = dict(rank=17, zk=True, route="limbs", check="sumcheck", floor=LEVEL3_FLOOR)
+    k165 = pick("bits_q64", hashes=LEVEL3_BLAKE3, **kishu17)
+    k165_sha3 = pick("bits_q64", hashes=LEVEL3_SHA3, **kishu17)
+    fig("level3_sha3_kishu_17_digits_m", sig(k165_sha3["gates"] / 1e6, 2))
+    fig("level3_sha3_kishu_17_circuits", k165_sha3["circuits"])
+    fig(
+        "level3_sha3_kishu_17_accumulation_x",
+        sig(k165_sha3["accumulation_prover"] / k147["accumulation_prover"]),
+    )
+    claim(
+        "level3_sha3_kishu_dearer",
+        "at the illustrative level Kishu's rank-17 merge and accumulation prover are greater with SHA3-384 transcripts than with BLAKE3 ones",
+        k165_sha3["gates"] > k165["gates"]
+        and k165_sha3["accumulation_prover"] > k165["accumulation_prover"],
+    )
     fig("level3_kishu_17_circuits", k165["circuits"])
     fig("kishu_17_zk_circuits", k147["circuits"])
     fig("level3_kishu_17_digits_m", sig(k165["gates"] / 1e6, 2))
@@ -6365,10 +6418,7 @@ def define_figures():
     )
     lattice_variants = ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta")
     fair = {
-        rank: [
-            akita_circuits(v, STAGES + 1, rank, True, LEVEL3_HASH, fair=True)
-            for v in lattice_variants
-        ]
+        rank: [akita_circuits(v, STAGES + 1, rank, True, LEVEL3_SHA3) for v in lattice_variants]
         for rank in RANKS
     }
     fair_rank = min(r for r in RANKS if all(c is not None for c in fair[r]))
@@ -6381,7 +6431,7 @@ def define_figures():
         fair_rank == max(RANKS) and all(c is None for r in RANKS if r < fair_rank for c in fair[r]),
     )
     w147 = arc_circuits("whir", "1/8", 16, DEFAULT_FLOOR, GRIND_DEFAULT, "blake3")
-    w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_HASH)
+    w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_BLAKE3)
     fig("whir_16_blake3_circuits", fmt(w147))
     fig("level3_whir_16_circuits", fmt(w165))
     fig("level3_whir_circuits_x", sig(w165 / w147))
