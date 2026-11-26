@@ -28,6 +28,8 @@ The pages of this section:
 - [CAPSS](auth-capss.md): a SNARK-friendly signature as a third method, analysed and not adopted:
   the method for a prime-field proof system, and for Kishu a second signature route with another
   assumption and no clear gain.
+- [SLH-DSA at NIST Level 3](auth-slhdsa.md): for illustration only, what a signature at that
+  level would cost inside the proof.
 - [Recovery from Ironwood](recovery-ironwood.md): ZIP 2005's Recovery Statement, and how the two
   methods fit it.
 - [Recovery from Tachyon](recovery-tachyon.md): Tachyon's key structure, what it lacks for recovery,

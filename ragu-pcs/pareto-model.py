@@ -1837,13 +1837,53 @@ ZOODLES_MERKLE_SIGHASH_BYTES = (
     + ceil_div(ZOODLES_EPOCH_BITS, 8)
 )
 ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_MERKLE_SIGHASH_BYTES)
-# The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
-ZOODLES_AUTHS = ("preimage", *(f"leansphincs_{h}" for h in LEANSPHINCS_VERIFY))
+# SLH-DSA at NIST's 192-bit level (FIPS 205, SLH-DSA-SHAKE-192s), as a spend authorization for
+# illustration only (the user, 2026-11-26): a signature scheme at that level compounds its
+# cost with the proof system's. Its parameters: n, the hypertree's height and layers, a
+# layer's height, and FORS's tree height and count.
+SLHDSA_192S = dict(n=24, h=63, d=7, hp=9, a=14, k=17, lg_w=4)
+# The same level's parameter set for fast signing, for the comparison that explains the choice
+# of the other: its 22 hypertree layers each cost the verifier a WOTS+ public key.
+SLHDSA_192F = dict(n=24, h=66, d=22, hp=3, a=8, k=33, lg_w=4)
+SHAKE256_RATE = 136
+SLHDSA_ADRS_BYTES = 32
 
 
-def leansphincs_hash(auth):
-    """The hash of a `leansphincs_<hash>` authorization; None for the preimage check."""
-    return auth.removeprefix("leansphincs_") if auth.startswith("leansphincs_") else None
+def slhdsa_chains(params):
+    """The chains of a WOTS+ key: the digest's digits to the base w, and their checksum's."""
+    w = 2 ** params["lg_w"]
+    len1 = ceil_div(8 * params["n"], params["lg_w"])
+    return len1 + math.floor(math.log2(len1 * (w - 1)) / params["lg_w"]) + 1
+
+
+def slhdsa_shake(params, message_bytes):
+    """(Keccak permutations to verify, signature bytes) of SLH-DSA with SHAKE256 for the
+    parameter set, on a message of `message_bytes`: the message digest, FORS's k leaves with
+    their paths and the roots' compression, and for each hypertree layer a WOTS+ public key
+    from its signature, len chains at half their w - 1 steps expected, its compression, and
+    the layer's path. Each call absorbs the public seed, an address, and its input."""
+    n, w = params["n"], 2 ** params["lg_w"]
+    perms = lambda input_bytes: ceil_div(n + SLHDSA_ADRS_BYTES + input_bytes + 1, SHAKE256_RATE)
+    chain_step, node = perms(n), perms(2 * n)
+    chains = slhdsa_chains(params)
+    layer = chains * (w - 1) / 2 * chain_step + perms(chains * n) + params["hp"] * node
+    fors = params["k"] * (chain_step + params["a"] * node) + perms(params["k"] * n)
+    digest = ceil_div(3 * n + message_bytes + 1, SHAKE256_RATE)
+    signature = (1 + params["k"] * (1 + params["a"]) + params["h"] + params["d"] * chains) * n
+    return round(digest + fors + params["d"] * layer), signature
+
+
+SLHDSA_192S_VERIFY, SLHDSA_192S_SIG_BYTES = slhdsa_shake(SLHDSA_192S, 32)
+SLHDSA_192F_VERIFY, SLHDSA_192F_SIG_BYTES = slhdsa_shake(SLHDSA_192F, 32)
+# FIPS 205, Table 2
+assert (SLHDSA_192S_SIG_BYTES, SLHDSA_192F_SIG_BYTES) == (16_224, 35_664)
+# The signature authorizations, as (hash, calls to verify, signature bytes).
+SIGNATURE_AUTHS = {
+    f"leansphincs_{h}": (h, calls, LEANSPHINCS_SIG_BYTES) for h, calls in LEANSPHINCS_VERIFY.items()
+} | {"slhdsa192s": ("keccak", SLHDSA_192S_VERIFY, SLHDSA_192S_SIG_BYTES)}
+# The spend authorizations: the preimage check, a leanSPHINCS signature with each hash, and
+# the illustrative SLH-DSA one.
+ZOODLES_AUTHS = ("preimage", *SIGNATURE_AUTHS)
 
 
 ZOODLES_NODES = {  # compressions, roots, openings, and the widths of the range checks and sums
@@ -1911,9 +1951,9 @@ def zoodles_node_cost(field, hp, node, auth):
     verifier = 0
     if auth == "preimage" and node == "SpendAction":
         blake3 += 1  # qk = H^qk(qsk), beside the payment key's opening to (nk, qk)
-    if h := leansphincs_hash(auth):
+    if auth in SIGNATURE_AUTHS:
         if node == "SpendAction":
-            verifier = hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
+            verifier = hash_app_cost(field, *SIGNATURE_AUTHS[auth])
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     return (
@@ -1930,9 +1970,9 @@ def zoodles_node_piop(node, auth):
     parts = []
     if auth == "preimage" and node == "SpendAction":
         blake3 += 1
-    if h := leansphincs_hash(auth):
+    if auth in SIGNATURE_AUTHS:
         if node == "SpendAction":
-            parts.append((1, hash_app_piop(h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)))
+            parts.append((1, hash_app_piop(*SIGNATURE_AUTHS[auth])))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
     claim_bytes = CLAIM_BYTES["kishu"]
@@ -1959,8 +1999,8 @@ def zoodles_merkle_cost(field, hp, auth):
         + amount
     )
     sighash = 0
-    if h := leansphincs_hash(auth):
-        spend += hash_app_cost(field, h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES)
+    if auth in SIGNATURE_AUTHS:
+        spend += hash_app_cost(field, *SIGNATURE_AUTHS[auth])
         sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
     output = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + amount
     fee = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + 3 * amount + total
@@ -1979,10 +2019,8 @@ def zoodles_merkle_piop(auth):
         (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 3, range_check_piop(ZOODLES_AMOUNT_BITS)),
         (ZOODLES_INPUTS + ZOODLES_OUTPUTS, range_check_piop(ZOODLES_SUM_BITS)),
     ]
-    if h := leansphincs_hash(auth):
-        parts.append(
-            (ZOODLES_INPUTS, hash_app_piop(h, LEANSPHINCS_VERIFY[h], LEANSPHINCS_SIG_BYTES))
-        )
+    if auth in SIGNATURE_AUTHS:
+        parts.append((ZOODLES_INPUTS, hash_app_piop(*SIGNATURE_AUTHS[auth])))
         parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
@@ -5967,9 +6005,10 @@ def define_figures():
         for app, n in PAGE_APPLICATIONS:
             a, q, wo = kishu_zk_optimum(app, n, sample)
             w_page = kishu_zk_best(app, MASK_ALPHA, sample, n)[1]
-            if (
-                app != "qk"
-            ):  # the device's statement alone is one compression: its transaction is its merges, and its optimum is no transaction's
+            # The device's statement alone is one compression: its transaction is its merges,
+            # and its optimum is no transaction's. The transactions using SLH-DSA at NIST Level 3
+            # are hundreds of millions of digits, and are left out of both statements too.
+            if app != "qk" and "slhdsa" not in app:
                 optima[(name, app, n)] = a
                 worst = max(worst, w_page / wo - 1)
             KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
@@ -5982,14 +6021,14 @@ def define_figures():
     fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
     claim(
         "alpha_optimum_at_grid_top",
-        "the transaction measure's least zero-knowledge work is at the top of the width grid for every transaction-sized application at every sampler rate, since the masked matrix does not move across the grid",
+        "the transaction measure's least zero-knowledge work is at the top of the width grid for every transaction-sized application except those using SLH-DSA at NIST Level 3, at every sampler rate, since the masked matrix does not move across the grid",
         all(a == max(MASK_ALPHA_GRID) for a in optima.values())
         and hi == max(MASK_ALPHA_GRID)
         and len({FIGURES[f"mask_matrix_alpha{a}"] for a in MASK_ALPHAS}) == 1,
     )
     claim(
         "alpha_page_excess",
-        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application at the page's sampler",
+        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application except those using SLH-DSA at NIST Level 3, at the page's sampler",
         mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9 and excess["page"] < 0.10,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
@@ -6448,6 +6487,55 @@ def define_figures():
     # consequence for them, and why the hash-based families have no row.
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
     fig("opening_challenge_atoms", OPENING_CHALLENGE_ATOMS)
+    # The illustrative SLH-DSA authorization, and why its small-signature parameter set.
+    fig("slhdsa_192s_perms", fmt(SLHDSA_192S_VERIFY))
+    fig("slhdsa_192f_perms", fmt(SLHDSA_192F_VERIFY))
+    fig("slhdsa_192s_sig_bytes", fmt(SLHDSA_192S_SIG_BYTES))
+    fig("slhdsa_192f_sig_bytes", fmt(SLHDSA_192F_SIG_BYTES))
+    fig("slhdsa_192s_layers", SLHDSA_192S["d"])
+    fig("slhdsa_192_chains", slhdsa_chains(SLHDSA_192S))
+    fig("slhdsa_192_chain_steps", 2 ** SLHDSA_192S["lg_w"] - 1)
+    fig("slhdsa_192f_layers", SLHDSA_192F["d"])
+    fig("slhdsa_192f_over_s_perms", sig(SLHDSA_192F_VERIFY / SLHDSA_192S_VERIFY))
+    fig("slhdsa_192s_over_leansphincs", sig(SLHDSA_192S_VERIFY / LEANSPHINCS_VERIFY["keccak"]))
+    # The two signatures' transactions under Kishu's BLAKE3 variant with zero knowledge, at the
+    # default floor and at the illustrative level with each transcript hash: the least
+    # transaction work over the ranks, in seconds on one core, and against the first.
+    settings = {
+        "147": dict(floor=DEFAULT_FLOOR, hashes="blake3"),
+        "level3_blake3": dict(floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3),
+        "level3_sha3_384": dict(floor=LEVEL3_FLOOR, hashes=LEVEL3_SHA3_384),
+    }
+    signature_apps = {"leansphincs": "zoodles_leansphincs_blake3", "slhdsa": "zoodles_slhdsa192s"}
+    tx_rows = {
+        (sig_, setting): best_for("bits_q64", app, "blake3", zk=True, **where)
+        for sig_, app in signature_apps.items()
+        for setting, where in settings.items()
+    }
+    tx_table = {key: work for key, (_, work) in tx_rows.items()}
+    base = tx_table[("leansphincs", "147")]
+    slhdsa_row = tx_rows[("slhdsa", "147")][0]
+    fig("sigtx_slhdsa_147_rank", slhdsa_row["rank"])
+    fig("sigtx_slhdsa_147_steps", tx_steps(slhdsa_row, "zoodles_slhdsa192s", "blake3"))
+    for (sig_, setting), work in tx_table.items():
+        fig(f"sigtx_{sig_}_{setting}_s", sig(work / WORD_MULTS_PER_SECOND, 3))
+        fig(f"sigtx_{sig_}_{setting}_x", sig(work / base, 2))
+    claim(
+        "sigtx_each_change_dearer",
+        "each of the three changes, the signature to SLH-DSA, the level to the illustrative one, and the transcript to SHA3-384, makes the Zoodles transaction dearer for Kishu whatever the other two are",
+        all(tx_table[("slhdsa", s_)] > tx_table[("leansphincs", s_)] for s_ in settings)
+        and all(
+            tx_table[(g, "147")] < tx_table[(g, "level3_blake3")] < tx_table[(g, "level3_sha3_384")]
+            for g in signature_apps
+        ),
+    )
+    claim(
+        "slhdsa_192s_cheaper_to_verify",
+        "SLH-DSA-SHAKE-192s takes fewer Keccak permutations to verify and a smaller signature than SLH-DSA-SHAKE-192f, and more than ten times leanSPHINCS's permutations",
+        SLHDSA_192S_VERIFY < SLHDSA_192F_VERIFY
+        and SLHDSA_192S_SIG_BYTES < SLHDSA_192F_SIG_BYTES
+        and SLHDSA_192S_VERIFY > 10 * LEANSPHINCS_VERIFY["keccak"],
+    )
     fig("level3_challenge_weight", challenge_l1(LEVEL3_FLOOR))
     fig("challenge_weight", MASK_CHALLENGE_L1)
     fig("challenge_space", f"$2^{{{round(challenge_space_bits(MASK_CHALLENGE_L1))}}}$")
@@ -7620,6 +7708,7 @@ PROSE_FILES = (
     "auth-preimage.md",
     "auth-leansphincs.md",
     "auth-capss.md",
+    "auth-slhdsa.md",
     "recovery-ironwood.md",
     "recovery-tachyon.md",
 )
@@ -7857,6 +7946,7 @@ def write_book_files(page, data_json):
             "../zoodles/spend-authorization/hardware-wallets.html",
         ),
         "spend-authorization": ("spend-authorization.md", "../zoodles/spend-authorization.html"),
+        "auth-slhdsa": ("auth-slhdsa.md", "../zoodles/spend-authorization/slh-dsa.html"),
     }
     note_ids = {
         name: {
