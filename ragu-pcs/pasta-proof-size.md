@@ -554,12 +554,12 @@ arithmetic, which the Ironwood recovery circuit is made of, then pays the embedd
 overhead that the small-field survey (ePrint 2026/1371, §5) describes. The Pareto page prices the
 binary-field route in its own terms, with FRI-Binius's measured commitment proofs at the merge's
 witness size and Flock's measured throughput as prover time. At rate 1/8 it comes
-to <!--fig:f2_1_8_kb-->214 kbytes<!--/fig--> and the time
-of <!--fig:f2_1_8_prover-->5.8e8<!--/fig--> word multiplications per
+to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time
+of <!--fig:f2_1_8_prover-->1e9<!--/fig--> word multiplications per
 merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over Goldilocks with Poseidon still
 dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
 and <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->.<!--/claim--> The merge's Boolean size,
-about <!--fig:f2_1_8_gates-->33<!--/fig--> million AND gates, is not comparable with Pasta gates.
+about <!--fig:f2_1_8_gates-->67<!--/fig--> million AND gates, is not comparable with Pasta gates.
 LaBinius (ePrint 2026/2103) is a lattice scheme over a binary claim field. It reaches proofs under
 103 kbytes with LaBRADOR compression and a prover within twice the hash-based ones, and
 [§6.3](#63-decoupling-the-commitment-modulus-from-the-claim-field) says why it matters here.
@@ -595,9 +595,9 @@ rows from it, at the 128-bit floor, where the stand-alone proof
 is <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at rate 1/8
 and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at 1/64. The figures below are the certified
 ones. With its hybrid SNARK's PIOPs added, BitZ with ARC at rank 13 and rate 1/8 comes
-to <!--fig:bitz13_kb-->488 kbytes<!--/fig-->, <!--fig:bitz13_prover-->6.3e8<!--/fig--> word
-multiplications, a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge and
-a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms
+to <!--fig:bitz13_kb-->538 kbytes<!--/fig-->, <!--fig:bitz13_prover-->1.1e9<!--/fig--> word
+multiplications, a <!--fig:bitz13_merge_bits-->67 million<!--/fig--> bit merge and
+a <!--fig:bitz13_decider_ms-->9.74<!--/fig--> ms
 decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-product
 GKR, <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms at
 $2^{25}$ bits and rate 1/2 on one thread; as Quang Dao puts it, the prover with grand-product GKR is
@@ -631,9 +631,9 @@ of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-chec
 Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
-cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->6.6<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->21<!--/fig-->
-to <!--fig:kishu_vs_bitz_prover_max-->36<!--/fig-->
+cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig-->
+times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
+to <!--fig:kishu_vs_bitz_prover_max-->65<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
 is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller, so under conventional hashes

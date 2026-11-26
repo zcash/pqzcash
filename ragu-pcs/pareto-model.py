@@ -504,6 +504,7 @@ CLAIM_BYTES = {
     "pasta_sis": 32,
     "pasta": 32,
     "kishu": 16,
+    "bitz": 16,  # an element of BitZ's 128-bit binary field
 }
 CLAIM_GATES = 4
 
@@ -704,15 +705,22 @@ def pedersen_verify(rank, nat, nes):
 # Counted in AND gates with XOR free, which is the garbled-circuit cost model and the cost of
 # the Flock-style families' witnesses: a full adder is one AND, since the carry is
 # b ⊕ ((a ⊕ b) ∧ (b ⊕ c)), so an m-bit addition or subtraction is about m.
-# A BLAKE3 compression is its seven rounds of eight G functions with four 32-bit additions, as
-# BLAKE2B_ANDS counts BLAKE2b's. Flock lays a batch out as one block of 2^m0 committed bits per
-# instance (its §4.1), and a compression's 6,944 carries and 896 input bits fit the block of
-# 2^13, so BLAKE3_ANDS_PADDED is a compression's share of a Flock witness. It prices what is
-# Flock's witness or hypercube: the per-bit rate measured on Flock's BLAKE3 batches, the base
-# matrix's sum-check rounds, and the hashes of the Flock-style merges. An application's count
-# is the unpadded AND gates, the step doing the padding.
-BLAKE3_ANDS = 7 * 8 * 4 * 32
-BLAKE3_ANDS_PADDED = 2**13
+# A BLAKE3 compression is its seven rounds of eight G functions. A G function has four
+# addition statements, two of them of three words (a + b + m), so six additions of two 32-bit
+# words, each of 31 carries, the carry out of the top bit being discarded: 10,416 AND gates,
+# as Flock's own BLAKE3 circuit counts them (r1cs_hashes/blake3.rs in its prover crate, as
+# vendored by the BitZ proof of concept). BLAKE2B_ANDS and BLAKE2S_ANDS count the same G
+# function at their rounds and word sizes. Flock lays a batch out as one block of 2^m0
+# committed bits per instance (its §4.1). Its BLAKE3 block is 2^14 (K_LOG there), of which
+# 15,409 bits are used: the carries, two of a G function's words committed to keep the
+# matrices sparse, and the inputs and outputs. So BLAKE3_ANDS_PADDED is a compression's share
+# of a Flock witness. It is used where the count is Flock's witness or hypercube: the per-bit
+# rate measured on Flock's BLAKE3 batches, the base matrix's sum-check rounds, and the hashes
+# of the Flock-style merges. An application's count is the unpadded AND gates, the step doing
+# the padding.
+BLAKE_G_ADDITIONS = 6
+BLAKE3_ANDS = 7 * 8 * BLAKE_G_ADDITIONS * 31
+BLAKE3_ANDS_PADDED = 2**14
 
 
 @functools.lru_cache(maxsize=None)
@@ -825,7 +833,7 @@ def word_range_piop(bits):
 
 BITS_PER_VALUE = 255  # a Pasta value's bits
 VALUE_DIGITS = word_digits(BITS_PER_VALUE)  # a Pasta value in Kishu's digits
-BLAKE2B_ANDS = 12 * 8 * 4 * 64  # twelve rounds of eight G functions with four 64-bit additions
+BLAKE2B_ANDS = 12 * 8 * BLAKE_G_ADDITIONS * 63  # twelve rounds of eight G functions on 64-bit words
 # A compression's committed digits in a degree-two arithmetization over bits (BitZ's and
 # Kishu's): per G function the four adders' sums and carries, and two of the four XOR words.
 # Every word of G is used once as a factor, in an XOR, and once linearly, in an adder. A word
@@ -1127,8 +1135,8 @@ def path_cost(field, hp):
 # BLAKE3's G function. In a Boolean circuit with XOR free Keccak-f is chi's 38,400 ANDs and
 # BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
-BLAKE2S_BITS = BLAKE2S_ROUNDS * 8 * (4 * 33 + BLAKE_G_COMMITTED_XORS * 32) + BLAKE_CHAIN_WORDS * 32
-BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * 4 * 32
+BLAKE2S_BITS = blake_bits(BLAKE2S_ROUNDS, 32, 33, 34)
+BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE_G_ADDITIONS * 31
 BLAKE2S_PIOP = blake_piop(BLAKE2S_ROUNDS, 32)
 KECCAK_ROUNDS = 24
 # Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
@@ -1613,7 +1621,7 @@ def zoodles_opening_cost(field, hp):
     it."""
     fold = CLAIM_GATES * claim_mult_cost(field)
     if field == "bitz":
-        return CLAIM_BYTES["kishu"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+        return CLAIM_BYTES["bitz"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
     if field in KISHU_ARITHS:
         bytes_ = CLAIM_BYTES["kishu"]
         checked = bytes_ // 8 if hp == "blake3" else 0
@@ -6385,17 +6393,28 @@ def define_figures():
     fig("f2_rate_lowest", max(f192, key=lambda r: int(r.split("/")[1])))
     for fld in (192, 191, 256):
         fig(f"f2_1_8_{fld}_kb", kb(pick("flock", rate="1/8", field=fld, zkv=None)["bytes"]))
-    less = [
-        1
-        - pick("flock", rate="1/8", field=fld, zkv=None)["bytes"]
-        / pick("flock", rate="1/8", field=256, zkv=None)["bytes"]
-        for fld in (192, 191)
-    ]
-    fig("f2_192_191_less_pct", sig(100 * sum(less) / 2, 1))
+    # The three designs at the rate-1/8 merge: the list and the queries of each row's proof at
+    # the row's own grinding, and the smaller fields' bytes against the 256-bit design's.
+    designs = {}
+    for fld in (256, 192, 191):
+        row = pick("flock", rate="1/8", field=fld, zkv=None)
+        proof = frib_proof(
+            row["gates"], "1/8", DEFAULT_FLOOR, row["grind_bits"], fld, ARC_DECIDER_TREES
+        )
+        designs[fld] = (row["bytes"], proof["lb"], proof["queries"])
+        fig(f"f2_1_8_{fld}_list_bits", proof["lb"])
+        fig(f"f2_1_8_{fld}_queries", proof["queries"])
+    for fld in (192, 191):
+        fig(f"f2_1_8_{fld}_bytes_less_pct", sig(100 * (1 - designs[fld][0] / designs[256][0]), 1))
     claim(
-        "f2_191_192_proofs_equal",
-        "the 192- and 191-bit designs' proofs are within a percent of each other at rate 1/8",
-        abs(less[0] - less[1]) < 0.01,
+        "f2_smaller_fields_smaller_proofs",
+        "at rate 1/8 the 192- and 191-bit designs have a smaller list than the 256-bit one, no fewer queries, and a smaller proof",
+        all(
+            designs[fld][0] < designs[256][0]
+            and designs[fld][1] < designs[256][1]
+            and designs[fld][2] >= designs[256][2]
+            for fld in (192, 191)
+        ),
     )
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
     # WHIR over Goldilocks under BEEP: the quadratic extension against the cubic one, at the
@@ -6465,8 +6484,32 @@ def define_figures():
     fig("f2_192_prover_least", mil(f_least["prover"]))
     claim(
         "f2_prover_least_rate_4",
-        "the 𝔽₂ family's prover is least at rate 1/4, with rate 1/8 within a tenth of it",
-        f_least["rate"] == "1/4" and f192["1/8"]["prover"] <= 1.1 * f_least["prover"],
+        "the 𝔽₂ family's prover is least at rate 1/4",
+        f_least["rate"] == "1/4",
+    )
+    fig("f2_1_8_over_least_pct", round(100 * (f192["1/8"]["prover"] / f_least["prover"] - 1)))
+    below = [f192[r]["prover"] for r in RATES if int(r.split("/")[1]) >= 4]
+    claim(
+        "f2_prover_grows_below_quarter",
+        "the 𝔽₂ family's prover grows with each halving of the rate from 1/4",
+        len(below) >= 2 and all(a < b for a, b in zip(below, below[1:])),
+    )
+    # The constants that the 𝔽₂ family's paragraphs quote.
+    fig("flock_block_log", f"$2^{{{round(math.log2(BLAKE3_ANDS_PADDED))}}}$")
+    fig("flock_block_bits", fmt(BLAKE3_ANDS_PADDED))
+    fig("blake3_ands", fmt(BLAKE3_ANDS))
+    fig("flock_blake3_per_second", fmt(BLAKE3_PER_SECOND))
+    fig("flock_witness_pct", sig(100 * FLOCK_PIOP_SHARE[0], 2))
+    fig("flock_check_pct", sig(100 * FLOCK_PIOP_SHARE[1], 2))
+    for bits_ in (128, 192, 256, 191):
+        fig(f"clmuls_{bits_}", CLMULS[bits_])
+    fig("frib_commit_ms", FRIB_MEASURED_MS[0])
+    fig("frib_open_ms", FRIB_MEASURED_MS[1])
+    fig("f2_scale_commit", sig(F2_SCALE[0], 2))
+    fig("f2_scale_open", sig(F2_SCALE[1], 2))
+    fig(
+        "f2_flock_pipeline_m",
+        mil(f8["gates"] / BLAKE3_ANDS_PADDED * WORD_MULTS_PER_SECOND / BLAKE3_PER_SECOND),
     )
     fig(
         "f2_over_gold_poseidon",
@@ -6477,9 +6520,9 @@ def define_figures():
         sig(f_least["prover"] / a16[("goldilocks", "blake3")]["prover"]),
     )
     claim(
-        "f2_prover_fraction_of_gold_blake3",
-        "the 𝔽₂ family's least prover is between two thirds and nine tenths of Akita over Goldilocks's with BLAKE3",
-        2 / 3 <= f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] <= 0.9,
+        "f2_prover_more_than_gold_blake3",
+        "the 𝔽₂ family's least prover is more than Akita over Goldilocks's with BLAKE3, and less than twice it",
+        1 < f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] < 2,
     )
     fig("f2_1_8_prover", sci(f8["prover"]))
     fig("f2_1_8_kb", kb(f8["bytes"]))
@@ -6578,6 +6621,56 @@ def define_figures():
     fig("bitz_beep_samples", BEEP_SAMPLES)
     fig("bitz_beep_deep_kb", kb(deep_bytes))
     fig("bitz_udr_queries_25", bitz_queries("udr", 25, 3, BITZ_MEASURED_FLOOR))
+    # The constants and the shapes that the BitZ section's sentences state.
+    fig("bitz_gate_value_bits", BITZ_GATE_BITS // 2)
+    sizes = sorted(BITZ_MEASURED["udr"][3])
+    fig("bitz_measured_log_min", f"$2^{{{sizes[0]}}}$")
+    fig("bitz_measured_log_max", f"$2^{{{sizes[-1]}}}$")
+    ratios = [a / b for a, b in BITZ_HYBRID_MS.values()]
+    fig("bitz_hybrid_ratio_min", sig(min(ratios), 2))
+    fig("bitz_hybrid_ratio_max", sig(max(ratios), 2))
+    fig("bitz_hybrid_log_min", f"$2^{{{min(BITZ_HYBRID_MS)}}}$")
+    fig("bitz_hybrid_log_max", f"$2^{{{max(BITZ_HYBRID_MS)}}}$")
+    udr_q = BITZ_QUERIES["udr"]
+    fig("bitz_udr_level_queries_r1", udr_q[1])
+    fig("bitz_udr_level_queries_r3", udr_q[3])
+    fig("bitz_udr_level_queries_last", udr_q[max(udr_q)])
+    fig("bitz_udr_level_last_rate", f"1/{2 ** max(udr_q)}")
+    claim(
+        "bitz_udr_query_under_a_bit",
+        "under unique decoding every level takes more queries than the floor has bits, fewer at a lower rate",
+        all(q > BITZ_MEASURED_FLOOR for q in udr_q.values())
+        and all(udr_q[e] > udr_q[e + 1] for e in udr_q if e + 1 in udr_q),
+    )
+    beep_q = BITZ_QUERIES["beep"]
+    claim(
+        "bitz_johnson_squaring_halves",
+        "under the Johnson bound squaring the rate about halves a level's queries, to between 0.45 and 0.6 of them",
+        all(0.45 < beep_q[2 * e] / beep_q[e] < 0.6 for e in beep_q if 2 * e in beep_q),
+    )
+    per_halving = [
+        (udr25[3][0] / udr25[1][0]) ** (1 / 2),
+        (beep25[6][0] / udr25[3][0]) ** (1 / 3),
+    ]
+    claim(
+        "bitz_commit_doubles_per_halving",
+        "BitZ's commitment about doubles with each halving of the rate",
+        all(1.8 < x < 2.2 for x in per_halving),
+    )
+    b13_hash_bits = (
+        b13["gates"] - 2 * bitz_piop_verifier_mults(math.log2(b13["gates"])) * BITZ_FIELD_BITS
+    )
+    claim(
+        "bitz_merge_mostly_hashing",
+        "the Merkle hashing is most of a BitZ step's witness at rank 13, and the merge is the size of the 𝔽₂ family's at the same rate",
+        b13_hash_bits > 0.9 * (b13["gates"] + 2**13) and 0.5 < b13["gates"] / f8["gates"] < 2,
+    )
+    pasta_akita = [q for fam in ("pasta_q64", "pasta_sis") for q in shown(fam, policy="poseidon")]
+    claim(
+        "akita_pasta_smaller_than_bitz13",
+        "every Akita row over Pasta has a smaller proof than BitZ's rank-13 ARC row",
+        bool(pasta_akita) and all(q["bytes"] < b13["bytes"] for q in pasta_akita),
+    )
     fig("bitz_beep_queries_25", bitz_queries("beep", 25, 3, BITZ_MEASURED_FLOOR))
     fig("bitz_beep_queries_25_r6", bitz_queries("beep", 25, 6, BITZ_MEASURED_FLOOR))
     # The rows at the 128-bit floor: the smallest proof under each regime.
@@ -6603,20 +6696,26 @@ def define_figures():
         "rank 12 gives BitZ a slightly smaller proof and merge prover",
         b12["bytes"] < b13["bytes"] and b12["prover"] < b13["prover"],
     )
-    bz_rec13 = pick("bitz_rec", rank=13, rate="1/8")
+    # The recursion row beside the ARC row, both under unique decoding at the 128-bit floor: at
+    # the default floor the recursion's merge is larger than any measured size, so it has no
+    # row there.
+    arc128 = pick("bitz", rank=13, rate="1/8", floor=128, profile="udr")
+    bz_rec13 = pick("bitz_rec", rank=13, rate="1/8", floor=128, profile="udr")
+    fig("bitz13_128_merge_bits_m", mil(arc128["gates"]))
     fig("bitz_rec13_merge_bits", mil(bz_rec13["gates"]))
-    fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / b13["gates"], 1))
-    fig("bitz_rec_over_arc_prover", sig(bz_rec13["prover"] / b13["prover"]))
-    fig("bitz_rec_less_pct", round(100 * (1 - bz_rec13["bytes"] / b13["bytes"])))
+    fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / arc128["gates"], 1))
+    fig("bitz_rec_over_arc_prover", sig(bz_rec13["prover"] / arc128["prover"]))
+    fig("bitz_rec_less_pct", round(100 * (1 - bz_rec13["bytes"] / arc128["bytes"])))
     claim(
         "bitz_rec_smaller_proof_dearer",
-        "BitZ's recursion row has a smaller proof than its ARC row at a greater prover and merge",
-        bz_rec13["bytes"] < b13["bytes"]
-        and bz_rec13["prover"] > b13["prover"]
-        and bz_rec13["gates"] > b13["gates"],
+        "at the 128-bit floor BitZ's recursion row has a smaller proof than its ARC row at a greater prover and merge",
+        bz_rec13["bytes"] < arc128["bytes"]
+        and bz_rec13["prover"] > arc128["prover"]
+        and bz_rec13["gates"] > arc128["gates"],
     )
-    fig("ligerito_columns", bitz_queries("udr", math.log2(b13["gates"]), 3, DEFAULT_FLOOR))
-    fig("ligerito_levels", len(bitz_levels("udr", math.log2(b13["gates"]), 3)))
+    fig("arc_openings_1_8_128", round(arc_openings("1/8", 128, 0)))
+    fig("ligerito_columns", bitz_queries("udr", math.log2(bz_rec13["gates"]), 3, 128))
+    fig("ligerito_levels", len(bitz_levels("udr", math.log2(bz_rec13["gates"]), 3)))
     b13z = pick("bitz", rank=13, rate="1/8", zk=True)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"]))
     fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))
