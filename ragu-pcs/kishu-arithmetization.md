@@ -296,6 +296,18 @@ more, <!--fig:blake3_bits-->11,344<!--/fig-->. <!--claim:blake3_output_same_cons
 way a compression is <!--fig:blake3_piop_terms-->11,120<!--/fig--> constraints,<!--/claim-->
 with <!--fig:blake3_piop_nonzeros-->37,760<!--/fig--> nonzeros where the output is data.
 
+BLAKE3 splits a message into chunks of <!--fig:blake3_chunk_bytes-->1,024<!--/fig--> bytes, each a
+chain of compressions over its 64-byte blocks, and joins the chunks' outputs by a binary tree of
+parent compressions, one fewer than the chunks. Over a whole transcript the parents would
+be <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more compressions, and that would compound,
+since the merge absorbs each step circuit's claim and a dearer merge needs more circuits.
+
+So the transcript is a Merkle–Damgård chain at the application level. Each link is a keyed BLAKE3
+call on one 64-byte block of the transcript, whose key is the previous call's output. Every call is
+BLAKE3 as specified, in its keyed mode, on a single block, so it is one compression, and the
+transcript takes exactly one compression a block. The key is the compression's chaining value, so
+each output but the last is consumed as one, and the last is data.
+
 BLAKE2b has the same G function at 64 bits, each addition in two halves since a 64-bit sum can wrap
 modulo $q$. Its finalisation differs: it XORs the old chaining word in with the two state words, a
 chain of two XORs. So all eight output words are committed, each bit certified at two terms. That

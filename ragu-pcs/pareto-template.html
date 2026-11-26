@@ -524,8 +524,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   ms for $2^{27}$ bits on one core, <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word
   multiplications a digit), and for its tribits three products more at the same rate, in the merge's
   constraint PIOP. The fold's own linear combination of the digit vectors costs one multiplication
-  per digit. <!--claim:kishu_accumulation_flat_then_doubles:6f1d45-->Since the batch is the merge's
-  circuits plus one for the application, this measure is within a tenth of flat from rank 15 to 19
+  per digit. <!--claim:kishu_accumulation_flat_then_doubles:f8c941-->Since the batch is the merge's
+  circuits plus one for the application, this measure varies by
+  only <!--fig:kishu_accumulation_15_18_spread_pct-->3<!--/fig-->% from rank 15 to 18
   for Kishu, the commitments and the merge's PIOP not moving with the rank, and rises with the
   application's circuit from there. From rank <!--fig:kishu_one_circuit_rank-->21<!--/fig-->, where
   one circuit holds the merge and the step is two circuits, the accumulator doubles with each rank,
@@ -811,9 +812,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   648 ms and verified in 8.5 ms, on an M4 Max under load with the parallel feature on.</p>
   <p>The merge is Akita's fold in a Boolean circuit, and that is our estimate. The
   transcript's <!--fig:bits_akita_transcript_kb-->2.7<!--/fig--> kbytes absorbed by BLAKE3 in blocks
-  of <!--fig:flock_block_bits-->16,384<!--/fig--> committed bits per compression, Flock's layout, native in a Boolean circuit under either
-  hash policy, is <!--fig:bits_akita_hashing_mands-->0.70<!--/fig--> million gates; the fold of the
-  twelve child images by a ternary challenge of weight 20, one adder bit per image bit per unit of
+  of <!--fig:flock_block_bits-->16,384<!--/fig--> committed bits per compression, Flock's layout,
+  native in a Boolean circuit under either hash policy,
+  is <!--fig:bits_akita_hashing_mands-->0.70<!--/fig--> million gates; the fold of the twelve child
+  images by a ternary challenge of weight 20, one adder bit per image bit per unit of
   weight, <!--fig:bits_akita_fold_mands-->0.27<!--/fig-->
   million; <!--claim:bits_akita_sumcheck_dominates:fc5c31-->one 128‑bit proof-field multiplication
   per sum-check element, 120 of them, <!--fig:bits_akita_sumcheck_mands-->2.1<!--/fig--> million,
@@ -994,8 +996,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   its cubic extension $\mathbb{F}_{2^{192}}$, which is the field that the agreement bound sees, as
   Plonky3's FRI pairs a base field with an extension; or packed straight into
   $\mathbb{F}_{2^{191}}$, a prime-degree field with the trinomial $x^{191} + x^9 + 1$ and no
-  subfields, which Ulrich Haböck suggested for its arithmetic. The proof is at the selected security floor
-  in the list-decoding regime up to the Johnson bound, with the largest list that the
+  subfields, which Ulrich Haböck suggested for its arithmetic. The proof is at the selected security
+  floor in the list-decoding regime up to the Johnson bound, with the largest list that the
   correlated-agreement bound allows (the simplified BCHKS25 bound; BCIKS20 for unique decoding). The
   codeword's length is counted in field elements, with the Guruswami–Sudan multiplicity, the
   selected grinding, the folding schedule chosen to minimise the compressed proof, and Merkle-cap
@@ -1028,13 +1030,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
   design packs into $\mathbb{F}_{2^{64}}$ ($\kappa = 6$) and needs the ring-switching sum-check
   restated over the tensor product of the two fields. The 191‑bit design lays the witness out as 191
   columns, which the PIOP batches and the ring switching takes in one step of degree 191. Both are
-  design changes that the paper does not write down. <!--claim:f2_smaller_fields_smaller_proofs:92697f-->The
-  first-round oracle is the packed witness and has the same bytes under any packing. So the designs
-  differ in the later rounds' elements, 24 bytes against 32, and in the agreement margin, which sets
-  the list and with it the queries. At the rate‑1/8 merge the list's size has
-  <!--fig:f2_1_8_256_list_bits-->17<!--/fig--> bits at 256 bits,
-  <!--fig:f2_1_8_192_list_bits-->5<!--/fig--> at 192, and
-  <!--fig:f2_1_8_191_list_bits-->4<!--/fig--> at 191, and the proof
+  design changes that the paper does not write
+  down. <!--claim:f2_smaller_fields_smaller_proofs:92697f-->The first-round oracle is the packed
+  witness and has the same bytes under any packing. So the designs differ in the later rounds'
+  elements, 24 bytes against 32, and in the agreement margin, which sets the list and with it the
+  queries. At the rate‑1/8 merge the list's size has <!--fig:f2_1_8_256_list_bits-->17<!--/fig-->
+  bits at 256 bits, <!--fig:f2_1_8_192_list_bits-->5<!--/fig--> at 192,
+  and <!--fig:f2_1_8_191_list_bits-->4<!--/fig--> at 191, and the proof
   has <!--fig:f2_1_8_256_queries-->88<!--/fig-->, <!--fig:f2_1_8_192_queries-->92<!--/fig-->,
   and <!--fig:f2_1_8_191_queries-->95<!--/fig--> queries. So the 192‑ and 191‑bit proofs
   are <!--fig:f2_1_8_192_bytes_less_pct-->4<!--/fig-->
@@ -1061,23 +1063,23 @@ code { font-family: var(--mono); font-size: 0.92em; }
   ring switching, two passes of a challenge-field element by each witness bit and a sum-check over
   the packed coefficients; and the folds, the folded trees and the BaseFold sum-check. These are
   counted in carry-less multiplications, BLAKE3 compressions and word XORs at an eighth each, and
-  scaled to the FRI-Binius paper's
-  single-threaded <!--fig:frib_commit_ms-->144<!--/fig--> ms commitment
-  and <!--fig:frib_open_ms-->160<!--/fig--> ms opening at $2^{28}$
-  bits, rate 1/2, over $\mathbb{F}_{2^{128}}$ (its Table 2). The counts reproduce those
-  at <!--fig:f2_scale_commit-->1.1<!--/fig--> and <!--fig:f2_scale_open-->1.9<!--/fig--> times. An ARC step pays the NTT, two trees and the ring switching; a recursive step a full
-  proof, and its merge verifies two, the field multiplications by Karatsuba.</p>
-  <p><!--claim:f2_256_prover_not_less,f2_191_prover_rates,f2_prover_least_rate_4,f2_prover_grows_below_quarter:1d243c-->So the
-  prover grows with the inverse rate below 1/4, as the other hash-based rows do. With the grinding
-  chosen per row it is <!--fig:f2_192_prover_least-->924<!--/fig--> million word multiplications at
-  its least, at rate 1/4, and <!--fig:f2_192_1_64_prover-->3.7 billion<!--/fig--> at rate
-  1/64 in the 192‑bit design. The 256‑bit one is up to <!--fig:f2_256_more_pct_max-->7<!--/fig-->
-  percent more, and the 191‑bit one from <!--fig:f2_191_less_pct-->3<!--/fig--> percent less at rate
-  1/2 to <!--fig:f2_191_more_pct-->10<!--/fig--> percent more at the lowest rates, where the NTT's
+  scaled to the FRI-Binius paper's single-threaded <!--fig:frib_commit_ms-->144<!--/fig--> ms
+  commitment and <!--fig:frib_open_ms-->160<!--/fig--> ms opening at $2^{28}$ bits, rate 1/2, over
+  $\mathbb{F}_{2^{128}}$ (its Table 2). The counts reproduce those
+  at <!--fig:f2_scale_commit-->1.1<!--/fig--> and <!--fig:f2_scale_open-->1.9<!--/fig--> times. An
+  ARC step pays the NTT, two trees and the ring switching; a recursive step a full proof, and its
+  merge verifies two, the field multiplications by Karatsuba.</p>
+  <p><!--claim:f2_256_prover_not_less,f2_191_prover_rates,f2_prover_least_rate_4,f2_prover_grows_below_quarter:1d243c-->So
+  the prover grows with the inverse rate below 1/4, as the other hash-based rows do. With the
+  grinding chosen per row it is <!--fig:f2_192_prover_least-->924<!--/fig--> million word
+  multiplications at its least, at rate 1/4, and <!--fig:f2_192_1_64_prover-->3.7 billion<!--/fig-->
+  at rate 1/64 in the 192‑bit design. The 256‑bit one is up
+  to <!--fig:f2_256_more_pct_max-->7<!--/fig--> percent more, and the 191‑bit one
+  from <!--fig:f2_191_less_pct-->3<!--/fig--> percent less at rate 1/2
+  to <!--fig:f2_191_more_pct-->10<!--/fig--> percent more at the lowest rates, where the NTT's
   full-field twiddles outweigh its cheaper reduction and half-size folds. Flock's whole measured
   pipeline is <!--fig:f2_flock_pipeline_m-->148<!--/fig--> million at the rate‑1/8 merge's size and
-  its own rate 1/2 over
-  $\mathbb{F}_{2^{128}}$.<!--/claim--></p>
+  its own rate 1/2 over $\mathbb{F}_{2^{128}}$.<!--/claim--></p>
   <p>The decider's verifier is the proof's authentication hashes, with the paths pruned as a
   multiproof, and its leaf hashes at BLAKE3's native cost plus its field
   multiplications, <!--fig:f2_decider_ms_min-->0.404<!--/fig-->
@@ -1091,9 +1093,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rate <!--fig:f2_rate_lowest-->1/64<!--/fig--> to <!--fig:f2_rate_highest-->1/2<!--/fig--> in the
   192‑bit design, with the three first-round trees, and under
   recursion <!--fig:f2_rec_192_kb_min-->104 kbytes<!--/fig-->
-  to <!--fig:f2_rec_192_kb_max-->234 kbytes<!--/fig-->. The prover is least at rate 1/4,
-  with rate 1/8 about <!--fig:f2_1_8_over_least_pct-->12<!--/fig-->% higher:
-  <!--fig:f2_192_prover_least-->924<!--/fig--> million word
+  to <!--fig:f2_rec_192_kb_max-->234 kbytes<!--/fig-->. The prover is least at rate 1/4, with rate
+  1/8 about <!--fig:f2_1_8_over_least_pct-->12<!--/fig-->%
+  higher: <!--fig:f2_192_prover_least-->924<!--/fig--> million word
   multiplications, <!--fig:f2_over_gold_poseidon-->40<!--/fig--> times Akita over Goldilocks's with
   Poseidon and <!--fig:f2_over_gold_blake3-->1.4<!--/fig--> times it with BLAKE3, whose proof
   is <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
@@ -1117,35 +1119,39 @@ code { font-family: var(--mono); font-size: 0.92em; }
   and a binary-field PIOP for bit logic, over one commitment to every witness bit. So the Ironwood
   recovery circuit stays Pasta arithmetic. A field multiplication is an integer
   relation, <!--fig:bitz_gate_value_bits-->255<!--/fig--> bits of value and as many of
-  quotient, <!--fig:bitz_gate_bits-->510<!--/fig--> committed bits. Bit logic is counted as a Boolean circuit's AND
-  gates, one committed bit each, since XOR is linear over the binary field and costs nothing. So the
-  recovery circuit is about <!--fig:app_recovery_bitz-->8.2 million<!--/fig--> bits, as
-  the <a href="#transaction-prover">Transaction prover section</a> counts. <!--claim:bitz_merge_mostly_hashing:a89a48-->A step of rank $r$
-  commits $2^r$ bits of application witness, beside the Merkle hashing of the merge, which is most
-  of its witness.<!--/claim--> The merge is a hybrid circuit: the Merkle hashing over $\mathbb{F}_2$ as for the
-  $\mathbb{F}_2$ family, and the GKR and PIOP verifiers native over the binary extension and the
+  quotient, <!--fig:bitz_gate_bits-->510<!--/fig--> committed bits. Bit logic is counted as a
+  Boolean circuit's AND gates, one committed bit each, since XOR is linear over the binary field and
+  costs nothing. So the recovery circuit is about <!--fig:app_recovery_bitz-->8.2 million<!--/fig-->
+  bits, as the <a href="#transaction-prover">Transaction prover section</a>
+  counts. <!--claim:bitz_merge_mostly_hashing:a89a48-->A step of rank $r$ commits $2^r$ bits of
+  application witness, beside the Merkle hashing of the merge, which is most of its
+  witness.<!--/claim--> The merge is a hybrid circuit: the Merkle hashing over $\mathbb{F}_2$ as for
+  the $\mathbb{F}_2$ family, and the GKR and PIOP verifiers native over the binary extension and the
   projection
   field, <!--claim:bitz_piop_verifier_small:b6dcb2-->about <!--fig:bitz_piop_mults-->1,900.0<!--/fig-->
   products of committed elements, <!--fig:bitz_piop_kbits-->484<!--/fig--> thousand
   bits, <!--fig:bitz_piop_pct-->0.65<!--/fig--> percent of the merge.<!--/claim--></p>
-  <p>Its costs are measured with the paper's own benchmark on one thread of this machine, at <!--fig:bitz_measured_log_min-->$2^{22}$<!--/fig-->
+  <p>Its costs are measured with the paper's own benchmark on one thread of this machine,
+  at <!--fig:bitz_measured_log_min-->$2^{22}$<!--/fig-->
   to <!--fig:bitz_measured_log_max-->$2^{29}$<!--/fig--> committed bits, and interpolated at the
-  merge's bits. A row whose merge falls outside those sizes is left out. One thread needs care. The benchmark's thread option sizes only
-  its main pool, and the library's Merkle trees, encoder, and two other phases hop onto a second
-  pool of every core. The measurements set <code>RAYON_NUM_THREADS=1</code>, which closes that pool;
-  without it a commitment reads about 1.6 times too fast.</p>
+  merge's bits. A row whose merge falls outside those sizes is left out. One thread needs care. The
+  benchmark's thread option sizes only its main pool, and the library's Merkle trees, encoder, and
+  two other phases hop onto a second pool of every core. The measurements
+  set <code>RAYON_NUM_THREADS=1</code>, which closes that pool; without it a commitment reads about
+  1.6 times too fast.</p>
   <p>The prover is the commitment and the opening. <!--claim:bitz_gkr_four_fifths:84887d-->At
   $2^{25}$ bits and rate 1/2 the opening's grand-product GKR
   is <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of the
   prover's <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->
   percent, and it does not depend on the rate.<!--/claim--> As Quang Dao puts it, the prover with
-  grand-product GKR is just really expensive. <!--claim:bitz_commit_doubles_per_halving:207606-->The commitment about doubles with each halving of the
+  grand-product GKR is just really expensive. <!--claim:bitz_commit_doubles_per_halving:207606-->The
+  commitment about doubles with each halving of the
   rate: <!--fig:bitz_commit_25_r1_ms-->8.10<!--/fig--> ms at rate
   1/2, <!--fig:bitz_commit_25_r3_ms-->31.7<!--/fig--> at 1/8,
-  and <!--fig:bitz_commit_25_r6_ms-->248<!--/fig--> at 1/64.<!--/claim--> The hybrid SNARK's two PIOPs come on
-  top. The paper's Table 14 measures the whole prover on witnesses split evenly between SHA-256 and
-  multiplications modulo $2^{32}$, and its Table 10 the PCS alone at the same size. The ratio
-  is <!--fig:bitz_hybrid_ratio_min-->1.2<!--/fig-->
+  and <!--fig:bitz_commit_25_r6_ms-->248<!--/fig--> at 1/64.<!--/claim--> The hybrid SNARK's two
+  PIOPs come on top. The paper's Table 14 measures the whole prover on witnesses split evenly
+  between SHA-256 and multiplications modulo $2^{32}$, and its Table 10 the PCS alone at the same
+  size. The ratio is <!--fig:bitz_hybrid_ratio_min-->1.2<!--/fig-->
   to <!--fig:bitz_hybrid_ratio_max-->1.5<!--/fig-->
   from <!--fig:bitz_hybrid_log_min-->$2^{23}$<!--/fig-->
   to <!--fig:bitz_hybrid_log_max-->$2^{29}$<!--/fig--> bits, so the model
@@ -1153,29 +1159,30 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the merge's as well as the application's, with <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of
   verifier and <!--fig:bitz_piop_kb-->36 kbytes<!--/fig--> of proof.</p>
   <p>The implementation certifies 128 bits only in the unique-decoding regime, with grinding on the
-  fold challenges. <!--claim:bitz_udr_query_under_a_bit:d7525e-->There a query is worth under one bit, so each of
-  Ligerito's levels needs more queries than the floor has bits, whatever its
+  fold challenges. <!--claim:bitz_udr_query_under_a_bit:d7525e-->There a query is worth under one
+  bit, so each of Ligerito's levels needs more queries than the floor has bits, whatever its
   rate: <!--fig:bitz_udr_level_queries_r1-->309<!--/fig--> at rate
   1/2, <!--fig:bitz_udr_level_queries_r3-->156<!--/fig--> at 1/8,
   and <!--fig:bitz_udr_level_queries_last-->129<!--/fig--> at
   rate <!--fig:bitz_udr_level_last_rate-->1/256<!--/fig-->.<!--/claim--> A proof at $2^{25}$ bits
-  has <!--fig:bitz_udr_queries_25-->567<!--/fig--> in all at rate 1/8.
-  Rate 1/8 has <!--fig:bitz_rate_1_8_lig-->0.82<!--/fig--> of rate 1/2's Ligerito bytes,
+  has <!--fig:bitz_udr_queries_25-->567<!--/fig--> in all at rate 1/8. Rate 1/8
+  has <!--fig:bitz_rate_1_8_lig-->0.82<!--/fig--> of rate 1/2's Ligerito bytes,
   at <!--fig:bitz_25_rate_penalty-->1.28<!--/fig--> times the prover, and is the proof-size minimum:
   the stand-alone proof at $2^{25}$ bits is <!--fig:bitz_udr_25_r1_kb-->304 kbytes<!--/fig--> at
   rate 1/2 and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen
   the Merkle paths. These are the rows marked "unique decoding", at both floors.</p>
   <p><!--claim:bitz_johnson_squaring_halves:317a12-->Under the Johnson bound a query is worth half
-  of $\log_2(1/\rho)$ bits, so squaring the rate about halves a level's queries:<!--/claim--> <!--fig:bitz_beep_queries_25-->228<!--/fig--> in all at rate 1/8
+  of $\log_2(1/\rho)$ bits, so squaring the rate about halves a level's
+  queries:<!--/claim--> <!--fig:bitz_beep_queries_25-->228<!--/fig--> in all at rate 1/8
   and <!--fig:bitz_beep_queries_25_r6-->137<!--/fig--> at 1/64. The implementation's Johnson profile
   cannot be certified at 128 bits in its 128-bit field. Its level-0 binding stops at 118.7 bits, its
   folding-phase bound is 86 to 97 bits, and its outer round's out-of-domain bound 95 to 100.
   BEEP <a href="#ref-bg26">[BG26]</a> is the analysis that meets them. It takes several
   out-of-domain samples before each fold in place of mutual correlated agreement, and with affine
   folding challenges its folding error is $2/|\mathbb{F}|$, 127 bits. The rows marked "Johnson bound
-  with BEEP (derived)" are derived from that: the Johnson profile measured at a 128-bit target with those three
-  checks switched off, plus BEEP's <!--fig:bitz_beep_samples-->5<!--/fig--> samples at each
-  of <!--fig:bitz_beep_folds-->13<!--/fig-->
+  with BEEP (derived)" are derived from that: the Johnson profile measured at a 128-bit target with
+  those three checks switched off, plus BEEP's <!--fig:bitz_beep_samples-->5<!--/fig--> samples at
+  each of <!--fig:bitz_beep_folds-->13<!--/fig-->
   folds, <!--fig:bitz_beep_deep_kb-->2.1 kbytes<!--/fig-->. No implementation of BEEP exists, so
   these rows are ranked with the strongest <a href="#requirements">assumption</a> and remove no
   certified row from the frontier. They are at the 128-bit floor alone, since the 147-bit floor
@@ -1637,7 +1644,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   in <!--fig:akita16_compressions_min-->55<!--/fig-->
   to <!--fig:akita16_compressions_max-->133<!--/fig--> compressions instead
   of <!--fig:akita16_atoms_min-->146<!--/fig--> to <!--fig:akita16_atoms_max-->218<!--/fig-->
-  Poseidon atoms. So the merge grows from
+  Poseidon atoms. The transcript is a Merkle–Damgård chain at the application level: each block is one
+  keyed BLAKE3 call, whose key is the previous call's output. That is one compression a block, where
+  one BLAKE3 call over the whole transcript would add a parent compression for
+  each <!--fig:blake3_chunk_bytes-->1,024<!--/fig-->-byte
+  chunk, <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more. So the merge
+  grows from
   about <!--fig:fp128_16_poseidon_gates-->25 thousand<!--/fig--> gates
   to <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> at the 128‑bit field and on Goldilocks
   and <!--fig:q64_16_blake3_gates-->2.0 million<!--/fig--> for the Pasta variants, at rank

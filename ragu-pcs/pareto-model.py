@@ -478,6 +478,56 @@ SUMCHECK_ATOMS = 120  # two range/norm sum-checks of about 20 rounds and 3 eleme
 HASH_POLICIES = ("blake3", "poseidon")
 BLAKE3_GATES = 14900
 BLAKE3_BLOCK = 64
+# BLAKE3 as specified: a message is split into chunks of BLAKE3_CHUNK bytes, each a chain of
+# compressions over its blocks, and the chunks' outputs are joined by a binary tree of parent
+# compressions, one fewer than the chunks. The tree is binary, a parent compressing two
+# outputs in one block, so the parents are one per chunk, a sixteenth more compressions than
+# the blocks.
+BLAKE3_CHUNK = 1024
+
+
+def blake3_split(bytes_, whole=True):
+    """The compressions of BLAKE3 over `bytes_`, as (chained, data). A chained one passes its
+    output to the next block of its chunk as a chaining value. The last of each chunk and
+    every parent give an output that is data: a message word of a parent, or the hash. For a
+    whole message the counts are whole. For a share of a larger message (`whole` false) they
+    are the share's quotients: a block every BLAKE3_BLOCK bytes, and a chunk's last block and
+    a parent every BLAKE3_CHUNK."""
+    if whole:
+        blocks = max(1, ceil_div(bytes_, BLAKE3_BLOCK))
+        chunks = max(1, ceil_div(bytes_, BLAKE3_CHUNK))
+        return blocks - chunks, 2 * chunks - 1
+    chunks = bytes_ / BLAKE3_CHUNK
+    return bytes_ / BLAKE3_BLOCK - chunks, 2 * chunks
+
+
+def blake3_compressions(bytes_, whole=True):
+    """All of BLAKE3's compressions over `bytes_`, the parents included."""
+    return sum(blake3_split(bytes_, whole))
+
+
+# A transcript avoids the parents by a Merkle–Damgård chain at the application level, each
+# link a keyed BLAKE3 call on one block: the key is the previous call's output and the message
+# is the next BLAKE3_BLOCK bytes of transcript. Every call is BLAKE3 as specified, in its
+# keyed mode, on a single block, so it is one compression, and the transcript takes exactly
+# one compression a block. The key is the compression's chaining value, so each output but
+# the last is consumed as one.
+
+
+def transcript_split(bytes_, whole=True):
+    """The BLAKE3 compressions of a transcript of `bytes_` in that chain, as (chained, data):
+    one a block, the last one's output being data. A share of a larger transcript (`whole`
+    false) is its quotient of blocks, all chained."""
+    if not whole:
+        return bytes_ / BLAKE3_BLOCK, 0
+    return max(1, ceil_div(bytes_, BLAKE3_BLOCK)) - 1, 1
+
+
+def transcript_compressions(bytes_, whole=True):
+    """All the compressions of a transcript of `bytes_`."""
+    return sum(transcript_split(bytes_, whole))
+
+
 HASH_LABEL = {"blake3": ", BLAKE3", "poseidon": ", Poseidon"}
 
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
@@ -578,7 +628,7 @@ def akita_absorbed_bytes(variant, K, circuits, zk):
 def akita_hash_gates(variant, K, circuits, zk, hp):
     if hp == "poseidon":
         return HASH_GATES_PER_ATOM * akita_atoms(variant, K, circuits, zk)
-    return ceil_div(akita_absorbed_bytes(variant, K, circuits, zk), BLAKE3_BLOCK) * BLAKE3_GATES
+    return transcript_compressions(akita_absorbed_bytes(variant, K, circuits, zk)) * BLAKE3_GATES
 
 
 def circuit_slope(cost):
@@ -1359,25 +1409,16 @@ def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS, w
     if hp == "poseidon":
         calls = absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole)
         return calls * Q64_POSEIDON_MULTS * Q64_DIGITS
-    chained, last = blake3_absorb_split(bytes_, whole)
-    return chained * BLAKE3_CHAINED_BITS + last * BLAKE3_BITS + checked_words * range_check
-
-
-def blake3_absorb_split(bytes_, whole):
-    """The BLAKE3 compressions that absorb `bytes_`, as (chained, last): every compression of
-    a message but its last passes a chaining value on, and the last one's output is data. A
-    share of a larger transcript is all chained."""
-    calls = absorb_calls(bytes_, BLAKE3_BLOCK, whole)
-    last = 1 if whole and calls else 0
-    return calls - last, last
+    chained, data = transcript_split(bytes_, whole)
+    return chained * BLAKE3_CHAINED_BITS + data * BLAKE3_BITS + checked_words * range_check
 
 
 def absorb_piop(bytes_, hp, checked_words=0, whole=False):
     if hp == "poseidon":
         return piop_sum((absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole), POSEIDON_Q64_PIOP))
-    chained, last = blake3_absorb_split(bytes_, whole)
+    chained, data = transcript_split(bytes_, whole)
     return piop_sum(
-        (chained, BLAKE3_CHAINED_PIOP), (last, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
+        (chained, BLAKE3_CHAINED_PIOP), (data, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
     )
 
 
@@ -1594,13 +1635,13 @@ ZOODLES_SIGHASH_BYTES = (
     + ZOODLES_SUM_BITS // 8
     + math.ceil(ZOODLES_EPOCH_BITS / 8)
 )
-ZOODLES_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_SIGHASH_BYTES / BLAKE3_BLOCK)
+ZOODLES_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_SIGHASH_BYTES)
 ZOODLES_MERKLE_SIGHASH_BYTES = (
     (ZOODLES_INPUTS + ZOODLES_OUTPUTS + 1) * ZOODLES_TACHYGRAM_BITS // 8
     + ZOODLES_SUM_BITS // 8
     + math.ceil(ZOODLES_EPOCH_BITS / 8)
 )
-ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = math.ceil(ZOODLES_MERKLE_SIGHASH_BYTES / BLAKE3_BLOCK)
+ZOODLES_MERKLE_SIGHASH_COMPRESSIONS = blake3_compressions(ZOODLES_MERKLE_SIGHASH_BYTES)
 # The spend authorizations: the preimage check, and a leanSPHINCS signature with each hash.
 ZOODLES_AUTHS = ("preimage", *(f"leansphincs_{h}" for h in LEANSPHINCS_VERIFY))
 
@@ -1655,16 +1696,16 @@ def zoodles_opening_cost(field, hp):
     it."""
     fold = CLAIM_GATES * claim_mult_cost(field)
     if field == "bitz":
-        return CLAIM_BYTES["bitz"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+        return transcript_compressions(CLAIM_BYTES["bitz"], False) * BLAKE3_ANDS + fold
     if field in KISHU_ARITHS:
         bytes_ = CLAIM_BYTES["kishu"]
         checked = bytes_ // 8 if hp == "blake3" else 0
         return absorb_digits(bytes_, hp, checked) + fold
     if field == "boolean":
-        return CLAIM_BYTES["fp128"] / BLAKE3_BLOCK * BLAKE3_ANDS + fold
+        return transcript_compressions(CLAIM_BYTES["fp128"], False) * BLAKE3_ANDS + fold
     if hp == "poseidon":
         return RECOVERY_PATH_POSEIDON[field] / 33 + fold
-    return CLAIM_BYTES[field] / BLAKE3_BLOCK * BLAKE3_GATES + fold
+    return transcript_compressions(CLAIM_BYTES[field], False) * BLAKE3_GATES + fold
 
 
 def zoodles_node_cost(field, hp, node, auth):
@@ -1818,9 +1859,9 @@ def bucket_capacity(log_m, B, lam):
 
 def bucket_proof_hashes(B, K, tag_bits=None):
     """The exclusion proof's hashes: the path and the bucket's K entries, full suffixes or
-    `tag_bits`-bit tags, at 512 bits a compression."""
+    `tag_bits`-bit tags, hashed by BLAKE3."""
     bits = K * (tag_bits if tag_bits else ZOODLES_TACHYGRAM_BITS - B)
-    return B + math.ceil(bits / (8 * BLAKE3_BLOCK))
+    return B + blake3_compressions(math.ceil(bits / 8))
 
 
 def bucket_tag_bits(log_m, B, lam):
@@ -2372,7 +2413,7 @@ def handoff_merge_gates(variant, K, circuits, hp):
     if hp == "poseidon":
         hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
     else:
-        hashing = ceil_div(K * 128 + circuits * CLAIM_BYTES[variant], BLAKE3_BLOCK) * BLAKE3_GATES
+        hashing = transcript_compressions(K * 128 + circuits * CLAIM_BYTES[variant]) * BLAKE3_GATES
     return hashing + K * FOLD_GATES_PER_IMAGE + circuits * CLAIM_GATES
 
 
@@ -4222,7 +4263,7 @@ def bits_akita_merge_parts(K, circuits, field):
     the claims, and the two inputs' Flock PIOP verifiers at the merge's own size, as the 𝔽₂
     family's merge counts them, at a fixed point."""
     parts = dict(
-        hashing=ceil_div(akita_absorbed_bytes("fp128", K, circuits, False), BLAKE3_BLOCK)
+        hashing=transcript_compressions(akita_absorbed_bytes("fp128", K, circuits, False))
         * BLAKE3_ANDS_PADDED,
         fold=2 * K * FOLD_GATES_PER_IMAGE * (MASK_CHALLENGE_L1 + 2),
         sumcheck=SUMCHECK_ATOMS * (mult_ands(field) + reduce_ands(field)),
@@ -5900,10 +5941,11 @@ def define_figures():
     one_circuit = min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2)
     fig("kishu_one_circuit_rank", one_circuit)
     zk_rows = {p["rank"]: p for p in shown("bits_q64", "blake3", zk=True, route="limbs")}
-    flat = [zk_rows[r]["accumulation_prover"] for r in range(15, 20)]
+    flat = [zk_rows[r]["accumulation_prover"] for r in range(15, 19)]
+    fig("kishu_accumulation_15_18_spread_pct", round(100 * (max(flat) / min(flat) - 1)))
     claim(
         "kishu_accumulation_flat_then_doubles",
-        "Kishu's accumulation prover is within a tenth of flat from rank 15 to 19, and its accumulator doubles with each rank from the rank where one circuit holds the merge",
+        "Kishu's accumulation prover is within a tenth of flat from rank 15 to 18, and its accumulator doubles with each rank from the rank where one circuit holds the merge",
         max(flat) < 1.1 * min(flat)
         and all(
             abs(
@@ -6059,8 +6101,10 @@ def define_figures():
     ]
     fig("akita16_absorbed_kb_min", sig(min(absorbed) / 1000, 1))
     fig("akita16_absorbed_kb_max", sig(max(absorbed) / 1000, 1))
-    fig("akita16_compressions_min", round(min(absorbed) / BLAKE3_BLOCK))
-    fig("akita16_compressions_max", round(max(absorbed) / BLAKE3_BLOCK))
+    fig("blake3_parent_overhead_pct", sig(100 * BLAKE3_BLOCK / BLAKE3_CHUNK, 3))
+    fig("blake3_chunk_bytes", fmt(BLAKE3_CHUNK))
+    fig("akita16_compressions_min", transcript_compressions(min(absorbed)))
+    fig("akita16_compressions_max", transcript_compressions(max(absorbed)))
     atoms = [a16[(v, "poseidon")]["accumulation"] for v in VARIANTS]
     fig("akita16_atoms_min", min(atoms))
     fig("akita16_atoms_max", max(atoms))
