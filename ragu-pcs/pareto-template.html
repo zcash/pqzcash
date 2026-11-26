@@ -334,7 +334,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   more. The hash-based families rest on a random oracle alone. Akita's and Kishu's rows rest on
   Module-SIS as well, so a Kishu row never removes a Flock or BitZ row from the post‑quantum
   frontier, however much cheaper it is. The Boolean-over-Akita row's security ledger is open, which
-  is treated as making a stronger assumption.</p>
+  is treated as making a stronger assumption. So are <a href="#bitz">BitZ's rows under BEEP</a>,
+  which rest on an analysis that no implementation certifies yet.</p>
   <h3 id="measures">Which measures</h3>
   <p>The second and third measures are chosen independently from the same eight. The defaults are
   the accumulation prover for the second and the transaction prover for the third, with the Ironwood
@@ -1039,8 +1040,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   prover's <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->
   percent, and it does not depend on the rate.<!--/claim--> As Quang Dao puts it, the prover with
   grand-product GKR is just really expensive. The commitment doubles with each halving of the
-  rate: <!--fig:bitz_commit_25_r1_ms-->8.10<!--/fig--> ms at rate 1/2
-  and <!--fig:bitz_commit_25_r3_ms-->31.7<!--/fig--> at 1/8. Zinc+'s PIOP is added from its Table
+  rate: <!--fig:bitz_commit_25_r1_ms-->8.10<!--/fig--> ms at rate
+  1/2, <!--fig:bitz_commit_25_r3_ms-->31.7<!--/fig--> at 1/8,
+  and <!--fig:bitz_commit_25_r6_ms-->248<!--/fig--> at 1/64. Zinc+'s PIOP is added from its Table
   4: <!--fig:bitz_piop_prover_factor-->1.6<!--/fig--> times the PCS prover on the application's
   share, <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of verifier,
   and <!--fig:bitz_piop_kb-->36 kbytes<!--/fig--> of proof.</p>
@@ -1053,8 +1055,31 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rate 1/2 and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen
   the Merkle paths. These are the rows marked "unique decoding", at both floors.</p>
   <p>Under the Johnson bound a query is worth half of $\log_2(1/\rho)$ bits, so squaring the rate
-  halves a level's queries. But the implementation's Johnson profile certifies at most 118.7 bits in
-  its 128-bit field, at rate 1/2, so no row uses it.</p>
+  halves a level's queries: <!--fig:bitz_beep_queries_25-->228<!--/fig--> in all at rate 1/8
+  and <!--fig:bitz_beep_queries_25_r6-->137<!--/fig--> at 1/64. The implementation's Johnson profile
+  cannot be certified at 128 bits in its 128-bit field. Its level-0 binding stops at 118.7 bits, its
+  folding-phase bound is 86 to 97 bits, and its outer round's out-of-domain bound 95 to 100.
+  BEEP <a href="#ref-bg26">[BG26]</a> is the analysis that meets them. It takes several
+  out-of-domain samples before each fold in place of mutual correlated agreement, and with affine
+  folding challenges its folding error is $2/|\mathbb{F}|$, 127 bits. The rows marked "Johnson bound
+  with BEEP (derived)" price that: the Johnson profile measured at a 128-bit target with those three
+  checks switched off, plus BEEP's <!--fig:bitz_beep_samples-->5<!--/fig--> samples at each
+  of <!--fig:bitz_beep_folds-->13<!--/fig-->
+  folds, <!--fig:bitz_beep_deep_kb-->2.1 kbytes<!--/fig-->. No implementation of BEEP exists, so
+  these rows are ranked with the strongest <a href="#requirements">assumption</a> and remove no
+  certified row from the frontier. They are at the 128-bit floor alone, since the 147-bit floor
+  would require excessive grinding, and is mainly a hedge against attacks on lattices.</p>
+  <p>At $2^{25}$ bits the stand-alone proof under BEEP
+  is <!--fig:bitz_beep_25_r1_kb-->236 kbytes<!--/fig--> at rate
+  1/2, <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at 1/8,
+  and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at
+  1/64. <!--claim:bitz_beep_halves_proof:95dcf8-->With ARC at the 128-bit floor, BitZ's smallest row
+  is <!--fig:bitz_beep128_min_kb-->190 kbytes<!--/fig--> under BEEP, at
+  rate <!--fig:bitz_beep128_min_rate-->1/64<!--/fig-->,
+  against <!--fig:bitz_udr128_min_kb-->423 kbytes<!--/fig--> under unique decoding,
+  at <!--fig:bitz_beep128_min_prover_over_udr-->0.92<!--/fig--> times the merge prover: the
+  commitment costs more at the lower rate, and the merge has fewer openings to
+  hash.<!--/claim--></p>
   <p>At rank 13 and rate 1/8 with ARC, under unique decoding at the default floor, it comes
   to <!--fig:bitz13_kb-->488 kbytes<!--/fig--> with the decider's three first-round
   trees, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word multiplications,
@@ -2026,6 +2051,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <li id="ref-bdgl16">[BDGL16] Anja Becker, Léo Ducas, Nicolas Gama, Thijs Laarhoven. New
     directions in nearest neighbor searching with applications to lattice sieving. SODA
     2016. <a href="https://eprint.iacr.org/2015/1128">eprint.iacr.org/2015/1128</a></li>
+    <li id="ref-bg26">[BG26] Remco Bloemen, Albert Garreta. BEEP: IOPPs from List Decoding with
+    Better Elimination of Pretenders. Cryptology ePrint Archive, Paper 2026/2930,
+    2026. <a href="https://eprint.iacr.org/2026/2930">https://eprint.iacr.org/2026/2930</a></li>
     <li id="ref-bgk26">[BGK+26] Remco Bloemen, Albert Garreta, Marcin Kostrzewa, Shreyas Londhe, Lev
     Soukhanov, John Wu. BitZ: proofs and commitments in arbitrary rings through binary fields.
     2026. <a href="https://eprint.iacr.org/2026/2141">eprint.iacr.org/2026/2141</a></li>

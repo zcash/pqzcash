@@ -586,8 +586,12 @@ one bit. Rate 1/8 is its proof-size minimum there: the stand-alone proof at $2^{
 is <!--fig:bitz_udr_25_r1_kb-->304 kbytes<!--/fig--> at rate 1/2
 and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen the Merkle
 paths. At the Johnson bound the implementation certifies only 118 bits, its level-0 binding in a
-128-bit field, so the figures below are in the unique-decoding regime. With Zinc+'s PIOP added, BitZ
-with ARC at rank 13 and rate 1/8 comes
+128-bit field. BEEP (ePrint 2026/2930) is the analysis that reaches 128 bits there, with several
+out-of-domain samples before each fold. No implementation of it exists; the frontier page derives
+rows from it, at the 128-bit floor, where the stand-alone proof
+is <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at rate 1/8
+and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at 1/64. The figures below are the certified
+ones. With Zinc+'s PIOP added, BitZ with ARC at rank 13 and rate 1/8 comes
 to <!--fig:bitz13_kb-->488 kbytes<!--/fig-->, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word
 multiplications, a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge and
 a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms

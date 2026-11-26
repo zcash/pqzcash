@@ -1,0 +1,102 @@
+From 922b9dfbd825eb19f8708e9196b140ebf3fc5e98 Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Thu, 26 Nov 2026 00:49:35 +0000
+Subject: [PATCH] Unsound diagnostic: rates to 1/64, and a Johnson profile
+ sized at 128 bits
+
+Not a sound configuration. For sizing only.
+
+- The geometry check accepts inverse-rate exponents 1 to 6.
+- Under BITZ_DIAG_IGNORE_FOLD the validator drops the folding-phase
+  target and the level-0 binding target, the Johnson solver sets no
+  fold grinding, and the outer round does not grind against its
+  out-of-domain collision bound. These are the three terms that a
+  128-bit field cannot bring to 128 bits in the Johnson profile, and
+  that BEEP (ePrint 2026/2930) would meet with further samples and
+  affine folding challenges.
+
+Co-Authored-By: Claude Mythos 5.2 <noreply@anthropic.com>
+---
+ src/ligerito_flock.rs                                  |  6 ++++++
+ src/ligerito_flock/configuration.rs                    |  5 ++++-
+ vendor/flock-mod/crates/flock-core/src/pcs/ligerito.rs | 10 ++++++++--
+ 3 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/ligerito_flock.rs b/src/ligerito_flock.rs
+index b13528248..430ab5a9b 100644
+--- a/src/ligerito_flock.rs
++++ b/src/ligerito_flock.rs
+@@ -608,6 +608,9 @@ fn try_custom_johnson_config_bits(
+             }
+             let (pg, qb) = lv.paper_predicted_bits();
+             lv.fold_grinding_bits = (lv.target_security_bits as f64 - pg).ceil().max(0.0) as usize;
++            if std::env::var("BITZ_DIAG_IGNORE_FOLD").is_ok() {
++                lv.fold_grinding_bits = 0; // DIAGNOSTIC ONLY: the folding-phase error is ignored
++            }
+             lv.expected_eps_pg_bits = pg;
+             lv.expected_eps_query_bits = qb;
+             // OOD must clear the target on its own. Deeper levels escalate
+@@ -1404,6 +1407,9 @@ pub fn ood_round_params(
+ ) -> Option<OodRoundParams> {
+     let bits = ood_round_bits(cfg, packed_vars)?;
+     let deficit = f64::from(lambda) - bits;
++    // DIAGNOSTIC ONLY: under BITZ_DIAG_IGNORE_FOLD the Round-0 collision bound is taken as
++    // met by further out-of-domain samples, so the round does not grind.
++    let deficit = if std::env::var("BITZ_DIAG_IGNORE_FOLD").is_ok() { 0.0 } else { deficit };
+     let grinding_bits = if deficit <= 0.0 {
+         0
+     } else {
+diff --git a/src/ligerito_flock/configuration.rs b/src/ligerito_flock/configuration.rs
+index 2fd5477f5..691edc480 100644
+--- a/src/ligerito_flock/configuration.rs
++++ b/src/ligerito_flock/configuration.rs
+@@ -169,7 +169,7 @@ impl LigeritoSelection {
+ }
+ 
+ fn validate_geometry(packed_vars: usize, rate: usize, initial_k: usize) -> Result<(), String> {
+-    if !(1..=4).contains(&rate) || initial_k == 0 || initial_k >= packed_vars {
++    if !(1..=6).contains(&rate) || initial_k == 0 || initial_k >= packed_vars {
+         return Err(
+             "Ligerito requires inverse-rate exponent 1..4 and 1 <= initial_k < packed variables"
+                 .into(),
+@@ -209,6 +209,9 @@ impl ResolvedLigerito {
+         self.ood_bits
+             .map(|bits| {
+                 let grinding_bits = (target as f64 - bits).ceil().max(0.) as u32;
++                // DIAGNOSTIC ONLY: under BITZ_DIAG_IGNORE_FOLD the level-0 binding is taken as
++                // covered by BEEP's DEEP samples, so the outer round does not grind for it.
++                let grinding_bits = if std::env::var("BITZ_DIAG_IGNORE_FOLD").is_ok() { 0 } else { grinding_bits };
+                 if grinding_bits > crate::piop::spartan::profile::MAX_DERIVED_GRINDING_BITS {
+                     return Err("Round 0 exceeds the 24-bit derived grinding cap".into());
+                 }
+diff --git a/vendor/flock-mod/crates/flock-core/src/pcs/ligerito.rs b/vendor/flock-mod/crates/flock-core/src/pcs/ligerito.rs
+index 7ed9d8874..b9a6a83b9 100644
+--- a/vendor/flock-mod/crates/flock-core/src/pcs/ligerito.rs
++++ b/vendor/flock-mod/crates/flock-core/src/pcs/ligerito.rs
+@@ -1107,8 +1107,13 @@ impl LigeritoSecurityConfig {
+             // reach target. (The pg bad event lives on the fold challenges,
+             // so only the fold grind — done before each fold challenge —
+             // boosts it; the query-phase grind does not.)
+-            if lv.expected_eps_pg_bits + lv.fold_grinding_bits as f64 + 1e-3
+-                < lv.target_security_bits as f64
++            // DIAGNOSTIC ONLY: BITZ_DIAG_IGNORE_FOLD=1 drops the folding-phase and
++            // level-0 binding targets, to size a Johnson-regime proof at a target the
++            // 128-bit field cannot certify. Not a sound configuration.
++            let diag_ignore_fold = std::env::var("BITZ_DIAG_IGNORE_FOLD").is_ok();
++            if !diag_ignore_fold
++                && lv.expected_eps_pg_bits + lv.fold_grinding_bits as f64 + 1e-3
++                    < lv.target_security_bits as f64
+             {
+                 return Err(format!(
+                     "L{i}: expected_eps_pg_bits ({:.2}) + fold_grinding ({}) < target ({})",
+@@ -1119,6 +1124,7 @@ impl LigeritoSecurityConfig {
+             // OOD binding must reach target on its own (no grind covers it;
+             // escalate ood_samples instead).
+             if let Some(ood) = lv.expected_eps_ood_bits
++                && !(diag_ignore_fold && i == 0)
+                 && ood + 1e-3 < lv.target_security_bits as f64
+             {
+                 return Err(format!(
+-- 
+2.55.0
+

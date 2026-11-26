@@ -3398,6 +3398,21 @@ BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
 # "udr" is the unique-decoding regime with fold grinding at 128 bits, the proof of concept's
 # profile udrg:<r>:4:128. It is what the proof of concept certifies at that level.
 #
+# "beep" is its Johnson profile at a 128-bit target (custom:<r>:4:128), under the diagnostic
+# switch of scripts/patches/bitz/. The switch drops three checks that the profile cannot meet
+# in a 128-bit field:
+#   - the folding-phase target, a proximity-gap term of 86 to 97 bits here, which the code
+#     otherwise makes up by grinding the fold challenges;
+#   - the level-0 binding target, 118.7 bits at rate 1/2; and
+#   - the outer round's grinding against an out-of-domain collision bound of 95 to 100 bits.
+# BEEP (ePrint 2026/2930) is what would meet them. It takes several DEEP samples before each
+# fold, in place of mutual correlated agreement. With affine folding challenges its folding
+# error is 2/|F| (its Theorem 5.3), which is 127 bits. Its batching error is L/|F|, about 120
+# bits, which a few bits of grinding cover. No implementation of BEEP exists. So these rows
+# are the profile's measured sizes and times plus BEEP's samples (bitz_beep_overhead). They
+# are at the 128-bit floor alone, since the 147-bit floor would require excessive grinding,
+# and is mainly a hedge against attacks on lattices.
+#
 # A row whose committed bits fall outside the measured sizes is not priced.
 BITZ_MEASURED = {
     "udr": {
@@ -3422,30 +3437,89 @@ BITZ_MEASURED = {
             29: (560.1, 1672.1, 1054.1, 11.97, 85185, 344116),
         },
     },
+    "beep": {
+        1: {
+            22: (1.1, 42.8, 35.0, 2.51, 21118, 130708),
+            23: (2.0, 52.8, 41.5, 2.28, 29770, 153356),
+            24: (3.9, 84.3, 67.3, 2.60, 30914, 169260),
+            25: (8.2, 115.1, 95.5, 2.81, 48170, 185420),
+            26: (16.5, 195.2, 163.7, 3.77, 49150, 209092),
+            27: (32.9, 349.3, 294.5, 6.17, 50414, 226308),
+            28: (67.8, 621.1, 527.4, 6.71, 84134, 243300),
+        },
+        2: {
+            22: (1.8, 41.3, 33.0, 2.21, 21118, 85844),
+            23: (3.8, 48.0, 40.3, 2.08, 29770, 102444),
+            24: (7.6, 86.0, 69.1, 2.45, 30914, 113836),
+            25: (15.8, 121.8, 97.4, 2.56, 48170, 123276),
+            26: (32.3, 194.0, 160.2, 3.58, 49150, 141388),
+            27: (64.4, 358.5, 295.0, 5.83, 50414, 152876),
+            28: (135.0, 654.8, 532.1, 6.49, 84134, 164620),
+        },
+        3: {
+            22: (3.6, 46.2, 33.9, 2.15, 21118, 69788),
+            23: (7.5, 53.6, 41.3, 1.99, 29770, 85244),
+            24: (15.1, 87.2, 67.8, 2.47, 30914, 91740),
+            25: (31.3, 116.1, 92.7, 2.47, 48170, 99516),
+            26: (63.3, 202.7, 161.9, 3.64, 49150, 116524),
+            27: (129.3, 371.8, 295.5, 5.77, 50414, 124908),
+            28: (267.6, 668.4, 530.0, 6.53, 84134, 133356),
+        },
+        4: {
+            22: (7.2, 38.3, 30.9, 2.18, 21118, 61676),
+            23: (14.9, 54.3, 39.9, 1.93, 29770, 74844),
+            24: (30.1, 78.7, 62.5, 2.54, 30914, 81308),
+            25: (61.7, 130.0, 99.4, 2.51, 48170, 87164),
+            26: (126.3, 213.5, 162.5, 3.44, 49150, 102324),
+            27: (259.8, 395.2, 297.6, 5.78, 50414, 108340),
+            28: (542.5, 716.3, 528.8, 6.38, 84134, 116596),
+        },
+        5: {
+            22: (14.1, 48.6, 34.1, 2.15, 21118, 56260),
+            23: (29.4, 58.0, 41.9, 2.02, 29770, 69724),
+            24: (59.7, 90.5, 63.6, 2.24, 30914, 74556),
+            25: (123.4, 145.4, 100.9, 2.41, 48170, 80316),
+            26: (253.3, 233.9, 160.2, 3.47, 49150, 94684),
+            27: (529.3, 447.1, 298.2, 5.74, 50414, 100316),
+            28: (1095.7, 815.9, 533.9, 6.20, 84134, 107292),
+        },
+        6: {
+            22: (28.5, 52.2, 35.8, 1.98, 21118, 53220),
+            23: (58.2, 61.6, 39.4, 1.82, 29770, 65252),
+            24: (120.7, 103.8, 65.2, 2.19, 30914, 69412),
+            25: (247.5, 166.4, 100.4, 2.34, 48170, 75524),
+            26: (510.2, 294.0, 167.7, 3.44, 49150, 89684),
+            27: (1075.1, 540.7, 298.4, 5.65, 50414, 94708),
+            28: (2217.2, 1019.3, 541.3, 6.22, 84134, 100180),
+        },
+    },
 }
 BITZ_MEASURED_FLOOR = 128
 HASH_BITS = BLAKE3_ANDS_PADDED  # a hash in the merge's Boolean witness
-# Queries a level by its rate exponent, from the profile's resolved configurations at 128
-# bits. Under unique decoding a query is worth under one bit.
+# Queries a level by its rate exponent, from the profiles' resolved configurations at 128
+# bits. Under unique decoding a query is worth under one bit. Under the Johnson bound it is
+# worth half of log2(1/rate) bits, and each level also grinds 16 bits on its queries.
 BITZ_QUERIES = {
     "udr": {1: 309, 2: 190, 3: 156, 4: 143, 5: 136, 6: 132, 7: 130, 8: 129},
+    "beep": {1: 244, 2: 119, 3: 79, 4: 60, 5: 48, 6: 41, 7: 35, 8: 32, 9: 29, 10: 27},
 }
 BITZ_INITIAL_K = 4  # the first level folds 2^4 interleaved rows
 BITZ_RECURSIVE_K = 3  # each later level 2^3
 BITZ_FINAL_LOG = 5  # the final block's variables, at most
 BITZ_ELEMENT_BYTES = BITZ_FIELD_BITS // 8
-BITZ_PROFILE_LABEL = {"udr": "unique decoding"}
+BEEP_SAMPLES = 5  # DEEP samples a fold without an MCA bound (BEEP's Table 1: 4 to 5)
+BITZ_PROFILE_LABEL = {"udr": "unique decoding", "beep": "Johnson bound with BEEP (derived)"}
 
 
 def bitz_levels(profile, log_bits, r):
     """Ligerito's levels for a witness of 2^log_bits bits packed in 128-bit elements, from a
     first level at rate 2^-r: (log2 message columns, log2 interleaved rows, rate exponent), by
-    the proof of concept's ladder, which stops at a final block of exactly BITZ_FINAL_LOG
-    variables."""
+    the proof of concept's two ladders. The unique-decoding one stops at a final block of
+    exactly BITZ_FINAL_LOG variables; the Johnson one folds BITZ_RECURSIVE_K at every level."""
     run = math.ceil(log_bits) - 7 - BITZ_INITIAL_K
     levels = [(run, BITZ_INITIAL_K, r)]
     while run > BITZ_FINAL_LOG:
-        k = min(BITZ_RECURSIVE_K, run - BITZ_FINAL_LOG)
+        k = min(BITZ_RECURSIVE_K, run - BITZ_FINAL_LOG) if profile == "udr" else BITZ_RECURSIVE_K
         r += 1
         run -= k
         levels.append((run, k, r))
@@ -3467,6 +3541,15 @@ def bitz_queries(profile, log_bits, r, floor):
         ceil_div(BITZ_QUERIES[profile][e] * floor, BITZ_MEASURED_FLOOR)
         for _, _, e in bitz_levels(profile, log_bits, r)
     )
+
+
+def bitz_beep_overhead(log_bits, r):
+    """What BEEP adds to the measured Johnson profile: (proof bytes, prover ms). Each fold, one
+    per halving, sends the two halves' evaluations at BEEP_SAMPLES points, and computing them
+    costs a multiplication an element a sample, over folds whose sizes halve."""
+    folds = sum(k for _, k, _ in bitz_levels("beep", log_bits, r))
+    mults = 2 * BEEP_SAMPLES * 2 ** (log_bits - 7)
+    return folds * 2 * BEEP_SAMPLES * BITZ_ELEMENT_BYTES, mults * GF128_MEASURED_NS / 1e6
 
 
 def bitz_measured(profile, r, log_bits):
@@ -3510,11 +3593,15 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
     )  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
     inv = int(rate.split("/")[1])
     r = inv.bit_length() - 1
+    beep = profile == "beep"
     bits = app_bits + 2**25
     hashes = 0
     for _ in range(40):
         if mode == "rec":
-            hashes = 2 * sum(bitz_level_hashes(profile, math.log2(bits), r, floor))
+            log_now = math.log2(bits)
+            hashes = 2 * sum(bitz_level_hashes(profile, log_now, r, floor))
+            if beep:
+                hashes += 2 * bitz_beep_overhead(log_now, r)[0] / BLAKE3_BLOCK
         else:
             depth = math.log2(bits / 128 * inv) + 1
             hashes = 2 * arc_openings(rate, floor, grind or 0) * depth + (2 if grind else 0)
@@ -3529,11 +3616,12 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
         return None  # the merge's bits are outside the measured sizes
     commit_ms, prove_ms, _, verify_ms, nonlig, lig = measured
     scale = floor / BITZ_MEASURED_FLOOR  # the Ligerito bytes and the verifier, as queries do
-    prover_ms = (commit_ms + prove_ms) * (1 + BITZ_PIOP["prover"] * app_bits / bits)
+    deep_bytes, deep_ms = bitz_beep_overhead(log_bits, r) if beep else (0, 0)
+    prover_ms = (commit_ms + prove_ms + deep_ms) * (1 + BITZ_PIOP["prover"] * app_bits / bits)
     # the decider's extra first-round trees, on the Ligerito part and, as a bound, on the whole verifier
     level_hashes = bitz_level_hashes(profile, log_bits, r, floor)
     extra = (ARC_DECIDER_TREES - 1) * level_hashes[0] / sum(level_hashes) if mode == "arc" else 0
-    proof = nonlig + lig * scale * (1 + extra) + BITZ_PIOP["bytes"]
+    proof = nonlig + (lig * scale + deep_bytes) * (1 + extra) + BITZ_PIOP["bytes"]
     verify_ms = verify_ms * scale * (1 + extra)
     prover = prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)
     # The zero-knowledge rows: the random rows' symbols and the masks' values in the decider's
@@ -3582,7 +3670,9 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
 
 for mode in ("arc", "rec"):
     for grind in GRINDS if mode == "arc" else (None,):
-        shapes = [("udr", floor, rate) for floor in FLOORS for rate in ("1/2", "1/8")]
+        shapes = [("udr", floor, rate) for floor in FLOORS for rate in ("1/2", "1/8")] + [
+            ("beep", BITZ_MEASURED_FLOOR, rate) for rate in RATES
+        ]
         for profile, floor, rate in shapes:
             for zk in (False, True):
                 for rank in BITZ_RANKS:
@@ -4161,7 +4251,9 @@ CHANGE_LEVEL = {"none": 0, "code": 1, "design": 2}
 for p in points:
     p["pasta_arith"] = PASTA_ARITH[p["family"]] + (f", {p['route']}" if p.get("route") else "")
     p["pasta"] = p["pasta_arith"].split(",")[0] in PASTA_COUNTS
-    p["assumption"] = ASSUMPTION_LEVEL[p["family"]]
+    # A row derived from an analysis that no implementation certifies (BitZ under BEEP) is ranked
+    # with the strongest assumption, so that it removes no certified row from the frontier.
+    p["assumption"] = 2 if p.get("profile") == "beep" else ASSUMPTION_LEVEL[p["family"]]
 
 # Each point's arithmetization and its step's capacity in that arithmetization's unit, for
 # the transaction measure (see APPLICATIONS); Kishu's rows set theirs in kishu_costs.
@@ -4227,6 +4319,7 @@ def grind_key(p):
         p.get("field"),
         p.get("zkv"),
         p["hashes"],
+        p.get("profile"),
     )
 
 
@@ -4322,6 +4415,7 @@ def prune_key(p):
         p.get("route"),
         p.get("E"),
         p.get("binders"),
+        p.get("profile"),  # a derived row does not prune a certified one
     )
 
 
@@ -6284,6 +6378,7 @@ def define_figures():
     fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
     # BitZ's measurements at 2^25 bits and 128 bits of security (BITZ_MEASURED).
     udr25 = {r: BITZ_MEASURED["udr"][r][25] for r in BITZ_MEASURED["udr"]}
+    beep25 = {r: BITZ_MEASURED["beep"][r][25] for r in BITZ_MEASURED["beep"]}
     fig("bitz_rate_1_8_lig", sig(udr25[3][5] / udr25[1][5], 2))
     fig("bitz_25_rate_penalty", sig((udr25[3][0] + udr25[3][1]) / (udr25[1][0] + udr25[1][1]), 3))
     fig("bitz_prover_25_ms", sig(udr25[1][0] + udr25[1][1], 3))
@@ -6292,16 +6387,42 @@ def define_figures():
     fig("bitz_gkr_share_pct", round(100 * udr25[1][2] / (udr25[1][0] + udr25[1][1])))
     for r in udr25:
         fig(f"bitz_commit_25_r{r}_ms", sig(udr25[r][0], 3))
+    fig("bitz_commit_25_r6_ms", sig(beep25[6][0], 3))
     shares = {r: [v[2] / (v[0] + v[1]) for v in BITZ_MEASURED["udr"][r].values()] for r in udr25}
     claim(
         "bitz_gkr_four_fifths",
         "the grand-product GKR is about four fifths of BitZ's prover at rate 1/2, and a smaller share at rate 1/8",
         all(0.72 <= s <= 0.84 for s in shares[1]) and max(shares[3]) < min(shares[1]),
     )
-    # The stand-alone proofs at 2^25 bits, by rate.
+    # The stand-alone proofs at 2^25 bits, by regime and rate, and BEEP's samples.
     for r in udr25:
         fig(f"bitz_udr_25_r{r}_kb", kb(udr25[r][4] + udr25[r][5]))
+    deep_bytes = bitz_beep_overhead(25, 1)[0]
+    for r in beep25:
+        fig(f"bitz_beep_25_r{r}_kb", kb(beep25[r][4] + beep25[r][5] + deep_bytes))
+    fig("bitz_beep_folds", sum(k for _, k, _ in bitz_levels("beep", 25, 1)))
+    fig("bitz_beep_samples", BEEP_SAMPLES)
+    fig("bitz_beep_deep_kb", kb(deep_bytes))
     fig("bitz_udr_queries_25", bitz_queries("udr", 25, 3, BITZ_MEASURED_FLOOR))
+    fig("bitz_beep_queries_25", bitz_queries("beep", 25, 3, BITZ_MEASURED_FLOOR))
+    fig("bitz_beep_queries_25_r6", bitz_queries("beep", 25, 6, BITZ_MEASURED_FLOOR))
+    # The rows at the 128-bit floor: the smallest proof under each regime.
+    rows128 = shown("bitz", floor=BITZ_MEASURED_FLOOR)
+    least = {
+        profile: min((q for q in rows128 if q["profile"] == profile), key=lambda q: q["bytes"])
+        for profile in BITZ_MEASURED
+    }
+    fig("bitz_udr128_min_kb", kb(least["udr"]["bytes"]))
+    fig("bitz_beep128_min_kb", kb(least["beep"]["bytes"]))
+    fig("bitz_beep128_min_rate", least["beep"]["rate"])
+    fig("bitz_beep128_min_prover_over_udr", sig(least["beep"]["prover"] / least["udr"]["prover"]))
+    claim(
+        "bitz_beep_halves_proof",
+        "at the 128-bit floor BitZ's smallest row under the Johnson bound with BEEP is under half of its smallest unique-decoding row's bytes, at the lowest rate and within a tenth of its merge prover",
+        least["beep"]["bytes"] < 0.5 * least["udr"]["bytes"]
+        and least["beep"]["rate"] == RATES[-1]
+        and abs(least["beep"]["prover"] / least["udr"]["prover"] - 1) < 0.1,
+    )
     b12 = pick("bitz", rank=12, rate="1/8")
     claim(
         "bitz_rank12_slightly_smaller",
