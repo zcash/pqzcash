@@ -14,7 +14,7 @@ protocol has keys of its own; what they share is the derivation, so the same che
 
 In Zoodles the spend step opens the payment key to $(\mathsf{nk}, \mathsf{qk})$ and derives
 $\mathsf{qk}$ from $\mathsf{qsk}$, two BLAKE3 compressions, the second being the check. On its own
-the statement is one BLAKE3 compression, <!--fig:app_qk_bits-->11,200<!--/fig--> committed digits in
+the statement is one BLAKE3 compression, <!--fig:app_qk_bits-->11,344<!--/fig--> committed digits in
 Kishu, which the frontier page prices as the device statement `qk`, with the linking commitment of
 ZIP 2005's hardware-wallet section left out for now. [Hardware wallets](hardware-wallets.md) gives
 what it costs a wallet to prove by itself.

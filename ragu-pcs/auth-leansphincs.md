@@ -36,12 +36,12 @@ against <!--fig:leansphincs_layered_blake2s_calls-->462<!--/fig--> compressions
 or <!--fig:leansphincs_layered_keccak_calls-->408<!--/fig--> permutations for the layered one
 and <!--fig:leansphincs_ethereum_perms-->515<!--/fig--> permutations for Ethereum's. XOR is not free
 in a digit arithmetization, so in Kishu a BLAKE3 compression
-is <!--fig:blake3_bits-->11,000<!--/fig--> committed bits, a BLAKE2s
-compression <!--fig:blake2s_bits-->16,100<!--/fig-->, and a Keccak-f
-permutation <!--fig:keccak_bits-->92,200<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
-verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.35 million<!--/fig--> digits with
+is <!--fig:blake3_bits-->11,344<!--/fig--> committed bits, a BLAKE2s
+compression <!--fig:blake2s_bits-->16,096<!--/fig-->, and a Keccak-f
+permutation <!--fig:keccak_bits-->92,160<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
+verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
 BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3's
-is <!--fig:leansphincs_blake3_of_blake2s_pct-->70<!--/fig--> percent of BLAKE2s's, since its
+is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s's, since its
 compression has seven rounds to BLAKE2s's
 ten.<!--/claim--> <!--claim:leansphincs_keccak_dearer:8d35d3-->With Keccak it
 is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->

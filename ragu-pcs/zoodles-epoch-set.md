@@ -28,7 +28,7 @@ Kishu's 64-bit modulus a quartic extension, in which a root costs nine base mult
 wallet folds the bucket's contents every
 epoch, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits
 for <!--fig:zoodles_bucket_coeffs-->8,192<!--/fig--> tachygrams, against the
-tree's <!--fig:app_zoodles_epoch_kishu-->247,000<!--/fig-->.
+tree's <!--fig:app_zoodles_epoch_kishu-->250,000<!--/fig-->.
 
 The extension could be avoided by shortening the tachygrams, to 128 bits say, so that the
 polynomials live in Kishu's claim field. Secrecy does not protect a compression: a tachygram is

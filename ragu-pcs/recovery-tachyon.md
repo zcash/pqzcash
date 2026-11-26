@@ -45,7 +45,7 @@ knowledge of $\mathsf{qsk}$ and $\mathsf{nk}$ rather than of $\mathsf{ak}$ and $
 FROST group derives $\mathsf{qsk}$ from its privately agreed value as ZIP 2005 prescribes, with
 $\mathsf{ak}$ still the distributed key generation's output. The cost is one more field in the
 commitment and, in the recovery proof, one BLAKE3
-compression, <!--fig:app_qk_bits-->11,200<!--/fig--> Kishu digits, which the recovery circuit
+compression, <!--fig:app_qk_bits-->11,344<!--/fig--> Kishu digits, which the recovery circuit
 application already charges for $\mathsf{H^{qk}}$, and the reduction's range check of 256 bits.
 
 ## The migration transaction

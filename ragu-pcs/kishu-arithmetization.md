@@ -158,7 +158,7 @@ constraint that uses it. In a chain of XORs every other word is committed, each 
 both XORs' inputs at once at two terms a bit. A third XOR in a chain would need degree three.
 Bitwise operations keep bits. A dibit XOR is degree two only with a committed quotient digit, which
 is pinned only by committing the reduced result. Tribits have no degree-two XOR at all. So a BLAKE3
-compression is <!--fig:blake3_bits-->11,000<!--/fig--> bits of witness
+compression is <!--fig:blake3_bits-->11,344<!--/fig--> bits of witness
 and <!--fig:blake3_piop_terms-->11,120<!--/fig--> terms, a multiplication in $\mathbb{F}_q$ is one
 term over 64-bit operands, and a Pasta multiplication
 is <!--fig:mult_fingerprint_digits-->170<!--/fig--> or <!--fig:mult_limbs_digits-->374<!--/fig-->
@@ -256,12 +256,12 @@ has multiplications, so a step of hashes alone pays nothing and the routes tie o
 applications. Each instance's evaluation claim becomes about $\sqrt{2^{\mathrm{rank}}}$ integer
 column sums by BitZ's tensor split, each exact as one claim in the 64-bit field and committed as a
 word of <!--fig:column_sum_bits-->61<!--/fig--> bits, <!--fig:column_sum_digits-->21<!--/fig-->
-digits. That is <!--fig:fingerprint_step_digits_21-->91,300<!--/fig--> digits a step at rank 21,
+digits. That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at rank 21,
 with three more transcripts for the merge above. So the recovery circuit
 is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
 and <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route. Its
 constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0135<!--/fig-->
-and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00555<!--/fig--> s on one core. The range checks
+and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00556<!--/fig--> s on one core. The range checks
 of its tribits take <!--fig:range_recovery_kishu_limbs_s-->0.0509<!--/fig-->
 and <!--fig:range_recovery_kishu_fingerprint_s-->0.0244<!--/fig--> s more, beyond the one product a
 digit that every digit pays.
@@ -269,10 +269,10 @@ digit that every digit pays.
 ## The merge
 
 Kishu's merge is Akita's, costed in digits. A committed bit is one digit, so a BLAKE3 compression of
-the transcript is <!--fig:blake3_bits-->11,000<!--/fig--> digits and the images' reductions one per
-bit. The BLAKE3 accounting is its seven rounds of eight G functions. Every word of a G function is
-used once as a factor, in an XOR, and once linearly, in an addition, and only a factor needs
-committing:
+the transcript is <!--fig:blake3_chained_bits-->11,216<!--/fig--> digits and the images' reductions
+one per bit. The BLAKE3 accounting is its seven rounds of eight G functions. Every word of a G
+function is used once as a factor, in an XOR, and once linearly, in an addition, and only a factor
+needs committing:
 
 - each 32-bit addition is one relation $a + b = s + 2^{32} c$ over word entries, with the 32 sum
   bits and the carry committed, two bits of carry where there are three addends;
@@ -280,12 +280,21 @@ committing:
   expressions $x + y - 2xy$ inside the addition that takes the word, 32 terms there;
 - the second's word is committed, each bit certified against both XORs' inputs at two terms;
 - rotations are free, being wiring; and
-- the finalisation's XORs are expressions in whatever consumes the output, except the four words
-  that are the next compression's factors in its first round, which are committed at one term a bit.
+- the finalisation XORs two state words into each of the eight output words, and what is committed
+  depends on what consumes them.
 
-That is <!--fig:blake3_bits-->11,000<!--/fig-->
-digits, <!--fig:blake3_piop_terms-->11,120<!--/fig--> constraints
-and <!--fig:blake3_piop_nonzeros-->37,504<!--/fig--> nonzeros a compression.
+Where the output is the next compression's chaining value, within one message, four of its words are
+that compression's factors in its first round and are committed at one term a bit. The other four
+enter its first additions as expressions. That is <!--fig:blake3_chained_bits-->11,216<!--/fig-->
+digits a compression.
+
+Where the output is data, all eight words are committed at one term a bit. A Merkle node's output
+and a hash call's are message words of the next compression, addends in each of its seven rounds,
+and a transcript's last output is a challenge. That
+is <!--fig:blake3_data_more_digits-->128<!--/fig--> digits
+more, <!--fig:blake3_bits-->11,344<!--/fig-->. <!--claim:blake3_output_same_constraints:80a8b3-->Either
+way a compression is <!--fig:blake3_piop_terms-->11,120<!--/fig--> constraints,<!--/claim-->
+with <!--fig:blake3_piop_nonzeros-->37,760<!--/fig--> nonzeros where the output is data.
 
 BLAKE2b has the same G function at 64 bits, each addition in two halves since a 64-bit sum can wrap
 modulo $q$. Its finalisation differs: it XORs the old chaining word in with the two state words, a
@@ -319,11 +328,11 @@ byte, fewer because Poseidon's wires are tribits where BLAKE3's are bits.<!--/cl
 is <!--fig:q64_poseidon_mults-->276<!--/fig--> constraints
 with <!--fig:poseidon_q64_piop_nonzeros-->13,800<!--/fig--> nonzeros of field constants, where a
 BLAKE3 compression is <!--fig:blake3_piop_terms-->11,120<!--/fig-->
-with <!--fig:blake3_piop_nonzeros-->37,504<!--/fig--> of small ones, and these are charged at the
+with <!--fig:blake3_piop_nonzeros-->37,760<!--/fig--> of small ones, and these are charged at the
 rates above. <!--claim:hash_within_quarter:de8249-->Per 64 bytes absorbed, commitments and
 constraints together, BLAKE3 costs <!--fig:blake3_64b_mults-->430,000<!--/fig--> word
 multiplications and Poseidon <!--fig:poseidon_64b_mults-->350,000<!--/fig-->,
-within <!--fig:hash_64b_within_pct-->20<!--/fig-->% of each other, which many modelling choices
+within <!--fig:hash_64b_within_pct-->21<!--/fig-->% of each other, which many modelling choices
 could sway either way.<!--/claim--> So both hashes are kept as variants of Kishu on the frontier
 page, each a family of its own in the list and the plot. The BLAKE3 rows appear under either hash
 option and the Poseidon rows under the arithmetic-hash option, and the frontier decides between
@@ -365,7 +374,7 @@ multiplications are native 64-bit ones on the prover.
 | an XOR of two 32-bit words, uncommitted | 0 | 32, inside the constraint that consumes it | |
 | a 32-bit addition | 33, or 34 with three addends | 1 | |
 | a field element of $\mathbb{F}_q$; a product in $E$ | <!--fig:q64_digits-->22<!--/fig-->; <!--fig:e_mult_digits-->44<!--/fig--> | 1 | |
-| a BLAKE3 compression | <!--fig:blake3_bits-->11,000<!--/fig--> | <!--fig:blake3_piop_terms-->11,120<!--/fig--> | |
+| a BLAKE3 compression | <!--fig:blake3_bits-->11,344<!--/fig--> | <!--fig:blake3_piop_terms-->11,120<!--/fig--> | |
 | a Poseidon permutation over $\mathbb{F}_q$ | <!--fig:q64_poseidon_mults-->276<!--/fig--> × <!--fig:q64_digits-->22<!--/fig--> | <!--fig:q64_poseidon_mults-->276<!--/fig--> | |
 | a Pasta multiplication | <!--fig:mult_fingerprint_digits-->170<!--/fig--> by fingerprint, <!--fig:mult_limbs_digits-->374<!--/fig--> by limbs | 3 or <!--fig:mult_limbs_terms-->98<!--/fig--> | the fingerprint route's column sums per step besides |
 | a claim absorbed by the merge | <!--fig:kishu_claim_digits_blake3-->3,000<!--/fig--> under BLAKE3 | | |
@@ -403,7 +412,7 @@ Kishu differs in these ways:
   its product terms and nonzeros rather than by gates.
 - **Hashes are cheap and Pasta arithmetic is dear.** In Ragu a Poseidon permutation over Pallas is
   about 192 gates and a Pasta multiplication one gate, while a bit-oriented hash would cost a gate
-  per bit operation. In Kishu a BLAKE3 compression is <!--fig:blake3_bits-->11,000<!--/fig-->
+  per bit operation. In Kishu a BLAKE3 compression is <!--fig:blake3_bits-->11,344<!--/fig-->
   digits, one per bit, and a Pasta multiplication <!--fig:mult_fingerprint_digits-->170<!--/fig-->
   or <!--fig:mult_limbs_digits-->374<!--/fig--> digits by relation, since the field is not Pasta's.
   That is why the recovery circuit

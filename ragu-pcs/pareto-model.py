@@ -844,13 +844,19 @@ BLAKE2B_ANDS = (
 # word is committed, certified against both XORs' inputs at once (XOR_RELATION_PIOP); a third
 # XOR in the chain would need degree three. Rotations are wiring. The G function is the same
 # in BLAKE2 and BLAKE3; the finalisation is not. BLAKE3's XORs two state words into each output
-# word, which is an expression too: a compression in a chain commits only the four output
-# words that are the next compression's b inputs, its factors in the first round. BLAKE2's
-# XORs the old chaining word in as well, a chain of two XORs, so all eight output words are
-# committed, each certified against its three inputs as a G function's second XOR word is.
+# word, which is an expression too. Where the output is the next compression's chaining value,
+# within one message, only the four words that are that compression's b inputs are committed,
+# its factors in the first round; the other four enter its first additions as expressions.
+# Where the output is data for its consumer, all eight words are committed, at one term a
+# bit: a Merkle node's output and a hash call's are message words of the next compression,
+# addends in seven rounds of it, and a transcript's last output is a challenge. BLAKE2's
+# finalisation XORs the old chaining word in as well, a chain of two XORs, so all eight
+# output words are committed in either place, each certified against its three inputs as a
+# G function's second XOR word is.
 BLAKE2OR3_G_COMMITTED_XORS = 2
+BLAKE2OR3_OUTPUT_WORDS = 8
 BLAKE3_CHAIN_WORDS = 4
-BLAKE2_CHAIN_WORDS = 8
+BLAKE2_CHAIN_WORDS = BLAKE2OR3_OUTPUT_WORDS
 
 
 def blake2or3_bits(rounds, word_bits, add2, add3, chain_words):
@@ -864,7 +870,8 @@ def blake2or3_bits(rounds, word_bits, add2, add3, chain_words):
 
 
 BLAKE2B_BITS = blake2or3_bits(12, 64, 65, 66, BLAKE2_CHAIN_WORDS)
-BLAKE3_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE3_CHAIN_WORDS)
+BLAKE3_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE2OR3_OUTPUT_WORDS)  # its output is data
+BLAKE3_CHAINED_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE3_CHAIN_WORDS)  # or a chaining value
 # As BLAKE2B_BITS, each 64-bit addition in two halves with a carry each, since a 64-bit sum
 # can wrap modulo q.
 BLAKE2B_BITS_KISHU = blake2or3_bits(12, 64, 66, 68, BLAKE2_CHAIN_WORDS)
@@ -933,22 +940,24 @@ def piop_range_word_mults(piop):
     return sum(piop[3:]) * CONSTRAINT_TERM_WORD_MULTS
 
 
-def blake2or3_piop(rounds, word_bits, blake3):
+def blake2or3_piop(rounds, word_bits, output):
     """A BLAKE2 or BLAKE3 compression's constraint counts in Kishu's PIOP: per G function two
     plain additions, two additions taking an uncommitted XOR word, and two committed XOR words
-    certified by XOR_RELATION_PIOP; then the chaining words. BLAKE3's are four committed by
-    XOR_BIT_PIOP and four entering the next compression's first additions as expressions;
-    BLAKE2's eight are committed and certified by XOR_RELATION_PIOP."""
+    certified by XOR_RELATION_PIOP; then the output words, by `output`. A BLAKE3 chaining
+    value ("blake3-chained") is four words committed by XOR_BIT_PIOP and four entering the
+    next compression's first additions as expressions; a BLAKE3 output that is data
+    ("blake3") is eight committed by XOR_BIT_PIOP; BLAKE2's ("blake2") are eight committed
+    and certified by XOR_RELATION_PIOP."""
     add, add_xor = (ADD32_PIOP, ADD32_XOR_PIOP) if word_bits == 32 else (ADD64_PIOP, ADD64_XOR_PIOP)
     g = rounds * 8
-    chain = (
-        (
+    chain = {
+        "blake3-chained": (
             (BLAKE3_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
-            (BLAKE3_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
-        )
-        if blake3
-        else ((BLAKE2_CHAIN_WORDS * word_bits, XOR_RELATION_PIOP),)
-    )
+            (BLAKE2OR3_OUTPUT_WORDS - BLAKE3_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+        ),
+        "blake3": ((BLAKE2OR3_OUTPUT_WORDS * word_bits, XOR_BIT_PIOP),),
+        "blake2": ((BLAKE2_CHAIN_WORDS * word_bits, XOR_RELATION_PIOP),),
+    }[output]
     return piop_sum(
         (2 * g, add),
         (2 * g, add_xor),
@@ -957,8 +966,9 @@ def blake2or3_piop(rounds, word_bits, blake3):
     )
 
 
-BLAKE3_PIOP = blake2or3_piop(7, 32, True)
-BLAKE2B_PIOP = blake2or3_piop(12, 64, False)
+BLAKE3_PIOP = blake2or3_piop(7, 32, "blake3")
+BLAKE3_CHAINED_PIOP = blake2or3_piop(7, 32, "blake3-chained")
+BLAKE2B_PIOP = blake2or3_piop(12, 64, "blake2")
 # A Sinsemilla chunk selects one of 1,024 generators by ten bits. Each coordinate of the
 # selected point is a fixed linear form in the subset products of the bits, one coefficient per
 # subset. Only a product that is a factor of another needs committing: the subsets within each
@@ -1150,7 +1160,7 @@ def path_cost(field, hp):
 BLAKE2S_ROUNDS = 10
 BLAKE2S_BITS = blake2or3_bits(BLAKE2S_ROUNDS, 32, 33, 34, BLAKE2_CHAIN_WORDS)
 BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE2OR3_G_ADDITIONS * 31
-BLAKE2S_PIOP = blake2or3_piop(BLAKE2S_ROUNDS, 32, False)
+BLAKE2S_PIOP = blake2or3_piop(BLAKE2S_ROUNDS, 32, "blake2")
 KECCAK_ROUNDS = 24
 # Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
 KECCAK_ROUND_LANES = 2 * 5 + 25 + 25
@@ -1349,14 +1359,25 @@ def absorb_digits(bytes_, hp, checked_words=0, range_check=RANGE_CHECK_DIGITS, w
     if hp == "poseidon":
         calls = absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole)
         return calls * Q64_POSEIDON_MULTS * Q64_DIGITS
-    return absorb_calls(bytes_, BLAKE3_BLOCK, whole) * BLAKE3_BITS + checked_words * range_check
+    chained, last = blake3_absorb_split(bytes_, whole)
+    return chained * BLAKE3_CHAINED_BITS + last * BLAKE3_BITS + checked_words * range_check
+
+
+def blake3_absorb_split(bytes_, whole):
+    """The BLAKE3 compressions that absorb `bytes_`, as (chained, last): every compression of
+    a message but its last passes a chaining value on, and the last one's output is data. A
+    share of a larger transcript is all chained."""
+    calls = absorb_calls(bytes_, BLAKE3_BLOCK, whole)
+    last = 1 if whole and calls else 0
+    return calls - last, last
 
 
 def absorb_piop(bytes_, hp, checked_words=0, whole=False):
     if hp == "poseidon":
         return piop_sum((absorb_calls(bytes_, Q64_POSEIDON_RATE_BYTES, whole), POSEIDON_Q64_PIOP))
+    chained, last = blake3_absorb_split(bytes_, whole)
     return piop_sum(
-        (absorb_calls(bytes_, BLAKE3_BLOCK, whole), BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
+        (chained, BLAKE3_CHAINED_PIOP), (last, BLAKE3_PIOP), (checked_words, RANGE_CHECK_PIOP)
     )
 
 
@@ -4957,7 +4978,7 @@ def define_figures():
     fig("mult_carry_bits", MULT_CARRY_BITS)
     fig("fingerprint_instances", FINGERPRINT_INSTANCES)
     fig("column_sum_bits", COLUMN_SUM_BITS)
-    fig("fingerprint_step_digits_21", sig(fingerprint_step_digits(21), 3))
+    fig("fingerprint_step_digits_21", fmt(round(fingerprint_step_digits(21))))
     fig("blake2b_bits_kishu", fmt(BLAKE2B_BITS_KISHU))
     fig("blake2b_piop_terms", fmt(BLAKE2B_PIOP[0]))
     fig("constraint_term_mults", sig(CONSTRAINT_TERM_WORD_MULTS))
@@ -5024,7 +5045,7 @@ def define_figures():
     fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
-    fig("app_qk_bits", sig(APP["qk"][KISHU_ARITHS[0]]["blake3"], 3))
+    fig("app_qk_bits", fmt(round(APP["qk"][KISHU_ARITHS[0]]["blake3"])))
     fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
     fig("leansphincs_blake3_calls", LEANSPHINCS_VERIFY["blake3"])
@@ -5062,8 +5083,8 @@ def define_figures():
         "capss_device_sign_s_est",
         sig(capss_sign_64 * Q64_POSEIDON_MULTS / DEVICE_WORD_MULTS_PER_S["mcu"], 2),
     )
-    fig("keccak_bits", sig(KECCAK_BITS, 3))
-    fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
+    fig("keccak_bits", fmt(KECCAK_BITS))
+    fig("blake2s_bits", fmt(BLAKE2S_BITS))
     keccak_kishu = APP["leansphincs_keccak"][KISHU_ARITHS[0]]["blake3"]
     blake2s_kishu = APP["leansphincs_blake2s"][KISHU_ARITHS[0]]["blake3"]
     blake3_kishu = APP["leansphincs_blake3"][KISHU_ARITHS[0]]["blake3"]
@@ -5190,7 +5211,7 @@ def define_figures():
     )
     fig("hiding_padding_statistical_kbits", round(statistical_padding / 1000))
     fig("hiding_padding_statistical_over_statement", sig(statistical_padding / leaf))
-    fig("qk_device_digits", sig(device_digits, 3))
+    fig("qk_device_digits", fmt(round(device_digits)))
     fig("qk_device_online_ms", millis(device_online))
     fig("qk_device_idle_ms", millis(device_idle))
     fig("qk_device_z_bits", z_bits)
@@ -5289,7 +5310,7 @@ def define_figures():
         units = APP[app][KISHU_ARITHS[0]]["blake3"]
         digits = sum(units) if isinstance(units, list) else units
         if full or app == "zoodles_merkle_preimage":
-            fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else sig(digits, 3))
+            fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else fmt(round(digits)))
         p, w = kishu_best(app)
         zoodles_plain[app] = w
         p, w_zk = kishu_best(app, zk=True)
@@ -6841,7 +6862,14 @@ def define_figures():
     fig("bool_sumcheck_per_bit", sig(sumc[0]))
     fig("bool_projection_scan", millions(proj[4]))
     fig("bool_sumcheck_merge_mults", fmt(sumc[3]))
-    fig("blake3_bits", sig(BLAKE3_BITS))
+    fig("blake3_bits", fmt(BLAKE3_BITS))
+    fig("blake3_chained_bits", fmt(BLAKE3_CHAINED_BITS))
+    claim(
+        "blake3_output_same_constraints",
+        "a BLAKE3 compression has the same number of constraints whether its output is a chaining value or data",
+        BLAKE3_CHAINED_PIOP[0] == BLAKE3_PIOP[0],
+    )
+    fig("blake3_data_more_digits", BLAKE3_BITS - BLAKE3_CHAINED_BITS)
     fig("q64_digits", Q64_DIGITS)
     fig("e_mult_digits", E_MULT_DIGITS)
     fig("q64_poseidon_mults", Q64_POSEIDON_MULTS)
