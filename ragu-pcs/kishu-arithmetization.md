@@ -260,8 +260,8 @@ digits. That is <!--fig:fingerprint_step_digits_21-->91,300<!--/fig--> digits a 
 with three more transcripts for the merge above. So the recovery circuit
 is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
 and <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route. Its
-constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0134<!--/fig-->
-and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00553<!--/fig--> s on one core. The range checks
+constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0135<!--/fig-->
+and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00555<!--/fig--> s on one core. The range checks
 of its tribits take <!--fig:range_recovery_kishu_limbs_s-->0.0509<!--/fig-->
 and <!--fig:range_recovery_kishu_fingerprint_s-->0.0244<!--/fig--> s more, beyond the one product a
 digit that every digit pays.
@@ -285,10 +285,15 @@ committing:
 
 That is <!--fig:blake3_bits-->11,000<!--/fig-->
 digits, <!--fig:blake3_piop_terms-->11,120<!--/fig--> constraints
-and <!--fig:blake3_piop_nonzeros-->37,504<!--/fig--> nonzeros a compression. The same accounting at
-64 bits, each addition in two halves since a 64-bit sum can wrap modulo $q$, gives
-BLAKE2b <!--fig:blake2b_bits_kishu-->38,272<!--/fig--> digits
-and <!--fig:blake2b_piop_terms-->37,760<!--/fig--> constraints. Under BLAKE3 every transcript
+and <!--fig:blake3_piop_nonzeros-->37,504<!--/fig--> nonzeros a compression.
+
+BLAKE2b has the same G function at 64 bits, each addition in two halves since a 64-bit sum can wrap
+modulo $q$. Its finalisation differs: it XORs the old chaining word in with the two state words, a
+chain of two XORs. So all eight output words are committed, each bit certified at two terms. That
+gives BLAKE2b <!--fig:blake2b_bits_kishu-->38,528<!--/fig--> digits
+and <!--fig:blake2b_piop_terms-->38,272<!--/fig--> constraints.
+
+Under BLAKE3 every transcript
 element the prover supplies is first checked to be below the modulus, since a 64-bit decomposition
 is canonical only there, about <!--fig:range_check_digits-->22<!--/fig--> digits a word.
 

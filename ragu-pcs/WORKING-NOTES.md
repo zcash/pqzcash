@@ -5027,7 +5027,7 @@ best throughput. Effects: the binary-field family's and BitZ's merges are twice 
 dearer; a BitZ recovery transaction 59 percent. BitZ's recursion row at the default floor now has
 a merge beyond the measured 2^29 bits and so no row (the user: not deployable anyway; compare at
 128 bits, which the page now does). Kishu's digit counts already had the three-word additions
-(`blake_bits`), except BLAKE2s, by one percent.
+(`blake2or3_bits`), except BLAKE2s, by one percent.
 
 Optimizations considered for the count, none applied: a carry-save first stage for the three-word
 additions saves one AND a word (about one percent); a Merkle node's constant chaining value saves

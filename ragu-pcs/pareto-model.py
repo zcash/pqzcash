@@ -842,29 +842,32 @@ BLAKE2B_ANDS = (
 # needs committing only to be a factor, and an uncommitted XOR word enters its adder as the
 # exact expressions x + y - 2xy of its bits. So of each chain of two XORs only the second's
 # word is committed, certified against both XORs' inputs at once (XOR_RELATION_PIOP); a third
-# XOR in the chain would need degree three. The finalisation's XORs are expressions too: a
-# compression in a chain commits only the four output words that are the next compression's b
-# inputs, its factors in the first round. Rotations are wiring.
-BLAKE_G_COMMITTED_XORS = 2
-BLAKE_CHAIN_WORDS = 4
+# XOR in the chain would need degree three. Rotations are wiring. The G function is the same
+# in BLAKE2 and BLAKE3; the finalisation is not. BLAKE3's XORs two state words into each output
+# word, which is an expression too: a compression in a chain commits only the four output
+# words that are the next compression's b inputs, its factors in the first round. BLAKE2's
+# XORs the old chaining word in as well, a chain of two XORs, so all eight output words are
+# committed, each certified against its three inputs as a G function's second XOR word is.
+BLAKE2OR3_G_COMMITTED_XORS = 2
+BLAKE3_CHAIN_WORDS = 4
+BLAKE2_CHAIN_WORDS = 8
 
 
-def blake_bits(rounds, word_bits, add2, add3):
-    """A BLAKE compression's committed digits: per G function two additions of two words at
-    `add2` digits (the sum and a carry bit), two of three words at `add3` (the carry up to
-    two, two bits), and the committed XOR words; then the chaining words."""
+def blake2or3_bits(rounds, word_bits, add2, add3, chain_words):
+    """A BLAKE2 or BLAKE3 compression's committed digits: per G function two additions of two
+    words at `add2` digits (the sum and a carry bit), two of three words at `add3` (the carry
+    up to two, two bits), and the committed XOR words; then the committed chaining words."""
     g = rounds * 8
     return (
-        g * (2 * add2 + 2 * add3 + BLAKE_G_COMMITTED_XORS * word_bits)
-        + BLAKE_CHAIN_WORDS * word_bits
+        g * (2 * add2 + 2 * add3 + BLAKE2OR3_G_COMMITTED_XORS * word_bits) + chain_words * word_bits
     )
 
 
-BLAKE2B_BITS = blake_bits(12, 64, 65, 66)
-BLAKE3_BITS = blake_bits(7, 32, 33, 34)
+BLAKE2B_BITS = blake2or3_bits(12, 64, 65, 66, BLAKE2_CHAIN_WORDS)
+BLAKE3_BITS = blake2or3_bits(7, 32, 33, 34, BLAKE3_CHAIN_WORDS)
 # As BLAKE2B_BITS, each 64-bit addition in two halves with a carry each, since a 64-bit sum
 # can wrap modulo q.
-BLAKE2B_BITS_KISHU = blake_bits(12, 64, 66, 68)
+BLAKE2B_BITS_KISHU = blake2or3_bits(12, 64, 66, 68, BLAKE2_CHAIN_WORDS)
 # Constraint counts for Kishu's PIOP, a sum-check over a constraint system on the committed
 # table (Zinc+'s UCS, R1CS or CCS alike), beside the digit counts, as (product terms, nonzeros
 # of small constants, nonzeros of field constants). A product term costs the prover the
@@ -930,24 +933,32 @@ def piop_range_word_mults(piop):
     return sum(piop[3:]) * CONSTRAINT_TERM_WORD_MULTS
 
 
-def blake_piop(rounds, word_bits):
-    """A BLAKE compression's constraint counts in Kishu's PIOP: per G function two plain
-    additions, two additions taking an uncommitted XOR word, and two committed XOR words
-    certified by XOR_RELATION_PIOP; then the chaining words, four committed by XOR_BIT_PIOP and
-    four entering the next compression's first additions as expressions."""
+def blake2or3_piop(rounds, word_bits, blake3):
+    """A BLAKE2 or BLAKE3 compression's constraint counts in Kishu's PIOP: per G function two
+    plain additions, two additions taking an uncommitted XOR word, and two committed XOR words
+    certified by XOR_RELATION_PIOP; then the chaining words. BLAKE3's are four committed by
+    XOR_BIT_PIOP and four entering the next compression's first additions as expressions;
+    BLAKE2's eight are committed and certified by XOR_RELATION_PIOP."""
     add, add_xor = (ADD32_PIOP, ADD32_XOR_PIOP) if word_bits == 32 else (ADD64_PIOP, ADD64_XOR_PIOP)
     g = rounds * 8
+    chain = (
+        (
+            (BLAKE3_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
+            (BLAKE3_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+        )
+        if blake3
+        else ((BLAKE2_CHAIN_WORDS * word_bits, XOR_RELATION_PIOP),)
+    )
     return piop_sum(
         (2 * g, add),
         (2 * g, add_xor),
-        (BLAKE_G_COMMITTED_XORS * g * word_bits, XOR_RELATION_PIOP),
-        (BLAKE_CHAIN_WORDS * word_bits, XOR_BIT_PIOP),
-        (BLAKE_CHAIN_WORDS, (word_bits, 2 * word_bits, 0)),
+        (BLAKE2OR3_G_COMMITTED_XORS * g * word_bits, XOR_RELATION_PIOP),
+        *chain,
     )
 
 
-BLAKE3_PIOP = blake_piop(7, 32)
-BLAKE2B_PIOP = blake_piop(12, 64)
+BLAKE3_PIOP = blake2or3_piop(7, 32, True)
+BLAKE2B_PIOP = blake2or3_piop(12, 64, False)
 # A Sinsemilla chunk selects one of 1,024 generators by ten bits. Each coordinate of the
 # selected point is a fixed linear form in the subset products of the bits, one coefficient per
 # subset. Only a product that is a factor of another needs committing: the subsets within each
@@ -1137,9 +1148,9 @@ def path_cost(field, hp):
 # BLAKE3's G function. In a Boolean circuit with XOR free Keccak-f is chi's 38,400 ANDs and
 # BLAKE2s its additions.
 BLAKE2S_ROUNDS = 10
-BLAKE2S_BITS = blake_bits(BLAKE2S_ROUNDS, 32, 33, 34)
+BLAKE2S_BITS = blake2or3_bits(BLAKE2S_ROUNDS, 32, 33, 34, BLAKE2_CHAIN_WORDS)
 BLAKE2S_ANDS = BLAKE2S_ROUNDS * 8 * BLAKE2OR3_G_ADDITIONS * 31
-BLAKE2S_PIOP = blake_piop(BLAKE2S_ROUNDS, 32)
+BLAKE2S_PIOP = blake2or3_piop(BLAKE2S_ROUNDS, 32, False)
 KECCAK_ROUNDS = 24
 # Theta's two parity lanes a column and its 25 lanes after it; chi's 25 lanes.
 KECCAK_ROUND_LANES = 2 * 5 + 25 + 25

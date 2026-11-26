@@ -554,10 +554,10 @@ arithmetic, which the Ironwood recovery circuit is made of, then pays the embedd
 overhead that the small-field survey (ePrint 2026/1371, §5) describes. The Pareto page prices the
 binary-field route in its own terms, with FRI-Binius's measured commitment proofs at the merge's
 witness size and Flock's measured throughput as prover time. At rate 1/8 it comes
-to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time
-of <!--fig:f2_1_8_prover-->1e9<!--/fig--> word multiplications per
-merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over Goldilocks with Poseidon still
-dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
+to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time of <!--fig:f2_1_8_prover-->1e9<!--/fig-->
+word multiplications per merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over
+Goldilocks with Poseidon still dominates it on both,
+at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
 and <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->.<!--/claim--> The merge's Boolean size,
 about <!--fig:f2_1_8_gates-->67<!--/fig--> million AND gates, is not comparable with Pasta gates.
 LaBinius (ePrint 2026/2103) is a lattice scheme over a binary claim field. It reaches proofs under
