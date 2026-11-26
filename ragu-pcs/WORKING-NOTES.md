@@ -4956,3 +4956,53 @@ parity is not free.
 
 STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
 03aa05a, unpushed; PR #8's description predates them.
+
+## 2026-11-26 13:14 UTC: state at the end of the session
+
+PR #8 (branch `accumulation-paragraph`, draft) now carries everything since PR #7: the
+accumulation prover paragraph, whole counts, the migrations, BitZ re-measured, the rows derived
+from BEEP for BitZ, the binary-field family, and WHIR with the limb hybrid and Plonky3, the
+frontier's tolerance, the regime statements, Kishu's digit figures from Kishu's own counts, and
+BitZ's corrected accounting. The user asked for all of it in the one PR.
+
+STATE: the branch was pushed, then rebased onto main at the merge of PR #7 after a fetch, and the
+notes' cited hashes corrected again; so the local branch is ahead of the pushed one by a rewrite
+and needs a force-push with lease. The book builds at the tip and 851 links check. NOT YET DONE,
+asked by the user: check that each of the branch's commits builds on its own (export each with
+`git archive` and run `scripts/build-book.sh` in it). Then update PR #8's description, which
+still describes the first two commits only.
+
+Things learnt this session that the next should not relearn:
+
+- Read formulas from the rendered page of a PDF, not from extracted text: "2^8" came out as "28"
+  and "2^9 rows" as "29 rows". Two of the copies under `work/` named as PDFs are saved
+  browser-challenge pages; the real ones are under `keep/`.
+- A benchmark's "one thread" needs checking in its source. BitZ's library hops onto a second
+  thread pool from 8 Mbytes of data.
+- The notes cite commits by hash, and every rewrite of the branch stales them. Correct them once,
+  just before a push, with `work/fix-note-hashes.py`, in the order of the notes commits, each
+  citing only commits before it.
+- "Priced" is ambiguous where a bound or a regime is meant: name the quantity (query counts, a
+  proximity parameter).
+- `scripts/wrap-prose.py` does not refill a multi-line `<p>` of the template;
+  `work/rejoin-long-p.py` rejoins the ones a fill has lengthened. The user is not worried by an
+  occasional long line.
+
+QUEUE, in the user's order:
+
+1. Independent security floors for the lattice-based and the hash-based families, with
+   Pedersen-IPA fixed at about 126 bits and documented, and a selectable "paranoid" cost model for
+   lattices.
+2. Circuit optimization for the schemes other than Kishu, thorough enough to be fair to them, and
+   a page on the optimizations each is assumed to have.
+3. The frontier page's prose: far shorter, keeping what explains the plot, the table, and the
+   measures; saying plainly that the table follows the controls and lists only frontier rows; the
+   hash-based families section in BLAKE3 figures, with the Hashes section on what Poseidon
+   changes.
+4. Dao, Kominers, and Thaler's bounds beyond the Johnson bound, read in detail, for the
+   prime-field WHIR rows; possibly its own section.
+5. For the user's ruling: the zero-knowledge overhead of the WHIR-type rows was measured under the
+   capacity bound; the three assumptions in the Tachyon recovery spend.
+6. The older queue: the mask width α, the online transaction measure, the Zoodles statements
+   page, a model-diff view, a structural check for constraint programs, Tachyon's comparisons as
+   tribits, the merge's transcript words' digits.
