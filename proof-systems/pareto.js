@@ -56,10 +56,11 @@ function txShort(side) {
   return text.length > 44 ? text.slice(0, 42).trimEnd() + '…' : text;
 }
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
-// does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash.
+// does the recovery circuit, whose primary input is the anchor, rk, the nullifier and SigHash,
+// alone or as a migration's input (the migrations' names start with their pool's).
 let userHeader = 2, lastForced = false;  // the header chosen on the control, kept through a forced spell
 function forcedHeader() {
-  return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery'); });
+  return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery') || app.startsWith('ironwood'); });
 }
 function selected() {
   const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
@@ -84,10 +85,33 @@ const CHANGE = { none: 'parameters only', code: 'code changes', design: 'design 
 // the Pasta base field (more is better), the security assumption, and the changes needed (both
 // less is better). The assumption ranks a random oracle alone below Module-SIS with a random
 // oracle, below the open security ledger; the changes rank parameters only below code below
-// design. A configuration is dominated by one at least as good on every axis and better on one.
+// design. It is taken to the tolerance chosen on the control (the model's pareto has the rule's
+// statement and what follows from it): q beats p when q is no more than a factor 1 + eps worse
+// on every measure and no worse on the requirements. The configurations are taken in increasing
+// order of the product of their measures, then by family and label, and one is kept unless a
+// kept one beats it. Two alike on every measure and requirement both stay if their families
+// differ; of one family the first stands for both. At a tolerance of zero this is exact dominance.
 function frontierAmong(pts, second, third) {
-  const level = p => DATA.change_level[p.change];
-  return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q[second] <= p[second] && q[third] <= p[third] && q.pasta >= p.pasta && q.assumption <= p.assumption && level(q) <= level(p) && (q.bytes !== p.bytes || q[second] !== p[second] || q[third] !== p[third] || q.pasta !== p.pasta || q.assumption !== p.assumption || q.change !== p.change)));
+  const eps = +document.querySelector('input[name=tolerance]:checked').value;
+  const measures = p => [p.bytes, p[second], p[third]];
+  const requirements = p => [-p.pasta, p.assumption, DATA.change_level[p.change]];
+  const rows = pts.map((p, i) => {
+    const m = measures(p);
+    return { p, i, m, r: requirements(p), product: m.reduce((sum, v) => sum + (v > 0 ? Math.log(v) : -Infinity), 0) };
+  });
+  const beats = (q, p) => {
+    if (!q.m.every((v, k) => v <= (1 + eps) * p.m[k]) || !q.r.every((v, k) => v <= p.r[k])) return false;
+    const tie = q.m.every((v, k) => v === p.m[k]) && q.r.every((v, k) => v === p.r[k]);
+    return !tie || q.p.family === p.p.family;
+  };
+  const text = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const compare = (a, b) => a.product - b.product || text(a.p.family, b.p.family) || text(a.p.label, b.p.label) || a.i - b.i;
+  const kept = [];
+  for (const row of [...rows].sort(compare)) {
+    if (!kept.some(q => beats(q, row))) kept.push(row);
+  }
+  const keep = new Set(kept.map(row => row.p));
+  return pts.filter(p => keep.has(p));
 }
 const second = () => measureOf('second');
 // The swap button exchanges the second and third measures, with their applications; render()
@@ -468,7 +492,7 @@ document.querySelectorAll('table').forEach(table => {
     sortTable(table, i, dir);
   }));
 });
-document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 // The book switches themes by changing the root element's class.
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });

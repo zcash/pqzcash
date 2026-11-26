@@ -36,7 +36,7 @@
             const path_to_root = "../../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../../searchindex-a64a2a25.js";
+            window.path_to_searchindex_js = "../../searchindex-5cce34e9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4ff39b87.js"></script>
@@ -684,7 +684,10 @@ parameter changes only, code changes within the protocol, or design changes.</p>
 (ePrint 2024/1731) over Pasta’s own field, which is FFT friendly. The proof sizes come from WHIR’s
 reference implementation at the batched witness size over a 256-bit field, at 128 bits of security
 in the proven Johnson regime. The conjectured sizes rest on capacity conjectures that were refuted
-over large fields in late 2025 (ePrint 2026/1367 §5.4), so they do not apply. The measured proofs
+over large fields in late 2025 (ePrint 2025/2046; ePrint 2026/1367 §5.4), so they do not apply. What
+has been proved beyond the Johnson bound since, for Reed–Solomon codes in fields of large
+characteristic (ePrint 2026/2056), is not used: the query counts stay those of the Johnson bound.
+The measured proofs
 are <!--fig:whir_sweep_1_2_kb-->250 kbytes<!--/fig-->, <!--fig:whir_sweep_1_4_kb-->158 kbytes<!--/fig-->
 and <!--fig:whir_sweep_1_8_kb-->126 kbytes<!--/fig--> at rates 1/2, 1/4 and 1/8,
 with <!--fig:whir_sweep_1_2_khashes-->2.7k<!--/fig-->, <!--fig:whir_sweep_1_4_khashes-->2.0k<!--/fig-->
@@ -722,12 +725,12 @@ arithmetic, which the Ironwood recovery circuit is made of, then pays the embedd
 overhead that the small-field survey (ePrint 2026/1371, §5) describes. The Pareto page prices the
 binary-field route in its own terms, with FRI-Binius’s measured commitment proofs at the merge’s
 witness size and Flock’s measured throughput as prover time. At rate 1/8 it comes
-to <!--fig:f2_1_8_kb-->214 kbytes<!--/fig--> and the time
-of <!--fig:f2_1_8_prover-->5.8e8<!--/fig--> word multiplications per
+to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time
+of <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> word multiplications per
 merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over Goldilocks with Poseidon still
 dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
 and <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->.<!--/claim--> The merge’s Boolean size,
-about <!--fig:f2_1_8_gates-->33<!--/fig--> million AND gates, is not comparable with Pasta gates.
+about <!--fig:f2_1_8_gates-->67<!--/fig--> million AND gates, is not comparable with Pasta gates.
 LaBinius (ePrint 2026/2103) is a lattice scheme over a binary claim field. It reaches proofs under
 103 kbytes with LaBRADOR compression and a prover within twice the hash-based ones, and
 <a href="#63-decoupling-the-commitment-modulus-from-the-claim-field">§6.3</a> says why it matters here.</p>
@@ -749,24 +752,26 @@ per committed bit that does not depend on <span class="katex"><span class="katex
 (ePrint 2026/855) the application’s Pasta arithmetic is integer relations, integer witnesses with
 ideal membership modulo <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">p</span></span></span></span>. So the recovery circuit stays Pasta arithmetic at 510 committed bits
 per gate (a 255-bit value and its quotient). The merge is a hybrid circuit: its hashing is Boolean,
-and its GKR and PIOP verifiers are native over the binary extension and the projection field. The
-128-bit and rate scalings come from running the paper’s own benchmark: at 128 bits its
-implementation works in the unique-decoding regime with fold grinding, and the Ligerito part of the
-proof is 1.8 times the 100-bit one. Rate 1/8 is its proof-size minimum: at rate 1/16, the lowest the
-implementation allows, the proof is 3% larger again and the prover 27% slower. At the Johnson bound
-the implementation certifies only 118 bits, its out-of-domain binding term with one sample; there
-the proof is 217 kbytes at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">25</span></span></span></span></span></span></span></span></span></span></span></span> and rate 1/2 against 304 kbytes in the unique-decoding regime at
-128 bits, and since the Ligerito part grows linearly with the bits, a Johnson-regime BitZ at 128
-bits, which analysis in progress may reach, would be about 231 kbytes, a quarter less. The figures
-below are the certified ones. Priced from the paper’s Table 10 with those scalings and Zinc+‘s PIOP
-added, BitZ with ARC at rank 13 and rate 1/8 comes
-to <!--fig:bitz13_kb-->563 kbytes<!--/fig-->, <!--fig:bitz13_prover-->2.4e8<!--/fig--> word
-multiplications, a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge and
-a <!--fig:bitz13_decider_ms-->8.30<!--/fig--> ms
-decider. <!--claim:bitz_gkr_four_fifths:0009e9-->Its prover is the grand-product
-GKR, <!--fig:bitz_gkr_25_ms-->63<!--/fig--> of Table 10’s <!--fig:bitz_t10_25_ms-->80<!--/fig--> ms
-at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">25</span></span></span></span></span></span></span></span></span></span></span></span> bits on one thread; as Quang Dao puts it, the prover with grand-product GKR is just
-really
+and its GKR and PIOP verifiers are native over the binary extension and the projection field. Its
+costs are measured with the paper’s own benchmark, on one thread of this machine. At 128 bits the
+implementation works in the unique-decoding regime with fold grinding, where a query is worth under
+one bit. Rate 1/8 is its proof-size minimum there: the stand-alone proof at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">25</span></span></span></span></span></span></span></span></span></span></span></span> bits
+is <!--fig:bitz_udr_25_r1_kb-->304 kbytes<!--/fig--> at rate 1/2
+and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen the Merkle
+paths. At the Johnson bound the implementation certifies only 118 bits, its level-0 binding in a
+128-bit field. BEEP (ePrint 2026/2930) is the analysis that reaches 128 bits there, with several
+out-of-domain samples before each fold. No implementation of it exists; the frontier page derives
+rows from it, at the 128-bit floor, where the stand-alone proof
+is <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at rate 1/8
+and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at 1/64. The figures below are the certified
+ones. With its hybrid SNARK’s PIOPs added, BitZ with ARC at rank 13 and rate 1/8 comes
+to <!--fig:bitz13_kb-->538 kbytes<!--/fig-->, <!--fig:bitz13_prover-->1.1e9<!--/fig--> word
+multiplications, a <!--fig:bitz13_merge_bits-->67 million<!--/fig--> bit merge and
+a <!--fig:bitz13_decider_ms-->9.74<!--/fig--> ms
+decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-product
+GKR, <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms at
+<span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">25</span></span></span></span></span></span></span></span></span></span></span></span> bits and rate 1/2 on one thread; as Quang Dao puts it, the prover with grand-product GKR is
+just really
 expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:5de217-->It is
 on the frontier, because its Pasta arithmetic is one relation per multiplication and no other
 hash-based family’s row with native or relation Pasta arithmetic has both a smaller proof and a
@@ -777,7 +782,7 @@ combined with a lattice backend such as Akita, which would keep its free range c
 over any ring while replacing the hash-based commitment. An internal research draft of September
 2026 (provisional) supplies the piece that needs: Booleanity of a committed bit table certified over
 the lattice’s prime field by one quadratic identity plus an integer norm bound from a structured
-random projection, so that the exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->79<!--/fig-->% of
+random projection, so that the exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of
 BitZ’s prover, is not needed. Its single-threaded reduction at <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">27</span></span></span></span></span></span></span></span></span></span></span></span> bits over <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">64</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">59</span></span></span></span>
 takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms to prove
 against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
@@ -791,14 +796,14 @@ digits: a committed bit is one digit, and its arithmetic is native over the 64-b
 quadratic extension, each product’s output committed as
 tribits, <!--fig:e_mult_digits-->44<!--/fig--> digits. At rank 17 with BLAKE3 it comes to a proof
 of <!--fig:kishu17_blake3_kb-->74 kbytes<!--/fig-->, a merge prover
-of <!--fig:kishu17_blake3_prover-->3e7<!--/fig--> word multiplications and a merge
+of <!--fig:kishu17_blake3_prover-->3.0e7<!--/fig--> word multiplications and a merge
 of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-check form; with
-Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.7e7<!--/fig-->
+Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form’s verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
-cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.6<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->7.9<!--/fig-->
-to <!--fig:kishu_vs_bitz_prover_max-->14<!--/fig-->
+cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig-->
+times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
+to <!--fig:kishu_vs_bitz_prover_max-->65<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
 is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller, so under conventional hashes
@@ -886,11 +891,11 @@ bits, and the paranoid model still gives 101.</li>
 random oracle and collision resistance only. Its soundness risk is concentrated in the proximity-gap
 conjectures, which is exactly where the 2025 refutations landed
 (<a href="#81-measured-pedersen-ipa-size-the-group-dependence-and-prover-commitment-work-in-word-multiplications">§8.1</a>).
-The proven Johnson regime is therefore where that route is priced here. Pedersen-IPA rests on the
-discrete logarithm on Pasta, about 126 classical bits and nothing against a quantum adversary. So
-the fair statement is that Akita dominates on efficiency while adding one assumption whose concrete
-hardness is estimated rather than proven. That assumption has SIS studied since [Ajt96], Module-SIS
-since [LS15], and standardization behind it.</p>
+So every hash-based row takes its query counts from the proven Johnson regime. Pedersen-IPA rests on
+the discrete logarithm on Pasta, about 126 classical bits and nothing against a quantum adversary.
+So the fair statement is that Akita dominates on efficiency while adding one assumption whose
+concrete hardness is estimated rather than proven. That assumption has SIS studied since [Ajt96],
+Module-SIS since [LS15], and standardization behind it.</p>
 <p><strong>A margin.</strong> <a href="../pcs-frontier.html#security-floor">The frontier page’s</a> higher floor is 147 quantum
 bits, which moves the block size from 484 to about 556. It was to be 150. The width tables were
 generated at 150 bits first (<a href="https://github.com/zcash/pqzcash/blob/main/ragu-pcs/scripts/akita-150-tables.sh"><code>scripts/akita-150-tables.sh</code></a>; those

@@ -36,7 +36,7 @@
             const path_to_root = "../../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../../searchindex-a64a2a25.js";
+            window.path_to_searchindex_js = "../../searchindex-5cce34e9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../../toc-4ff39b87.js"></script>
@@ -215,7 +215,7 @@ outputs.</p>
 <h2 id="what-the-wallet-can-prove"><a class="header" href="#what-the-wallet-can-prove">What the wallet can prove</a></h2>
 <p>Two shapes are priced. The wallet can prove the preimage statement as a leaf of the transaction’s
 own proof system, <a href="../../proof-systems/pcs-frontier.html#kishu">Kishu on the frontier page</a>: one BLAKE3
-compression, <!--fig:app_qk_bits-->11,200<!--/fig--> committed digits, with the linking commitment
+compression, <!--fig:app_qk_bits-->11,344<!--/fig--> committed digits, with the linking commitment
 of ZIP 2005’s hardware-wallet section left out for now. Or the wallet can sign with leanSPHINCS and
 leave the verification to the host, which proves the verifier inside its own transaction with the
 signature and the public key as witnesses, so the spends stay unlinkable.</p>
@@ -231,7 +231,7 @@ and a small merge of the handoff’s own: the challenge derivation, the commitme
 claim fold. The decomposition and the range and norm proofs are deferred to the host (the zk note’s
 <a href="../../proof-systems/kishu/zk-fiat-shamir-with-aborts.html#58-the-users-online-cost">§5.8</a>). For a one-compression leaf the
 host’s merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
-measure’s <!--fig:tx_qk_kishu_zk_s-->0.0266<!--/fig--> s at
+measure’s <!--fig:tx_qk_kishu_zk_s-->0.0267<!--/fig--> s at
 rank <!--fig:tx_qk_kishu_zk_rank-->16<!--/fig-->
 is <!--fig:tx_qk_kishu_zk_merges_pct-->88<!--/fig--> percent merge
 and <!--fig:tx_qk_kishu_zk_fold_pct-->12<!--/fig--> percent fold, and the circuit itself is a few
@@ -268,13 +268,13 @@ hedge of the 147-bit floor applies to it too. At the zk note’s 1,385 rows 5,00
 give <!--fig:hiding_padding_attack_bits_1385-->140<!--/fig--> bits, and at 2,048 rows they would
 fall short of the 128-bit floor.<!--/claim--> The statistical padding would
 be <!--fig:hiding_padding_statistical_kbits-->66<!--/fig--> thousand
-bits, <!--fig:hiding_padding_statistical_over_statement-->5.9<!--/fig--> times the statement.</p>
-<p>So the wallet commits <!--fig:qk_device_digits-->19,700<!--/fig-->
+bits, <!--fig:hiding_padding_statistical_over_statement-->5.8<!--/fig--> times the statement.</p>
+<p>So the wallet commits <!--fig:qk_device_digits-->19,840<!--/fig-->
 digits. <!--claim:qk_device_share_small:57d8a6-->That
-is <!--fig:qk_device_online_ms-->0.223<!--/fig--> ms of online work on one M4 core, under a tenth of
+is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4 core, under a tenth of
 the handoff fold that the measure charges the user,<!--/claim-->
-with <!--fig:qk_device_idle_ms-->0.278<!--/fig--> ms in idle time, and a response
-of <!--fig:qk_device_z_kbytes-->54 kbytes<!--/fig--> at <!--fig:qk_device_z_bits-->22<!--/fig-->
+with <!--fig:qk_device_idle_ms-->0.280<!--/fig--> ms in idle time, and a response
+of <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig--> at <!--fig:qk_device_z_bits-->22<!--/fig-->
 bits a coordinate. The device rates are assumptions, scaled from the hash rates that
 <a href="#ref-wam26">[Wam26]</a>’s hardware-wallet benchmark measured on a Ledger Nano
 S+: <!--fig:device_mcu_rate-->10 million<!--/fig--> word multiplications a second for an MCU-class
@@ -283,7 +283,7 @@ computation takes <!--fig:qk_device_mcu_s-->0.067<!--/fig-->
 and <!--fig:qk_device_secure_element_s-->0.22<!--/fig--> s. The transfer of <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.04398em;">z</span></span></span></span> at that device’s
 measured <!--fig:device_link_kbytes_s-->21<!--/fig--> kbytes a second over USB
 takes <!--fig:qk_device_link_s-->2.6<!--/fig--> s,
-or <!--fig:qk_device_link_pipelined_s-->0.93<!--/fig--> s with a pipelined transport. No merge
+or <!--fig:qk_device_link_pipelined_s-->0.94<!--/fig--> s with a pipelined transport. No merge
 circuit and no accumulator sit on the device, and the witness
 is <!--fig:qk_device_witness_kbytes-->2.9 kbytes<!--/fig--> packed at its digits’ widths. So a Kishu
 signature of knowledge is within reach of a high-end hardware wallet on a USB link, and the transfer
@@ -293,7 +293,7 @@ is the larger part of it.</p>
 fragments read by a phone camera from the wallet’s screen. Keystone’s firmware sends fragments
 of <!--fig:qr_fragment_bytes-->200<!--/fig--> bytes at <!--fig:qr_frames_per_s-->5<!--/fig--> frames
 a second, <!--fig:qr_kbytes_per_s-->1<!--/fig--> kbyte a second. So the response
-takes <!--fig:qk_qr_current_s-->54<!--/fig--> s with no frame missed, and the fountain code’s
+takes <!--fig:qk_qr_current_s-->55<!--/fig--> s with no frame missed, and the fountain code’s
 redundancy after missed frames can double or treble that. Denser codes would cut it: a fragment
 of <!--fig:qr_dense_fragment_bytes-->800<!--/fig--> bytes at the same rate
 gives <!--fig:qk_qr_dense_s-->14<!--/fig--> s, and the format’s ceiling, a version-40 symbol holding
@@ -301,14 +301,14 @@ about <!--fig:qr_max_fragment_bytes-->2,100<!--/fig--> bytes of
 fragment, <!--fig:qk_qr_max_s-->5.2<!--/fig--> s. Whether a camera reads the denser codes reliably
 depends on the screen, the light, and the camera, and gets worse toward the ceiling. So the transfer
 is slow at today’s settings and within reach with denser codes on some devices. The device’s memory
-is the other constraint: it holds the mask, about <!--fig:qk_device_z_kbytes-->54 kbytes<!--/fig-->,
+is the other constraint: it holds the mask, about <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig-->,
 over which the response is written in place, beside the witness. The response cannot be made much
 smaller, and the reason is not an encoding choice. <!--claim:qk_qr_channel_too_big:94cc38-->The
 accepted <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.04398em;">z</span></span></span></span> is a Gaussian of width <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4306em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">σ</span></span></span></span> on every coordinate of the leaf, about
 <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1.1572em;vertical-align:-0.25em;"></span><span class="mop"><span class="mop">lo<span style="margin-right:0.01389em;">g</span></span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.207em;"><span style="top:-2.4559em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2441em;"><span></span></span></span></span></span></span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03588em;">σ</span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.9072em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord">2</span><span class="mord mathnormal" style="margin-right:0.03588em;">π</span><span class="mord mathnormal">e</span></span></span><span style="top:-2.8672em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewbox="0 0 400000 1080" preserveaspectratio="xMinYMin slice"><path d="M95,702 c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14 c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54 c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10 s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429 c69,-144,104.5,-217.7,106.5,-221 l0 -0 c5.3,-9.3,12,-14,20,-14 H400000v40H845.2724 s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7 c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z M834 80h400000v40h-400000z" /></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1328em;"><span></span></span></span></span></span><span class="mclose">)</span></span></span></span> bits of information each. It is secret-dependent, so it cannot be
 regenerated from a seed as the mask can. With no padding and no masking elements the leaf’s
-own <!--fig:app_qk_bits-->11,200<!--/fig--> coordinates still
-make <!--fig:qk_z_floor_kbytes-->29 kbytes<!--/fig-->. A succinct Kishu proof of the leaf in place
+own <!--fig:app_qk_bits-->11,344<!--/fig--> coordinates still
+make <!--fig:qk_z_floor_kbytes-->30 kbytes<!--/fig-->. A succinct Kishu proof of the leaf in place
 of the response would be about <!--fig:qk_succinct_proof_kbytes-->72 kbytes<!--/fig-->, whatever the
 rank from <!--fig:qk_min_rank-->14<!--/fig--> up, since nearly all of it is the opening’s fixed
 parts, the compression levels and the terminal.<!--/claim--> A narrower mask saves two or three bits
