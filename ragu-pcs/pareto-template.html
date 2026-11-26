@@ -466,12 +466,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
   proof <!--fig:bitz_rec_less_pct-->1<!--/fig--> percent smaller.<!--/claim--> The ARC row is the
   better one for BitZ on the prover and the merge. At the default floor the recursion's merge is
   larger than any size measured, so it has no row there.</p>
-  <p>The $\mathbb{F}_2$ family's recursion verifies its own FRI-Binius proof, whose ring-switching
-  verifier costs $2\ell' \cdot 2^{\kappa}$ field multiplications. So its merge
-  is <!--fig:f2_rec_1_8_192_bits-->172<!--/fig--> million witness bits in the 192‑bit
-  design, <!--fig:f2_rec_1_8_191_bits-->224<!--/fig--> million in the 191‑bit one, whose one-step
-  ring switching costs the verifier 191 field multiplications per variable rather than 64,
-  and <!--fig:f2_rec_1_8_256_bits-->315<!--/fig--> million in the 256‑bit one,
+  <p><!--claim:f2_rec_merge_grows_with_packing:c7a8f3-->The $\mathbb{F}_2$ family's recursion
+  verifies its own FRI-Binius proof, whose ring-switching verifier costs $2\ell'$ field
+  multiplications times the packing degree, for $\ell'$ packed variables. The packing degree
+  is <!--fig:f2_pack_192-->64<!--/fig--> in the 192‑bit
+  design, <!--fig:f2_pack_191-->191<!--/fig--> in the 191‑bit one, which switches in one step,
+  and <!--fig:f2_pack_256-->256<!--/fig--> in the 256‑bit one. So its merge
+  is <!--fig:f2_rec_1_8_192_bits-->172<!--/fig-->, <!--fig:f2_rec_1_8_191_bits-->224<!--/fig-->,
+  and <!--fig:f2_rec_1_8_256_bits-->315<!--/fig--> million witness bits in the three,<!--/claim-->
   against <!--fig:f2_1_8_gates-->67<!--/fig--> million under ARC. The prover
   is <!--fig:f2_rec_over_arc_prover_min-->1.9<!--/fig-->
   to <!--fig:f2_rec_over_arc_prover_max-->3.5<!--/fig--> times the ARC row's, with the verifier's

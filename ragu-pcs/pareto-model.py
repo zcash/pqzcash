@@ -6538,6 +6538,13 @@ def define_figures():
     frec8 = {fld: pick("flock_rec", rate="1/8", field=fld, zkv=None) for fld in (192, 191, 256)}
     for fld, p in frec8.items():
         fig(f"f2_rec_1_8_{fld}_bits", mil(p["gates"]))
+        fig(f"f2_pack_{fld}", F2_DESIGNS[fld]["pack"])
+    by_pack = sorted(frec8, key=lambda fld: F2_DESIGNS[fld]["pack"])
+    claim(
+        "f2_rec_merge_grows_with_packing",
+        "the 𝔽₂ family's recursion merge at rate 1/8 is larger the greater the design's packing degree, which the ring-switching verifier's multiplications are proportional to",
+        all(frec8[a]["gates"] < frec8[b]["gates"] for a, b in zip(by_pack, by_pack[1:])),
+    )
     rr = sorted(p["prover"] / f8["prover"] for p in frec8.values())
     fig("f2_rec_over_arc_prover_min", sig(rr[0]))
     fig("f2_rec_over_arc_prover_max", sig(rr[-1]))
