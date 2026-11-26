@@ -47,17 +47,17 @@ DEFAULT_FLOOR = 147
 # soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
 # Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
 # inside, so a Merkle tree's hash is SHA3-384. For the transcript the page offers both
-# readings, as two hash policies that the level's rows carry: BLAKE3, the generous one, and
-# SHA3-384, the fair one (conventional_hash_gates). Nothing at this level is planned or
+# choices, as two hash policies that the level's rows carry: BLAKE3 and SHA3-384
+# (conventional_hash_gates says what each gives). Nothing at this level is planned or
 # measured: the rows are derived from the 147-bit ones, where the lattice rows are built, and
 # the page marks them so.
 LEVEL3_FLOOR = 165
 LEVEL3_BLAKE3 = "level3_blake3"  # the level with BLAKE3 transcripts
-LEVEL3_SHA3 = "level3_sha3"  # the level with SHA3-384 transcripts
-LEVEL3_POLICIES = (LEVEL3_BLAKE3, LEVEL3_SHA3)
+LEVEL3_SHA3_384 = "level3_sha3_384"  # the level with SHA3-384 transcripts
+LEVEL3_POLICIES = (LEVEL3_BLAKE3, LEVEL3_SHA3_384)
 # The transcript's hash under each conventional hash policy, by name. A policy that is not
 # listed is an error wherever a transcript is hashed.
-TRANSCRIPT_HASH = {"blake3": "blake3", LEVEL3_BLAKE3: "blake3", LEVEL3_SHA3: "sha3_384"}
+TRANSCRIPT_HASH = {"blake3": "blake3", LEVEL3_BLAKE3: "blake3", LEVEL3_SHA3_384: "sha3_384"}
 SHA3_384_RATE = 104  # bytes absorbed a Keccak permutation
 SHA3_384_DIGEST = 48
 _model = {}
@@ -628,7 +628,7 @@ HASH_LABEL = {
     "blake3": ", BLAKE3",
     "poseidon": ", Poseidon",
     LEVEL3_BLAKE3: ", BLAKE3 transcript",
-    LEVEL3_SHA3: ", SHA3-384 transcript",
+    LEVEL3_SHA3_384: ", SHA3-384 transcript",
 }
 
 # The lattice merge circuit, estimated. Its stage polynomials are committed separately, as
@@ -756,10 +756,11 @@ def fold_gates_per_image(hp):
 def conventional_hash_gates(bytes_, hp):
     """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
     the keyed BLAKE3 chain, or where TRANSCRIPT_HASH says so SHA3-384's sponge, a Keccak permutation for
-    each SHA3_384_RATE bytes with its padding byte. At the illustrative level BLAKE3 is the
-    generous reading and SHA3-384 the fair one (the user, 2026-11-26): no attack on a 256-bit
-    transcript hash is known at the level, but the security proofs for Fiat–Shamir over a
-    chained or sponge hash lose a term of about T^2/2^c for work T and a state of c bits,
+    each SHA3_384_RATE bytes with its padding byte. The illustrative level offers both (the
+    user, 2026-11-26). No attack on a 256-bit transcript hash is known at the level, but the
+    security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
+    T^2/2^c for work T and a state of c bits, so with BLAKE3 the level is not provable, and
+    with SHA3-384 it is: the term
     which at c = 256 is above the level's T/2^192 beyond 2^64 work."""
     return {
         "blake3": lambda: transcript_compressions(bytes_) * BLAKE3_GATES,
@@ -6443,7 +6444,7 @@ def define_figures():
     for v in VARIANTS:
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
     fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1)))
-    # The illustrative level: its lattice rows beside the 147-bit ones, the fair reading's
+    # The illustrative level: its lattice rows beside the 147-bit ones, the SHA3-384 transcript's
     # consequence for them, and why the hash-based families have no row.
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
     fig("opening_challenge_atoms", OPENING_CHALLENGE_ATOMS)
@@ -6472,18 +6473,18 @@ def define_figures():
     k147 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", hashes="blake3")
     kishu17 = dict(rank=17, zk=True, route="limbs", check="sumcheck", floor=LEVEL3_FLOOR)
     k165 = pick("bits_q64", hashes=LEVEL3_BLAKE3, **kishu17)
-    k165_sha3 = pick("bits_q64", hashes=LEVEL3_SHA3, **kishu17)
-    fig("level3_sha3_kishu_17_digits_m", sig(k165_sha3["gates"] / 1e6, 2))
-    fig("level3_sha3_kishu_17_circuits", k165_sha3["circuits"])
+    k165_sha3_384 = pick("bits_q64", hashes=LEVEL3_SHA3_384, **kishu17)
+    fig("level3_sha3_384_kishu_17_digits_m", sig(k165_sha3_384["gates"] / 1e6, 2))
+    fig("level3_sha3_384_kishu_17_circuits", k165_sha3_384["circuits"])
     fig(
-        "level3_sha3_kishu_17_accumulation_x",
-        sig(k165_sha3["accumulation_prover"] / k147["accumulation_prover"]),
+        "level3_sha3_384_kishu_17_accumulation_x",
+        sig(k165_sha3_384["accumulation_prover"] / k147["accumulation_prover"]),
     )
     claim(
-        "level3_sha3_kishu_dearer",
+        "level3_sha3_384_kishu_dearer",
         "at the illustrative level Kishu's rank-17 merge and accumulation prover are greater with SHA3-384 transcripts than with BLAKE3 ones",
-        k165_sha3["gates"] > k165["gates"]
-        and k165_sha3["accumulation_prover"] > k165["accumulation_prover"],
+        k165_sha3_384["gates"] > k165["gates"]
+        and k165_sha3_384["accumulation_prover"] > k165["accumulation_prover"],
     )
     fig("level3_kishu_17_circuits", k165["circuits"])
     fig("kishu_17_zk_circuits", k147["circuits"])
@@ -6504,18 +6505,19 @@ def define_figures():
         ),
     )
     lattice_variants = ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta")
-    fair = {
-        rank: [akita_circuits(v, STAGES + 1, rank, True, LEVEL3_SHA3) for v in lattice_variants]
+    sha3_384_circuits = {
+        rank: [akita_circuits(v, STAGES + 1, rank, True, LEVEL3_SHA3_384) for v in lattice_variants]
         for rank in RANKS
     }
-    fair_rank = min(r for r in RANKS if all(c is not None for c in fair[r]))
-    fig("level3_fair_rank", fair_rank)
-    fig("level3_fair_circuits_min", fmt(min(fair[fair_rank])))
-    fig("level3_fair_circuits_max", fmt(max(fair[fair_rank])))
+    sha3_384_rank = min(r for r in RANKS if all(c is not None for c in sha3_384_circuits[r]))
+    fig("level3_sha3_384_akita_rank", sha3_384_rank)
+    fig("level3_sha3_384_akita_circuits_min", fmt(min(sha3_384_circuits[sha3_384_rank])))
+    fig("level3_sha3_384_akita_circuits_max", fmt(max(sha3_384_circuits[sha3_384_rank])))
     claim(
-        "level3_fair_reading_one_rank",
+        "level3_sha3_384_akita_one_rank",
         "with SHA3-384 transcripts Akita's merge converges for no variant below the highest rank",
-        fair_rank == max(RANKS) and all(c is None for r in RANKS if r < fair_rank for c in fair[r]),
+        sha3_384_rank == max(RANKS)
+        and all(c is None for r in RANKS if r < sha3_384_rank for c in sha3_384_circuits[r]),
     )
     w147 = arc_circuits("whir", "1/8", 16, DEFAULT_FLOOR, GRIND_DEFAULT, "blake3")
     w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_BLAKE3)

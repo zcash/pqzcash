@@ -224,7 +224,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="group" id="transcriptgroup"><a href="#level-3" class="eyebrow">Transcript hash at floor 165</a>
       <div class="row">
       <label><input type="radio" name="transcript" value="level3_blake3" checked id="transcriptblake3"> BLAKE3</label>
-      <label><input type="radio" name="transcript" value="level3_sha3" id="transcriptsha3"> SHA3-384</label>
+      <label><input type="radio" name="transcript" value="level3_sha3_384" id="transcriptsha3_384"> SHA3-384</label>
       </div>
     </div>
     </div>
@@ -1605,15 +1605,16 @@ code { font-family: var(--mono); font-size: 0.92em; }
   strongest <a href="#requirements">assumption</a>.</p>
   <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
   256‑bit bottlenecks inside, so the trees hash with SHA3-384. For the transcript the control offers
-  both readings. BLAKE3 is the generous one. No attack on a 256‑bit transcript hash is known at the
-  level, but the security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
-  $T^2/2^c$ for work $T$ and a state of $c$ bits, so the level is not provable with one. SHA3-384
-  is the fair reading. <!--claim:level3_fair_reading_one_rank:e65ec1-->With it Akita's merge
-  converges at rank <!--fig:level3_fair_rank-->17<!--/fig--> alone, in <!--fig:level3_fair_circuits_min-->378<!--/fig-->
-  to <!--fig:level3_fair_circuits_max-->1,208<!--/fig--> circuits.<!--/claim--> <!--claim:level3_sha3_kishu_dearer:80c260-->Kishu's
-  merge at rank 17 with zero knowledge is then <!--fig:level3_sha3_kishu_17_digits_m-->10<!--/fig--> million digits
-  in <!--fig:level3_sha3_kishu_17_circuits-->92<!--/fig--> circuits, and its accumulation
-  prover <!--fig:level3_sha3_kishu_17_accumulation_x-->17<!--/fig--> times the 147‑bit one.<!--/claim--> The figures
+  both. No attack on a 256‑bit transcript hash is known at the
+  level. But the security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
+  $T^2/2^c$ for work $T$ and a state of $c$ bits, so with BLAKE3 the level is not provable, and with
+  SHA3-384 it is. <!--claim:level3_sha3_384_akita_one_rank:e65ec1-->With SHA3-384 Akita's merge
+  converges at rank <!--fig:level3_sha3_384_akita_rank-->17<!--/fig--> alone,
+  in <!--fig:level3_sha3_384_akita_circuits_min-->378<!--/fig-->
+  to <!--fig:level3_sha3_384_akita_circuits_max-->1,208<!--/fig--> circuits.<!--/claim--> <!--claim:level3_sha3_384_kishu_dearer:80c260-->Kishu's
+  merge at rank 17 with zero knowledge is then <!--fig:level3_sha3_384_kishu_17_digits_m-->10<!--/fig--> million digits
+  in <!--fig:level3_sha3_384_kishu_17_circuits-->92<!--/fig--> circuits, and its accumulation
+  prover <!--fig:level3_sha3_384_kishu_17_accumulation_x-->17<!--/fig--> times the 147‑bit one.<!--/claim--> The figures
   below are under BLAKE3.</p>
   <p>Akita's rows at the level are derived as follows:</p>
   <ul>
