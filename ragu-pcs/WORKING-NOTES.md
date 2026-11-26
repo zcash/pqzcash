@@ -5186,3 +5186,18 @@ unit; and a Keccak permutation's prime-field gate count is not derived, but take
 TO DO: the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
 re-plan's pipeline at block size 623 (overnight, not urgent); a look at the page in a browser at
 the level, which only the user has done so far, for the controls.
+
+Later still, 2026-11-26. The Zoodles transaction authorized by SLH-DSA-SHAKE-192s is in, for
+illustration only, with a page under Spend Authorization, "SLH-DSA at NIST Level 3": 3,070
+expected Keccak permutations and a signature of 16,224 bytes, against 9,006 and 35,664 for 192f,
+whose 22 hypertree layers each cost the verifier a WOTS+ public key (the user asked for that
+comparison as the reason for 192s). The transaction is 566 million of Kishu's digits, 16.5 s on
+one core at the default floor with zero knowledge. It is excepted by name from the two statements
+about every transaction-sized application.
+
+QUEUED by the user, for later: **the Kishu page overstates the projection Booleanity check.** The
+variants with zero knowledge do not use it, so it is not the main thing that makes Kishu
+efficient; Kishu with zero knowledge still beats everything else handily. The user's impression is
+that the key thing is using Akita's F_q for the constraints. The page should say so.
+
+TO DO on this branch: the re-plan's pipeline at block size 623, for overnight.
