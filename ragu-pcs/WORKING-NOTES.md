@@ -5153,3 +5153,35 @@ level); the binary-field family with SHA3-384 trees (Flock's Keccak block is 2^1
 256-bit design; WHIR over Pasta with SHA3-384 trees, and why the Goldilocks variants and BitZ drop
 out; the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
 page's section on the level, with its gaps; the re-plan's pipeline at the level's block size.
+
+Progress on the level, later the same day. The transcript's hash became a choice on the page,
+"Transcript hash at floor 165", BLAKE3 or SHA3-384, as two hash policies (`level3_blake3`,
+`level3_sha3`) looked up by name in `TRANSCRIPT_HASH`; the option groups were rearranged into two
+stacked columns. Kishu's rows are in, its claims in the cubic extension. The user was pleasantly
+surprised that Kishu stays feasible and asked whether a mistake hid a cost; the three shortcuts
+found were then modelled:
+
+- **Sum-checks at the level's claim field**: scaled by the field products of a multiplication
+  (three for one where the 128-bit field's claims move to its quadratic extension, six for three
+  for the 64-bit profiles'). This is the large one.
+- **The opening's challenge-field elements** at the level's width: 687 of them in the
+  non-terminal levels, solved from the planner's three re-pricings of the shipped schedule.
+- **The fold challenge's weight**: 25 for 2^165 challenges in degree 512, where the catalog's 20
+  gives 2^138; 0.64 bits on the certified bound, so little changes.
+
+Where Kishu stands at rank 17 with zero knowledge, against its 147-bit row (1.3 million digits in
+13 circuits): with BLAKE3 transcripts 1.9 million digits in 18 circuits, the accumulation prover
++156% and the proof +16%; with SHA3-384 transcripts 10 million digits in 92 circuits and 17 times
+the accumulation prover. Akita over Goldilocks at rank 16: 108 circuits against 57, 3.2 times the
+accumulation prover, +18% bytes; with SHA3-384 transcripts its merge converges at rank 17 alone.
+The hash-based families have no row: WHIR over Pasta would need 38,525 circuits at rank 16 against
+5,011, and the binary-field family's merge would be 323 million bits against 68 million.
+
+Still generous or unmodelled at the level: the opening's own compressed images (not separable in
+the re-pricing); the decider's work at the larger claim field; the application's own constraint
+PIOP at the cubic extension's rate; the prime-field gate count of a Keccak permutation, which is
+taken as Kishu's 92,160 digits; the level itself, 165 bits and not 192.
+
+TO DO: the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
+re-plan's pipeline at block size 623 (overnight, not urgent); a look at the page in a browser at
+the level, which only the user has done so far, for the controls.
