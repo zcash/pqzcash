@@ -5054,3 +5054,36 @@ dimmed.
 STATE: branch accumulation-paragraph, rewritten since the last push (the optimizer comment folded
 into the binary-field BEEP commit) and three commits longer; it needs a force-push with lease.
 PR #8's description does not mention the corrected counts.
+
+## 2026-11-26 16:55 UTC: BLAKE2 and BLAKE3 told apart, data outputs, the transcript as a keyed chain
+
+Four commits after the previous entry's, at the user's prompting on names (the original BLAKE's G
+function differs, so shared names say `BLAKE2OR3_`):
+
+- **BLAKE2's eight chaining words.** BLAKE3's finalisation XORs two state words, an expression in
+  a degree-two constraint, so a chained compression commits four output words. BLAKE2's XORs the
+  old chaining word in too, a chain of two XORs, so all eight are committed, at two terms a bit.
+  The model had used BLAKE3's four for both: BLAKE2b's digits in Kishu +0.7%, BLAKE2s's +0.8%.
+- **A BLAKE3 output that is data commits all eight words**: a Merkle node's and a hash call's are
+  message words of the next compression, addends in seven rounds, and a transcript's last is a
+  challenge. `BLAKE3_BITS` (11,344) is that count and `BLAKE3_CHAINED_BITS` (11,216) the chained
+  one; the constraints are the same. Digit counts of compressions and of applications under a
+  million digits are given exactly (the user: do not round digit counts).
+- **BLAKE3 as specified, and the transcript as a keyed chain.** BLAKE3 has chunks of 1,024 bytes
+  and a binary tree of parents, one a chunk: 6.25% more compressions than the blocks, and more
+  through the fixed point, since a dearer merge needs more circuits (Akita's rank-14 circuits went
+  from 1,740 to 4,948 with the parents counted). The user's design removes it: a Merkle–Damgård
+  chain at the application level, each link a keyed BLAKE3 call on one block with the previous
+  output as its key, so one compression a block. An intermediate design, chunk-sized segments
+  each opened by the previous hash, kept 3.2%. Hashes of data (the Zoodles transaction digest, a
+  bucket's entries) are one BLAKE3 call with its parents. Not modelled, for the design: nothing
+  marks the chain's last call, so a transcript's format or a final marker must tell a
+  block-aligned prefix apart; and the key is public, which should be checked against BLAKE3's
+  security analysis.
+
+Left as approximations: a Zoodles node's several compressions are all counted as data outputs
+(128 digits too many for each chained one); a Merkle parent's constant chaining value would save
+about four carry bits a node.
+
+STATE: branch accumulation-paragraph, five commits past the pushed e9b19c5 with this entry's, all
+local. PR #8's description does not mention them.
