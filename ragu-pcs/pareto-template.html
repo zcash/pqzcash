@@ -437,14 +437,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
   or BitZ's under either hash.<!--/claim--> <!--claim:fri_rec_twice_arc:e53a1e-->FRI's verifier has
   twice WHIR's hashes, so its recursion costs about twice ARC.<!--/claim--></p>
   <p><!--claim:bitz_rec_smaller_proof_dearer:1410b6-->Ligerito's verifier, under BitZ,
-  opens <!--fig:ligerito_columns-->491<!--/fig--> columns over
-  its <!--fig:ligerito_levels-->5<!--/fig--> levels at 100 bits, against
+  opens <!--fig:ligerito_columns-->654<!--/fig--> columns over
+  its <!--fig:ligerito_levels-->4<!--/fig--> levels in the unique-decoding regime, against
   ARC's <!--fig:arc_openings_1_8_default-->98<!--/fig--> openings at rate 1/8. So its recursion
   is <!--fig:bitz_rec_over_arc_hashing-->7<!--/fig--> times ARC's hashing
-  (<!--fig:bitz_rec13_merge_bits-->233<!--/fig-->
+  (<!--fig:bitz_rec13_merge_bits-->246<!--/fig-->
   against <!--fig:bitz13_merge_bits_m-->33<!--/fig--> million witness bits at rate 1/8)
-  and <!--fig:bitz_rec_over_arc_prover-->7.4<!--/fig--> times the prover, for a
-  proof <!--fig:bitz_rec_less_pct-->23<!--/fig--> percent smaller.<!--/claim--> The ARC row is the
+  and <!--fig:bitz_rec_over_arc_prover-->6.4<!--/fig--> times the prover, for a
+  proof <!--fig:bitz_rec_less_pct-->7<!--/fig--> percent smaller.<!--/claim--> The ARC row is the
   better one for BitZ on the prover and the merge.</p>
   <p>The $\mathbb{F}_2$ family's recursion verifies its own FRI-Binius proof, whose ring-switching
   verifier costs $2\ell' \cdot 2^{\kappa}$ field multiplications. So its merge
@@ -652,10 +652,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   hashes over pruned paths and its leaf hashes at BLAKE3's native cost plus its field
   multiplications, <!--fig:f2_decider_ms_min-->0.373<!--/fig-->
   to <!--fig:f2_decider_ms_max-->1.43<!--/fig--> ms.</p>
-  <p>BitZ is its Table 10 verifier at the merge's
-  bits, <!--fig:bitz_t10_25_verify_ms-->2.42<!--/fig--> ms at $2^{25}$, scaled with the floor and,
-  in the ARC rows, by the decider's two extra first-round trees,
-  plus <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms for Zinc+'s PIOP.</p>
+  <p>BitZ is its measured verifier at the merge's bits, <!--fig:bitz_25_verify_ms-->3.16<!--/fig-->
+  ms at $2^{25}$ bits and 128 bits of security, scaled with the floor and, in the ARC rows, by the
+  decider's two extra first-round trees, plus <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms for
+  Zinc+'s PIOP.</p>
   <p>The binary-groups family's decider is Akita's measured verifier for a binary source, at the
   paper's slope, <!--fig:bits_akita_decider_ms-->5.34<!--/fig--> ms at the merge's bits.</p>
   <h2 id="pedersen-ipa">Pedersen-IPA</h2>
@@ -747,9 +747,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   against <!--fig:q64_17_blake3_kb-->95 kbytes<!--/fig-->). So under conventional hashes Kishu
   dominates that variant on every measure but the merge's count, whose units differ; under Poseidon
   Kishu's proof is <!--fig:kishu_vs_q64_poseidon_kb-->10 kbytes<!--/fig--> smaller.<!--/claim-->
-  Against BitZ at rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->7.6<!--/fig--> times smaller
-  and the merge prover does <!--fig:kishu_vs_bitz_prover_min-->7.9<!--/fig-->
-  to <!--fig:kishu_vs_bitz_prover_max-->14<!--/fig--> times less work.</p>
+  Against BitZ at rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->6.6<!--/fig--> times smaller
+  and the merge prover does <!--fig:kishu_vs_bitz_prover_min-->15<!--/fig-->
+  to <!--fig:kishu_vs_bitz_prover_max-->27<!--/fig--> times less work.</p>
   <p>Quang Dao thinks the prover here is likely overestimated: the commitment is priced at rows
   sized by the loose security analysis, with its grinding, and a tighter analysis would cut them. So
   the family's prover should be read as an upper bound. The plot's measures are the recursion's: the
@@ -1027,36 +1027,39 @@ code { font-family: var(--mono); font-size: 0.92em; }
   field, <!--claim:bitz_piop_verifier_small:b6dcb2-->about <!--fig:bitz_piop_mults-->1,800.0<!--/fig-->
   products of committed elements, <!--fig:bitz_piop_kbits-->451<!--/fig--> thousand
   bits, <!--fig:bitz_piop_pct-->1.3<!--/fig--> percent of the merge.<!--/claim--></p>
-  <p>Its costs are the paper's Table 10: the PCS at $2^{20}$ to $2^{31}$ committed bits on one
-  thread at 100 bits, interpolated at the merge's bits. The paper's own benchmark, run here on one
-  thread, reproduces those bytes exactly at $2^{25}$ to $2^{28}$ and gives the scalings. On one
-  thread this machine is 1.3 times the paper's and on ten threads it matches, ten threads giving
-  four to five times the single-thread prover.</p>
-  <p>At 128 bits, which its implementation reaches only in the unique-decoding regime with fold
-  grinding, the Ligerito part of the proof is 1.8 times the 100-bit one and the verifier 1.17 times,
-  while the prover is unchanged. <!--claim:bitz_gkr_four_fifths:0009e9-->Rate 1/8
-  has <!--fig:bitz_rate_1_8_lig-->0.83<!--/fig--> of the Ligerito bytes, and at the sizes the rows
-  use its prover is the rate-1/2 one. The grand-product GKR, four fifths of the prover, does not
-  depend on the rate, and the Ligerito phase's penalty for the lower rate appears only from $2^{27}$
-  bits, where it costs <!--fig:bitz_27_rate_penalty-->1.28<!--/fig--> times in all. The two phases
-  are priced separately.<!--/claim--> Rate 1/8 is the proof-size minimum: at rate 1/16, the lowest
-  the implementation allows, the proof is 3% larger again and the prover 27% slower.</p>
-  <p>The unique-decoding regime is what the implementation certifies at 128 bits; at the Johnson
-  bound it stops at 118 bits, its out-of-domain binding term with one sample. There the proof is 217
-  kbytes at $2^{25}$ and rate 1/2, against 304 kbytes in the unique-decoding regime at 128 bits. The
-  Ligerito part grows linearly with the bits (1.18 times from 100 to 118). So a Johnson-regime BitZ
-  at 128 bits, which analysis in progress may reach, would be about 231 kbytes, a quarter less than
-  the stand-alone figure under the rows. The rows keep the certified figures.</p>
-  <p>The prover is the grand-product GKR, <!--fig:bitz_gkr_25_ms-->63<!--/fig--> of Table
-  10's <!--fig:bitz_t10_25_ms-->80<!--/fig--> ms at $2^{25}$, with Ligerito the rest: as Quang Dao
-  puts it, the prover with grand-product GKR is just really expensive. Zinc+'s PIOP is added from
-  its Table 4: <!--fig:bitz_piop_prover_factor-->1.6<!--/fig--> times the PCS prover on the
-  application's share, <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of verifier,
+  <p>Its costs are measured with the paper's own benchmark on one thread of this machine, at
+  $2^{22}$ to $2^{29}$ committed bits, and interpolated at the merge's bits. A row whose merge falls
+  outside those sizes is not priced. One thread needs care. The benchmark's thread option sizes only
+  its main pool, and the library's Merkle trees, encoder, and two other phases hop onto a second
+  pool of every core. The measurements set <code>RAYON_NUM_THREADS=1</code>, which closes that pool;
+  without it a commitment reads about 1.6 times too fast.</p>
+  <p>The prover is the commitment and the opening. <!--claim:bitz_gkr_four_fifths:84887d-->At
+  $2^{25}$ bits and rate 1/2 the opening's grand-product GKR
+  is <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of the
+  prover's <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->
+  percent, and it does not depend on the rate.<!--/claim--> As Quang Dao puts it, the prover with
+  grand-product GKR is just really expensive. The commitment doubles with each halving of the
+  rate: <!--fig:bitz_commit_25_r1_ms-->8.10<!--/fig--> ms at rate 1/2
+  and <!--fig:bitz_commit_25_r3_ms-->31.7<!--/fig--> at 1/8. Zinc+'s PIOP is added from its Table
+  4: <!--fig:bitz_piop_prover_factor-->1.6<!--/fig--> times the PCS prover on the application's
+  share, <!--fig:bitz_piop_verify_ms-->2.00<!--/fig--> ms of verifier,
   and <!--fig:bitz_piop_kb-->36 kbytes<!--/fig--> of proof.</p>
-  <p>At rank 13 and rate 1/8 with ARC it comes to <!--fig:bitz13_kb-->563 kbytes<!--/fig--> with the
-  decider's three first-round trees, <!--fig:bitz13_prover-->2.4e8<!--/fig--> word multiplications,
+  <p>The implementation certifies 128 bits only in the unique-decoding regime, with grinding on the
+  fold challenges. There a query is worth under one bit, so each of Ligerito's levels needs about
+  130 queries whatever its rate, <!--fig:bitz_udr_queries_25-->567<!--/fig--> in all at rate 1/8.
+  Rate 1/8 has <!--fig:bitz_rate_1_8_lig-->0.82<!--/fig--> of rate 1/2's Ligerito bytes,
+  at <!--fig:bitz_25_rate_penalty-->1.28<!--/fig--> times the prover, and is the proof-size minimum:
+  the stand-alone proof at $2^{25}$ bits is <!--fig:bitz_udr_25_r1_kb-->304 kbytes<!--/fig--> at
+  rate 1/2 and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen
+  the Merkle paths. These are the rows marked "unique decoding", at both floors.</p>
+  <p>Under the Johnson bound a query is worth half of $\log_2(1/\rho)$ bits, so squaring the rate
+  halves a level's queries. But the implementation's Johnson profile certifies at most 118.7 bits in
+  its 128-bit field, at rate 1/2, so no row uses it.</p>
+  <p>At rank 13 and rate 1/8 with ARC, under unique decoding at the default floor, it comes
+  to <!--fig:bitz13_kb-->488 kbytes<!--/fig--> with the decider's three first-round
+  trees, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word multiplications,
   a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge, and
-  a <!--fig:bitz13_decider_ms-->8.30<!--/fig--> ms
+  a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms
   decider. <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:5de217-->Its Pasta arithmetic
   is one relation per multiplication, and no other hash-based family's row with native or relation
   Pasta arithmetic has both a smaller proof and a cheaper prover; Kishu, below, beats it on
@@ -1389,7 +1392,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>BitZ's zero-knowledge rows are derived, since its paper offers succinctness only. Ligero's
   random row per Ligerito level puts one symbol in every opened column, so that the columns reveal
   nothing. That is 16 bytes per opened column in the decider's proof under ARC,
-  about <!--fig:bitz13_zk_more_kb-->23 kbytes<!--/fig--> at 128 bits with the three first-round
+  about <!--fig:bitz13_zk_more_kb-->18 kbytes<!--/fig--> at 128 bits with the three first-round
   trees, and nothing under recursion. Each sum-check gets a Libra-style mask polynomial: Flock's
   zero-check and lincheck, Zinc+'s PIOP and each layer of the GKR, a sum of univariates of degree
   three in each variable. The masks are committed as extra rows of the same Ligerito matrix under
@@ -1685,8 +1688,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   are <!--fig:tx_zoodles_preimage_kishu_s-->0.0273<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_kishu_s-->0.163<!--/fig--> s. In the other families,
   preimage then BLAKE3 signature: BitZ with zero
-  knowledge <!--fig:tx_zoodles_preimage_bitz_zk_s-->0.0817<!--/fig-->
-  and <!--fig:tx_zoodles_leansphincs_blake3_bitz_zk_s-->0.168<!--/fig--> s; Boolean over
+  knowledge <!--fig:tx_zoodles_preimage_bitz_zk_s-->0.159<!--/fig-->
+  and <!--fig:tx_zoodles_leansphincs_blake3_bitz_zk_s-->0.310<!--/fig--> s; Boolean over
   Akita <!--fig:tx_zoodles_preimage_bits_akita_s-->0.0768<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_bits_akita_s-->0.154<!--/fig--> s at its 128‑bit floor;
   Flock <!--fig:tx_zoodles_preimage_flock_s-->0.195<!--/fig-->
@@ -1696,7 +1699,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   s. <!--claim:zoodles_preimage_beats_tachyon:db8cb2-->Tachyon's own four tachyactions, with their
   curve arithmetic, take <!--fig:tx_tachyon4_kishu_zk_s-->0.144<!--/fig--> s in Kishu with zero
   knowledge and <!--fig:tx_tachyon4_kishu_s-->0.105<!--/fig--> without,
-  and <!--fig:tx_tachyon4_bitz_zk_s-->0.298<!--/fig--> s in BitZ, so Zoodles by preimage costs less
+  and <!--fig:tx_tachyon4_bitz_zk_s-->0.571<!--/fig--> s in BitZ, so Zoodles by preimage costs less
   in each, <!--fig:zoodles_preimage_of_tachyon_pct-->35<!--/fig--> percent of Tachyon with zero
   knowledge.<!--/claim--> <!--claim:zoodles_merkle_beats_tachyon:6c09f8-->A simpler Zoodles that
   proves a 32-level Merkle path in each spend, opening the note there and deriving one nullifier,
@@ -1737,7 +1740,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   hash to the step, and a shorter epoch adds steps a day. Kishu
   takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0274<!--/fig--> s a note an epoch on one core at
   rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig-->, without zero knowledge, since the
-  lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.0812<!--/fig--> s,
+  lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.158<!--/fig--> s,
   Flock <!--fig:tx_zoodles_epoch_flock_s-->0.195<!--/fig--> s, Akita over
   Goldilocks <!--fig:tx_zoodles_epoch_goldilocks_s-->0.0319<!--/fig--> s, and
   Pedersen-IPA <!--fig:tx_zoodles_epoch_pedersen_s-->6.33<!--/fig--> s at its 128‑bit
@@ -1777,7 +1780,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rank <!--fig:tx_recovery_kishu_rank-->22<!--/fig-->,
   in <!--fig:tx_recovery_kishu_steps-->1<!--/fig--> merges by
   the <!--fig:tx_recovery_kishu_route-->fingerprint<!--/fig--> route, and BitZ with
-  ARC <!--fig:tx_recovery_bitz_s-->0.167<!--/fig--> s at
+  ARC <!--fig:tx_recovery_bitz_s-->0.309<!--/fig--> s at
   rank <!--fig:tx_recovery_bitz_rank-->23<!--/fig-->, where one step holds the circuit; Akita with
   Pasta claims over 64‑bit commitments takes about <!--fig:tx_recovery_q64_s-->25.1<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
@@ -1797,8 +1800,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the <!--fig:tx_recovery_kishu_zk_route-->fingerprint<!--/fig--> route, and Akita with Pasta claims
   about <!--fig:tx_recovery_q64_zk_s-->25.7<!--/fig--> s at
   rank <!--fig:tx_recovery_q64_zk_rank-->17<!--/fig-->. BitZ stays
-  at <!--fig:tx_recovery_bitz_zk_s-->0.168<!--/fig--> s, having no rejection-sampling fold,
-  with <!--fig:tx_recovery_bitz_zk_more_kb-->23 kbytes<!--/fig--> more proof.<!--/claim--></p>
+  at <!--fig:tx_recovery_bitz_zk_s-->0.310<!--/fig--> s, having no rejection-sampling fold,
+  with <!--fig:tx_recovery_bitz_zk_more_kb-->21 kbytes<!--/fig--> more proof.<!--/claim--></p>
   <h3 id="tachyon-transactions">Tachyon transactions</h3>
   <p>The transaction options of 2, 4, 8 or 16 tachyactions, half spends and half outputs, keep
   Tachyon's own proof tree (tachyon-zcash/tachyon 73031f7, <code>Stamp::prove</code>). A spend is
@@ -1852,7 +1855,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   fuses, <!--fig:tx_tachyon2_pedersen15_s-->6.33<!--/fig--> s; Akita with Pasta claims over 64‑bit
   commitments <!--fig:tx_tachyon2_q64_s-->3.08<!--/fig--> s at
   rank <!--fig:tx_tachyon2_q64_rank-->15<!--/fig--> with Poseidon;
-  BitZ <!--fig:tx_tachyon2_bitz_s-->0.265<!--/fig--> s at
+  BitZ <!--fig:tx_tachyon2_bitz_s-->0.513<!--/fig--> s at
   rank <!--fig:tx_tachyon2_bitz_rank-->20<!--/fig-->;
   Kishu <!--fig:tx_tachyon2_kishu_s-->0.0868<!--/fig--> s at
   rank <!--fig:tx_tachyon2_kishu_rank-->19<!--/fig-->
@@ -1869,7 +1872,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   or <!--fig:tx_tachyon16_pedersen15_s-->19.0<!--/fig--> s
   in <!--fig:tx_tachyon16_pedersen15_steps-->9<!--/fig--> steps at rank 15; Akita with Pasta
   claims <!--fig:tx_tachyon16_q64_s-->5.58<!--/fig--> s;
-  BitZ <!--fig:tx_tachyon16_bitz_s-->0.363<!--/fig--> s;
+  BitZ <!--fig:tx_tachyon16_bitz_s-->0.688<!--/fig--> s;
   Kishu <!--fig:tx_tachyon16_kishu_s-->0.175<!--/fig--> s;
   Goldilocks <!--fig:tx_tachyon16_goldilocks_s-->7.17<!--/fig--> s.</p>
   <p>For scale, Orchard's Halo 2 prover, measured on the same machine with assembly,

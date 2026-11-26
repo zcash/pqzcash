@@ -3284,6 +3284,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                             )
                         )
 
+
 # Ligerito's verifier, for the recursion of BitZ: Flock's instantiation (arXiv 2607.27491,
 # Appendix C and §5) folds two variables per level, five levels at rates 1/2, 1/4, 1/8, 1/16,
 # 1/32 with 218, 106, 71, 53, 43 queries at 100 bits, the queries linear in the security level
@@ -3296,31 +3297,6 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # hashes with a binary-field SNARK beats its 7,144-bit CM arithmetization, so the hybrid
 # merge takes the former. Ligerito's levels have their own rates, so a row's rate applies to
 # its proof bytes and, in the ARC rows, to the accumulator's openings, not to the verifier.
-LIGERITO_LEVELS = [(2, 218), (4, 106), (8, 71), (16, 53), (32, 43)]
-HASH_BITS = BLAKE3_ANDS_PADDED
-HASH_PER_SECOND = BLAKE3_PER_SECOND
-
-
-def ligerito_hashes(log_bits, floor):
-    m = log_bits - 7  # 𝔽₂^128 elements
-    total = 0
-    for inv, queries in LIGERITO_LEVELS:
-        total += ceil_div(queries * floor, 100) * (m - 2 + math.log2(inv) + 1)
-        m -= 2
-    return total
-
-
-def ligerito_first_share(log_bits):
-    """The first level's share of Ligerito's opened columns and paths, a column as two
-    hashes; what the decider's extra first-round trees multiply in the BitZ ARC rows."""
-    m = log_bits - 7
-    parts = []
-    for inv, queries in LIGERITO_LEVELS:
-        parts.append(queries * (2 + m - 2 + math.log2(inv) + 1))
-        m -= 2
-    return parts[0] / sum(parts)
-
-
 # The 𝔽₂ family's recursive merge verifies the step's own FRI-Binius proof twice: its hashes
 # as BLAKE3 compressions and its field multiplications by Karatsuba or Toom-3, at the fixed point.
 def f2_rec_merge(rate, floor, grind, chal, zk=None):
@@ -3399,74 +3375,109 @@ for grind in GRINDS:
 # 255-bit quotient, 510 committed bits. The merge is a hybrid circuit: the two Ligerito
 # verifications as SHA-256 over 𝔽₂, and the GKR and PIOP verifiers native over 𝔽₂^128 and the
 # projection field, their products committed as 128-bit elements (bitz_piop_verifier_mults in
-# bitz_point). The PCS costs are the
-# paper's Table 10 (rate 1/2, 100 bits, one thread of a MacBook Air M5) at the committed
-# bits, interpolated in their logarithm: prover, verifier, and the proof's non-Ligerito and
-# Ligerito parts. The paper's benchmark (albert-garreta/BitZ-PoC at 8ced3b98, one thread,
-# this machine on battery, work/bitz-out/) reproduces Table 10's bytes exactly at 2^25 to
-# 2^27 and gives the ratios used here. Its Johnson-regime profile cannot reach 128 bits (the
-# validator wants more out-of-domain samples), so 128 bits is the unique-decoding regime with
-# fold grinding, the paper's own choice above 100 bits: the Ligerito part of the proof is 1.8
-# times the 100-bit one, the non-Ligerito part 1.05, the verifier 1.17, the prover the same.
-# Rate 1/8 at 128 bits has 0.83 of the Ligerito bytes. (Confirmed on mains, one and ten
-# threads, 2^25 to 2^28, work/bitz-out/overnight/ and work/bitz-out/rerun/: this M4 Max is 1.3
-# times the paper's M5 on one thread and matches it on ten.)
-# Beyond 128 bits the Ligerito bytes and the verifier scale with the floor, as queries do. The
-# prover has two phases, priced separately (BITZ_PHASES, from the reruns' phase timings): the
-# grand-product GKR, which lifts the integer claims into the exponent of a generator of
-# F_2^128 and does not depend on the rate, is 79 to 85 percent of the prover at rate 1/2 from
-# 2^25 to 2^28 bits (Quang Dao: the prover with grand-product GKR is just really expensive);
-# the Ligerito phase, the rest, costs more at rate 1/8 by a factor that depends on the size,
-# nothing at 2^25 and 2.8 at 2^27, where its time jumps. A single factor on the whole prover
-# overstated the rate-1/8 rows at the sizes the frontier uses by about a fifth. The PIOP of
-# Zinc+ adds, per its Table 4, 1.6 times the PCS prover's time on the application's share,
-# 2 ms of verifier, and 36 KB of proof. The pairs are (prover ms, verifier ms, non-Ligerito
-# KB, Ligerito KB).
-BITZ_T10 = {
-    20: (7.31, 0.82, 17.3, 84.1),
-    21: (12.0, 1.08, 18.2, 92.8),
-    22: (17.1, 1.46, 19.2, 103),
-    23: (24.3, 1.51, 27.7, 120),
-    24: (47.3, 2.22, 28.7, 133),
-    25: (79.9, 2.42, 45.8, 144),
-    26: (151, 3.38, 46.6, 162),
-    27: (298, 5.72, 47.6, 176),
-    28: (537, 6.02, 81.2, 190),
-    29: (1094, 9.95, 82.0, 210),
-    30: (2121, 11.1, 148, 225),
-    31: (4271, 21.0, 150, 238),
-}
-
-BITZ_RATE = {"1/2": 1.0, "1/8": 0.83}  # Ligerito bytes against rate 1/2, measured at 128 bits
-BITZ_128 = dict(lig=1.8, nonlig=1.05, verify=1.17, prover=1.0)  # measured, 128 against 100 bits
+# bitz_point). The PCS's sizes and times are measured (BITZ_MEASURED below). The prover is the
+# commitment and the opening. The opening's grand-product GKR, which lifts the integer claims
+# into the exponent of a generator of F_2^128, does not depend on the rate (Quang Dao: the
+# prover with grand-product GKR is just really expensive). The commitment doubles with each
+# halving of the rate. Beyond the measured floor the Ligerito bytes and the verifier scale
+# with the floor, as queries do. The PIOP of Zinc+ adds, per its Table 4, 1.6 times the PCS
+# prover's time on the application's share, 2 ms of verifier, and 36 kbytes of proof.
 BITZ_PIOP = dict(prover=1.6, verify_ms=2.0, bytes=36000)
-# The prover's phases on this machine, one thread (work/bitz-out/rerun/summary.txt): the
-# grand-product share of the prover at rate 1/2 and 100 bits (Table 10's setting), and the
-# factor on the Ligerito phase at rate 1/8, both by the committed bits' logarithm; the factor
-# is what the measured whole-prover ratio at rate 1/8 (1.00, 1.09, 1.28, 1.18) leaves to the
-# Ligerito phase once the grand product is held fixed.
-BITZ_PHASES = {25: (0.787, 1.0), 26: (0.792, 1.43), 27: (0.845, 2.8), 28: (0.853, 2.2)}
+# The measurements behind BitZ's rows, by profile, rate exponent, and the logarithm of the
+# committed bits. Each entry is (commit ms, prove ms, the grand-product GKR's part of the prove
+# ms, verify ms, non-Ligerito bytes, Ligerito bytes). They are the proof of concept's
+# (albert-garreta/BitZ-PoC at 8ced3b98) on one thread of this machine, by
+# scripts/bitz-st-sweep.sh.
+#
+# One thread means RAYON_NUM_THREADS=1. The benchmark's own --threads 1 sizes only its main
+# pool, and the library keeps a second pool of every core. Four phases hop onto that pool:
+# the Merkle trees, from 8 Mbytes of data; the encoder's deep pass, from 64 Mbytes; the
+# opening's combine step; and the lincheck's fold. A commit measured without the variable is
+# about 1.6 times too fast at the sizes here, and more at the lower rates.
+#
+# "udr" is the unique-decoding regime with fold grinding at 128 bits, the proof of concept's
+# profile udrg:<r>:4:128. It is what the proof of concept certifies at that level.
+#
+# A row whose committed bits fall outside the measured sizes is not priced.
+BITZ_MEASURED = {
+    "udr": {
+        1: {
+            22: (0.9, 37.3, 31.5, 2.94, 20981, 174292),
+            23: (1.9, 50.8, 42.7, 2.92, 29865, 204068),
+            24: (3.8, 74.9, 62.7, 3.25, 30921, 226796),
+            25: (8.1, 113.8, 97.4, 3.16, 47961, 255860),
+            26: (16.3, 188.0, 159.4, 4.49, 49173, 295228),
+            27: (32.9, 355.4, 296.5, 6.77, 50349, 324956),
+            28: (67.1, 647.6, 531.7, 7.11, 83853, 358436),
+            29: (137.2, 1226.1, 1041.6, 12.28, 85185, 406716),
+        },
+        3: {
+            22: (3.5, 48.4, 35.5, 2.37, 20981, 138516),
+            23: (7.4, 69.1, 41.1, 2.42, 29865, 169100),
+            24: (15.2, 89.9, 64.2, 2.98, 30921, 184596),
+            25: (31.7, 123.8, 96.2, 2.96, 47961, 208700),
+            26: (63.2, 215.5, 164.8, 4.25, 49173, 248460),
+            27: (129.5, 454.7, 299.4, 6.58, 50349, 270764),
+            28: (268.3, 772.1, 531.4, 6.96, 83853, 297100),
+            29: (560.1, 1672.1, 1054.1, 11.97, 85185, 344116),
+        },
+    },
+}
+BITZ_MEASURED_FLOOR = 128
+HASH_BITS = BLAKE3_ANDS_PADDED  # a hash in the merge's Boolean witness
+# Queries a level by its rate exponent, from the profile's resolved configurations at 128
+# bits. Under unique decoding a query is worth under one bit.
+BITZ_QUERIES = {
+    "udr": {1: 309, 2: 190, 3: 156, 4: 143, 5: 136, 6: 132, 7: 130, 8: 129},
+}
+BITZ_INITIAL_K = 4  # the first level folds 2^4 interleaved rows
+BITZ_RECURSIVE_K = 3  # each later level 2^3
+BITZ_FINAL_LOG = 5  # the final block's variables, at most
+BITZ_ELEMENT_BYTES = BITZ_FIELD_BITS // 8
+BITZ_PROFILE_LABEL = {"udr": "unique decoding"}
 
 
-def _interp(table, x):
-    """Linear interpolation of a table keyed by a number, clamped to its range."""
-    keys = sorted(table)
-    x = min(max(x, keys[0]), keys[-1])
-    lo = max(k for k in keys if k <= x)
-    hi = min(k for k in keys if k >= x)
-    t = 0 if hi == lo else (x - lo) / (hi - lo)
+def bitz_levels(profile, log_bits, r):
+    """Ligerito's levels for a witness of 2^log_bits bits packed in 128-bit elements, from a
+    first level at rate 2^-r: (log2 message columns, log2 interleaved rows, rate exponent), by
+    the proof of concept's ladder, which stops at a final block of exactly BITZ_FINAL_LOG
+    variables."""
+    run = math.ceil(log_bits) - 7 - BITZ_INITIAL_K
+    levels = [(run, BITZ_INITIAL_K, r)]
+    while run > BITZ_FINAL_LOG:
+        k = min(BITZ_RECURSIVE_K, run - BITZ_FINAL_LOG)
+        r += 1
+        run -= k
+        levels.append((run, k, r))
+    return levels
+
+
+def bitz_level_hashes(profile, log_bits, r, floor):
+    """The verifier's hashes at each level: for each query, the opened column's elements at
+    BLAKE3's block and its path, unpruned; the queries scale with the floor."""
+    return [
+        ceil_div(BITZ_QUERIES[profile][e] * floor, BITZ_MEASURED_FLOOR)
+        * (2**k * BITZ_ELEMENT_BYTES / BLAKE3_BLOCK + cols + e)
+        for cols, k, e in bitz_levels(profile, log_bits, r)
+    ]
+
+
+def bitz_queries(profile, log_bits, r, floor):
+    return sum(
+        ceil_div(BITZ_QUERIES[profile][e] * floor, BITZ_MEASURED_FLOOR)
+        for _, _, e in bitz_levels(profile, log_bits, r)
+    )
+
+
+def bitz_measured(profile, r, log_bits):
+    """The profile's measurement at the rate, interpolated in the bits' logarithm between the
+    two measured sizes around it; None outside the measured sizes."""
+    table = BITZ_MEASURED[profile][r]
+    lo, hi = math.floor(log_bits), math.ceil(log_bits)
+    if lo not in table or hi not in table:
+        return None
+    t = log_bits - lo
     return [a + t * (b - a) for a, b in zip(table[lo], table[hi])]
-
-
-def bitz_t10(log_bits):
-    return _interp(BITZ_T10, log_bits)
-
-
-def bitz_prover_scale(rate, log_bits):
-    """The prover at the rate against Table 10's rate 1/2: the grand-product phase as it is,
-    the Ligerito phase at the rate's measured factor for the size."""
-    gkr_share, lig_factor = _interp(BITZ_PHASES, log_bits)
-    return gkr_share + (1 - gkr_share) * (lig_factor if rate == "1/8" else 1.0)
 
 
 # Zero knowledge for BitZ is derived, since its paper offers succinctness only: Ligero's random
@@ -3488,26 +3499,22 @@ BITZ_ZK_ELEM = (
 BITZ_ZK_SUMCHECKS = 3  # the zero-check, the lincheck and Zinc+'s PIOP, each over log N variables; the GKR adds a layer per variable
 
 
-def bitz_zk_queries(floor):
-    """Ligerito's opened columns over its levels, which scale with the floor."""
-    return sum(ceil_div(q * floor, 100) for _, q in LIGERITO_LEVELS)
-
-
 def bitz_mask_elements(log_bits):
     n = math.ceil(log_bits)
     return ZOOK_MASK_COEFFS * (BITZ_ZK_SUMCHECKS * n + n * (n + 1) / 2)
 
 
-def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
+def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
     app_bits = (
         2**rank
     )  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
     inv = int(rate.split("/")[1])
+    r = inv.bit_length() - 1
     bits = app_bits + 2**25
     hashes = 0
     for _ in range(40):
         if mode == "rec":
-            hashes = 2 * ligerito_hashes(math.log2(bits), floor)
+            hashes = 2 * sum(bitz_level_hashes(profile, math.log2(bits), r, floor))
         else:
             depth = math.log2(bits / 128 * inv) + 1
             hashes = 2 * arc_openings(rate, floor, grind or 0) * depth + (2 if grind else 0)
@@ -3517,25 +3524,23 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
             break
         bits = new
     log_bits = math.log2(bits)
-    prover_ms, verify_ms, nonlig, lig = bitz_t10(log_bits)
-    lig_scale = BITZ_RATE[rate]
-    prover_ms *= (
-        bitz_prover_scale(rate, log_bits)
-        * BITZ_128["prover"]
-        * (1 + BITZ_PIOP["prover"] * app_bits / bits)
-    )
+    measured = bitz_measured(profile, r, log_bits)
+    if measured is None:
+        return None  # the merge's bits are outside the measured sizes
+    commit_ms, prove_ms, _, verify_ms, nonlig, lig = measured
+    scale = floor / BITZ_MEASURED_FLOOR  # the Ligerito bytes and the verifier, as queries do
+    prover_ms = (commit_ms + prove_ms) * (1 + BITZ_PIOP["prover"] * app_bits / bits)
     # the decider's extra first-round trees, on the Ligerito part and, as a bound, on the whole verifier
-    extra = (ARC_DECIDER_TREES - 1) * ligerito_first_share(log_bits) if mode == "arc" else 0
-    proof = (
-        nonlig * BITZ_128["nonlig"] + lig * lig_scale * BITZ_128["lig"] * floor / 128 * (1 + extra)
-    ) * 1000 + BITZ_PIOP["bytes"]
-    verify_ms = verify_ms * BITZ_128["verify"] * floor / 128 * (1 + extra)
+    level_hashes = bitz_level_hashes(profile, log_bits, r, floor)
+    extra = (ARC_DECIDER_TREES - 1) * level_hashes[0] / sum(level_hashes) if mode == "arc" else 0
+    proof = nonlig + lig * scale * (1 + extra) + BITZ_PIOP["bytes"]
+    verify_ms = verify_ms * scale * (1 + extra)
     prover = prover_ms * WORD_MULTS_PER_MS + grind_prover(BLAKE3_NATIVE, grind or 0)
     # The zero-knowledge rows: the random rows' symbols and the masks' values in the decider's
     # proof under ARC; the masks' share of the witness in the fold, once per transaction.
     zk_bytes_ = (
         (
-            bitz_zk_queries(floor) * BITZ_ZK_ELEM * (1 + extra)
+            bitz_queries(profile, log_bits, r, floor) * BITZ_ZK_ELEM * (1 + extra)
             + 3 * (BITZ_ZK_SUMCHECKS + 1) * BITZ_ZK_ELEM
         )
         if zk and mode == "arc"
@@ -3544,6 +3549,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
     fold = round(prover * bitz_mask_elements(log_bits) * 128 / bits) if zk else 0
     return dict(
         family="bitz_rec" if mode == "rec" else "bitz",
+        profile=profile,
         pq=True,
         rank=rank,
         E=None,
@@ -3568,7 +3574,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
         gates=round(hashes * HASH_BITS + verifier),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
         folded=2,
-        label=f"rank {rank}, rate {rate}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
+        label=f"rank {rank}, rate {rate}, {BITZ_PROFILE_LABEL[profile]}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
         + (", ZK, derived" if zk else "")
         + floor_label(floor),
     )
@@ -3576,11 +3582,13 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False):
 
 for mode in ("arc", "rec"):
     for grind in GRINDS if mode == "arc" else (None,):
-        for floor in FLOORS:
-            for rate in ("1/2", "1/8"):
-                for zk in (False, True):
-                    for rank in BITZ_RANKS:
-                        points.append(bitz_point(mode, rate, rank, floor, grind, zk))
+        shapes = [("udr", floor, rate) for floor in FLOORS for rate in ("1/2", "1/8")]
+        for profile, floor, rate in shapes:
+            for zk in (False, True):
+                for rank in BITZ_RANKS:
+                    point = bitz_point(mode, rate, rank, floor, grind, zk, profile)
+                    if point is not None:
+                        points.append(point)
 
 # Kishu, a bit-decomposed witness over Akita (an internal research draft of 2026-09-23 on
 # Booleanity checking via structured modular projections, provisional): the application's
@@ -6274,17 +6282,26 @@ def define_figures():
     fig("bitz_piop_prover_factor", BITZ_PIOP["prover"])
     fig("bitz_piop_verify_ms", sig(BITZ_PIOP["verify_ms"], 3))
     fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
-    fig("bitz_rate_1_8_lig", BITZ_RATE["1/8"])
-    fig("bitz_27_rate_penalty", sig(bitz_prover_scale("1/8", 27), 3))
-    fig("bitz_t10_25_ms", sig(BITZ_T10[25][0]))
-    fig("bitz_gkr_25_ms", sig(BITZ_T10[25][0] * BITZ_PHASES[25][0]))
-    fig("bitz_t10_25_verify_ms", sig(BITZ_T10[25][1], 3))
-    fig("bitz_gkr_share_pct", round(100 * BITZ_PHASES[25][0]))
+    # BitZ's measurements at 2^25 bits and 128 bits of security (BITZ_MEASURED).
+    udr25 = {r: BITZ_MEASURED["udr"][r][25] for r in BITZ_MEASURED["udr"]}
+    fig("bitz_rate_1_8_lig", sig(udr25[3][5] / udr25[1][5], 2))
+    fig("bitz_25_rate_penalty", sig((udr25[3][0] + udr25[3][1]) / (udr25[1][0] + udr25[1][1]), 3))
+    fig("bitz_prover_25_ms", sig(udr25[1][0] + udr25[1][1], 3))
+    fig("bitz_gkr_25_ms", sig(udr25[1][2]))
+    fig("bitz_25_verify_ms", sig(udr25[1][3], 3))
+    fig("bitz_gkr_share_pct", round(100 * udr25[1][2] / (udr25[1][0] + udr25[1][1])))
+    for r in udr25:
+        fig(f"bitz_commit_25_r{r}_ms", sig(udr25[r][0], 3))
+    shares = {r: [v[2] / (v[0] + v[1]) for v in BITZ_MEASURED["udr"][r].values()] for r in udr25}
     claim(
         "bitz_gkr_four_fifths",
-        "the grand-product GKR is four fifths of BitZ's prover",
-        all(0.75 <= s <= 0.87 for s, _ in BITZ_PHASES.values()),
+        "the grand-product GKR is about four fifths of BitZ's prover at rate 1/2, and a smaller share at rate 1/8",
+        all(0.72 <= s <= 0.84 for s in shares[1]) and max(shares[3]) < min(shares[1]),
     )
+    # The stand-alone proofs at 2^25 bits, by rate.
+    for r in udr25:
+        fig(f"bitz_udr_25_r{r}_kb", kb(udr25[r][4] + udr25[r][5]))
+    fig("bitz_udr_queries_25", bitz_queries("udr", 25, 3, BITZ_MEASURED_FLOOR))
     b12 = pick("bitz", rank=12, rate="1/8")
     claim(
         "bitz_rank12_slightly_smaller",
@@ -6303,8 +6320,8 @@ def define_figures():
         and bz_rec13["prover"] > b13["prover"]
         and bz_rec13["gates"] > b13["gates"],
     )
-    fig("ligerito_columns", sum(c for _, c in LIGERITO_LEVELS))
-    fig("ligerito_levels", len(LIGERITO_LEVELS))
+    fig("ligerito_columns", bitz_queries("udr", math.log2(b13["gates"]), 3, DEFAULT_FLOOR))
+    fig("ligerito_levels", len(bitz_levels("udr", math.log2(b13["gates"]), 3)))
     b13z = pick("bitz", rank=13, rate="1/8", zk=True)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"]))
     fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))

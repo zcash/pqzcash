@@ -204,15 +204,21 @@ Flock's throughput and shares are typed from the two papers.
 
 ## BitZ
 
-`BITZ_T10` is the paper's Table 10, typed. The scalings measured with the proof of concept
-(`BITZ_128`, `BITZ_RATE`, `BITZ_PHASES`) come from `scripts/bitz-rerun.sh build`, then
-`scripts/bitz-rerun.sh <profile> 25-28 5` for the three profiles: `custom:1:4`, Table 10's rate 1/2
-at 100 bits; `udrg:1:4:128`, rate 1/2 at 128 bits in the unique-decoding regime with grinding; and
-`udrg:3:4:128`, rate 1/8 at 128 bits. Then `python scripts/bitz-summary.py
-work/bitz-out/rerun/*.log` for the table of commit, grand-product, Ligerito and verifier times and
-proof bytes. [`scripts/bitz-pcs-sweep.sh`](../../../ragu-pcs/scripts/bitz-pcs-sweep.sh) and
-[`scripts/bitz-overnight.sh`](../../../ragu-pcs/scripts/bitz-overnight.sh) are the single-thread and
-ten-thread sweeps of the same benchmark.
+`BITZ_MEASURED` is the proof of concept's own benchmark on one thread, by
+[`scripts/bitz-st-sweep.sh`](../../../ragu-pcs/scripts/bitz-st-sweep.sh), after
+`scripts/bitz-rerun.sh build`: `scripts/bitz-st-sweep.sh st 22-29 udrg:1:4:128 udrg:3:4:128`, the
+unique-decoding profile at rates 1/2 and 1/8 and 128 bits.
+
+Then `python scripts/bitz-summary.py work/bitz-out/st/sweep-*.log` gives the table of commit,
+grand-product, Ligerito and verifier times and proof bytes. `BITZ_QUERIES` are the per-level query
+counts of each run's resolved configuration, which its `RESULT` line carries hex-encoded.
+
+The script sets `RAYON_NUM_THREADS=1`. The benchmark's `--threads 1` sizes only its main thread
+pool, and the library's Merkle trees, encoder, combine step and lincheck fold hop onto a second
+pool of every core unless that variable is set. The script also refuses to start on battery power
+where it can tell. [`scripts/bitz-pcs-sweep.sh`](../../../ragu-pcs/scripts/bitz-pcs-sweep.sh) and
+[`scripts/bitz-overnight.sh`](../../../ragu-pcs/scripts/bitz-overnight.sh) are earlier sweeps of
+the same benchmark that do not set the variable; their times are not used.
 
 ## Kishu
 

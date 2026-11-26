@@ -579,24 +579,22 @@ per committed bit that does not depend on $R$. With the Universal Constraint Sys
 (ePrint 2026/855) the application's Pasta arithmetic is integer relations, integer witnesses with
 ideal membership modulo $p$. So the recovery circuit stays Pasta arithmetic at 510 committed bits
 per gate (a 255-bit value and its quotient). The merge is a hybrid circuit: its hashing is Boolean,
-and its GKR and PIOP verifiers are native over the binary extension and the projection field. The
-128-bit and rate scalings come from running the paper's own benchmark: at 128 bits its
-implementation works in the unique-decoding regime with fold grinding, and the Ligerito part of the
-proof is 1.8 times the 100-bit one. Rate 1/8 is its proof-size minimum: at rate 1/16, the lowest the
-implementation allows, the proof is 3% larger again and the prover 27% slower. At the Johnson bound
-the implementation certifies only 118 bits, its out-of-domain binding term with one sample; there
-the proof is 217 kbytes at $2^{25}$ and rate 1/2 against 304 kbytes in the unique-decoding regime at
-128 bits, and since the Ligerito part grows linearly with the bits, a Johnson-regime BitZ at 128
-bits, which analysis in progress may reach, would be about 231 kbytes, a quarter less. The figures
-below are the certified ones. Priced from the paper's Table 10 with those scalings and Zinc+'s PIOP
-added, BitZ with ARC at rank 13 and rate 1/8 comes
-to <!--fig:bitz13_kb-->563 kbytes<!--/fig-->, <!--fig:bitz13_prover-->2.4e8<!--/fig--> word
+and its GKR and PIOP verifiers are native over the binary extension and the projection field. Its
+costs are measured with the paper's own benchmark, on one thread of this machine. At 128 bits the
+implementation works in the unique-decoding regime with fold grinding, where a query is worth under
+one bit. Rate 1/8 is its proof-size minimum there: the stand-alone proof at $2^{25}$ bits
+is <!--fig:bitz_udr_25_r1_kb-->304 kbytes<!--/fig--> at rate 1/2
+and <!--fig:bitz_udr_25_r3_kb-->257 kbytes<!--/fig--> at 1/8, and lower rates only deepen the Merkle
+paths. At the Johnson bound the implementation certifies only 118 bits, its level-0 binding in a
+128-bit field, so the figures below are in the unique-decoding regime. With Zinc+'s PIOP added, BitZ
+with ARC at rank 13 and rate 1/8 comes
+to <!--fig:bitz13_kb-->488 kbytes<!--/fig-->, <!--fig:bitz13_prover-->4.6e8<!--/fig--> word
 multiplications, a <!--fig:bitz13_merge_bits-->33 million<!--/fig--> bit merge and
-a <!--fig:bitz13_decider_ms-->8.30<!--/fig--> ms
-decider. <!--claim:bitz_gkr_four_fifths:0009e9-->Its prover is the grand-product
-GKR, <!--fig:bitz_gkr_25_ms-->63<!--/fig--> of Table 10's <!--fig:bitz_t10_25_ms-->80<!--/fig--> ms
-at $2^{25}$ bits on one thread; as Quang Dao puts it, the prover with grand-product GKR is just
-really
+a <!--fig:bitz13_decider_ms-->7.75<!--/fig--> ms
+decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-product
+GKR, <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms at
+$2^{25}$ bits and rate 1/2 on one thread; as Quang Dao puts it, the prover with grand-product GKR is
+just really
 expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:5de217-->It is
 on the frontier, because its Pasta arithmetic is one relation per multiplication and no other
 hash-based family's row with native or relation Pasta arithmetic has both a smaller proof and a
@@ -607,7 +605,7 @@ combined with a lattice backend such as Akita, which would keep its free range c
 over any ring while replacing the hash-based commitment. An internal research draft of September
 2026 (provisional) supplies the piece that needs: Booleanity of a committed bit table certified over
 the lattice's prime field by one quadratic identity plus an integer norm bound from a structured
-random projection, so that the exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->79<!--/fig-->% of
+random projection, so that the exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of
 BitZ's prover, is not needed. Its single-threaded reduction at $2^{27}$ bits over $2^{64} - 59$
 takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms to prove
 against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
@@ -626,9 +624,9 @@ of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-chec
 Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
-cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.6<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->7.9<!--/fig-->
-to <!--fig:kishu_vs_bitz_prover_max-->14<!--/fig-->
+cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->6.6<!--/fig-->
+times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->15<!--/fig-->
+to <!--fig:kishu_vs_bitz_prover_max-->27<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
 is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller, so under conventional hashes

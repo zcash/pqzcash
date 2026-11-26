@@ -200,7 +200,7 @@ predicate, a sum-check of degree $b/2$ for an alphabet of $b$ values. For the bi
 Booleanity check, and an internal research draft of September 2026, provisional and unreviewed,
 supplies one. The committed table's bits are certified by one unweighted quadratic identity plus an
 integer norm bound, which a structured random projection supplies by revealing 160 coordinates. So
-BitZ's exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->79<!--/fig-->% of its prover, is not needed.
+BitZ's exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of its prover, is not needed.
 The draft measures the reduction alone, single-threaded at $2^{27}$ bits over $2^{64} - 59$. The
 projection prover takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms
 against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
