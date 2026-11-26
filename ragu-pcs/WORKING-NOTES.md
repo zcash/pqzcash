@@ -5087,3 +5087,36 @@ about four carry bits a node.
 
 STATE: branch accumulation-paragraph, five commits past the pushed e9b19c5 with this entry's, all
 local. PR #8's description does not mention them.
+
+## 2026-11-26 18:16 UTC: a 192-bit option, started (branch security-192)
+
+PR #8 merged (main 772d9cf). The user wants a 192-bit security option on the frontier page, to
+show that raising security to 192 bits is not cheap for post-quantum proof systems (a public post
+had called raising security by 64 bits "relatively cheap"). Most hash-based schemes are expected
+to drop out or become impractical, and showing that is the purpose. Where a scheme comes out
+"totally impractical", do not model it in detail: say why.
+
+The user's rulings (2026-11-26):
+
+- **The level is NIST Level 3, with all its flaws, to be as generous to the argument as
+  possible.** For the lattice rows that is the core-SVP level of the Level 3 lattice standards
+  (ML-KEM-768 and ML-DSA-65: block size about 624, 182 classical and 165 quantum core-SVP bits),
+  not 192 bits in the page's quantum unit.
+- **192-bit security is not 2^-192 soundness.** Match the curve of success probability against
+  cost of brute force on AES-192: work T succeeds with probability T/2^192. For a Fiat–Shamir
+  proof that is a query-phase error of 2^-(192 - g) with g bits of grinding. For a Merkle tree's
+  binding it is a 384-bit digest, since a collision search of work T succeeds with T^2/2^n.
+- **The hash at this level is SHA3-384.** BLAKE3 cannot give 192 bits: a 384-bit output from its
+  XOF still has 256-bit bottlenecks inside.
+- **The lattice rows are derived first**, scaled from the 147-bit plan and labelled as derived; a
+  re-plan with Akita's planner may replace them later. Akita's rank-one compression maps certify
+  at 147.3 bits, so this level needs two maps or rank-two maps.
+- **A Zoodles transaction authorized by SLH-DSA at the 192-bit level**, as a transaction type,
+  marked as for illustration only: the signature's cost compounds with the proof system's.
+
+First observations, before any modelling: a Merkle node under SHA3-384 is one Keccak
+permutation, 38,400 AND gates against BLAKE3's 10,416, and 92,160 of Kishu's digits against
+11,344; Flock's Keccak block is 2^16 bits against 2^14; openings grow by 192/128; digests are 48
+bytes. BitZ's proof of concept is fixed to a 128-bit field and cannot reach the level.
+Pedersen-IPA over Pasta has about 126 bits. Kishu's sum-checks run in a 128-bit extension, which
+is short of the level too.
