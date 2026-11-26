@@ -4269,36 +4269,60 @@ for p in points:
         p["step_units"] = gate_budget(p["rank"])  # gates of four coefficients
 
 
-def pareto(pts):
-    keep = []
-    for p in pts:
-        dominated = any(
-            q is not p
-            and q["bytes"] <= p["bytes"]
-            and q["prover"] <= p["prover"]
-            and q["accumulation"] <= p["accumulation"]
-            and q["pasta"] >= p["pasta"]
-            and q["assumption"] <= p["assumption"]
-            and CHANGE_LEVEL[q["change"]] <= CHANGE_LEVEL[p["change"]]
-            and (
-                q["bytes"],
-                q["prover"],
-                q["accumulation"],
-                q["pasta"],
-                q["assumption"],
-                q["change"],
-            )
-            != (
-                p["bytes"],
-                p["prover"],
-                p["accumulation"],
-                p["pasta"],
-                p["assumption"],
-                p["change"],
-            )
-            for q in pts
-        )
-        keep.append(not dominated)
+# The frontier is taken to a tolerance (the user, 2026-11-25). A configuration that is ahead
+# of another by a hair on one measure is not thereby a different choice, and the low ranks of
+# a hash-based family, whose proofs differ in the fifth digit, crowded the frontier.
+#
+# This is epsilon-dominance (Laumanns, Thiele, Deb and Zitzler, 2002): q epsilon-dominates p
+# when q is no more than a factor 1 + eps worse than p on every measure, and no worse on the
+# three requirements. The paper keeps its set on a grid of boxes, which has an artifact: two
+# configurations within the tolerance of each other on every measure both stay when a box
+# boundary falls between them. So the set is built without a grid (the user's construction,
+# 2026-11-26). The configurations are taken in increasing order of the product of their
+# measures, and one is kept unless a configuration already kept epsilon-dominates it. Then:
+#   - every configuration left out is epsilon-dominated by a kept one;
+#   - every kept configuration is undominated in the exact sense, since one that dominated it
+#     would have a smaller product, and either was kept before it or was left out for a kept
+#     one that epsilon-dominates both; and
+#   - of two kept configurations with the same requirements, the one taken later is better
+#     than the other by more than the tolerance on some measure.
+# The product orders the configurations whatever the measures' units, and ties in it go by
+# family and then by label, so the order is fixed. Two configurations alike on every measure
+# and requirement both stay if they are of different families, since neither is a reason to
+# hide the other's scheme; of one family, the first stands for both. At eps = 0 this is exact
+# dominance. The page's frontierAmong is the same rule on the measures selected there.
+FRONTIER_TOLERANCES = (0, 0.02, 0.05)
+FRONTIER_TOLERANCE = 0.02
+
+
+def pareto(pts, eps=FRONTIER_TOLERANCE):
+    measures = ("bytes", "prover", "accumulation")
+
+    def requirements(p):
+        return (-p["pasta"], p["assumption"], CHANGE_LEVEL[p["change"]])
+
+    def product(p):
+        return sum(math.log(p[m]) if p[m] > 0 else -math.inf for m in measures)
+
+    def beats(q, p):
+        """q epsilon-dominates p. Two configurations alike on every measure and requirement
+        are a tie: of one family, the earlier in the order stands for both; of two families,
+        both stay."""
+        if not all(q[m] <= (1 + eps) * p[m] for m in measures):
+            return False
+        if not all(a <= b for a, b in zip(requirements(q), requirements(p))):
+            return False
+        tie = requirements(q) == requirements(p) and all(q[m] == p[m] for m in measures)
+        return not tie or q["family"] == p["family"]
+
+    order = sorted(
+        range(len(pts)), key=lambda i: (product(pts[i]), pts[i]["family"], pts[i]["label"], i)
+    )
+    kept, keep = [], [False] * len(pts)
+    for i in order:
+        if not any(beats(q, pts[i]) for q in kept):
+            kept.append(pts[i])
+            keep[i] = True
     return keep
 
 
@@ -6373,6 +6397,7 @@ def define_figures():
             for q in shown(f, "poseidon")
         ),
     )
+    fig("frontier_tolerance_pct", round(100 * FRONTIER_TOLERANCE))
     fig("bitz_piop_prover_factor", BITZ_PIOP["prover"])
     fig("bitz_piop_verify_ms", sig(BITZ_PIOP["verify_ms"], 3))
     fig("bitz_piop_kb", kb(BITZ_PIOP["bytes"]))
@@ -6986,6 +7011,7 @@ data = dict(
     own_last_steps=OWN_LAST_STEPS,
     leaf_handoff=sorted(LEAF_HANDOFF),
     change_level=CHANGE_LEVEL,
+    frontier_tolerance=FRONTIER_TOLERANCE,
     tachyon_header=TACHYON_HEADER,
     header_element_bytes=HEADER_ELEMENT_BYTES,
     pcd_headers=PCD_HEADERS,

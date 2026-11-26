@@ -221,6 +221,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" id="collapse-pre"> collapse pre-quantum to its frontier</label>
       <label><input type="checkbox" id="collapse-post"> collapse post‑quantum to its frontier</label>
       <label><input type="checkbox" id="perfamily"> within each family separately</label>
+      <hr class="sep">
+      <a href="#tolerance" class="eyebrow">Tolerance</a>
+      <label><input type="radio" name="tolerance" value="0" id="tolerance0"> exact</label>
+      <label><input type="radio" name="tolerance" value="0.02" checked id="tolerance2"> 2% on each measure</label>
+      <label><input type="radio" name="tolerance" value="0.05" id="tolerance5"> 5% on each measure</label>
     </div>
     </div>
     </div>
@@ -295,13 +300,26 @@ code { font-family: var(--mono); font-size: 0.92em; }
   configurations of the class, among the selection above, that nothing else in the class dominates.
   A configuration dominates another when it is at least as good on six axes and better on at least
   one. The axes are compressed proof bytes, the selected second and third measures, and three
-  requirements, described in <a href="#requirements">the next section</a> and
+  requirements, described under <a href="#requirements">Pasta and the scheme assumption</a> and
   under <a href="#changes">Parameter changes against design changes</a>: native or relation Pasta
   arithmetic, the security assumption, and the changes a configuration
   needs. <a href="#frontier-table">The table</a> lists both frontiers, and each family's own
   frontier besides, marked "family" in the last column, so that every scheme's best configurations
   appear even where its class dominates it. Header size only adds bytes, the same to every row, so
   the control sets one header for all.</p>
+  <h3 id="tolerance">Tolerance</h3>
+  <p>Dominance is taken to a tolerance, <!--fig:frontier_tolerance_pct-->2<!--/fig-->% by default.
+  This is ε-dominance <a href="#ref-ltdz02">[LTDZ02]</a>: a configuration ε-dominates another when
+  it is no more than the tolerance worse on every measure, and no worse on the three requirements.
+  So a rank that buys a hair less proof is not thereby a different choice. The tolerance is
+  selectable under Frontier: exact, 2%, or 5%.</p>
+  <p>The frontier is built without a grid, which would keep two configurations that are within the
+  tolerance of each other whenever a cell boundary fell between them. The configurations are taken
+  in increasing order of the product of their three measures, and one is kept unless a configuration
+  already kept ε-dominates it. So every configuration left out is ε-dominated by a kept one, every
+  kept configuration is undominated in the exact sense, and of two kept configurations with the same
+  requirements, the one taken later is better than the other by more than the tolerance on some
+  measure. The product orders the configurations whatever the measures' units.</p>
   <h3 id="requirements">Pasta and the scheme assumption</h3>
   <p>Three things enter the dominance test as requirements rather than costs: the Pasta arithmetic
   that the Ironwood recovery circuit needs, the security assumption, and the changes to Ragu that a
@@ -2116,6 +2134,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <li id="ref-ls15">[LS15] Adeline Langlois, Damien Stehlé. Worst-case to average-case reductions
     for module lattices. Des. Codes Cryptogr. 75(3),
     2015. <a href="https://eprint.iacr.org/2012/090">eprint.iacr.org/2012/090</a></li>
+    <li id="ref-ltdz02">[LTDZ02] Marco Laumanns, Lothar Thiele, Kalyanmoy Deb, Eckart Zitzler.
+    Combining Convergence and Diversity in Evolutionary Multiobjective Optimization. Evolutionary
+    Computation 10(3), 263–282,
+    2002. <a href="https://eckartzitzler.ch/img/publications/ltdz2002a.pdf">eckartzitzler.ch/img/publications/ltdz2002a.pdf</a></li>
     <li id="ref-matzov22">[MATZOV22] MATZOV. Report on the security of LWE: improved dual lattice
     attack. Zenodo, 2022.</li>
     <li id="ref-os26">[OS26] Michał Osadnik, Gregor Seiler. LaBinius: fast lattice-based binary
@@ -2222,10 +2244,33 @@ const CHANGE = { none: 'parameters only', code: 'code changes', design: 'design 
 // the Pasta base field (more is better), the security assumption, and the changes needed (both
 // less is better). The assumption ranks a random oracle alone below Module-SIS with a random
 // oracle, below the open security ledger; the changes rank parameters only below code below
-// design. A configuration is dominated by one at least as good on every axis and better on one.
+// design. It is taken to the tolerance chosen on the control (the model's pareto has the rule's
+// statement and what follows from it): q beats p when q is no more than a factor 1 + eps worse
+// on every measure and no worse on the requirements. The configurations are taken in increasing
+// order of the product of their measures, then by family and label, and one is kept unless a
+// kept one beats it. Two alike on every measure and requirement both stay if their families
+// differ; of one family the first stands for both. At a tolerance of zero this is exact dominance.
 function frontierAmong(pts, second, third) {
-  const level = p => DATA.change_level[p.change];
-  return pts.filter(p => !pts.some(q => q !== p && q.bytes <= p.bytes && q[second] <= p[second] && q[third] <= p[third] && q.pasta >= p.pasta && q.assumption <= p.assumption && level(q) <= level(p) && (q.bytes !== p.bytes || q[second] !== p[second] || q[third] !== p[third] || q.pasta !== p.pasta || q.assumption !== p.assumption || q.change !== p.change)));
+  const eps = +document.querySelector('input[name=tolerance]:checked').value;
+  const measures = p => [p.bytes, p[second], p[third]];
+  const requirements = p => [-p.pasta, p.assumption, DATA.change_level[p.change]];
+  const rows = pts.map((p, i) => {
+    const m = measures(p);
+    return { p, i, m, r: requirements(p), product: m.reduce((sum, v) => sum + (v > 0 ? Math.log(v) : -Infinity), 0) };
+  });
+  const beats = (q, p) => {
+    if (!q.m.every((v, k) => v <= (1 + eps) * p.m[k]) || !q.r.every((v, k) => v <= p.r[k])) return false;
+    const tie = q.m.every((v, k) => v === p.m[k]) && q.r.every((v, k) => v === p.r[k]);
+    return !tie || q.p.family === p.p.family;
+  };
+  const text = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const compare = (a, b) => a.product - b.product || text(a.p.family, b.p.family) || text(a.p.label, b.p.label) || a.i - b.i;
+  const kept = [];
+  for (const row of [...rows].sort(compare)) {
+    if (!kept.some(q => beats(q, row))) kept.push(row);
+  }
+  const keep = new Set(kept.map(row => row.p));
+  return pts.filter(p => keep.has(p));
 }
 const second = () => measureOf('second');
 // The swap button exchanges the second and third measures, with their applications; render()
@@ -2606,7 +2651,7 @@ document.querySelectorAll('table').forEach(table => {
     sortTable(table, i, dir);
   }));
 });
-document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 // The book switches themes by changing the root element's class.
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
