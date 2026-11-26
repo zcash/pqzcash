@@ -318,6 +318,24 @@ MASK_TAIL = 14
 MASK_LOG_N = 22
 DIGIT_MAX = {v: 4 for v in DIGITS} | {"kishu": 4}
 EXTRACTION_SLACK = 2 * (2 * MASK_CHALLENGE_L1) * 2
+CHALLENGE_DEGREE = 512  # the ring degree that the challenge set's size is counted in
+
+
+def challenge_space_bits(weight, degree=CHALLENGE_DEGREE):
+    """log2 of the number of ternary challenges of the weight in the ring degree."""
+    return math.log2(math.comb(degree, weight)) + weight
+
+
+def challenge_l1(floor):
+    """The fold challenge's ℓ1 norm at a floor: the catalog's weight, MASK_CHALLENGE_L1, whose
+    2^138 challenges the 128- and 147-bit plans keep, and at the illustrative level the least
+    weight whose challenge set has 2^165 members, since a fold's knowledge error is the
+    reciprocal of the set's size."""
+    if floor != LEVEL3_FLOOR:
+        return MASK_CHALLENGE_L1
+    return next(
+        w for w in range(MASK_CHALLENGE_L1, CHALLENGE_DEGREE) if challenge_space_bits(w) >= floor
+    )
 
 
 def log_s2(log_n, digit_max=4):
@@ -417,11 +435,14 @@ def ajtai_per_coefficient(
     """Word multiplications to commit one coefficient's digits under the accumulation matrix
     that the floor's ℓ∞ table certifies for a vector of 2^log_n digits at the bound in force:
     the masked bound at α under zero knowledge, the fold's otherwise."""
+    # The floor's challenge weight enters the bound through the mask's width, or the fold's
+    # output, and again through the extraction slack, which is proportional to it.
+    c_l1 = challenge_l1(floor)
     log_beta = (
-        masked_log_beta_inf(alpha, MASK_CHALLENGE_L1, log_n, digit_max)
+        masked_log_beta_inf(alpha, c_l1, log_n, digit_max)
         if zk
-        else unmasked_log_beta_inf(MASK_CHALLENGE_L1, digit_max)
-    )
+        else unmasked_log_beta_inf(c_l1, digit_max)
+    ) + math.log2(c_l1 / MASK_CHALLENGE_L1)
     cost = accumulation_matrix(variant, floor, log_beta, log_n)[0]
     return DIGITS[variant] * cost * WORD_MULTS[variant]
 
@@ -6426,6 +6447,18 @@ def define_figures():
     # consequence for them, and why the hash-based families have no row.
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
     fig("opening_challenge_atoms", OPENING_CHALLENGE_ATOMS)
+    fig("level3_challenge_weight", challenge_l1(LEVEL3_FLOOR))
+    fig("challenge_weight", MASK_CHALLENGE_L1)
+    fig("challenge_space", f"$2^{{{round(challenge_space_bits(MASK_CHALLENGE_L1))}}}$")
+    fig(
+        "level3_challenge_bound_bits",
+        sig(2 * math.log2(challenge_l1(LEVEL3_FLOOR) / MASK_CHALLENGE_L1), 2),
+    )
+    claim(
+        "level3_challenge_weight_small_effect",
+        "the illustrative level's heavier fold challenge raises the masked bound by under a bit",
+        2 * math.log2(challenge_l1(LEVEL3_FLOOR) / MASK_CHALLENGE_L1) < 1,
+    )
     fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
     g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
     g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
