@@ -4918,5 +4918,38 @@ To do after BitZ's product terms (the user, 2026-11-26): a security floor chosen
 the lattice-based and the hash-based families; Pedersen-IPA's fixed, at about 126 bits strictly
 speaking, and documented as such; possibly finer control of the cost model for lattice attacks.
 
+Queued by the user on 2026-11-26, beyond the items above:
+
+- **A "paranoid" cost model for lattices**, selectable. The user: there has been much speculation
+  recently about AI making huge advances in attacks against structured public-key cryptography
+  problems, and all bases should be covered. The trust section already quotes a paranoid model's
+  bits beside the classical and quantum ones (`CORE_SVP_EXPONENTS`); the request is to offer it as
+  a cost model that the rows are sized under. It belongs with the independent security floors
+  for the lattice-based and hash-based families.
+- **Circuit optimization for the schemes other than Kishu**, thorough enough that the comparison
+  is fair to them, and a page, perhaps "Optimizations for other schemes", saying which
+  optimizations each is assumed to have. Kishu's own are on the Kishu's Arithmetization page.
+- **The hash-based families section in BLAKE3 figures**, matching the default, with the Hashes
+  section saying what allowing Poseidon changes. It is the other way round now.
+
+BitZ's accounting, in progress and not yet applied. The earlier note that BitZ "takes the
+every-other-XOR saving without paying the extra products" had the direction wrong. In BitZ's own
+arithmetization bit logic is linear: XOR over GF(2) costs nothing and is not committed, and AND is
+the integer identity 2z = x + y − (x XOR y) with one committed bit (the paper's Lemma 2.5). The
+paper's hybrid SNARK proves hashing over the binary field and arithmetic over the integers, and
+its Table 14 measures it end to end at 1.2 to 1.5 times the PCS prover alone (mean 1.36), where
+the model charges 2.6 times on the application's bits and nothing on the merge's. So BitZ is
+overcharged on two counts: its hashes at Kishu's digit counts (BLAKE3 11,216 where a Boolean
+circuit has 7,168 AND gates; Keccak-f 92,160 against 38,400), and its PIOP share. The planned
+change: count BitZ's bit logic in AND gates, as the Boolean families do, keep 510 bits a Pasta
+multiplication, and charge a PIOP share of 0.36 on every committed bit. Several figures labelled
+as Kishu's digits read BitZ's counts and must be pointed at Kishu's own before the two diverge.
+Considered and set aside: leaving a round of Keccak's chi uncommitted in BitZ. Committing the 320
+column parities of a round's AND bits bounds the next round's constraints at 100 parity terms each
+(4 when the round is committed, 4,624 and 270,400 with two and three hidden ANDs an input), but
+the integer witness, which BitZ's grand-product GKR runs over, grows 13 to 38 times for 20 to 40
+percent fewer committed bits. Nothing of it transfers to Kishu, whose constraints are over F_q,
+where a parity is not free.
+
 STATE: branch accumulation-paragraph at this entry's commit, six commits past the pushed tip
 03aa05a, unpushed; PR #8's description predates them.
