@@ -4969,7 +4969,7 @@ def define_figures():
     fig("bits_akita_per_bit", sig(bits_akita_per_bit))
     fig("app_qk_gates", sig(APP["qk"]["pasta"]["blake3"], 3))
     fig("app_qk_boolean", sig(APP["qk"]["boolean"]["blake3"], 3))
-    fig("app_qk_bits", sig(APP["qk"]["bitz"]["blake3"], 3))
+    fig("app_qk_bits", sig(APP["qk"][KISHU_ARITHS[0]]["blake3"], 3))
     fig("leansphincs_keccak_calls", LEANSPHINCS_VERIFY["keccak"])
     fig("leansphincs_blake2s_calls", LEANSPHINCS_VERIFY["blake2s"])
     fig("leansphincs_blake3_calls", LEANSPHINCS_VERIFY["blake3"])
@@ -5009,9 +5009,9 @@ def define_figures():
     )
     fig("keccak_bits", sig(KECCAK_BITS, 3))
     fig("blake2s_bits", sig(BLAKE2S_BITS, 3))
-    keccak_kishu = APP["leansphincs_keccak"]["bitz"]["blake3"]
-    blake2s_kishu = APP["leansphincs_blake2s"]["bitz"]["blake3"]
-    blake3_kishu = APP["leansphincs_blake3"]["bitz"]["blake3"]
+    keccak_kishu = APP["leansphincs_keccak"][KISHU_ARITHS[0]]["blake3"]
+    blake2s_kishu = APP["leansphincs_blake2s"][KISHU_ARITHS[0]]["blake3"]
+    blake3_kishu = APP["leansphincs_blake3"][KISHU_ARITHS[0]]["blake3"]
     fig("app_leansphincs_keccak_kishu", millions(keccak_kishu, 3))
     fig("app_leansphincs_blake2s_kishu", millions(blake2s_kishu, 3))
     fig("app_leansphincs_blake3_kishu", millions(blake3_kishu, 3))
@@ -5052,7 +5052,7 @@ def define_figures():
     # The wallet's own share of the device statement with the host proving the handoff (the
     # constants' comment): its digits, its online and idle work, the response's size, and the
     # times on the assumed devices and link.
-    leaf = APP["qk"]["bitz"]["blake3"]
+    leaf = APP["qk"][KISHU_ARITHS[0]]["blake3"]
     # The chapter's figures are at the page's default floor; the other floor's padding is quoted.
     padding = HIDING_PADDING_BITS[DEFAULT_FLOOR]
     sumcheck_rounds = math.ceil(math.log2(leaf + padding))
@@ -5231,7 +5231,7 @@ def define_figures():
         *(f"zoodles_merkle_{auth}" for auth in ZOODLES_AUTHS),
     ):
         full = not app.startswith("zoodles_merkle")
-        units = APP[app]["bitz"]["blake3"]
+        units = APP[app][KISHU_ARITHS[0]]["blake3"]
         digits = sum(units) if isinstance(units, list) else units
         if full or app == "zoodles_merkle_preimage":
             fig(f"app_{app}_kishu", millions(digits, 3) if digits >= 1e6 else sig(digits, 3))
@@ -5261,7 +5261,8 @@ def define_figures():
     claim(
         "zoodles_merkle_paths_most",
         "the Merkle-path variant's two paths are more than half of its Kishu digits",
-        2 * APP["path"]["bitz"]["blake3"] > APP["zoodles_merkle_preimage"]["bitz"]["blake3"] / 2,
+        2 * APP["path"]["bitz"]["blake3"]
+        > APP["zoodles_merkle_preimage"][KISHU_ARITHS[0]]["blake3"] / 2,
     )
     p, tachyon4 = kishu_best("tachyon4")
     fig("tx_tachyon4_kishu_s", secs(tachyon4))
@@ -5313,14 +5314,16 @@ def define_figures():
     # The Zoodles page's packing in numbers: the nodes' digits by kind, and how many actions a
     # step holds beside the fee, each action a spend or an output with its merge.
     node_names = tachyon_nodes(2, 2)[:-2]
-    node_digits = dict(zip(node_names, APP["zoodles_preimage"]["bitz"]["blake3"]))
+    node_digits = dict(zip(node_names, APP["zoodles_preimage"][KISHU_ARITHS[0]]["blake3"]))
     spend_digits = node_digits["SpendBind"] + node_digits["SpendAction"]
     output_digits = node_digits["OutputBind"] + node_digits["OutputAction"]
     fig("zoodles_spend_digits", fmt(spend_digits))
     fig("zoodles_output_digits", fmt(output_digits))
     fig("zoodles_merge_digits", fmt(node_digits["ActionMerge"]))
     fig("zoodles_fee_digits", fmt(node_digits["FeeFuse"]))
-    sphincs_nodes = dict(zip(node_names, APP["zoodles_leansphincs_blake3"]["bitz"]["blake3"]))
+    sphincs_nodes = dict(
+        zip(node_names, APP["zoodles_leansphincs_blake3"][KISHU_ARITHS[0]]["blake3"])
+    )
     fig(
         "zoodles_leansphincs_blake3_spend_digits",
         millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
@@ -5356,11 +5359,11 @@ def define_figures():
         "in every row of the epoch-set page's table the bucketed table's exclusion proof takes at least ten more hashes than the sorted tree's",
         min(gaps) >= 10,
     )
-    fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"]["bitz"]["blake3"], 3))
+    fig("app_zoodles_epoch_kishu", sig(APP["zoodles_epoch"][KISHU_ARITHS[0]]["blake3"], 3))
     claim(
         "zoodles_tree_under_bucket",
         "the sorted tree's lineage step is under a sixth of the bucket's digits in Kishu",
-        6 * APP["zoodles_epoch"]["bitz"]["blake3"] < ZOODLES_BUCKET_DIGITS,
+        6 * APP["zoodles_epoch"][KISHU_ARITHS[0]]["blake3"] < ZOODLES_BUCKET_DIGITS,
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))

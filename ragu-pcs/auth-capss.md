@@ -54,8 +54,8 @@ prices at <!--fig:q64_poseidon_mults-->276<!--/fig--> multiplications a permutat
 committed wire. Taking the paper's Poseidon call counts and its factor
 of <!--fig:capss_field_factor-->4<!--/fig--> for the 64-bit field, a verifier is
 about <!--fig:capss_kishu_poseidon_digits_est-->3.47 million<!--/fig--> digits,
-against <!--fig:app_leansphincs_blake3_kishu-->3.38 million<!--/fig--> for leanSPHINCS with BLAKE3
-and <!--fig:app_leansphincs_blake2s_kishu-->4.74 million<!--/fig--> with BLAKE2s. The paper's own
+against <!--fig:app_leansphincs_blake3_kishu-->3.35 million<!--/fig--> for leanSPHINCS with BLAKE3
+and <!--fig:app_leansphincs_blake2s_kishu-->4.72 million<!--/fig--> with BLAKE2s. The paper's own
 constraint estimate for the 64-bit field, at one wire a constraint,
 gives <!--fig:capss_kishu_digits_est-->2.2 million<!--/fig-->. So in Kishu the two are within a
 factor of two or so of each other, and nothing like the order of magnitude a prime-field circuit

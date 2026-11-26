@@ -39,8 +39,8 @@ in a digit arithmetization, so in Kishu a BLAKE3 compression
 is <!--fig:blake3_bits-->11,000<!--/fig--> committed bits, a BLAKE2s
 compression <!--fig:blake2s_bits-->15,800<!--/fig-->, and a Keccak-f
 permutation <!--fig:keccak_bits-->92,200<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
-verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.38 million<!--/fig--> digits with
-BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.74 million<!--/fig--> with BLAKE2s, so BLAKE3's
+verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.35 million<!--/fig--> digits with
+BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.72 million<!--/fig--> with BLAKE2s, so BLAKE3's
 is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s's, since its
 compression has seven rounds to BLAKE2s's
 ten.<!--/claim--> <!--claim:leansphincs_keccak_dearer:8d35d3-->With Keccak it

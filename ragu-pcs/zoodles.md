@@ -35,19 +35,19 @@ the maximum-fee note's value less the fee, as Tachyon's does.
 
 What changes in the tree is the packing: Tachyon gives each circuit a step of its own, whereas a
 Kishu step, one or more circuits of $2^{\mathrm{rank}}$ digits, holds its own merge, the fee
-circuit, <!--fig:zoodles_fee_digits-->29,917<!--/fig--> digits, and with them as many spends and
-outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->49,145<!--/fig--> digits and an
-output <!--fig:zoodles_output_digits-->49,125<!--/fig--> digits, each with its merge
-of <!--fig:zoodles_merge_digits-->10,774<!--/fig--> digits (for more on the cost model of Kishu, see
+circuit, <!--fig:zoodles_fee_digits-->28,685<!--/fig--> digits, and with them as many spends and
+outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->48,176<!--/fig--> digits and an
+output <!--fig:zoodles_output_digits-->48,169<!--/fig--> digits, each with its merge
+of <!--fig:zoodles_merge_digits-->9,226<!--/fig--> digits (for more on the cost model of Kishu, see
 [Kishu's Arithmetization](kishu-arithmetization.md)).
-Therefore, <!--fig:zoodles_actions_per_step_17-->2<!--/fig--> action, a spend or an output, fits at
+Therefore, <!--fig:zoodles_actions_per_step_17-->3<!--/fig--> action, a spend or an output, fits at
 rank 17, <!--fig:zoodles_actions_per_step_19-->9<!--/fig--> at rank 19,
-and <!--fig:zoodles_actions_per_step_21-->43<!--/fig--> at rank 21. A transaction of two inputs and
+and <!--fig:zoodles_actions_per_step_21-->45<!--/fig--> at rank 21. A transaction of two inputs and
 two outputs is four actions, and at rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->18<!--/fig-->
 it fits in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the
 same transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or output, three
 merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS with BLAKE3
-is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.41 million<!--/fig--> digits and takes
+is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.39 million<!--/fig--> digits and takes
 several steps by itself.
 
 The arithmetic inside the nodes also changes. In Tachyon the set polynomials are Pedersen vector
@@ -139,11 +139,11 @@ tachygram set](zoodles-epoch-set.md) compares the representations.
 ## Cost
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
-is <!--fig:app_zoodles_preimage_kishu-->259,000<!--/fig--> committed digits and
+is <!--fig:app_zoodles_preimage_kishu-->249,000<!--/fig--> committed digits and
 takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0507<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->18<!--/fig-->,
 or <!--fig:tx_zoodles_preimage_kishu_s-->0.0273<!--/fig--> s without. One authorized by leanSPHINCS
-with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.03 million<!--/fig--> digits
+with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->6.98 million<!--/fig--> digits
 and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.299<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->22<!--/fig-->,
 in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->1<!--/fig--> steps; the frontier page has
