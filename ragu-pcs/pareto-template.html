@@ -922,6 +922,24 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>Verifying a WHIR proof in the circuit instead of accumulating, the other route, costs about the
   same hashing for a single oracle and more with the oracles of a real polynomial IOP. The proof of
   each step's growing witness is fed back into the next step.</p>
+  <p>Over Goldilocks the claims are in the cubic extension, since the correlated-agreement bound
+  leaves the quadratic one at about 87 bits. BEEP <a href="#ref-bg26">[BG26]</a>,
+  which <a href="#bitz">the BitZ section</a> describes, lifts that: with affine folding challenges
+  its folding error is $2/|\mathbb{F}|$, 127 bits in the quadratic extension. The rows marked
+  "quadratic extension, Johnson bound with BEEP (derived)" are the reference implementation measured
+  there at a 128‑bit target, with its proximity-gap term taken as BEEP's and its other terms covered
+  by 7 to 21 bits of proof of work, plus BEEP's samples at each fold. They are rows of the
+  Goldilocks variant, the limb hybrid, and
+  Plonky3. <!--claim:whir_beep_smaller_same_prover:3a37cb-->The query counts are the cubic
+  extension's, so the merge and its prover are the same, and what shrinks is every element after the
+  first round: the proof by <!--fig:whir_beep_less_pct_min-->7.6<!--/fig-->
+  to <!--fig:whir_beep_less_pct_max-->11<!--/fig-->
+  percent, <!--fig:whir_beep_1_8_kb-->294 kbytes<!--/fig-->
+  against <!--fig:whir_cubic_low_1_8_kb-->321 kbytes<!--/fig--> at rank 13 and rate 1/8, and the
+  accumulator by <!--fig:whir_beep_memory_less_pct-->29<!--/fig--> percent.<!--/claim--> As for
+  BitZ, no implementation of BEEP exists, so the rows are at the 128‑bit floor alone and are ranked
+  with the strongest assumption. Over Pasta's 255‑bit field the bound was never the constraint, and
+  nothing changes.</p>
   <h3 id="binary-field-systems">The $\mathbb{F}_2$ family</h3>
   <p>The binary-field, sum-check-based systems of 2025 and 2026,
   Flock <a href="#ref-brw26">[BRW26]</a> and Binius64 on the FRI-Binius and Ligerito commitments,

@@ -2436,11 +2436,19 @@ for variant, hp in itertools.product(
 RATES = ("1/2", "1/4", "1/8", "1/16", "1/32", "1/64")
 GRIND_DEFAULT = 16  # the default of the functions below; the page picks per row
 WHIR_MEAS = {}
-with (HERE / "estimates" / "whir-sweep-grind.tsv").open() as f:
-    header = f.readline().rstrip("\n").split("\t")
-    for line in f:
-        row = dict(zip(header, line.rstrip("\n").split("\t")))
-        key = ("pasta" if row["field"] == "Field256" else "gold", int(row["pow_max"]), row["rate"])
+# estimates/whir-sweep-beep.tsv is the same grid over Goldilocks's quadratic extension, by
+# scripts/whir-sweep-beep.sh, under the diagnostic switch of scripts/patches/whir/, which takes
+# the fold's error as BEEP's with affine folding challenges, 2/|F| (ePrint 2026/2930, Theorem
+# 5.3). The reference implementation's own proximity-gap term is about 87 bits in that field,
+# and it would grind for the rest. Its other terms stay and cost 7 to 21 bits of proof of
+# work. The query counts are those of the cubic extension.
+WHIR_FIELDS = {"Field256": "pasta", "Goldilocks3": "gold", "Goldilocks2": "gold2"}
+for table in ("whir-sweep-grind.tsv", "whir-sweep-beep.tsv"):
+    rows = (HERE / "estimates" / table).read_text().rstrip("\n").split("\n")
+    header = rows[0].split("\t")
+    for line in rows[1:]:
+        row = dict(zip(header, line.split("\t")))
+        key = (WHIR_FIELDS[row["field"]], int(row["pow_max"]), row["rate"])
         WHIR_MEAS.setdefault(key, {})[int(row["log2_size"])] = dict(
             bytes=float(row["proof_KiB"]) * 1024,
             hashes=float(row["verifier_khashes"]) * 1000,
@@ -2492,6 +2500,8 @@ def whir_meas(sizes, grind, rate):
 # paper's measured ratio at matched field, rate and 128-bit security (306 against 157 KiB at
 # 2^24, rate 1/2), which follows from FRI's queries scaling as lambda log d against WHIR's
 # lambda log log d. Its deployed parameters target about 100 bits under conjectures.
+BEEP_SAMPLES = 5  # DEEP samples a fold without an MCA bound (BEEP's Table 1: 4 to 5)
+BEEP_FLOOR = 128  # the floor of the rows derived from BEEP
 HASH_VARIANTS = {
     "whir": dict(
         sizes="pasta",
@@ -2536,6 +2546,30 @@ HASH_VARIANTS = {
 }
 
 
+# The Goldilocks variants under BEEP: the same variants with the claims in the quadratic
+# extension, which BEEP's folding error allows at the 128-bit floor, where the
+# correlated-agreement bound needs the cubic one. They are rows of the same families, derived
+# (no implementation of BEEP exists), at that floor alone, and ranked with the strongest
+# assumption, as BitZ's are.
+for name in ("whir_gold", "whir_hybrid", "plonky3"):
+    HASH_VARIANTS[name + "_beep"] = dict(
+        HASH_VARIANTS[name], sizes="gold2", family=name, profile="beep", floors=(BEEP_FLOOR,)
+    )
+
+
+def variant_family(variant):
+    return HASH_VARIANTS[variant].get("family", variant)
+
+
+def variant_floors(variant):
+    return HASH_VARIANTS[variant].get("floors", FLOORS)
+
+
+def variant_label(variant):
+    beep = HASH_VARIANTS[variant].get("profile") == "beep"
+    return ", quadratic extension, Johnson bound with BEEP (derived)" if beep else ""
+
+
 def hv(variant, hp):
     """The variant's hash figures under the policy: its Poseidon (`gates` and `native` per
     permutation, `leaf_perms` permutations per first-round leaf), or BLAKE3 at one
@@ -2550,9 +2584,14 @@ def hv(variant, hp):
 
 
 def whir_bytes(variant, rate, log_elems, grind=GRIND_DEFAULT):
+    """The stand-alone proof's bytes at 2^log_elems elements. Under BEEP each fold, one a
+    variable, also sends the two halves' evaluations at BEEP_SAMPLES points."""
     v = HASH_VARIANTS[variant]
     b17, slope, _, _ = whir_meas(v["sizes"], grind, rate)
-    return (b17 + slope * (log_elems - 17)) * v["size_factor"]
+    deep = (
+        log_elems * 2 * BEEP_SAMPLES * ELEM_BYTES[v["sizes"]] if v.get("profile") == "beep" else 0
+    )
+    return (b17 + slope * (log_elems - 17) + deep) * v["size_factor"]
 
 
 # A hash commitment is not homomorphic, so Ragu's split accumulation does not apply. ARC
@@ -2675,7 +2714,7 @@ def whir_verify_hashes(variant, rate, log_elems, floor, grind=GRIND_DEFAULT):
     return (
         (hashes + queries * (log_elems - 17))
         * WHIR_HASHES_SCALE[floor]
-        * (2.07 if variant == "plonky3" else 1)
+        * (2.07 if variant_family(variant) == "plonky3" else 1)
     )
 
 
@@ -2686,7 +2725,8 @@ WHIR_FOLD = 16  # the reference implementation's folding factor: elements per fi
 ELEM_BYTES = {
     "pasta": 32,
     "gold": 24,
-}  # a committed element: the 255-bit field; Goldilocks's cubic extension
+    "gold2": 16,
+}  # a committed element: the 255-bit field; Goldilocks's cubic extension; its quadratic one
 
 
 def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT, hp="blake3"):
@@ -2709,7 +2749,7 @@ def whir_extra_trees(variant, rate, log_elems, grind=GRIND_DEFAULT, hp="blake3")
 
 for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
-        for floor in FLOORS:
+        for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
                     for rank in HASH_RANKS:
@@ -2722,7 +2762,8 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                         )
                         points.append(
                             dict(
-                                family=variant,
+                                family=variant_family(variant),
+                                profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
                                 rank=rank,
                                 E=None,
@@ -2775,6 +2816,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 ),
                                 folded=2,
                                 label=f"rank {rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits"
+                                + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
                                 + floor_label(floor),
@@ -3242,7 +3284,7 @@ def rec_per_coefficient(variant, rate, log_len, hp="blake3"):
 
 for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
     for grind in GRINDS:
-        for floor in FLOORS:
+        for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
                     for rank in HASH_RANKS:
@@ -3256,7 +3298,8 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                         native = hv(variant, hp)["native"]
                         points.append(
                             dict(
-                                family=variant + "_rec",
+                                family=variant_family(variant) + "_rec",
+                                profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
                                 rank=rank,
                                 E=None,
@@ -3298,6 +3341,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 ),
                                 folded=2,
                                 label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, False, grind)):,} hashes/input, {circuits} circuits"
+                                + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
                                 + floor_label(floor),
@@ -3530,7 +3574,6 @@ BITZ_INITIAL_K = 4  # the first level folds 2^4 interleaved rows
 BITZ_RECURSIVE_K = 3  # each later level 2^3
 BITZ_FINAL_LOG = 5  # the final block's variables, at most
 BITZ_ELEMENT_BYTES = BITZ_FIELD_BITS // 8
-BEEP_SAMPLES = 5  # DEEP samples a fold without an MCA bound (BEEP's Table 1: 4 to 5)
 BITZ_PROFILE_LABEL = {"udr": "unique decoding", "beep": "Johnson bound with BEEP (derived)"}
 
 
@@ -6310,6 +6353,23 @@ def define_figures():
         abs(less[0] - less[1]) < 0.01,
     )
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
+    # WHIR over Goldilocks under BEEP: the quadratic extension against the cubic one, at the
+    # 128-bit floor and rank 13.
+    wg = {(q["rate"], q.get("profile")): q for q in shown("whir_gold", floor=BEEP_FLOOR, rank=13)}
+    wg_less = [100 * (1 - wg[(r, "beep")]["bytes"] / wg[(r, None)]["bytes"]) for r in RATES]
+    wg_memory = [100 * (1 - wg[(r, "beep")]["memory"] / wg[(r, None)]["memory"]) for r in RATES]
+    fig("whir_beep_less_pct_min", sig(min(wg_less), 2))
+    fig("whir_beep_less_pct_max", sig(max(wg_less), 2))
+    fig("whir_beep_memory_less_pct", sig(min(wg_memory), 2))
+    fig("whir_beep_1_8_kb", kb(wg[("1/8", "beep")]["bytes"]))
+    fig("whir_cubic_low_1_8_kb", kb(wg[("1/8", None)]["bytes"]))
+    claim(
+        "whir_beep_smaller_same_prover",
+        "at the 128-bit floor WHIR over Goldilocks's quadratic extension under BEEP has a smaller proof and accumulator than over the cubic extension at every rate, with the same merge and merge prover",
+        min(wg_less) > 0
+        and min(wg_memory) > 0
+        and all(wg[(r, "beep")][k] == wg[(r, None)][k] for r in RATES for k in ("prover", "gates")),
+    )
     # The design under BEEP, against the 192-bit design, both at the 128-bit floor.
     beep_floor = F2_DESIGNS[128]["floors"][0]
     f128 = {p["rate"]: p for p in shown("flock", floor=beep_floor, field=128, zkv=None)}

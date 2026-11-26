@@ -1,0 +1,41 @@
+From 6d57431b2793f7d5263935ecbec033c5234b3c19 Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Thu, 26 Nov 2026 09:47:02 +0000
+Subject: [PATCH] Unsound diagnostic: the fold's error as BEEP's, to size a
+ small-field proof
+
+Not a sound configuration. For sizing only.
+
+Under WHIR_DIAG_BEEP the per-step proximity-gaps error is taken as
+2/|F|, BEEP's folding error with affine folding challenges (ePrint
+2026/2930, Theorem 5.3), in place of the correlated-agreement bound.
+That bound is about 87 bits over Goldilocks's quadratic extension, and
+the configuration would otherwise grind for the rest. BEEP's samples
+are not sent.
+
+Co-Authored-By: Claude Mythos 5.2 <noreply@anthropic.com>
+---
+ src/protocols/params/regime.rs | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/protocols/params/regime.rs b/src/protocols/params/regime.rs
+index 9c808d6..297bb91 100644
+--- a/src/protocols/params/regime.rs
++++ b/src/protocols/params/regime.rs
+@@ -106,6 +106,13 @@ impl DecodingRegimeParams {
+     ///   `ε ≈ (2·10.5⁵/3) · n · ρ^{−3/2} / |F|`.
+     /// - Capacity: STIR Conj 5.6, `ε ≈ d / (η · ρ²) / |F|`.
+     pub fn eps_mca_log2(self, log_inv_rate: f64, message_length: usize, field_bits: f64) -> f64 {
++        // DIAGNOSTIC ONLY: under WHIR_DIAG_BEEP the fold's error is taken as BEEP's with affine
++        // folding challenges, 2/|F| (ePrint 2026/2930, Theorem 5.3), in place of the
++        // correlated-agreement bound, to size a proof in a field that bound cannot serve.
++        // Not a sound configuration of this code: BEEP's samples are not sent.
++        if std::env::var("WHIR_DIAG_BEEP").is_ok() {
++            return 1.0 - field_bits;
++        }
+         let log_k = usize_to_f64(message_length).log2();
+         let error = match self {
+             Self::Unique => log_k + log_inv_rate,
+-- 
+2.55.0
+
