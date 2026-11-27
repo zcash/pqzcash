@@ -5411,3 +5411,45 @@ The step-length work is one commit past PR #9's head, squashed from its work-in-
 at the user's word, with these notes in a commit after it; neither is pushed. Still to do: the
 sentences that the "a step of N digits" pattern left reading oddly, and the user's look at the
 page in a browser.
+
+## 2026-11-27, 04:40 UTC: the level's re-plan is ready to run
+
+The Akita patch for the three-map chain and the pipeline for the level are written:
+`scripts/patches/akita/0003-*` and `scripts/akita-165-pipeline.sh`, with the worktree
+`work/akita-src-165` (branch `level3-165`) added to `scripts/akita-checkout.sh`. The pipeline has
+NOT been run. It regenerates the width tables at 165 bits (the infinity table took about an hour
+at 147), re-sizes the nine compression cells and fails if one does not cover its map, rebuilds,
+commits in the worktree, and runs the re-plan.
+
+The chain in Akita's terms, by rank and ring dimension, since its rings are the power-of-two
+cyclotomics and the fold embeds every row through that tower:
+
+    modulus   map 1        map 2        map 3
+    128-bit   rank 9, d=2  rank 9, d=1  rank 1, d=8
+    64-bit    rank 9, d=4  rank 9, d=2  rank 1, d=16
+    32-bit    rank 9, d=8  rank 9, d=4  rank 1, d=32
+
+Considered and set aside, with the user: rank-one maps over a ring of dimension 18 (the 27th
+cyclotomic, X^18 + X^9 + 1). Its norm behaviour is tolerable (expansion factor 3 where X^n + 1
+has 2; a product of two elements bounded by 1 is bounded by 27 where dimension 18 would give 18),
+but it is not in the tower, and dimension 9 has no cyclotomic. The maps' digits are in {0, -1}
+(the image's coefficients in negated binary), certified at coefficient bound 1; the [-4, 3] set
+is the commitment witnesses'. Not traced: whether an extractor for the folded relation recovers
+the maps' digits at bound 1.
+
+The patch is for planning only. A map of rank r has r relation rows and r quotient rows, counted
+in the parameters and the planner; the rows of one map share a family identity; the dispatch
+table has no arm for dimensions 1, 2, and 4; the prover and the verifier are not adapted. A smoke
+run on the 147-bit tables, the chain alone changed, planned `fp128_dense` with proofs 0.0% to
+1.4% larger than the 147-bit plan's.
+
+TO FIX LATER in the patch (the user asked for the note): tests of `akita-params` that fail on the
+level's branch. The dispatch arms for the compression ladder (the test expects the table's arms
+to be the ladder's dimensions, and the small ones have no arm); the witness tail's pinned length
+(4,880, now 5,008); and three that pin table contents, two rank boundaries and the artifact
+digest, of which the two rank boundaries already failed on the 147-bit branch. Re-pin them after
+the tables are regenerated. The other crates' tests have not been run.
+
+After the run: `python scripts/akita-150-page-inputs.py work/akita-165-out/replan` should print
+the model's inputs, and the level's rows can then be planned and not derived; the width table
+that `scripts/derive-linf-widths.py` extrapolates can be checked against the estimator's own.
