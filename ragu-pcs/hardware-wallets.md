@@ -62,7 +62,7 @@ claim fold. The decomposition and the range and norm proofs are deferred to the 
 [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a one-compression leaf the
 host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
 measure's <!--fig:tx_qk_kishu_zk_s-->0.0247<!--/fig--> s in a step
-of <!--fig:tx_qk_kishu_zk_rank-->1.875 × 2^19<!--/fig--> digits
+of <!--fig:tx_qk_kishu_zk_rank-->$1.875 \times 2^{19}$<!--/fig--> digits
 is <!--fig:tx_qk_kishu_zk_merges_pct-->93<!--/fig--> percent merge
 and <!--fig:tx_qk_kishu_zk_fold_pct-->9<!--/fig--> percent fold, and the circuit itself is a few
 percent.<!--/claim-->

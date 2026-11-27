@@ -64,11 +64,11 @@ the frontier page. A row would count the verifier's calls at each width and add 
 of the PACS checks.
 
 Signing is a SmallWood proof, about <!--fig:capss_kishu_poseidon_sign_calls-->40,000<!--/fig-->
-permutations over the 64-bit field with Merkle trees of 2^10 to 2^14 leaves. At the page's assumed
-rate for an MCU-class device that is about <!--fig:capss_device_sign_s_est-->1.1<!--/fig--> s, and a
-few times that on a secure element. So a device can sign with it, where it could not make a Kishu
-leaf. The trees' memory, 2^12 leaves of 32 bytes, is a secure element's whole budget. The signature,
-about 20 kbytes, fits a QR channel at four or five times leanSPHINCS's scanning time.
+permutations over the 64-bit field with Merkle trees of $2^{10}$ to $2^{14}$ leaves. At the page's
+assumed rate for an MCU-class device that is about <!--fig:capss_device_sign_s_est-->1.1<!--/fig-->
+s, and a few times that on a secure element. So a device can sign with it, where it could not make a
+Kishu leaf. The trees' memory, $2^{12}$ leaves of 32 bytes, is a secure element's whole budget. The
+signature, about 20 kbytes, fits a QR channel at four or five times leanSPHINCS's scanning time.
 
 ## Against the other two methods
 

@@ -459,7 +459,7 @@ multiplications per coefficient, dense polynomials assumed:
 
 | commitment | per coefficient | basis |
 |---|---|---|
-| Pedersen over Pasta, rank 14 | <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> | Ragu's fuse measured at rank 13, 1.46 s on one core for 96 commitments of 2^13 coefficients, scaled by Pippenger's 255/rank mixed additions per coefficient |
+| Pedersen over Pasta, rank 14 | <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> | Ragu's fuse measured at rank 13, 1.46 s on one core for 96 commitments of $2^{13}$ coefficients, scaled by Pippenger's 255/rank mixed additions per coefficient |
 | Ajtai, Pasta modulus | <!--fig:ajtai_per_coeff_pasta-->15,000<!--/fig--> | 85 digits, rows/64 + 3 multiplications per digit by NTT, 32 word multiplications each |
 | Ajtai, 128-bit field | <!--fig:ajtai_per_coeff_fp128-->1,900<!--/fig--> | 43 digits, 8 word multiplications each |
 | Ajtai, Pasta claims with 64-bit commitments | <!--fig:ajtai_per_coeff_pasta_q64-->940<!--/fig--> | 85 digits, 2 word multiplications each |
@@ -766,8 +766,8 @@ factor of <!--fig:rank_scale_pallas-->1.01<!--/fig-->. WHIR's proofs, measured w
 implementation over both fields, are <!--fig:whir_scale_147_pct-->16<!--/fig--> percent larger at
 147 bits than at 128 and its verifier's hashes <!--fig:whir_hashes_147_pct-->12<!--/fig--> percent
 more, through λ alone; ARC's openings grow by <!--fig:arc_floor_pct-->15<!--/fig--> percent.
-Pedersen-IPA over Pasta rests on the discrete logarithm in a group of order near 2^254: about 126
-classical bits by Pollard rho, and nothing against a quantum adversary. The page shows it at the
+Pedersen-IPA over Pasta rests on the discrete logarithm in a group of order near $2^{254}$: about
+126 classical bits by Pollard rho, and nothing against a quantum adversary. The page shows it at the
 128-bit floor as the conventional pre-quantum baseline. It drops out at 147 bits, which it does not
 reach even classically.
 

@@ -5421,6 +5421,15 @@ def fig(name, value):
     FIGURES[name] = str(value)
 
 
+def tex_step(text):
+    """A step's length as the figures write it, in math: `step_label`'s or `step_text`'s
+    "m × 2^e" as $m \\times 2^{e}$. A whole step rank, which is not a length, passes through."""
+    if not isinstance(text, str):
+        return text
+    m = re.fullmatch(r"(?:([\d.]+) × )?2\^(\d+)", text)
+    return "$" + (f"{m.group(1)} \\times " if m.group(1) else "") + f"2^{{{m.group(2)}}}$"
+
+
 def tex_pow2(exponent):
     """A power of two as a LaTeX math span, for a figure that stands in the prose as a formula;
     a marker never sits inside a math span, so the figure carries the whole span."""
@@ -5614,7 +5623,7 @@ def define_figures():
     for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak", "leansphincs_blake3"):
         p, w = kishu_best(app, zk=True)
         fig(f"tx_{app}_kishu_zk_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", step_rank_text(p))
+        fig(f"tx_{app}_kishu_zk_rank", tex_step(step_rank_text(p)))
         if app == "qk":
             merges = tx_steps(p, app, "poseidon") * p["accumulation_prover"]
             fig("tx_qk_kishu_zk_merges_pct", round(100 * merges / w))
@@ -5823,7 +5832,7 @@ def define_figures():
         if not full:
             continue
         fig(f"tx_{app}_kishu_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", step_rank_text(p))
+        fig(f"tx_{app}_kishu_zk_rank", tex_step(step_rank_text(p)))
         fig(f"tx_{app}_kishu_zk_steps", tx_steps(p, app, "blake3"))
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app, floor=128)
@@ -5945,7 +5954,7 @@ def define_figures():
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))
-    fig("tx_zoodles_epoch_kishu_rank", step_rank_text(p))
+    fig("tx_zoodles_epoch_kishu_rank", tex_step(step_rank_text(p)))
     lineage_step_rank = p["step_rank"]
     p, w = best_for("bitz", "zoodles_epoch")
     fig("tx_zoodles_epoch_bitz_s", secs(w))
@@ -5965,8 +5974,8 @@ def define_figures():
     )
     p, w = kishu_best("zoodles_preimage", zk=True, step_rank=shared_step_rank)
     fig("tx_zoodles_preimage_kishu_zk_lineage_rank_s", secs(w))
-    fig("zoodles_shared_step", step_rank_text(p))
-    fig("zoodles_spend_own_step", step_rank_text(spend))
+    fig("zoodles_shared_step", tex_step(step_rank_text(p)))
+    fig("zoodles_spend_own_step", tex_step(step_rank_text(spend)))
     fig("zoodles_spend_at_lineage_step_factor", sig(w / spend_w, 2))
     claim(
         "zoodles_lineage_own_length",
@@ -5990,7 +5999,7 @@ def define_figures():
     p, w = kishu_best("recovery")
     fig("tx_recovery_kishu_route", p["route"])
     fig("tx_recovery_kishu_s", secs(w))
-    fig("tx_recovery_kishu_rank", step_rank_text(p))
+    fig("tx_recovery_kishu_rank", tex_step(step_rank_text(p)))
     fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
     p, w = best_for("bitz", "recovery")
     fig("tx_recovery_bitz_s", secs(w))
@@ -6035,7 +6044,7 @@ def define_figures():
     p, w = kishu_best("recovery", zk=True)
     fig("tx_recovery_kishu_zk_route", p["route"])
     fig("tx_recovery_kishu_zk_s", secs(w))
-    fig("tx_recovery_kishu_zk_rank", step_rank_text(p))
+    fig("tx_recovery_kishu_zk_rank", tex_step(step_rank_text(p)))
     _, parts = kishu_zk_costs(p)
     # The masked bound's N at this row, for the per-digit rates the text quotes.
     recovery_log_n = math.log2(accumulator_coefficients("kishu", p["step_rank"], p["circuits"]))
@@ -6111,11 +6120,11 @@ def define_figures():
     fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
     q, wk = kishu_zk_best("recovery", MASK_ALPHA, KARNEY_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_karney_s", secs(wk))
-    fig("tx_recovery_kishu_zk_karney_rank", step_rank_text(q))
+    fig("tx_recovery_kishu_zk_karney_rank", tex_step(step_rank_text(q)))
     fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
     q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_fast_s", secs(wf))
-    fig("tx_recovery_kishu_zk_fast_rank", step_rank_text(q))
+    fig("tx_recovery_kishu_zk_fast_rank", tex_step(step_rank_text(q)))
     sweep = {}
     for a in MASK_ALPHAS:
         q, wa = kishu_zk_best("recovery", a)
@@ -6137,7 +6146,7 @@ def define_figures():
             ),
         )
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
-        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", step_rank_text(q))
+        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", tex_step(step_rank_text(q)))
     assert sweep[MASK_ALPHA] == w
     fig("kishu_zk_alpha_48_to_96_pct", sig(100 * (1 - sweep[96] / sweep[48])))
     claim(
@@ -6171,7 +6180,7 @@ def define_figures():
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
-    fig("tx_recovery4_kishu_zk_rank", step_rank_text(q))
+    fig("tx_recovery4_kishu_zk_rank", tex_step(step_rank_text(q)))
 
     # The minimum over the width is shallow: the widths on the grid within two percent of it.
     def band(app, n, sample):
@@ -6311,7 +6320,7 @@ def define_figures():
     p, w = kishu_best("tachyon2")
     fig("tx_tachyon2_kishu_route", p["route"])
     fig("tx_tachyon2_kishu_s", secs(w))
-    fig("tx_tachyon2_kishu_rank", step_rank_text(p))
+    fig("tx_tachyon2_kishu_rank", tex_step(step_rank_text(p)))
     fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
     p, w = best_for("goldilocks", "tachyon2", "poseidon", hashes="poseidon")
     fig("tx_tachyon2_goldilocks_s", secs(w))
@@ -6418,8 +6427,8 @@ def define_figures():
     zk_rows = sorted(
         shown("bits_q64", "blake3", zk=True, route="limbs"), key=lambda p: p["step_rank"]
     )
-    fig("kishu_step_shortest", step_label(round(2 ** zk_rows[0]["step_rank"])))
-    fig("kishu_step_longest", step_label(round(2 ** zk_rows[-1]["step_rank"])))
+    fig("kishu_step_shortest", tex_step(step_label(round(2 ** zk_rows[0]["step_rank"]))))
+    fig("kishu_step_longest", tex_step(step_label(round(2 ** zk_rows[-1]["step_rank"]))))
     fig("kishu_accumulation_shortest_m", mil(zk_rows[0]["accumulation_prover"]))
     fig("kishu_accumulation_longest_m", mil(zk_rows[-1]["accumulation_prover"]))
     claim(
@@ -6568,8 +6577,10 @@ def define_figures():
     fig("bitz_max_rank", BITZ_STEP_RANKS[-1])
     fig(
         "kishu_max_step",
-        step_label(
-            round(2 ** max(p["step_rank"] for f in KISHU for p in points if p["family"] == f))
+        tex_step(
+            step_label(
+                round(2 ** max(p["step_rank"] for f in KISHU for p in points if p["family"] == f))
+            )
         ),
     )
 
@@ -6704,7 +6715,7 @@ def define_figures():
     tx_table = {key: work for key, (_, work) in tx_rows.items()}
     base = tx_table[("leansphincs", "147")]
     slhdsa_row = tx_rows[("slhdsa", "147")][0]
-    fig("sigtx_slhdsa_147_rank", step_rank_text(slhdsa_row))
+    fig("sigtx_slhdsa_147_rank", tex_step(step_rank_text(slhdsa_row)))
     fig("sigtx_slhdsa_147_steps", tx_steps(slhdsa_row, "zoodles_slhdsa192s", "blake3"))
     for (sig_, setting), work in tx_table.items():
         fig(f"sigtx_{sig_}_{setting}_s", sig(work / WORD_MULTS_PER_SECOND, 3))
@@ -6819,8 +6830,8 @@ def define_figures():
     fig("level3_goldilocks_16_circuits", g165["circuits"])
     fig("goldilocks_16_zk_circuits", g147["circuits"])
     # An Akita row's step is its circuits of 2^(step rank) gates each, given as a length.
-    fig("level3_goldilocks_16_step", step_text(g165["circuits"] * 2**16))
-    fig("goldilocks_16_zk_step", step_text(g147["circuits"] * 2**16))
+    fig("level3_goldilocks_16_step", tex_step(step_text(g165["circuits"] * 2**16)))
+    fig("goldilocks_16_zk_step", tex_step(step_text(g147["circuits"] * 2**16)))
     fig(
         "level3_goldilocks_16_accumulation_x",
         sig(g165["accumulation_prover"] / g147["accumulation_prover"]),
@@ -6841,7 +6852,7 @@ def define_figures():
         ("level3_kishu", k165),
         ("level3_sha3_384_kishu", k165_sha3_384),
     ):
-        fig(f"{name}_shortest_step", step_rank_text(row))
+        fig(f"{name}_shortest_step", tex_step(step_rank_text(row)))
         fig(f"{name}_merge_digits_m", sig(row["gates"] / 1e6, 2))
     fig("level3_kishu_prover_pct", round(100 * (k165["prover"] / k147["prover"] - 1)))
     fig("level3_kishu_bytes_pct", round(100 * (k165["bytes"] / k147["bytes"] - 1)))
@@ -6877,8 +6888,8 @@ def define_figures():
         )
         for i in range(len(lattice_variants))
     ]
-    fig("level3_sha3_384_akita_step_min", step_text(min(sha3_384_steps)))
-    fig("level3_sha3_384_akita_step_max", step_text(max(sha3_384_steps)))
+    fig("level3_sha3_384_akita_step_min", tex_step(step_text(min(sha3_384_steps))))
+    fig("level3_sha3_384_akita_step_max", tex_step(step_text(max(sha3_384_steps))))
     w147 = arc_circuits("whir", "1/8", 16, DEFAULT_FLOOR, GRIND_DEFAULT, "blake3")
     w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_BLAKE3)
     fig("whir_16_blake3_circuits", fmt(w147))
@@ -7564,7 +7575,7 @@ def define_figures():
     sum_bytes, sum_mults, sum_bits = (BOOL_CHECK["sumcheck"][i] for i in (1, 3, 4))
     for f in KISHU:
         least = min(p["step_rank"] for p in points if p["family"] == f)
-        fig(f"{f}_min_step", step_label(round(2**least)))
+        fig(f"{f}_min_step", tex_step(step_label(round(2**least))))
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
     fig("kishu_vs_q64_poseidon_prover", sig(q_p["prover"] / k_p["prover"]))
@@ -7842,7 +7853,10 @@ def define_figures():
     )
     kishu_moves150 = [key for key in moves150 if key[0] in KISHU]
     fig("matrix_moves_150_kishu", len(kishu_moves150))
-    fig("matrix_moves_150_kishu_from", step_label(round(2 ** min(k[4] for k in kishu_moves150))))
+    fig(
+        "matrix_moves_150_kishu_from",
+        tex_step(step_label(round(2 ** min(k[4] for k in kishu_moves150)))),
+    )
     claim(
         "matrix_moves_150_unmasked",
         "at a 150-bit floor the only accumulation matrices to move are unmasked ones, from degree 512 to 1,024: those of the Pasta-claims rows with 64-bit commitments and of Kishu's longest steps without zero knowledge",

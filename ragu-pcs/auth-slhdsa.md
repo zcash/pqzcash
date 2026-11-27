@@ -41,11 +41,11 @@ A Zoodles transaction of two spends by SLH-DSA-SHAKE-192s and two outputs
 is <!--fig:app_zoodles_slhdsa192s_kishu-->566 million<!--/fig--> of Kishu's digits. At the frontier
 page's default floor, with zero knowledge and a BLAKE3 transcript, Kishu proves it
 in <!--fig:sigtx_slhdsa_147_s-->16.1<!--/fig--> s on one core,
-in <!--fig:sigtx_slhdsa_147_steps-->10<!--/fig--> steps of
-a step of <!--fig:sigtx_slhdsa_147_rank-->1.75 × 2^25<!--/fig--> digits. The same transaction with
-leanSPHINCS over BLAKE3 takes <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s.
-The frontier page's transaction list has the SLH-DSA transaction, marked as for illustration only,
-so that its cost can be seen under any family and floor.
+in <!--fig:sigtx_slhdsa_147_steps-->10<!--/fig--> steps of a step
+of <!--fig:sigtx_slhdsa_147_rank-->$1.75 \times 2^{25}$<!--/fig--> digits. The same transaction with
+leanSPHINCS over BLAKE3 takes <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s. The frontier
+page's transaction list has the SLH-DSA transaction, marked as for illustration only, so that its
+cost can be seen under any family and floor.
 
 ## With the proof system at NIST Level 3
 

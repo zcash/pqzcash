@@ -166,12 +166,13 @@ digits by one of two routes. The circuits that suit Kishu are the hash-heavy one
 
 A step is one committed witness of a chosen length in digits, with one evaluation claim, since the
 constraints are a sum-check over the whole table. The frontier page's rows are at lengths
-from <!--fig:bits_q64_min_step-->1.5 × 2^20<!--/fig-->
-to <!--fig:kishu_max_step-->1.875 × 2^25<!--/fig--> digits. A transaction's first step holds the
-application alone. In each later step the merge's digits take the first part, and the application's
-nodes fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing shows. Zero
-knowledge asks nothing of the circuit's writer: the scheme hides the witness, and no randomizer or
-blinding wire is needed. Not available: lookup arguments, which the study does not model.
+from <!--fig:bits_q64_min_step-->$1.5 \times 2^{20}$<!--/fig-->
+to <!--fig:kishu_max_step-->$1.875 \times 2^{25}$<!--/fig--> digits. A transaction's first step
+holds the application alone. In each later step the merge's digits take the first part, and the
+application's nodes fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing
+shows. Zero knowledge asks nothing of the circuit's writer: the scheme hides the witness, and no
+randomizer or blinding wire is needed. Not available: lookup arguments, which the study does not
+model.
 
 ## What Kishu is made of
 
