@@ -1611,9 +1611,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
     and <!--fig:compression_shipped_second_bits-->153.2<!--/fig--> bits. By Akita's estimator a chain with outputs
     of <!--fig:compression_level3_first-->2,304<!--/fig-->, <!--fig:compression_level3_second-->1,152<!--/fig-->, and 1,024 bits has at
     least <!--fig:compression_level3_min_bits-->170.7<!--/fig--> bits at every map. Its first two maps alone would give
-    an image of <!--fig:compression_level3_two_map_bytes-->144<!--/fig--> bytes, and a fourth map one
-    of <!--fig:compression_level3_four_map_bytes-->120<!--/fig--> bytes at <!--fig:compression_level3_fourth_bits-->165.4<!--/fig-->
-    bits.<!--/claim--> <!--claim:level3_compression_cells_certified:f97956-->The intermediate outputs
+    an image of <!--fig:compression_level3_two_map_bytes-->144<!--/fig--> bytes, which works but is
+    not optimal. A fourth map gives an image
+    of <!--fig:compression_level3_four_map_bytes-->120<!--/fig--> bytes which provides no
+    significant additional benefit.<!--/claim--> <!--claim:level3_compression_cells_certified:f97956-->The intermediate outputs
     are not one power-of-two ring element, so the first two maps have
     rank <!--fig:compression_level3_rank-->9<!--/fig--> over smaller power-of-two rings, of
     dimension 2 and 1 for the 128‑bit modulus. The estimator's tables at the level certify each
@@ -1626,12 +1627,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
     Kishu's claim reduction over a field $E$ in $m$ variables it is at most $(4m+1)/|E|$, with
     $m \le 31$, a numerator of at most <!--fig:level3_claim_numerator-->125<!--/fig-->
     (<span class="noteref" data-note="kishu-soundness" data-section="3">Theorem B</span>). So the
-    level needs a field of about <!--fig:level3_claim_bits_needed-->172<!--/fig--> bits, not 165.
+    level needs a field of at least <!--fig:level3_claim_bits_needed-->172<!--/fig--> bits, not 165.
     The 128‑bit field and Goldilocks's quadratic extension, each of 128 bits, give an error of
-    about $2^{-<!--fig:level3_claim_error_128-->121<!--/fig-->}$. So the 128‑bit field's claims
+    about <!--fig:level3_claim_error_128-->$2^{-121}$<!--/fig-->. So the 128‑bit field's claims
     move to its quadratic extension, of 256 bits, and the 64‑bit fields' to their cubic extension,
     of 192 bits, where the error is about
-    $2^{-<!--fig:level3_claim_error_cubic-->185<!--/fig-->}$.<!--/claim--> The errors of Akita's own
+    <!--fig:level3_claim_error_cubic-->$2^{-185}$<!--/fig-->.<!--/claim--> The errors of Akita's own
     sum-checks at the level have not been worked out here, and are taken to be of the same form.
     The sum-checks' prover is scaled by the field products of a multiplication in the larger
     field.</li>
@@ -1647,7 +1648,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     term of about $T^2/2^c$ for work $T$ and a state of $c$ bits. The level allows work $T$ a
     success probability of $T/2^{165}$, so a proof at the level needs a state
     of <!--fig:level3_state_bits_needed-->330<!--/fig--> bits. BLAKE3's chaining value is 256
-    bits, which gives a proof only up to $2^{<!--fig:level3_blake3_provable_work-->91<!--/fig-->}$
+    bits, which gives a proof only up to <!--fig:level3_blake3_provable_work-->$2^{91}$<!--/fig-->
     work. SHA3-384's capacity is 768 bits.<!--/claim--></li>
   </ul>
   <p>Nothing at the level is measured. Its rows are obtained as follows:</p>

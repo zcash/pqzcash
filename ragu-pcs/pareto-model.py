@@ -6809,8 +6809,8 @@ def define_figures():
     lost = math.log2(LEVEL3_CLAIM_NUMERATOR)
     fig("level3_claim_numerator", LEVEL3_CLAIM_NUMERATOR)
     fig("level3_claim_bits_needed", LEVEL3_FLOOR + math.ceil(lost))
-    fig("level3_claim_error_128", math.floor(128 - lost))
-    fig("level3_claim_error_cubic", math.floor(3 * Q64_BITS - lost))
+    fig("level3_claim_error_128", tex_pow2(-math.floor(128 - lost)))
+    fig("level3_claim_error_cubic", tex_pow2(-math.floor(3 * Q64_BITS - lost)))
     claim(
         "level3_claim_field_reaches_level",
         "the error of Kishu's claim reduction is below 2^-165 in the cubic extension of the 64-bit field and above it in a 128-bit field, and the level's claims are in the cubic extension for the 64-bit profiles and in the 128-bit field's quadratic extension",
@@ -6818,7 +6818,7 @@ def define_figures():
         and LEVEL3_CLAIM_BYTES == {"fp128": 32, "goldilocks": 24, "kishu": 24},
     )
     fig("level3_state_bits_needed", 2 * LEVEL3_FLOOR)
-    fig("level3_blake3_provable_work", BLAKE3_STATE_BITS - LEVEL3_FLOOR)
+    fig("level3_blake3_provable_work", tex_pow2(BLAKE3_STATE_BITS - LEVEL3_FLOOR))
     claim(
         "level3_transcript_hash_requirement",
         "a transcript hash is provable at the level with a state of twice the level's bits, which SHA3-384's capacity and digest exceed and BLAKE3's chaining value does not",
@@ -8033,6 +8033,24 @@ def model_commit_sentence():
     return f' This is commit <a href="{MODEL_COMMIT_URL}{full}"><code>{short}</code></a> of the model{state}.'
 
 
+def marker_in_math(text):
+    """The first figure marker that sits inside a math span, with a little of its context, or
+    None. A marker is an HTML comment, which a math renderer shows literally, so a figure that
+    belongs in a formula carries the whole span as its value. The page's script and code spans
+    are not prose and are left out."""
+    prose = text.split("<script>")[0]
+    prose = re.sub(r"```.*?```|`[^`\n]*`", "", prose, flags=re.S)
+    whole = MARKER.sub("\x00", prose)  # a marker and its value, as one character
+    for display in re.findall(r"\$\$.*?\$\$", whole, flags=re.S):
+        if "\x00" in display:
+            return display[:80]
+    inline = re.sub(r"\$\$.*?\$\$", "", whole, flags=re.S).replace("\\$", "")
+    for span in inline.split("$")[1::2]:
+        if "\x00" in span:
+            return span[:80].replace("\x00", "<!--fig-->")
+    return None
+
+
 def filled(text, used):
     def sub(m):
         name = m.group(1)
@@ -8041,7 +8059,10 @@ def filled(text, used):
         used.add(name)
         return f"<!--fig:{name}-->{FIGURES[name]}<!--/fig-->"
 
-    return MARKER.sub(sub, text)
+    out = MARKER.sub(sub, text)
+    if inside := marker_in_math(out):
+        raise SystemExit(f"a figure marker inside a math span: ${inside}$")
+    return out
 
 
 def claim_hash(names):
