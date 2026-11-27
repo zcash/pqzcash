@@ -6906,8 +6906,10 @@ def define_figures():
         TRANSCRIPT_SECURITY_BITS == min(FLOORS) < DEFAULT_FLOOR
         and 0 < TRANSCRIPT_SECURITY_BITS - (2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR)) < 8,
     )
-    # The grinding that Kishu's own claim reduction would need to reach that target in its
-    # 128-bit field, which the model does not charge.
+    # How far Kishu's own claim reduction, in its 128-bit field, is short of that target when
+    # counted in attempts. An attempt costs more than that many bits of work, the hash of the
+    # challenge and the check of its outcome, so no proof of work is charged (the user,
+    # 2026-11-27).
     fig(
         "kishu_claim_grind_bits",
         math.ceil(TRANSCRIPT_SECURITY_BITS - (2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR))),
