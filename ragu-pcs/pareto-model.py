@@ -1488,6 +1488,29 @@ CAPSS_BN254_SIGN_MS = 2460
 CAPSS_FIELD_FACTOR = 4
 LEANSPHINCS_GRIND = 2 ** (26 - 12)
 LEANSPHINCS_LIFETIME = 126_900
+# The pruned key by the height b of the subtree that the signer keeps, in a tree of height
+# LEANSPHINCS_TREE_HEIGHT (a lifetime of 2^30), from sphincs.art at 8157875. The full tree is b
+# equal to the height.
+#   - The signature limits proved at 127 bits: the table "Proved lifetimes" in its
+#     formal/sphincs/README.md.
+#   - Key generation in BLAKE2s compressions, which the Nano S+'s rate is in: its cost script's
+#     count, printed by scripts/leansphincs-keygen.py. It is 7% more than the 226 * 2^b +
+#     2 (h - b) hash calls that the Lean development proves, since a one-time leaf hashes its
+#     chain ends in several compressions.
+#   - A signature's grind: 2^(h - b) attempts expected, each one compression with every hash,
+#     since the randomizer is alone in the digest's last block (crates/sphincs/src/scheme.rs, at
+#     digest_midstate).
+LEANSPHINCS_TREE_HEIGHT = 26
+LEANSPHINCS_PRUNED_LIFETIME = {26: 1_381_000_000, 20: 26_030_000, 14: 480_100, 12: 126_900}
+LEANSPHINCS_KEYGEN_COMPRESSIONS = {
+    26: 16_240_345_088,
+    20: 253_755_404,
+    14: 3_964_952,
+    12: 991_260,
+}
+LEANSPHINCS_SECURITY_BITS = 127
+
+
 LEANSPHINCS_LAYERED_VERIFY = {"keccak": 408, "blake2s": 462}
 LEANSPHINCS_LAYERED_SIG_BYTES = 6332
 LEANSPHINCS_ETHEREUM_PERMS = 515
@@ -5458,6 +5481,23 @@ def auto(v, n):
     return n or (3 if v >= 100 else 2)
 
 
+def duration(seconds):
+    """A time in the unit that reads best: seconds, minutes, hours, or days."""
+    for unit, size in (("days", 86400), ("hours", 3600), ("minutes", 60)):
+        if seconds >= 2 * size:
+            return f"{sig(seconds / size)}\u00a0{unit}"
+    return f"{sig(seconds)}\u00a0s"
+
+
+def large_count(x):
+    """A count in full below a million, and above it to three figures in millions or billions."""
+    if x < 1e6:
+        return fmt(x)
+    if x < 1e9:
+        return f"{sig(x / 1e6, 3)}\u00a0million"
+    return f"{sig(x / 1e9, 3)}\u00a0billion"
+
+
 def kb(x, n=None):
     """Bytes in units of 1000, written kbytes, since KB is read as either 1000 or 1024 bytes."""
     return sig(x / 1000, auto(x / 1000, n)) + "\u00a0kbytes"
@@ -5787,6 +5827,26 @@ def define_figures():
     fig("hiding_padding_attack_bits_level3", sig(HIDING_PADDING_SWEEP_2048[level_padding], 4))
     fig("hiding_padding_attack_bits_2048", round(HIDING_PADDING_ATTACK_BITS[2048]))
     fig("hiding_padding_least_bytes_level3", HIDING_PADDING_LEAST_BITS[LEVEL3_FLOOR] // 8)
+    # The table of the three paddings in the hardware-wallets note.
+    for f, rows in HIDING_PADDING_SWEEP_ROWS.items():
+        fig(f"hiding_padding_table_rows_{f}", fmt(rows))
+        fig(
+            f"hiding_padding_table_padding_{f}",
+            f"{fmt(HIDING_PADDING_BITS[f])}\u00a0bits<br>({HIDING_PADDING_BITS[f] // 8}\u00a0bytes)",
+        )
+        fig(
+            f"hiding_padding_table_attack_{f}",
+            f"$2^{{{HIDING_PADDING_SWEEPS[rows][HIDING_PADDING_BITS[f]]:.1f}}}$",
+        )
+        # The handoff at the floor: the masked response for the floor's vector, at the width
+        # that the floor's fold challenge gives.
+        f_digits, f_log_l2 = device_vector(f)[:2]
+        f_z_bits = math.ceil(
+            math.log2(MASK_TAIL) + math.log2(MASK_ALPHA) + math.log2(challenge_l1(f)) + f_log_l2
+        )
+        if f == DEFAULT_FLOOR:
+            assert f_digits * f_z_bits / 8 == z_bytes
+        fig(f"hiding_padding_table_handoff_{f}", kb(f_digits * f_z_bits / 8, 3))
     claim(
         "hiding_padding_secure",
         "the device's matrix has its floor's sweep's rows, 1,024 at the two floors and 2,048 at the 165-bit level; each floor's padding is a whole number of bytes whose cheapest attack reaches the floor, the least such on the grid at the two floors, the grid's previous point falling short, and one byte above the least at the level; at the note's 1,385 rows 5,000 bits reach the 128-bit floor alone, and at 2,048 rows not even that",
@@ -5876,6 +5936,35 @@ def define_figures():
     fig("leansphincs_lifetime", fmt(LEANSPHINCS_LIFETIME))
     fig("leansphincs_grind_keccak_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["keccak"]))
     fig("leansphincs_grind_blake2s_s", sig(LEANSPHINCS_GRIND / LEDGER_HASH_PER_S["blake2s"]))
+    # The table of the pruned key's choices in the hardware-wallets note.
+    fig("leansphincs_security_bits", LEANSPHINCS_SECURITY_BITS)
+    fig("leansphincs_tree_height", LEANSPHINCS_TREE_HEIGHT)
+    fig("leansphincs_table_sig", f"{fmt(LEANSPHINCS_SIG_BYTES)}\u00a0bytes")
+    for b, lifetime in LEANSPHINCS_PRUNED_LIFETIME.items():
+        grind = 2 ** (LEANSPHINCS_TREE_HEIGHT - b)
+        fig(f"leansphincs_b{b}_lifetime", large_count(lifetime))
+        keygen = LEANSPHINCS_KEYGEN_COMPRESSIONS[b]
+        fig(
+            f"leansphincs_b{b}_keygen",
+            f"{large_count(keygen)}\u00a0compressions<br>({duration(keygen / LEDGER_HASH_PER_S['blake2s'])})",
+        )
+        fig(
+            f"leansphincs_b{b}_grind",
+            f"{fmt(grind)}\u00a0compressions<br>({sig(grind / LEDGER_HASH_PER_S['blake2s'])}\u00a0s)"
+            if grind > 1
+            else "none",
+        )
+    claim(
+        "leansphincs_pruning_table",
+        "the pruned key's grind and proved lifetime that the page prices are the table's row for a kept subtree of height 12, and a taller kept subtree has a longer proved lifetime, a longer key generation, and a shorter grind",
+        LEANSPHINCS_GRIND == 2 ** (LEANSPHINCS_TREE_HEIGHT - 12)
+        and LEANSPHINCS_PRUNED_LIFETIME[12] == LEANSPHINCS_LIFETIME
+        and all(
+            LEANSPHINCS_PRUNED_LIFETIME[a] > LEANSPHINCS_PRUNED_LIFETIME[b]
+            and LEANSPHINCS_KEYGEN_COMPRESSIONS[a] > LEANSPHINCS_KEYGEN_COMPRESSIONS[b]
+            for a, b in zip((26, 20, 14), (20, 14, 12))
+        ),
+    )
 
     # Zoodles: its tree's nodes, hashes, roots and openings; its transaction in Kishu's digits
     # and the families' transaction provers, by spend authorization and for the Merkle-path

@@ -210,6 +210,11 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   `2048 6050 6200 50` and `2048 6120 6144 8` around the crossing, a few minutes in all
   (`HIDING_PADDING_SWEEP_2048`).
 
+- **The pruned leanSPHINCS key** (`LEANSPHINCS_PRUNED_LIFETIME`, `LEANSPHINCS_KEYGEN_COMPRESSIONS`):
+  the proved signature limits are the table "Proved lifetimes" in sphincs.art's
+  `formal/sphincs/README.md`, and key generation in compressions is its cost script's count:
+  [`scripts/leansphincs-keygen.py`](../../../ragu-pcs/scripts/leansphincs-keygen.py), run as
+  `python scripts/leansphincs-keygen.py SPHINCS_ART_CHECKOUT`, with the checkout at 8157875.
 - **Typed from the paper and the notes**: the verifier times (`AKITA_VERIFY_MS`, Table 16), the
   terminal's inner-image coordinates (`IMAGE_COORDS`, pasta-proof-size.md §6.1), and the mask's
   parameters (`MASK_*`, the zero-knowledge note's §5).

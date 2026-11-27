@@ -112,6 +112,16 @@ figure.<!--/claim--> The statistical padding would
 be <!--fig:hiding_padding_statistical_kbits-->66<!--/fig--> thousand
 bits, <!--fig:hiding_padding_statistical_over_statement-->5.8<!--/fig--> times the statement.
 
+The paddings at the three floors: the wallet's matrix's rows, the padding, the work of the cheapest
+attack on it under the quantum cost model, and the handoff that results, the wallet's masked
+response:
+
+| Floor | Matrix rows | Padding | Cheapest attack | Handoff |
+|---|---|---|---|---|
+| 128 bits | <!--fig:hiding_padding_table_rows_128-->1,024<!--/fig--> | <!--fig:hiding_padding_table_padding_128-->4,400 bits<br>(550 bytes)<!--/fig--> | <!--fig:hiding_padding_table_attack_128-->$2^{128.3}$<!--/fig--> | <!--fig:hiding_padding_table_handoff_128-->50.1 kbytes<!--/fig--> |
+| 147 bits, the default | <!--fig:hiding_padding_table_rows_147-->1,024<!--/fig--> | <!--fig:hiding_padding_table_padding_147-->4,800 bits<br>(600 bytes)<!--/fig--> | <!--fig:hiding_padding_table_attack_147-->$2^{148.9}$<!--/fig--> | <!--fig:hiding_padding_table_handoff_147-->54.6 kbytes<!--/fig--> |
+| 165 bits | <!--fig:hiding_padding_table_rows_165-->2,048<!--/fig--> | <!--fig:hiding_padding_table_padding_165-->6,144 bits<br>(768 bytes)<!--/fig--> | <!--fig:hiding_padding_table_attack_165-->$2^{165.9}$<!--/fig--> | <!--fig:hiding_padding_table_handoff_165-->54.9 kbytes<!--/fig--> |
+
 So the wallet
 commits <!--fig:qk_device_digits-->19,840<!--/fig--> digits. <!--claim:qk_device_share_small:35dfe3-->That
 is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4
@@ -147,7 +157,9 @@ fragment, <!--fig:qk_qr_max_s-->5.2<!--/fig--> s. Whether a camera reads the de
 depends on the screen, the light, and the camera, and gets worse toward the ceiling. So the transfer
 is slow at today's settings and within reach with denser codes on some devices. The device's memory
 is the other constraint: it holds the mask, about <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig-->,
-over which the response is written in place, beside the witness. The response cannot be made much
+over which the response is written in place, beside the witness.
+
+The response cannot be made much
 smaller, and the reason is not an encoding choice. <!--claim:qk_qr_channel_too_big:94cc38-->The
 accepted $z$ is a Gaussian of width $\sigma$ on every coordinate of the leaf, about
 $\log_2(\sigma\sqrt{2\pi e})$ bits of information each. It is secret-dependent, so it cannot be
@@ -177,6 +189,22 @@ to BLAKE2s's ten, was not in the benchmark and should be no slower. The grind is
 keyed, and the key cannot leave the wallet without revealing which leaves it kept. A full tree can
 take the host's help instead. The wallet produces the leaf hashes at key generation, the host builds
 and stores the tree and supplies the authentication paths, and signing then has no grind.
+
+How much of the tree the signer keeps is a choice. <!--claim:leansphincs_pruning_table:da04e8-->The
+kept subtree's height sets the trade between the key's proved lifetime, its generation, and the
+grind.<!--/claim--> For a tree of height <!--fig:leansphincs_tree_height-->26<!--/fig-->, with the
+lifetimes proved at <!--fig:leansphincs_security_bits-->127<!--/fig--> bits and the times on a Nano
+S+ with BLAKE2s:
+
+| Kept subtree's height | Signatures proved safe | Key generation | Grinding cost per signature |
+|---|---|---|---|
+| 12, as priced here | <!--fig:leansphincs_b12_lifetime-->126,900<!--/fig--> | <!--fig:leansphincs_b12_keygen-->991,260 compressions<br>(30 s)<!--/fig--> | <!--fig:leansphincs_b12_grind-->16,384 compressions<br>(0.50 s)<!--/fig--> |
+| 14 | <!--fig:leansphincs_b14_lifetime-->480,100<!--/fig--> | <!--fig:leansphincs_b14_keygen-->3.96 million compressions<br>(2.0 minutes)<!--/fig--> | <!--fig:leansphincs_b14_grind-->4,096 compressions<br>(0.13 s)<!--/fig--> |
+| 20 | <!--fig:leansphincs_b20_lifetime-->26.0 million<!--/fig--> | <!--fig:leansphincs_b20_keygen-->254 million compressions<br>(2.2 hours)<!--/fig--> | <!--fig:leansphincs_b20_grind-->64 compressions<br>(0.0020 s)<!--/fig--> |
+| 26, the full tree | <!--fig:leansphincs_b26_lifetime-->1.38 billion<!--/fig--> | <!--fig:leansphincs_b26_keygen-->16.2 billion compressions<br>(5.8 days)<!--/fig--> | <!--fig:leansphincs_b26_grind-->none<!--/fig--> |
+
+The signature is the same size, <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes, in every
+row: the verifier cannot tell a pruned key from a full one.
 
 leanSPHINCS is stateless and deterministic, which matters when every member's wallet holds the same
 seed: a stateful scheme's index would be reused across wallets, and the deterministic randomizer
