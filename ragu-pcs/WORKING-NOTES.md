@@ -5646,3 +5646,49 @@ Two security points from the user, on the Spend Authorization page and NOT coste
 
 The frontier page's sentence that the SLH-DSA transaction's two spends are "each authorized by"
 a signature became "authorized by one signature", since the fact changed.
+
+## 2026-11-27, 21:00 UTC: state at the end of the session
+
+Branch `security-192`, tree clean, thirty commits LOCAL past the pushed head (PR #9's
+head is 3a47d3f). PR #9's description covers none of them and still calls the level
+"illustrative"; rewrite it once the user pushes. The book builds and its links check at the tip,
+except that the last commit (a heading) was not built.
+
+Since the entry on one authorization for each spending key:
+
+- The Spend Authorization page has subsections "Choice of methods" and "Signing multiple inputs
+  at once", the second with the user's sentence that the coverage check and the reuse of a node
+  are not costed "because the cost is likely to be negligible".
+- Kishu's arithmetization has zero-based alphabets (the user: Akita's balanced alphabets were an
+  implementation detail leaking in). A subsection, "Committing the witness using Akita", shows
+  that the shift w = w' + o leaves a constraint of the same form, with c'_j = c_j + (A_j o)^T B_j
+  + (B_j o)^T A_j and a constant that is a multiple of the constant bit. Kishu's soundness note
+  still states Lemma B3 over the balanced digits; it could point to that subsection.
+- Spelling: "analyse" keeps its s in Oxford spelling; the -ize endings do not extend to it.
+
+OPEN, in the order they came up:
+
+1. **The page's controls** (to discuss with the user, who wants to think about it). The lattice
+   floor and the transcript level are separate choices: for Kishu the lattice floor from 147 to
+   165 bits costs 6% of proof and nothing in a zero-knowledge prover, and the claim field from
+   128 to 192 bits costs 5% to 38% of a transaction. The level bundles them. Separate controls
+   for lattice-based and hash-based security were already intended, and the design has to fit.
+2. **The level's transcript target**: 165 as the user ruled, or what ML-KEM-768's own
+   decryption-failure term supports, 162.8 bits, which its authors say need not follow the level.
+   Either needs the cubic claim field, which gives about 185.
+3. **A re-plan at 170 bits**, which the three-map chain allows; noted on the page, not done.
+4. **Akita's own sum-check errors at the level**, taken to be of the same form as Kishu's.
+5. **The preimage authorization as a signature of knowledge**: tying the transcript to the
+   transaction's digest is taken as free and is not in the model.
+6. **Akita's rows are still a rank and a circuit count**; only the level's section presents
+   their steps as lengths. The user regards the conclusion (step rank is only a logarithmic
+   measure of length) as settled for every family.
+7. From before: sentences that the "a step of N digits" pattern left odd; the user's look at
+   the page in a browser; a fixed-step-length measure with online and offline parts separate;
+   the Kishu page's overstatement of the projection Booleanity check; the commit-comparison view.
+
+Unpushed work in other checkouts: the Akita worktree `work/akita-src-165` (branch `level3-165`)
+holds the level's plan at 66eb9dd, and the branch `level3-165-first-draft` in that clone is a
+superseded draft for the user to delete. The Akita test fixes owed are in the entry of 04:40.
+Probes from today are under `work/` (`field-probe.py`, `field-variants-probe.py`,
+`lattice165-probe.py`, `transcript-target-sweep.sh`, `pad-probe.py`).
