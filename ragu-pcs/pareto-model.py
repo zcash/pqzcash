@@ -6881,6 +6881,14 @@ def define_figures():
         )
         < 1,
     )
+    chain_floor = math.floor(min(bits for _, _, bits in LEVEL3_COMPRESSION_CHAIN))
+    fig("compression_level3_floor", chain_floor)
+    claim(
+        "level3_chain_allows_170",
+        "the three-map chain allows a floor five bits above the 165-bit level's, as the shipped chain allows the 147-bit floor and no more",
+        chain_floor == LEVEL3_FLOOR + 5
+        and math.floor(min(bits for _, _, bits in SHIPPED_COMPRESSION_CHAIN)) == DEFAULT_FLOOR,
+    )
     spare = [100 * (width / needed - 1) for _, _, width, needed in LEVEL3_COMPRESSION_CELLS]
     fig("compression_level3_spare_min_pct", math.floor(min(spare)))
     fig("compression_level3_spare_max_pct", math.floor(max(spare)))
