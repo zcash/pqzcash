@@ -61,10 +61,10 @@ and a small merge of the handoff's own: the challenge derivation, the commitment
 claim fold. The decomposition and the range and norm proofs are deferred to the host (the zk note's
 [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a one-compression leaf the
 host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
-measure's <!--fig:tx_qk_kishu_zk_s-->0.0269<!--/fig--> s at
-rank <!--fig:tx_qk_kishu_zk_rank-->16<!--/fig-->
-is <!--fig:tx_qk_kishu_zk_merges_pct-->88<!--/fig--> percent merge
-and <!--fig:tx_qk_kishu_zk_fold_pct-->12<!--/fig--> percent fold, and the circuit itself is a few
+measure's <!--fig:tx_qk_kishu_zk_s-->0.0247<!--/fig--> s in a step
+of <!--fig:tx_qk_kishu_zk_rank-->1.875 × 2^19<!--/fig--> digits
+is <!--fig:tx_qk_kishu_zk_merges_pct-->93<!--/fig--> percent merge
+and <!--fig:tx_qk_kishu_zk_fold_pct-->9<!--/fig--> percent fold, and the circuit itself is a few
 percent.<!--/claim-->
 
 The wallet need not prove that fold. The zk note's
@@ -103,16 +103,16 @@ be <!--fig:hiding_padding_statistical_kbits-->66<!--/fig--> thousand
 bits, <!--fig:hiding_padding_statistical_over_statement-->5.8<!--/fig--> times the statement.
 
 So the wallet commits <!--fig:qk_device_digits-->19,840<!--/fig-->
-digits. <!--claim:qk_device_share_small:57d8a6-->That
-is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4 core, under a tenth of
-the handoff fold that the measure charges the user,<!--/claim-->
-with <!--fig:qk_device_idle_ms-->0.280<!--/fig--> ms in idle time, and a response
-of <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig--> at <!--fig:qk_device_z_bits-->22<!--/fig-->
-bits a coordinate. The device rates are assumptions, scaled from the hash rates that
-[\[Wam26\]](#ref-wam26)'s hardware-wallet benchmark measured on a Ledger Nano
-S+: <!--fig:device_mcu_rate-->10 million<!--/fig--> word multiplications a second for an MCU-class
-device and <!--fig:device_se_rate-->3 million<!--/fig--> for a secure element. At those rates the
-computation takes <!--fig:qk_device_mcu_s-->0.067<!--/fig-->
+digits. <!--claim:qk_device_share_small:35dfe3-->That
+is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4
+core, <!--fig:qk_device_share_pct-->10<!--/fig--> percent of the handoff fold that the measure
+charges the user,<!--/claim--> with <!--fig:qk_device_idle_ms-->0.280<!--/fig--> ms in idle time,
+and a response of <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig-->
+at <!--fig:qk_device_z_bits-->22<!--/fig--> bits a coordinate. The device rates are assumptions,
+scaled from the hash rates that [\[Wam26\]](#ref-wam26)'s hardware-wallet benchmark measured on a
+Ledger Nano S+: <!--fig:device_mcu_rate-->10 million<!--/fig--> word multiplications a second for an
+MCU-class device and <!--fig:device_se_rate-->3 million<!--/fig--> for a secure element. At those
+rates the computation takes <!--fig:qk_device_mcu_s-->0.067<!--/fig-->
 and <!--fig:qk_device_secure_element_s-->0.22<!--/fig--> s. The transfer of $z$ at that device's
 measured <!--fig:device_link_kbytes_s-->21<!--/fig--> kbytes a second over USB
 takes <!--fig:qk_device_link_s-->2.6<!--/fig--> s,

@@ -4291,40 +4291,23 @@ def fingerprint_step_extra_digits(log_len, hp):
 # A Kishu step keeps at least this many circuits of 2^rank digits for the application beside
 # its merge, so that the rank sets the step's capacity for the application as it does for the
 # other families, and the merge's slack adds to it.
-STEP_HEADROOM = 1.0
+# The step lengths offered, in digits: eight to each doubling, those at which the application's
+# room, the step less its merge and its own transcript's digits, is a share of the step within
+# KISHU_APPLICATION_SHARE. The transaction measure takes the least work over them.
+KISHU_STEP_MULTIPLES = tuple(1 + k / 8 for k in range(8))
+KISHU_STEP_LENGTHS = tuple(round(k * 2**r) for r in range(19, 26) for k in KISHU_STEP_MULTIPLES)
+KISHU_APPLICATION_SHARE = (1 / 16, 1)
+# A bare leaf, handed over without a fuse, is a step with no merge in it: the application's
+# digits alone. Its length is taken as the least power of two that holds the hardware wallet's
+# statement, the one application handed over so (LEAF_HANDOFF; define_figures checks the fit).
+KISHU_LEAF_DIGITS = 2**15
 
 
-def merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """The merge's digits for one more circuit in the step: its claim and the claim's
-    absorption (circuit_slope)."""
-    return circuit_slope(
-        lambda c: frontend_merge_digits(K, c, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
-    )
-
-
-def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    """The circuits of 2^rank digits a Kishu step is: the merge's digits, the step's own
-    transcript digits in the merge above, and at least STEP_HEADROOM of a circuit for the
-    application's nodes, which fill the rest (kishu_costs), at the fixed point, since the
-    merge's digits grow with the circuits' claims; None where each circuit's claim costs more
-    digits than the circuit holds, as for the lattice rows under BLAKE3."""
-    per_circuit = merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
-    if per_circuit >= 2**rank:
-        return None
-    circuits = 1
-    for _ in range(200):
-        fixed = kishu_step_overhead_digits(rank + math.log2(circuits), hp) + STEP_HEADROOM * 2**rank
-        new = math.ceil(
-            (
-                frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
-                + fixed
-            )
-            / 2**rank
-        )
-        if new == circuits:
-            return circuits
-        circuits = new
-    return circuits
+def step_label(length):
+    """A step's length as a multiple of a power of two, as the rows' labels write it."""
+    r = math.floor(math.log2(length))
+    k = length / 2**r
+    return f"2^{r}" if k == 1 else f"{k:g} × 2^{r}"
 
 
 def handoff_merge_digits(K, circuits, hp):
@@ -4395,13 +4378,14 @@ def kishu_costs(
     )
     # A bare leaf's mask has the leaf's own σ and bound.
     leaf_masked_digit = (
-        ajtai_per_coefficient("pasta_q64", True, floor, alpha, rank, bits) / DIGITS["pasta_q64"]
+        ajtai_per_coefficient("pasta_q64", True, floor, alpha, math.log2(KISHU_LEAF_DIGITS), bits)
+        / DIGITS["pasta_q64"]
     )
     per_step_digit = per_digit + bool_per_bit
     step_log = rank + math.log2(circuits)  # the whole step's length, for its own transcript
     overhead = kishu_step_overhead_digits(step_log, hp)
     capacity = math.floor(circuits * 2**rank - digits - overhead)
-    assert capacity >= STEP_HEADROOM * 2**rank, (rank, circuits, digits, overhead)
+    assert capacity > 0, (rank, circuits, digits, overhead)
     route_extra = fingerprint_step_extra_digits(step_log, hp) if route == "fingerprint" else 0
     commitments = (digits + overhead) * per_step_digit
     attempts = mask_attempts(alpha) if zk else 0
@@ -4418,6 +4402,15 @@ def kishu_costs(
     fields = dict(
         prover=round(commitments),
         accumulation_prover=round(commitments + merge_piop + acc_rate * accumulator),
+        # The same with the fold's sum-checks over the merge's own digits alone, for a step
+        # whose application pays for the digits it uses (tx_work), and the rate a digit.
+        accumulation_own=round(commitments + merge_piop + acc_rate * (accumulator - capacity)),
+        sumcheck_rate=acc_rate,
+        # A step with no merge in it, a leaf, has the merge's digits as room too.
+        leaf_units=math.floor(capacity + digits),
+        leaf_units_mults=(
+            math.floor(capacity + digits - route_extra) if capacity + digits > route_extra else None
+        ),
         step_prover=round(capacity * per_step_digit),
         unit_cost=per_step_digit,
         step_units=capacity,
@@ -4428,7 +4421,9 @@ def kishu_costs(
             else 0
         ),
         fold=round(sum(parts.values())),
-        fold_leaf=round(attempts * 2**rank * (sample + leaf_masked_digit) + parts["merge"]),
+        fold_leaf=round(
+            attempts * KISHU_LEAF_DIGITS * (sample + leaf_masked_digit) + parts["merge"]
+        ),
         gates=round(digits),
     )
     return fields, parts
@@ -4442,10 +4437,19 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
         if hp not in floor_policies(floor):
             continue
         for zk in (False,) if check == "projection" else (False, True):
-            for rank in FRONTEND_RANKS:
-                circuits = frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
-                if circuits is None:
-                    continue  # the per-circuit claim's digits exceed this rank's circuit
+            for length in KISHU_STEP_LENGTHS:
+                # A Kishu step is one committed witness of `length` digits with one evaluation
+                # claim: its constraints are a sum-check over the whole table, which ends in
+                # one claim. So the step's rank is the logarithm of its length, whole or not,
+                # and what the model's shared functions call its circuits is one.
+                rank, circuits = math.log2(length), 1
+                room = (
+                    length
+                    - frontend_merge_digits(K, 1, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
+                    - kishu_step_overhead_digits(rank, hp)
+                )
+                if not KISHU_APPLICATION_SHARE[0] <= room / length <= KISHU_APPLICATION_SHARE[1]:
+                    continue  # the application's share of the step is outside the range
                 atoms = akita_atoms("kishu", K, circuits, zk)
                 # Kishu's claims are at the 64-bit profile in a small extension, as the Goldilocks
                 # variant's are, so its opening and decider follow that variant's plan and
@@ -4499,7 +4503,7 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                             )
                             + round(bool_verify_ms * WORD_MULTS_PER_MS),
                             folded=K,
-                            label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''} of 2^{rank} digits, {fields['gates'] / 1e6:.1f}M digits, {K} groups, Booleanity by {check}, multiplication by {route}"
+                            label=f"step of {step_label(length)} digits, {fields['gates'] / 1e6:.1f}M of them the merge, {K} groups, Booleanity by {check}, multiplication by {route}"
                             + HASH_LABEL[hp]
                             + (", ZK" if zk else "")
                             + floor_label(floor),
@@ -5003,14 +5007,16 @@ def app_units(p, app, policy):
     return APPLICATIONS[app][p["arith"]][application_policy(p["hashes"], policy)]
 
 
-def pack_nodes(nodes, cap, own):
+def pack_nodes(nodes, cap, own, leaf_extra=0):
     """The page's packNodes: a proof tree's nodes into steps of capacity `cap`, a node larger
     than a step taking whole steps and its remainder joining the rest, which fill steps
     first-fit decreasing; the tree's last `own` nodes, a Tachyon tree's rerandomization
-    fuses, are steps of their own."""
-    steps, items = own, []
+    fuses, are steps of their own. One of the packed steps is the tree's first, a leaf, which
+    holds no merge and so has `leaf_extra` more room: where that takes the emptiest step's
+    content as well, there is a step fewer. Returns (steps, packed steps)."""
+    whole, items = 0, []
     for node in nodes[:-own] if own else nodes:
-        steps += node // cap
+        whole += node // cap
         if node % cap:
             items.append(node % cap)
     bins = []
@@ -5021,7 +5027,10 @@ def pack_nodes(nodes, cap, own):
                 break
         else:
             bins.append(item)
-    return steps + len(bins)
+    packed = whole + len(bins)
+    if packed >= 2 and bins and min(bins) <= leaf_extra:
+        packed -= 1
+    return own + packed, packed
 
 
 def step_capacity(p, app):
@@ -5037,13 +5046,30 @@ def tx_steps(p, app, policy, count=1):
     """The page's txStepsFor (pareto-template.html): the application's units in as many steps
     as the row's step holds, rounded up, a proof tree packed by pack_nodes; infinite where the
     row's step has no capacity for the application."""
+    return tx_packing(p, app, policy, count)[0]
+
+
+def leaf_extra(p, app):
+    """The room a step with no merge has beyond a step with one: the merge's digits, for a row
+    whose step shares its room between the two (Kishu), and none otherwise or for an
+    application whose leaf is made elsewhere (LEAF_HANDOFF)."""
+    if "leaf_units" not in p or app in LEAF_HANDOFF:
+        return 0
+    return p["leaf_units"] - p["step_units"]
+
+
+def tx_packing(p, app, policy, count=1):
+    """(steps, packed steps) of the application on the row: the steps in all, and those of
+    them that hold the application's units, the rest being steps of their own."""
     units = app_units(p, app, policy)
     cap = step_capacity(p, app)
     if cap is None:
-        return math.inf
+        return math.inf, math.inf
+    extra = leaf_extra(p, app)
     if not isinstance(units, list):
-        return math.ceil(units * count / cap)
-    return pack_nodes(units, cap, OWN_LAST_STEPS.get(app, 0))
+        packed = max(1, math.ceil((units * count - extra) / cap))
+        return packed, packed
+    return pack_nodes(units, cap, OWN_LAST_STEPS.get(app, 0), extra)
 
 
 def app_fold(p, app):
@@ -5058,11 +5084,22 @@ def tx_work(p, app, policy, count=1):
     application share) or else at the per-step cost of as many steps; the fingerprint route's
     per-step cost on an application with multiplications; the masking fold; and Kishu's
     application PIOP."""
-    steps = tx_steps(p, app, policy, count)
+    steps, packed = tx_packing(p, app, policy, count)
+    if steps == math.inf:
+        return math.inf  # the row's step has no room for the application
     if p.get("unit_cost") is not None:
         units = app_units(p, app, policy)
         total = sum(units) if isinstance(units, list) else units * count
-        base = total * p["unit_cost"] + steps * p["accumulation_prover"]
+        # A transaction's first step has no children and holds no merge, unless its leaf is
+        # made elsewhere and the row's step is the merge that takes it in (LEAF_HANDOFF). A
+        # merge's sum-checks run over the accumulator's digits in use, the prover skipping
+        # the zeros it knows of: the merge's own, and the application's, which are all of
+        # the transaction's where one step holds it and a full step's room otherwise.
+        merges = steps if app in LEAF_HANDOFF else steps - 1
+        in_use = total if packed == 1 else step_capacity(p, app)
+        base = total * p["unit_cost"] + merges * (
+            p["accumulation_own"] + p["sumcheck_rate"] * in_use
+        )
     else:
         base = steps * (p["step_prover"] + p["accumulation_prover"])
     return (
@@ -5117,17 +5154,31 @@ def best_for(family, app, policy="blake3", count=1, **kw):
 KISHU = ("bits_q64", "bits_q64_poseidon")  # Kishu's two hash variants, a family each on the page
 
 
+def rank_text(p):
+    """A row's rank as the figures write it: a Kishu step's length in digits, which need not be
+    a power of two, and the whole rank otherwise."""
+    return step_label(round(2 ** p["rank"])) if p["family"] in KISHU else p["rank"]
+
+
 def kishu_best(app, **kw):
     """Kishu's least-transaction row over both variants under the arithmetic-hash option."""
-    return min((best_for(f, app, "poseidon", **kw) for f in KISHU), key=lambda pw: pw[1])
+    rows = {k: v for k, v in kw.items() if k != "count"}
+    return min(
+        (best_for(f, app, "poseidon", **kw) for f in KISHU if shown(f, "poseidon", **rows)),
+        key=lambda pw: pw[1],
+    )
 
 
 def kishu_zk_costs(p, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS):
     """A Kishu zero-knowledge row's costs and fold parts at another Gaussian width or sampler
-    cost: the row's circuits stay, since the zk-layer merge's extra atoms depend only on the
-    rounded log of the mask's length, which is 3 for 6 to 11 slices a coordinate."""
+    cost: the row's merge stays, since the zk-layer merge's extra atoms depend only on the
+    rounded log of the mask's length, which is 3 for 6 to 11 slices a coordinate. None where
+    the width and the step's length together take the mask past that, at the widest masks on
+    the longest steps: the merge would grow there, and the sweep leaves the row out."""
     log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
-    mask_sumcheck_atoms(mask_length(alpha, log_n=log_n, digit_max=DIGIT_MAX["kishu"]))
+    slices = mask_length(alpha, log_n=log_n, digit_max=DIGIT_MAX["kishu"])
+    if round(math.log2(slices)) != MASK_SUMCHECK_ATOMS // 6:
+        return None
     return kishu_costs(
         p["groups"],
         p["circuits"],
@@ -5149,7 +5200,10 @@ def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1)
     best = None
     for f in KISHU:
         for p in shown(f, "poseidon", zk=True):
-            q = dict(p, **kishu_zk_costs(p, alpha, sample)[0])
+            costs = kishu_zk_costs(p, alpha, sample)
+            if costs is None:
+                continue
+            q = dict(p, **costs[0])
             w = tx_work(q, app, "poseidon", count)
             if best is None or w < best[1]:
                 best = (q, w)
@@ -5470,7 +5524,7 @@ def define_figures():
     for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak", "leansphincs_blake3"):
         p, w = kishu_best(app, zk=True)
         fig(f"tx_{app}_kishu_zk_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        fig(f"tx_{app}_kishu_zk_rank", rank_text(p))
         if app == "qk":
             merges = tx_steps(p, app, "poseidon") * p["accumulation_prover"]
             fig("tx_qk_kishu_zk_merges_pct", round(100 * merges / w))
@@ -5588,10 +5642,11 @@ def define_figures():
     fig("device_link_kbytes_s", round(DEVICE_LINK_BYTES_PER_S["measured"] / 1000))
     fig("qk_device_link_s", sig(z_bytes / DEVICE_LINK_BYTES_PER_S["measured"]))
     fig("qk_device_link_pipelined_s", sig(z_bytes / DEVICE_LINK_BYTES_PER_S["pipelined"]))
+    fig("qk_device_share_pct", round(100 * device_online / qk_fold))
     claim(
         "qk_device_share_small",
-        "with the host proving the handoff, the wallet's online work for the device statement is under a tenth of the handoff fold the measure charges the user",
-        device_online < qk_fold / 10,
+        "with the host proving the handoff, the wallet's online work for the device statement is under a fifth of the handoff fold the measure charges the user",
+        device_online < qk_fold / 5,
     )
 
     # For the hardware wallets page: the response's information-content floor (the leaf alone,
@@ -5678,7 +5733,7 @@ def define_figures():
         if not full:
             continue
         fig(f"tx_{app}_kishu_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", p["rank"])
+        fig(f"tx_{app}_kishu_zk_rank", rank_text(p))
         fig(f"tx_{app}_kishu_zk_steps", tx_steps(p, app, "blake3"))
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app, floor=128)
@@ -5764,7 +5819,7 @@ def define_figures():
     action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
     # Actions in a step beside its merge and the fee node, at the zero-knowledge limb row's
     # capacity for the application at each rank.
-    for rank in (17, 19, 21):
+    for rank in (21, 22, 23):
         row = pick("bits_q64", rank=rank, zk=True, route="limbs", floor=DEFAULT_FLOOR)
         fig(
             f"zoodles_actions_per_step_{rank}",
@@ -5800,7 +5855,7 @@ def define_figures():
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))
-    fig("tx_zoodles_epoch_kishu_rank", p["rank"])
+    fig("tx_zoodles_epoch_kishu_rank", rank_text(p))
     lineage_rank = p["rank"]
     p, w = best_for("bitz", "zoodles_epoch")
     fig("tx_zoodles_epoch_bitz_s", secs(w))
@@ -5810,13 +5865,21 @@ def define_figures():
     fig("tx_zoodles_epoch_goldilocks_s", secs(w))
     p, w = best_for("pedersen", "zoodles_epoch", "poseidon", floor=128)
     fig("tx_zoodles_epoch_pedersen_s", secs(w))
+    # The lineage step's length is set apart from the spend's. What sharing one would cost:
+    # the spend at the lineage step's best length, or at the shortest zero-knowledge step
+    # where that length has no zero-knowledge row, against the spend's own least.
     spend, spend_w = kishu_best("zoodles_preimage", zk=True)
-    p, w = kishu_best("zoodles_preimage", zk=True, rank=lineage_rank)
+    zk_lengths = sorted({p["rank"] for f in KISHU for p in shown(f, "poseidon", zk=True)})
+    shared_rank = min((r for r in zk_lengths if r >= lineage_rank), default=zk_lengths[-1])
+    p, w = kishu_best("zoodles_preimage", zk=True, rank=shared_rank)
     fig("tx_zoodles_preimage_kishu_zk_lineage_rank_s", secs(w))
+    fig("zoodles_shared_step", rank_text(p))
+    fig("zoodles_spend_own_step", rank_text(spend))
+    fig("zoodles_spend_at_lineage_step_factor", sig(w / spend_w, 2))
     claim(
-        "zoodles_lineage_rank_is_spends",
-        "the lineage step's best Kishu rank is the zero-knowledge spend's own, so the spend at the lineage's rank costs its least",
-        lineage_rank == spend["rank"] and w == spend_w,
+        "zoodles_lineage_own_length",
+        "the lineage step's best length is longer than the zero-knowledge spend's own, and at it the spend costs more than twice its least",
+        lineage_rank > spend["rank"] and w > 2 * spend_w,
     )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
@@ -5833,7 +5896,7 @@ def define_figures():
     p, w = kishu_best("recovery")
     fig("tx_recovery_kishu_route", p["route"])
     fig("tx_recovery_kishu_s", secs(w))
-    fig("tx_recovery_kishu_rank", p["rank"])
+    fig("tx_recovery_kishu_rank", rank_text(p))
     fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
     p, w = best_for("bitz", "recovery")
     fig("tx_recovery_bitz_s", secs(w))
@@ -5878,7 +5941,7 @@ def define_figures():
     p, w = kishu_best("recovery", zk=True)
     fig("tx_recovery_kishu_zk_route", p["route"])
     fig("tx_recovery_kishu_zk_s", secs(w))
-    fig("tx_recovery_kishu_zk_rank", p["rank"])
+    fig("tx_recovery_kishu_zk_rank", rank_text(p))
     _, parts = kishu_zk_costs(p)
     # The masked bound's N at this row, for the per-digit rates the text quotes.
     recovery_log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
@@ -5954,11 +6017,11 @@ def define_figures():
     fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
     q, wk = kishu_zk_best("recovery", MASK_ALPHA, KARNEY_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_karney_s", secs(wk))
-    fig("tx_recovery_kishu_zk_karney_rank", q["rank"])
+    fig("tx_recovery_kishu_zk_karney_rank", rank_text(q))
     fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
     q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_fast_s", secs(wf))
-    fig("tx_recovery_kishu_zk_fast_rank", q["rank"])
+    fig("tx_recovery_kishu_zk_fast_rank", rank_text(q))
     sweep = {}
     for a in MASK_ALPHAS:
         q, wa = kishu_zk_best("recovery", a)
@@ -5980,7 +6043,7 @@ def define_figures():
             ),
         )
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
-        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", q["rank"])
+        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", rank_text(q))
     assert sweep[MASK_ALPHA] == w
     fig("kishu_zk_alpha_48_to_96_pct", sig(100 * (1 - sweep[96] / sweep[48])))
     claim(
@@ -6014,7 +6077,7 @@ def define_figures():
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
-    fig("tx_recovery4_kishu_zk_rank", q["rank"])
+    fig("tx_recovery4_kishu_zk_rank", rank_text(q))
 
     # The minimum over the width is shallow: the widths on the grid within two percent of it.
     def band(app, n, sample):
@@ -6035,24 +6098,25 @@ def define_figures():
                 optima[(name, app, n)] = a
                 worst = max(worst, w_page / wo - 1)
             KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
-                alpha=round(a, 1), rank=q["rank"], zk_s=secs(wo), page_alpha_s=secs(w_page)
+                alpha=round(a, 1), rank=rank_text(q), zk_s=secs(wo), page_alpha_s=secs(w_page)
             )
         excess[name] = worst
     lo, hi = band("recovery", 1, MASK_SAMPLE_WORD_MULTS)
     fig("kishu_zk_alpha_recovery_band_min", sig(lo))
     fig("kishu_zk_alpha_grid_top", fmt(round(max(MASK_ALPHA_GRID))))
     fig("kishu_zk_alpha_page_excess_pct", sig(100 * excess["page"]))
+    fig("kishu_zk_alpha_least_min", sig(min(optima.values())))
     claim(
-        "alpha_optimum_at_grid_top",
-        "the transaction measure's least zero-knowledge work is at the top of the width grid for every transaction-sized application except those using SLH-DSA at NIST Level 3, at every sampler rate, since the masked matrix does not move across the grid",
-        all(a == max(MASK_ALPHA_GRID) for a in optima.values())
+        "alpha_optimum_above_page",
+        "the transaction measure's least zero-knowledge work is at a width several times the page's for every transaction-sized application except those using SLH-DSA at NIST Level 3, at every sampler rate, and at the top of the width grid for the recovery circuit, since the masked matrix does not move across the grid",
+        all(a > 4 * MASK_ALPHA for a in optima.values())
         and hi == max(MASK_ALPHA_GRID)
         and len({FIGURES[f"mask_matrix_alpha{a}"] for a in MASK_ALPHAS}) == 1,
     )
     claim(
         "alpha_page_excess",
-        "the page's width keeps nine slices a coordinate and is within ten percent of the measure's least for every transaction-sized application except those using SLH-DSA at NIST Level 3, at the page's sampler",
-        mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9 and excess["page"] < 0.10,
+        "the page's width keeps nine slices a coordinate and is within a quarter of the measure's least for every transaction-sized application except those using SLH-DSA at NIST Level 3, at the page's sampler",
+        mask_length(log_n=recovery_log_n, digit_max=kishu_bits) == 9 and excess["page"] < 0.25,
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
@@ -6150,7 +6214,7 @@ def define_figures():
     p, w = kishu_best("tachyon2")
     fig("tx_tachyon2_kishu_route", p["route"])
     fig("tx_tachyon2_kishu_s", secs(w))
-    fig("tx_tachyon2_kishu_rank", p["rank"])
+    fig("tx_tachyon2_kishu_rank", rank_text(p))
     fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
     p, w = best_for("goldilocks", "tachyon2", "poseidon", hashes="poseidon")
     fig("tx_tachyon2_goldilocks_s", secs(w))
@@ -6252,26 +6316,19 @@ def define_figures():
     # values, and the bits they are in Kishu.
     fig("stage_values", fmt(STAGE_VALUES_TOTAL))
     fig("kishu_stage_digits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
-    # The least rank at which one circuit holds Kishu's merge, below which the batch is about
-    # the merge's size whatever the rank.
-    # The merge within one circuit, beside the application's.
-    one_circuit = min(p["rank"] for p in shown("bits_q64", "blake3", zk=True) if p["circuits"] <= 2)
-    fig("kishu_one_circuit_rank", one_circuit)
-    zk_rows = {p["rank"]: p for p in shown("bits_q64", "blake3", zk=True, route="limbs")}
-    flat = [zk_rows[r]["accumulation_prover"] for r in range(15, 19)]
-    fig("kishu_accumulation_15_18_spread_pct", round(100 * (max(flat) / min(flat) - 1)))
+    # Kishu's accumulation prover against its step's length: the fold's sum-checks run over the
+    # accumulator, which is the step.
+    zk_rows = sorted(shown("bits_q64", "blake3", zk=True, route="limbs"), key=lambda p: p["rank"])
+    fig("kishu_step_shortest", step_label(round(2 ** zk_rows[0]["rank"])))
+    fig("kishu_step_longest", step_label(round(2 ** zk_rows[-1]["rank"])))
+    fig("kishu_accumulation_shortest_m", mil(zk_rows[0]["accumulation_prover"]))
+    fig("kishu_accumulation_longest_m", mil(zk_rows[-1]["accumulation_prover"]))
     claim(
-        "kishu_accumulation_flat_then_doubles",
-        "Kishu's accumulation prover is within a tenth of flat from rank 15 to 18, and its accumulator doubles with each rank from the rank where one circuit holds the merge",
-        max(flat) < 1.1 * min(flat)
-        and all(
-            abs(
-                accumulator_coefficients("kishu", r + 1, zk_rows[r + 1]["circuits"])
-                / accumulator_coefficients("kishu", r, zk_rows[r]["circuits"])
-                - 2
-            )
-            < 0.05
-            for r in range(one_circuit, max(zk_rows))
+        "kishu_accumulation_grows_with_step",
+        "Kishu's accumulation prover grows with its step's length",
+        all(
+            a["accumulation_prover"] < b["accumulation_prover"]
+            for a, b in zip(zk_rows, zk_rows[1:])
         ),
     )
 
@@ -6405,7 +6462,10 @@ def define_figures():
         and not any(shown(v, rank=12, hashes="blake3") for v in DIGITS),
     )
     fig("bitz_max_rank", BITZ_RANKS[-1])
-    fig("kishu_max_rank", FRONTEND_RANKS[-1])
+    fig(
+        "kishu_max_step",
+        step_label(round(2 ** max(p["rank"] for f in KISHU for p in points if p["family"] == f))),
+    )
 
     # Akita at rank 16 under the two hash policies (the Hashes paragraph), and rank 17 under
     # BLAKE3 (the Rank paragraph).
@@ -6538,7 +6598,7 @@ def define_figures():
     tx_table = {key: work for key, (_, work) in tx_rows.items()}
     base = tx_table[("leansphincs", "147")]
     slhdsa_row = tx_rows[("slhdsa", "147")][0]
-    fig("sigtx_slhdsa_147_rank", slhdsa_row["rank"])
+    fig("sigtx_slhdsa_147_rank", rank_text(slhdsa_row))
     fig("sigtx_slhdsa_147_steps", tx_steps(slhdsa_row, "zoodles_slhdsa192s", "blake3"))
     for (sig_, setting), work in tx_table.items():
         fig(f"sigtx_{sig_}_{setting}_s", sig(work / WORD_MULTS_PER_SECOND, 3))
@@ -6600,39 +6660,38 @@ def define_figures():
         sig(g165["accumulation_prover"] / g147["accumulation_prover"]),
     )
     fig("level3_goldilocks_16_bytes_pct", round(100 * (g165["bytes"] / g147["bytes"] - 1)))
-    k147 = pick("bits_q64", rank=17, zk=True, route="limbs", check="sumcheck", hashes="blake3")
-    kishu17 = dict(rank=17, zk=True, route="limbs", check="sumcheck", floor=LEVEL3_FLOOR)
-    k165 = pick("bits_q64", hashes=LEVEL3_BLAKE3, **kishu17)
-    k165_sha3_384 = pick("bits_q64", hashes=LEVEL3_SHA3_384, **kishu17)
-    fig("level3_sha3_384_kishu_17_digits_m", sig(k165_sha3_384["gates"] / 1e6, 2))
-    fig("level3_sha3_384_kishu_17_circuits", k165_sha3_384["circuits"])
-    fig(
-        "level3_sha3_384_kishu_17_accumulation_x",
-        sig(k165_sha3_384["accumulation_prover"] / k147["accumulation_prover"]),
-    )
+
+    # Kishu at each setting's shortest step: its merge's digits, the commitments of that
+    # merge, and its proof.
+    def kishu_shortest(**where):
+        rows = shown("bits_q64", zk=True, route="limbs", check="sumcheck", **where)
+        return min(rows, key=lambda p: p["rank"])
+
+    k147 = kishu_shortest(hashes="blake3")
+    k165 = kishu_shortest(floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
+    k165_sha3_384 = kishu_shortest(floor=LEVEL3_FLOOR, hashes=LEVEL3_SHA3_384)
+    for name, row in (
+        ("kishu", k147),
+        ("level3_kishu", k165),
+        ("level3_sha3_384_kishu", k165_sha3_384),
+    ):
+        fig(f"{name}_shortest_step", rank_text(row))
+        fig(f"{name}_merge_digits_m", sig(row["gates"] / 1e6, 2))
+    fig("level3_kishu_prover_pct", round(100 * (k165["prover"] / k147["prover"] - 1)))
+    fig("level3_kishu_bytes_pct", round(100 * (k165["bytes"] / k147["bytes"] - 1)))
+    fig("level3_sha3_384_kishu_prover_x", sig(k165_sha3_384["prover"] / k147["prover"]))
     claim(
         "level3_sha3_384_kishu_dearer",
-        "at the illustrative level Kishu's rank-17 merge and accumulation prover are greater with SHA3-384 transcripts than with BLAKE3 ones",
+        "at the illustrative level Kishu's merge and its commitments are greater with SHA3-384 transcripts than with BLAKE3 ones, and its shortest step longer",
         k165_sha3_384["gates"] > k165["gates"]
-        and k165_sha3_384["accumulation_prover"] > k165["accumulation_prover"],
+        and k165_sha3_384["prover"] > k165["prover"]
+        and k165_sha3_384["rank"] > k165["rank"],
     )
-    fig("level3_kishu_17_circuits", k165["circuits"])
-    fig("kishu_17_zk_circuits", k147["circuits"])
-    fig("level3_kishu_17_digits_m", sig(k165["gates"] / 1e6, 2))
-    fig("kishu_17_zk_digits_m", sig(k147["gates"] / 1e6, 2))
-    fig(
-        "level3_kishu_17_accumulation_pct",
-        round(100 * (k165["accumulation_prover"] / k147["accumulation_prover"] - 1)),
-    )
-    fig("level3_kishu_17_bytes_pct", round(100 * (k165["bytes"] / k147["bytes"] - 1)))
     claim(
         "level3_lattice_rows_dearer",
-        "at the illustrative level Akita over Goldilocks at rank 16 and Kishu at rank 17 take more circuits, more accumulation prover, and more bytes than at 147 bits",
-        all(
-            hi[k] > lo[k]
-            for lo, hi in ((g147, g165), (k147, k165))
-            for k in ("circuits", "accumulation_prover", "bytes")
-        ),
+        "at the illustrative level Akita over Goldilocks at rank 16 takes more circuits, more accumulation prover, and more bytes than at 147 bits, and Kishu's merge is more digits, with more commitment work and more bytes",
+        all(g165[k] > g147[k] for k in ("circuits", "accumulation_prover", "bytes"))
+        and all(k165[k] > k147[k] for k in ("gates", "prover", "bytes")),
     )
     lattice_variants = ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta")
     sha3_384_circuits = {
@@ -7312,37 +7371,21 @@ def define_figures():
         ),
     )
     fig("q64_mults_per_pasta_gate", sig(4 * ajtai_per_coefficient("pasta_q64")))
-    k_b = pick("bits_q64", rank=17, hashes="blake3", check="sumcheck", route="limbs")
-    k_p = pick("bits_q64_poseidon", rank=17, check="sumcheck", route="limbs")
+    k_b = pick("bits_q64", rank=21, hashes="blake3", check="sumcheck", route="limbs")
+    k_p = pick("bits_q64_poseidon", rank=21, check="sumcheck", route="limbs")
     q_b = pick("pasta_q64", rank=17, hashes="blake3")
     q_p = pick("pasta_q64", rank=17, hashes="poseidon")
-    fig("kishu17_blake3_digits", millions(k_b["gates"]))
-    fig("kishu17_blake3_circuits", k_b["circuits"])
-    fig("kishu17_blake3_kb", kb(k_b["bytes"]))
-    fig("kishu17_blake3_prover", sci(k_b["prover"]))
-    fig("kishu17_blake3_decider_ms", sig(k_b["verify"] / WORD_MULTS_PER_MS, 3))
-    fig("kishu17_poseidon_digits", millions(k_p["gates"]))
-    fig("kishu17_poseidon_kb", kb(k_p["bytes"]))
-    fig("kishu17_poseidon_prover", sci(k_p["prover"]))
+    fig("kishu21_blake3_digits", millions(k_b["gates"]))
+    fig("kishu21_blake3_kb", kb(k_b["bytes"]))
+    fig("kishu21_blake3_prover", sci(k_b["prover"]))
+    fig("kishu21_blake3_decider_ms", sig(k_b["verify"] / WORD_MULTS_PER_MS, 3))
+    fig("kishu21_poseidon_digits", millions(k_p["gates"]))
+    fig("kishu21_poseidon_kb", kb(k_p["bytes"]))
+    fig("kishu21_poseidon_prover", sci(k_p["prover"]))
     sum_bytes, sum_mults, sum_bits = (BOOL_CHECK["sumcheck"][i] for i in (1, 3, 4))
-    for hp in HASH_POLICIES:
-        fig(
-            f"kishu_claim_digits_{hp}",
-            sig(merge_marginal_circuit(Kg, 17, hp, sum_mults, sum_bits, sum_bytes)),
-        )
-    fig(
-        "kishu13_blake3_circuits",
-        fmt(
-            pick("bits_q64", rank=13, hashes="blake3", check="sumcheck", route="limbs")["circuits"]
-        ),
-    )
-    claim(
-        "kishu_rows_from_rank13",
-        "Kishu has rows from rank 13 under both hashes, where the lattice rows under BLAKE3 start at 14",
-        shown("bits_q64", rank=13)
-        and shown("bits_q64_poseidon", "poseidon", rank=13)
-        and not any(shown(v, rank=13, hashes="blake3") for v in VARIANTS),
-    )
+    for f in KISHU:
+        least = min(p["rank"] for p in points if p["family"] == f)
+        fig(f"{f}_min_step", step_label(round(2**least)))
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
     fig("kishu_vs_q64_poseidon_prover", sig(q_p["prover"] / k_p["prover"]))
@@ -7597,32 +7640,33 @@ def define_figures():
     fig("matrix_moves_147_kishu", len(kishu_moves147))
     claim(
         "matrix_moves_147_blake3_wide",
-        "the rows whose accumulation matrix grows from the 128-bit floor to the 147-bit one are BLAKE3 rows of the Akita variants and Kishu's rows at rank 23 without zero knowledge, the widest accumulators",
+        "the rows whose accumulation matrix grows from the 128-bit floor to the 147-bit one are BLAKE3 rows of the Akita variants and Kishu's rows of 2^23 digits or more without zero knowledge, the longest accumulators",
         bool(kishu_moves147)
         and all(
             (len(key) == 4 and key[1] == "blake3")
-            or (key[0] in KISHU and key[3] is False and key[4] == 23)
+            or (key[0] in KISHU and key[3] is False and key[4] >= 23)
             for key in moves147
         ),
     )
     claim(
-        "kishu_matrix_same_at_150",
-        "Kishu's accumulation matrices are the same at 147 and 150 bits",
+        "kishu_masked_matrix_same_at_150",
+        "Kishu's masked accumulation matrices are the same at 147 and 150 bits",
         all(
-            shape(shapes[(147, key)][0]) == shape(at150[key][0])
-            and shape(shapes[(147, key)][1]) == shape(at150[key][1])
+            shape(shapes[(147, key)][1]) == shape(at150[key][1])
             for key in common
             if key[0] in KISHU
         ),
     )
+    kishu_moves150 = [key for key in moves150 if key[0] in KISHU]
+    fig("matrix_moves_150_kishu", len(kishu_moves150))
+    fig("matrix_moves_150_kishu_from", step_label(round(2 ** min(k[4] for k in kishu_moves150))))
     claim(
-        "matrix_moves_150_q64_plain",
-        "at a 150-bit floor the only accumulation matrices to move are the unmasked ones of the Pasta-claims rows with 64-bit commitments, from degree 512 to 1,024",
-        bool(moves150)
+        "matrix_moves_150_unmasked",
+        "at a 150-bit floor the only accumulation matrices to move are unmasked ones, from degree 512 to 1,024: those of the Pasta-claims rows with 64-bit commitments and of Kishu's longest steps without zero knowledge",
+        len(kishu_moves150) < len(moves150)
         and all(
-            len(key) == 4
-            and key[0] == "pasta_q64"
-            and not key[2]
+            key[0] in ("pasta_q64", *KISHU)
+            and not key[-2]
             and shape(shapes[(147, key)][0]) == (1, 512)
             and shape(at150[key][0]) == (1, 1024)
             for key in moves150
@@ -7721,8 +7765,9 @@ def define_figures():
     fig("zk_note_zk_over_plain_pct_max", sig(max(over), 2))
     claim(
         "kishu_migration_zk_overhead",
-        "zero knowledge adds more than a third and less than the whole of a Kishu migration's prover without it",
-        all(100 / 3 < x < 100 for x in over),
+        "zero knowledge adds more than the whole of a Kishu migration's prover without it, and the smallest migration without it is one step, which holds no merge",
+        all(x > 100 for x in over)
+        and min(tx_steps(kishu_best(app)[0], app, "poseidon") for app in MIGRATIONS) == 1,
     )
 
     for r in (13, 14, 15, 16):

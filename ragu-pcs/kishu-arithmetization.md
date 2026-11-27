@@ -164,11 +164,14 @@ term over 64-bit operands, and a Pasta multiplication
 is <!--fig:mult_fingerprint_digits-->170<!--/fig--> or <!--fig:mult_limbs_digits-->374<!--/fig-->
 digits by one of two routes. The circuits that suit Kishu are the hash-heavy ones.
 
-A step is one or more circuits of $2^{\mathrm{rank}}$ digits, the rank chosen for the application
-between 13 and 24. The merge's digits take the first part of the step, and the application's nodes
-fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing shows. Zero knowledge
-asks nothing of the circuit's writer: the scheme hides the witness, and no randomizer or blinding
-wire is needed. Not available: lookup arguments, which the study does not model.
+A step is one committed witness of a chosen length in digits, with one evaluation claim, since the
+constraints are a sum-check over the whole table. The frontier page's rows are at lengths
+from <!--fig:bits_q64_min_step-->1.5 × 2^20<!--/fig-->
+to <!--fig:kishu_max_step-->1.875 × 2^25<!--/fig--> digits. A transaction's first step holds the
+application alone. In each later step the merge's digits take the first part, and the application's
+nodes fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing shows. Zero
+knowledge asks nothing of the circuit's writer: the scheme hides the witness, and no randomizer or
+blinding wire is needed. Not available: lookup arguments, which the study does not model.
 
 ## What Kishu is made of
 
@@ -389,9 +392,8 @@ multiplications are native 64-bit ones on the prover.
 | a BLAKE3 compression | <!--fig:blake3_bits-->11,344<!--/fig--> | <!--fig:blake3_piop_terms-->11,120<!--/fig--> | |
 | a Poseidon permutation over $\mathbb{F}_q$ | <!--fig:q64_poseidon_mults-->276<!--/fig--> × <!--fig:q64_digits-->22<!--/fig--> | <!--fig:q64_poseidon_mults-->276<!--/fig--> | |
 | a Pasta multiplication | <!--fig:mult_fingerprint_digits-->170<!--/fig--> by fingerprint, <!--fig:mult_limbs_digits-->374<!--/fig--> by limbs | 3 or <!--fig:mult_limbs_terms-->98<!--/fig--> | the fingerprint route's column sums per step besides |
-| a claim absorbed by the merge | <!--fig:kishu_claim_digits_blake3-->3,000<!--/fig--> under BLAKE3 | | |
-| a step | $2^{\mathrm{rank}}$ | | its digits' commitment and its constraints' PIOP |
-| the merge of one step | <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> at rank 17, in a step of <!--fig:kishu17_blake3_circuits-->13<!--/fig--> circuits; the merge within one circuit, beside the application's, from rank <!--fig:kishu_one_circuit_rank-->21<!--/fig--> | | as a step's |
+| a step | its length, chosen | | its digits' commitment and its constraints' PIOP |
+| the merge of one step | <!--fig:kishu21_blake3_digits-->1.2 million<!--/fig--> in a step of $2^{21}$ digits | | as a step's |
 
 A transaction's prover work is then its steps' commitments and PIOPs, a merge for each step, the
 fold's sum-checks over the accumulator, and the final opening. The frontier page's axes

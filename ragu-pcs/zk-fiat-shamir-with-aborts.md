@@ -413,15 +413,16 @@ attempts per fold.
   nanoseconds. These are costs at Pasta's modulus. What a post-quantum Zcash would prove with such a
   fold is a migration, which [the frontier page](pareto-template.html#transaction-prover) prices
   with Kishu, whose commitments are at a 64-bit modulus. Recovering one or four Tachyon or Ironwood
-  notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0605<!--/fig-->
-  to <!--fig:zk_note_migration_max_s-->0.358<!--/fig--> s of prover there without zero knowledge,
-  and <!--fig:zk_note_migration_zk_min_s-->0.115<!--/fig-->
-  to <!--fig:zk_note_migration_zk_max_s-->0.515<!--/fig--> s with
-  it. <!--claim:kishu_migration_zk_overhead:6b5dd4-->So zero knowledge
-  adds <!--fig:zk_note_zk_over_plain_pct_min-->44<!--/fig-->
-  to <!--fig:zk_note_zk_over_plain_pct_max-->90<!--/fig--> percent to such a
-  transaction.<!--/claim--> [§5.8](#58-the-users-online-cost) moves the attempts and the obligations
-  off the device's critical path. The merge circuit sees only the accepted attempt.
+  notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0155<!--/fig-->
+  to <!--fig:zk_note_migration_max_s-->0.187<!--/fig--> s of prover there without zero knowledge,
+  and <!--fig:zk_note_migration_zk_min_s-->0.0487<!--/fig-->
+  to <!--fig:zk_note_migration_zk_max_s-->0.422<!--/fig--> s with
+  it. <!--claim:kishu_migration_zk_overhead:ba9fd7-->So zero knowledge
+  adds <!--fig:zk_note_zk_over_plain_pct_min-->130<!--/fig-->
+  to <!--fig:zk_note_zk_over_plain_pct_max-->210<!--/fig--> percent to such a transaction, more than
+  the whole prover without it: unmasked, a migration that fits one step has no merge at
+  all.<!--/claim--> [§5.8](#58-the-users-online-cost) moves the attempts and the obligations off the
+  device's critical path. The merge circuit sees only the accepted attempt.
 - Challenge set. $d = 512$ is the accumulation matrix's ring dimension in Akita's catalog at this
   geometry, so weight-20 ternary challenges there cost nothing and give $2^{138}$ choices. In
   dimension 128 weight 32 is needed for $2^{130}$, and in dimension 64 ternary challenges give only
@@ -580,8 +581,8 @@ for three times the attempts. A wider one saves attempts, which cannot fall belo
 keeps growing, and from $\alpha = 59$ the coordinates take a tenth slice. The page's transaction
 measure prices the user's whole chain, and in it each attempt commits the whole mask. On the page's
 $\ell_\infty$ route ([§5.5](#55-checking-the-ranks-with-akitas-estimator)) the matrix does not move
-across these widths, so that measure alone prefers the widest mask, and 48 is
-within <!--fig:kishu_zk_alpha_page_excess_pct-->9.9<!--/fig--> percent of its least ([its
+across these widths, so that measure alone prefers a far wider mask, and 48 is
+within <!--fig:kishu_zk_alpha_page_excess_pct-->19<!--/fig--> percent of its least ([its
 zero-knowledge section](pareto-template.html#zero-knowledge)); what a wider mask costs there is
 outside the measure, the coordinates' bits and slices in the transfer and the aggregator's range
 checks, and the public merges' rate. On this section's Euclidean route a wider mask costs rank as

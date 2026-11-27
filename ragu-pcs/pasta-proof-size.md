@@ -624,15 +624,16 @@ that modulus's field, and a Pasta value is recomposed from 32-bit limbs proved a
 the same sum-check, so it does not use the decoupled commitment. Its merge is Akita's, costed in
 digits: a committed bit is one digit, and its arithmetic is native over the 64-bit field and its
 quadratic extension, each product's output committed as
-tribits, <!--fig:e_mult_digits-->44<!--/fig--> digits. At rank 17 with BLAKE3 it comes to a proof
-of <!--fig:kishu17_blake3_kb-->74 kbytes<!--/fig-->, a merge prover
-of <!--fig:kishu17_blake3_prover-->3.1e7<!--/fig--> word multiplications and a merge
-of <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> digits in the sum-check form; with
-Poseidon <!--fig:kishu17_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu17_poseidon_prover-->1.8e7<!--/fig-->
-and <!--fig:kishu17_poseidon_digits-->0.73 million<!--/fig--> digits. The projection form's verifier
+tribits, <!--fig:e_mult_digits-->44<!--/fig--> digits. In a step of $2^{21}$ digits with BLAKE3 it
+comes to a proof of <!--fig:kishu21_blake3_kb-->74 kbytes<!--/fig-->, a merge prover
+of <!--fig:kishu21_blake3_prover-->3.0e7<!--/fig--> word multiplications for the merge's
+commitments, and a merge of <!--fig:kishu21_blake3_digits-->1.2 million<!--/fig--> digits in the
+sum-check form; with
+Poseidon <!--fig:kishu21_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu21_poseidon_prover-->1.8e7<!--/fig-->
+and <!--fig:kishu21_poseidon_digits-->0.72 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
 cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->37<!--/fig-->
+times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
 to <!--fig:kishu_vs_bitz_prover_max-->64<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
