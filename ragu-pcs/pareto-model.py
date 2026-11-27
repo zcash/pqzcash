@@ -6900,6 +6900,12 @@ def define_figures():
     fig("level3_opening_challenge_atoms", fmt(LEVEL3_OPENING_CHALLENGE_ATOMS))
     fig("projection_error", tex_pow2(-PROJECTION_ERROR_BITS))
     fig("transcript_security_bits", TRANSCRIPT_SECURITY_BITS)
+    claim(
+        "floor_is_lattice_assumption",
+        "the transcript's target is 128 bits, the lower floor's and under the default floor's, so the default floor is the lattice assumption's; and Kishu's claim reduction in a 128-bit field falls short of the target by a few bits",
+        TRANSCRIPT_SECURITY_BITS == min(FLOORS) < DEFAULT_FLOOR
+        and 0 < TRANSCRIPT_SECURITY_BITS - (2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR)) < 8,
+    )
     # The grinding that Kishu's own claim reduction would need to reach that target in its
     # 128-bit field, which the model does not charge.
     fig(

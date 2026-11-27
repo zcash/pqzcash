@@ -1540,6 +1540,16 @@ code { font-family: var(--mono); font-size: 0.92em; }
   size $\beta$. That puts every instance at block size 484 to 486. ARC's openings are counted at the
   same $\lambda$, and the $\mathbb{F}_2$ family's optimizer runs at the floor, which shrinks its
   lists.</p>
+  <p><!--claim:floor_is_lattice_assumption:507a8c-->For the lattice rows the floor is the lattice
+  assumption's. A proof's soundness has a second part that no lattice estimate enters: the chance
+  that a challenge lets a false claim pass. That is a count over the challenge's field or set,
+  multiplied by the attacker's hash queries. Akita holds it
+  to <!--fig:transcript_security_bits-->128<!--/fig--> bits at both floors, by a proof of work
+  before each challenge whose error would otherwise exceed that. So the 147‑bit floor is 128 bits
+  with the lattice part held to a more conservative cost model, not 147 bits throughout.<!--/claim-->
+  Kishu's own claim reduction, in its 128‑bit field, would
+  need <!--fig:kishu_claim_grind_bits-->7<!--/fig--> bits of that proof of work a challenge to
+  meet the same target. The model does not charge it.</p>
   <p>The accumulation matrix that the lattice rows commit under is sized the same way. For each row
   the model takes the cheapest module rank and ring degree, among the catalog's 512 and 1,024, that
   Akita's ℓ∞ estimator certifies at the floor for the row's bound, with the row's accumulator as the
