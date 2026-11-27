@@ -5496,3 +5496,34 @@ comments in the page's script).
 The model's comment on the security floor was rewritten in short sentences at the user's
 request; ze finds the file's header prose hard to follow in general, so the same treatment is
 owed to the other long comment blocks when they are next touched.
+
+## 2026-11-27, 12:20 UTC: the 165-bit level's section, and rank as a measure of length
+
+The level's section on the frontier page is rewritten after the user's new heading and opening
+("The 165-bit level", shown for the lattice-based schemes only, unreviewed, ranked with the
+strongest assumption; the floor control's label ends "182 classical bits, unreviewed ⚠️"). The
+SLH-DSA pages keep "for illustration only" (the user).
+
+Two requirements were wrong for a 165-bit level and are corrected, each with a claim:
+
+- **The claim field.** Not "192 bits or more", and not 165 either (the user's question): a
+  sum-check's error is a small multiple of its variables over the field's size. Kishu's claim
+  reduction is at most (4m+1)/|E| with m at most 31 (kishu-soundness.md, Theorem B), so about 172
+  bits are needed; the cubic extension gives about 2^-185. NOT DONE: the errors of Akita's own
+  fold sum-checks at the level, which the page says are taken to be of the same form. If one of
+  them batches very many claims by powers of a challenge, the cubic extension's margin, 20 bits,
+  could be used up.
+- **The transcript's hash.** A proof at the level needs a state of 330 bits; BLAKE3's 256 give a
+  proof up to 2^91 work (the model had 2^64, the figure for a 192-bit level).
+
+The user, on presentation: rank makes sense only as a logarithmic measure of step length, and
+that conclusion is general, not Kishu's alone. A step length is written in binary scientific
+notation, a mantissa in [1, 2) times a power of two (`step_text`; `step_label` for Kishu's
+rows). The level's section gives Akita's steps that way. STILL TO DO: Akita's rows in the model
+are still a rank and a circuit count, and the rest of the page's Akita prose still quotes ranks
+and circuits; this is the queued simplification of Akita's rows, and the user regards its
+conclusion as already settled. A fragile claim went with it: that Akita's merge with SHA3-384
+converges at no rank below the grid's highest.
+
+"Illustrative" remains in code comments (the model, the page's script, three scripts), unseen
+by readers.
