@@ -35,8 +35,8 @@ in $\mathbb{F}_q^r$.
 Consider a Kishu circuit over $\mathbb{F}_q$ with $m$ constraints. The public inputs, padded to
 length $m$ with zeros, form the instance vector $\mathbf{v} \in \mathbb{F}_q^m$. A witness is a
 vector of $N$ small integers, $\mathbf{w} \in \mathbb{Z}^N$, read as elements of $\mathbb{F}_q$. The
-circuit fixes each position's alphabet: a bit, in $\{0, 1\}$; a dibit, in $\{-2, -1, 0, 1\}$; or a
-tribit, in $\{-4, \ldots, 3\}$, Akita's own balanced base-8 digit. The entries are called digits.
+circuit fixes each position's alphabet: a bit, in $\{0, 1\}$; a dibit, in $\{0, \ldots, 3\}$; or a
+tribit, in $\{0, \ldots, 7\}$. The entries are called digits.
 
 The circuit is defined by, for each constraint index $j$,
 
@@ -58,6 +58,23 @@ is constrained to equal it, a constant term in any constraint is a multiple of t
 
 That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by a
 range check, not by a constraint per digit. For the bit positions it is the Booleanity check.
+
+The alphabets start at zero in a circuit's description, whatever the commitment scheme does. A
+scheme may hold a digit in another alphabet of the same size: Akita holds a base-8 digit balanced,
+in $\{-4, \ldots, 3\}$. That is a fixed shift of each digit, $\mathbf{w} = \mathbf{w}' + \mathbf{o}$
+for a vector of offsets $\mathbf{o}$ that the alphabets determine. Substituting it leaves a
+constraint of the same form in the committed digits $\mathbf{w}'$, with the same $\mathbf{A}_j$ and
+$\mathbf{B}_j$:
+
+$$\innerprod{\mathbf{A}_j \mathbf{w}'}{\mathbf{B}_j \mathbf{w}'} + \mathbf{c}'_j \mathbf{w}' + k_j = \mathbf{v}_j,$$
+
+where
+$\mathbf{c}'_j = \mathbf{c}_j + (\mathbf{A}_j \mathbf{o})^{\mathsf{T}} \mathbf{B}_j + (\mathbf{B}_j \mathbf{o})^{\mathsf{T}} \mathbf{A}_j$
+and $k_j = \innerprod{\mathbf{A}_j \mathbf{o}}{\mathbf{B}_j \mathbf{o}} + \mathbf{c}_j \mathbf{o}$.
+The products' offset terms are linear in $\mathbf{w}'$, so they are absorbed into the coefficient
+row, and the constant $k_j$ is a multiple of the constant bit as before. So the offsets are a detail
+of the implementation, cancelled in the coefficients when the circuit is compiled, and the
+arithmetization does not depend on the commitment scheme's alphabets.
 
 ### Relation to R1CS
 
@@ -131,11 +148,10 @@ is not a multiple of three. The commitment, the fold, and the mask cost the same
 these widths. The range check costs one product a bit, two a dibit, and four a tribit, by Akita's
 paired predicate. So a tribit holds three bits for a little over a third of their cost.
 
-A word of $\ell < 64$ bits is a linear combination of its digits plus a constant, which costs
-nothing to form. The constant offsets the balanced digits. Bit vectors of any fixed length can be
-represented directly, as can elements of $\mathbb{F}_q$ (non-canonically,
-in <!--fig:q64_digits-->22<!--/fig--> digits). A range check is free: a value held in digits of
-$\ell$ bits in all is below $2^\ell$ by construction.
+A word of $\ell < 64$ bits is a linear combination of its digits, which costs nothing to form. Bit
+vectors of any fixed length can be represented directly, as can elements of $\mathbb{F}_q$
+(non-canonically, in <!--fig:q64_digits-->22<!--/fig--> digits). A range check is free: a value held
+in digits of $\ell$ bits in all is below $2^\ell$ by construction.
 
 Since a word is a linear combination in certified digits, a relation holds over the integers
 whenever it holds in $\mathbb{F}_q$, provided that its two sides, as integers, both lie in a range
@@ -192,12 +208,13 @@ proves an evaluation claim over any ring by lifting it to the integers.
 Kishu takes BitZ's view of the witness as small integers and the constraint style of Zinc+'s
 universal constraint systems. It commits the witness with Akita: bits where the circuit needs bits
 as factors, and Akita's own base-8 digits for integer words. So the committed vector is the witness
-itself, the range check certifies it, and Akita's accumulation replaces BitZ's hashing-heavy proofs.
-A digit is therefore the unit in which this study counts a circuit's size. The two arithmetizations
-are not the same. BitZ states integer relations and proves them by projecting to random prime
-fields. Kishu evaluates its constraints in $\mathbb{F}_q$, Akita's commitment modulus. It reaches
-the integers either by keeping each constraint's sides within a range no larger than $q$, the limb
-route, or by random-prime instances as BitZ does, the fingerprint route.
+itself, each digit shifted into Akita's alphabet by a fixed offset; the range check certifies it,
+and Akita's accumulation replaces BitZ's hashing-heavy proofs. A digit is therefore the unit in
+which this study counts a circuit's size. The two arithmetizations are not the same. BitZ states
+integer relations and proves them by projecting to random prime fields. Kishu evaluates its
+constraints in $\mathbb{F}_q$, Akita's commitment modulus. It reaches the integers either by keeping
+each constraint's sides within a range no larger than $q$, the limb route, or by random-prime
+instances as BitZ does, the fingerprint route.
 
 The piece that such a combination needs is a range check over the lattice's own prime field, to
 certify that every digit lies in its alphabet. For the wider digits that is Akita's own paired
