@@ -59,6 +59,8 @@ is constrained to equal it, a constant term in any constraint is a multiple of t
 That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by a
 range check, not by a constraint per digit. For the bit positions it is the Booleanity check.
 
+### Committing the witness using Akita
+
 The alphabets start at zero in a circuit's description, whatever the commitment scheme does. A
 scheme may hold a digit in another alphabet of the same size: Akita holds a base-8 digit balanced,
 in $\{-4, \ldots, 3\}$. That is a fixed shift of each digit, $\mathbf{w} = \mathbf{w}' + \mathbf{o}$
