@@ -5453,3 +5453,46 @@ the tables are regenerated. The other crates' tests have not been run.
 After the run: `python scripts/akita-150-page-inputs.py work/akita-165-out/replan` should print
 the model's inputs, and the level's rows can then be planned and not derived; the width table
 that `scripts/derive-linf-widths.py` extrapolates can be checked against the estimator's own.
+
+## 2026-11-27, 11:10 UTC: the level's plan ran, and its openings are planned
+
+The pipeline ran overnight without a failed step: the infinity table took 3 h 42 min (about an
+hour at 147 bits), the nine compression cells all cover their maps (15% to 27% of input width to
+spare), and the planner found a schedule for every key it has at 147 bits. The worktree's state
+is committed there as 66eb9dd.
+
+What the run showed against the model's extrapolations:
+
+- **The opening's bytes.** Summed over the group counts, against the 147-bit plan: the 128-bit
+  field +1.2% planned where the line through 128 and 147 gave +10.5%; Pasta claims with 64-bit
+  commitments +2.0% against +7.5%; SIS at Pasta's modulus +2.2% against +9.1%; Pasta +1.4%
+  against +10.8%; Goldilocks +6.3% against +5.5%. Single cells scatter, since a plan is a
+  discrete choice. A guess at why the line was a poor predictor, NOT checked: the 147-bit plan
+  ran with its rank-one compression maps at their limit, and the three-map chain has slack.
+- **The accumulation widths.** The derivation's error against the estimator's own table at the
+  level: a median of +0.004 in log2 of the width for the 64-bit modulus and +0.014 for the
+  128-bit one, 5th to 95th percentiles about -0.12 to +0.48; it gave no width in 75 and 28 cells
+  where the estimator certifies a small one.
+- **The rank growth**, for the catalog's own moduli: 121 to 159, a factor of 1.31, where the line
+  gave 1.47.
+
+In the model now: `AKITA_165_PLANNED` and the level's slopes from the plan; the level's width
+table from the regenerated tables for the 64-bit and 128-bit moduli (a new file under
+`estimates/`), Pallas's still derived; the own-moduli rank sum computed. The page's level
+figures for Kishu and for Akita over Goldilocks did not move, since both read Goldilocks's
+opening, where plan and line agree. Still derived at the level: Pallas's widths; the 64-bit and
+Pallas mappings' rank growth (each needs the estimator's CSV table at 165 bits, hours of
+running); and everything the planner cannot see (the wider claim field, the widened
+challenge-field elements, the sum-check factor, the fold challenge's weight).
+
+The user, on reading the result: ze was wrong that the level is completely impractical for
+lattices; ze would still argue that 147 bits is sufficient, but it is a more complicated
+trade-off than ze had credited. New text calls it "the 165-bit level", not "illustrative". The
+SLH-DSA pages' "for illustration only" wording stays (the user). TO DECIDE with the user: the
+older wording on the frontier page, which still frames the level as an illustration that 192
+bits is not cheap (the section's heading and first paragraph, the floor control's label, two
+comments in the page's script).
+
+The model's comment on the security floor was rewritten in short sentences at the user's
+request; ze finds the file's header prose hard to follow in general, so the same treatment is
+owed to the other long comment blocks when they are next touched.
