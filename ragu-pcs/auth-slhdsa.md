@@ -49,7 +49,7 @@ so that its cost can be seen under any family and floor.
 
 ## With the proof system at NIST Level 3
 
-The frontier page's "165 quantum bits (ADPS16 core-SVP) / 192 classical bits, illustrative" option
+The frontier page's "165 quantum bits (ADPS16 core-SVP) / 182 classical bits, unreviewed ⚠️" option
 raises the security floor for the proof system, also to approximately NIST Level 3. It offers
 SHA3-384 for its transcript as an alternative to BLAKE3. The table gives Kishu's prover time for the
 transaction of two spends and two outputs with zero knowledge, in seconds on one core, under each

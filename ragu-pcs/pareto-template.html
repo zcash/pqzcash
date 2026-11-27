@@ -221,7 +221,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="group"><a href="#security-floor" class="eyebrow">Security floor</a>
       <label><input type="radio" name="floor" value="128" id="floor128"> 128 quantum bits (ADPS16 core-SVP; Pedersen‑IPA and the binary groups are shown here alone)</label>
       <label><input type="radio" name="floor" value="147" checked id="floor147"> 147 quantum bits (the most Akita's compression maps allow)</label>
-      <label><input type="radio" name="floor" value="165" id="floor165"> 165 quantum bits (ADPS16 core-SVP) / 192 classical bits, illustrative</label>
+      <label><input type="radio" name="floor" value="165" id="floor165"> 165 quantum bits (ADPS16 core-SVP) / 182 classical bits, unreviewed ⚠️</label>
     </div>
     <div class="group" id="transcriptgroup"><a href="#level-3" class="eyebrow">Transcript hash at floor 165</a>
       <div class="row">
@@ -1594,16 +1594,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
   one of the dominance test's requirements (<a href="#requirements">Pasta and the scheme
   assumption</a>). <a href="#trust">The next section</a> says how much to trust the Module-SIS
   figures.</p>
-  <h4 id="level-3">The illustrative third level</h4>
-  <p>The third option is for illustration only: it shows what a move towards 192 bits costs a
-  post-quantum proof system. It is NIST's Level 3 as the lattice standards at that level meet it,
-  ML-KEM-768 and ML-DSA-65: a block size of about <!--fig:level3_block-->623<!--/fig-->, which
-  is <!--fig:level3_classical_bits-->182<!--/fig--> classical core-SVP bits and 165 in this page's
-  quantum unit. That is a lenient reading of 192 bits. The hash-based families take 165 bits as
-  their soundness level, as they take 147 at the default floor. Nothing at the level is measured.
-  Akita's openings are planned at the level by its own planner. The rest of every row is derived
-  from its 147‑bit row, so the rows are ranked with the
-  strongest <a href="#requirements">assumption</a>.</p>
+  <h4 id="level-3">The 165‑bit level</h4>
+  <p>The third option is shown for the lattice-based schemes only, since hash-based schemes cannot
+  reach 165‑bit security at feasible cost. It is based on lattice parameters with a similar level
+  of conjectured security to NIST's Level 3 (e.g., to ML-KEM-768 and ML-DSA-65): a block size of
+  about <!--fig:level3_block-->623<!--/fig-->. That block size should in theory reach 165 quantum
+  core-SVP bits, or <!--fig:level3_classical_bits-->182<!--/fig--> classical core-SVP bits.</p>
+  <p>⚠️ This level makes significant design changes to its schemes relative to Akita, including a
+  three-stage map construction using larger ranks that has not been fully reviewed or analyzed.
+  Therefore, it is ranked with the strongest <a href="#requirements">assumption</a>.</p>
   <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
   256‑bit bottlenecks inside, so the trees hash with SHA3-384. For the transcript the control offers
   both. No attack on a 256‑bit transcript hash is known at the level. But the security proofs for
@@ -1617,7 +1616,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   then <!--fig:level3_sha3_384_kishu_merge_digits_m-->7.6<!--/fig--> million digits, so its shortest step
   is <!--fig:level3_sha3_384_kishu_shortest_step-->1.25 × 2^23<!--/fig--> digits, and the merge's commitments
   are <!--fig:level3_sha3_384_kishu_prover_x-->9.1<!--/fig--> times the 147‑bit ones.<!--/claim--> The figures below are under BLAKE3.</p>
-  <p>Akita's rows at the level are made as follows:</p>
+  <p>Nothing at the level is measured. Akita's openings are planned at the level by its own
+  planner, and the rest of every row is derived from its 147‑bit row, as follows:</p>
   <ul>
     <li>the accumulation matrix is looked up in the estimator's width table, regenerated at 165
     bits, for the 64‑bit and 128‑bit moduli. The estimator has not been run at the level for the
