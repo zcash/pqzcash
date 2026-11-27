@@ -41,7 +41,7 @@ A new number in the text gets a `fig()` in `define_figures()` and a marker where
 qualitative statement that the model can check gets a `claim()` and a marker around its sentence.
 `--fill` prints each changed figure as old → new and each changed claim with its new text, which is
 the list of sentences to read before committing. A constant that a script computes goes in the model
-with a comment naming the script and its inputs, as `RANK_SUMS_147`, `WIDTH_SHRINK_147` and
+with a comment naming the script and its inputs, as `MODULE_RANK_SUMS_147`, `WIDTH_SHRINK_147` and
 `WHIR_147` do.
 
 ## External checkouts
@@ -108,7 +108,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   behind the opening tables are not kept under [`estimates/`](../../../ragu-pcs/estimates/); the
   re-plan scripts reproduce them.
 - **The 165-bit level's plan** (`AKITA_165_PLANNED`, `SLOPE[165]`,
-  `LEVEL3_COMPRESSION_CELLS`, `RANK_SUMS_165`):
+  `LEVEL3_COMPRESSION_CELLS`, `MODULE_RANK_SUMS_165`):
   [`scripts/akita-165-pipeline.sh`](../../../ragu-pcs/scripts/akita-165-pipeline.sh), on the
   `level3-165` worktree, regenerates the width tables at 165 bits (about four hours;
   `SKIP_TABLES=1` resumes), re-sizes the nine compression cells and checks that each covers its
@@ -155,7 +155,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   (`LEVEL3_COMPRESSION_CHAIN`, `SHIPPED_COMPRESSION_CHAIN`) is printed by
   [`scripts/compression-chain.sh`](../../../ragu-pcs/scripts/compression-chain.sh) from Akita's
   single-instance estimator, in a checkout with the estimator's examples built.
-- **Module-rank growth** (`RANK_SUMS_147`): over the weakest instance of each of the catalog
+- **Module-rank growth** (`MODULE_RANK_SUMS_147`): over the weakest instance of each of the catalog
   report's 115 schedules, the least module rank that covers its width at each floor, mapped through
   each variant's modulus:
 

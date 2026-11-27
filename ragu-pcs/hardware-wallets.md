@@ -73,8 +73,10 @@ simulatable: the hiding commitment, the mask's commitment, the challenge, the cl
 obligation transcripts. So the host can derive the challenge, prove the fold's merge and the
 obligations (the zk note's [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost) deferral),
 and verify the leaf's sum-checks in its own merge. The wallet keeps what touches the secret. It
-commits the leaf with a hiding padding at the masked rank. It proves its constraint and
-Booleanity sum-checks under Libra-style masking polynomials, since the host sees their
+commits to the leaf under the matrix that binds the masked response $z$, whose coordinates are
+larger than the leaf's digits. It appends uniformly random bits to the leaf's bits, so that the
+commitment hides them. It proves its constraint and Booleanity sum-checks under Libra-style masking
+polynomials, since the host sees their
 transcripts: <!--fig:qk_sumcheck_mask_elements-->112<!--/fig--> committed elements of
 $\mathbb{F}_q$. <!--claim:device_element_widths:773881-->Each is committed in the widest digits that
 keep the vector's matrix at the padding sweep's rows, judged by the vector's exact $\ell_2$

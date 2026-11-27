@@ -226,7 +226,7 @@ MODULUS = {
     "pasta": "pallas",
 }
 ACCUMULATION_DEGREES = (512, 1024)
-ACCUMULATION_MAX_RANK = 6
+ACCUMULATION_MAX_MODULE_RANK = 6
 
 
 def load_linf_widths():
@@ -268,19 +268,21 @@ def accumulation_matrix(variant, floor, log_beta, log_n):
     best = None
     for d in ACCUMULATION_DEGREES:
         width = 2**log_n / d
-        for rank in range(1, ACCUMULATION_MAX_RANK + 1):
+        for module_rank in range(1, ACCUMULATION_MAX_MODULE_RANK + 1):
             bound, certified = next(
-                ((b, w) for b, w in cells[(d, rank)] if b >= 2**log_beta), (None, 0)
+                ((b, w) for b, w in cells[(d, module_rank)] if b >= 2**log_beta), (None, 0)
             )
             if bound is None:
                 raise ValueError(f"a bound of 2^{log_beta:.1f} is beyond the estimator's ladder")
             if certified >= width:
-                cost = rank + math.log2(d) / 2
+                cost = module_rank + math.log2(d) / 2
                 if best is None or cost < best[0]:
-                    best = (cost, rank, d, bound)
+                    best = (cost, module_rank, d, bound)
                 break
     if best is None:
-        raise ValueError(f"no accumulation matrix of rank up to {ACCUMULATION_MAX_RANK}: {variant}")
+        raise ValueError(
+            f"no accumulation matrix of rank up to {ACCUMULATION_MAX_MODULE_RANK}: {variant}"
+        )
     return best
 
 
@@ -958,14 +960,14 @@ SCALAR_MULT_WORD_MULTS = 255 * 2 * 11 * 32
 AKITA_VERIFY_MS = {"fp128": (4.2, 0.45, 20), "goldilocks": (3.9, 0.35, 21)}
 
 
-def akita_verify(variant, log_len, zk, rank_scale=1.0):
+def akita_verify(variant, log_len, zk, module_rank_scale=1.0):
     base, slope, ref = AKITA_VERIFY_MS["goldilocks" if variant == "goldilocks" else "fp128"]
     ms = base + slope * (max(log_len, AKITA_MIN_LOG_LEN) - ref)
     if variant not in ("fp128", "goldilocks"):
         ms *= 4
     # With zero knowledge the final accumulator is at the ordinary length, so the sum-checks
-    # are unchanged; the masked rank arrives in rank_scale, composed by the caller.
-    return round(ms * rank_scale * WORD_MULTS_PER_MS)
+    # are unchanged; the masked rank arrives in module_rank_scale, composed by the caller.
+    return round(ms * module_rank_scale * WORD_MULTS_PER_MS)
 
 
 def pedersen_verify(step_rank, nat, nes):
@@ -2568,7 +2570,7 @@ assert (
 # retargeted to that floor (2026-11-12).
 #
 # The planner leaves two quantities unspecified: the prover's rows term, and the verifier's
-# inner-image share. Both are scaled by the growth of the Module-SIS ranks, RANK_SCALE, which
+# inner-image share. Both are scaled by the growth of the Module-SIS ranks, MODULE_RANK_SCALE, which
 # scripts/rank-scale.py computes as follows.
 #
 # - The instances are the weakest Module-SIS instance of each schedule in the shipped
@@ -2578,7 +2580,7 @@ assert (
 # - The instance is looked up under the modulus that the variant commits over.
 # - The factor is the summed ranks at the floor over the summed ranks at 128 bits.
 #
-# RANK_SUMS_147 holds, for each mapping, the summed ranks at 128 bits and at 147 bits, and the
+# MODULE_RANK_SUMS_147 holds, for each mapping, the summed ranks at 128 bits and at 147 bits, and the
 # number of instances that move up a rank. The mappings are: the catalog's own mix of q128,
 # q64, and q32 cells; the 64-bit modulus, from the Goldilocks table, which is identical to
 # q64's for these cells; and Pallas, where all the instances but one sit at the width cap at
@@ -2590,37 +2592,39 @@ assert (
 # Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order near
 # 2^254) and no post-quantum security. So it is shown at the 128-bit floor only, as the
 # conventional pre-quantum baseline, and drops out at 147 bits.
-RANK_INSTANCES = 115
-RANK_SUMS_147 = {"own": (121, 150, 29), "q64": (185, 211, 26), "pallas": (117, 118, 1)}
-RANK_MAPPING = {
+MODULE_RANK_INSTANCES = 115
+MODULE_RANK_SUMS_147 = {"own": (121, 150, 29), "q64": (185, 211, 26), "pallas": (117, 118, 1)}
+MODULE_RANK_MAPPING = {
     "fp128": "own",
     "goldilocks": "q64",
     "pasta_q64": "q64",
     "pasta_sis": "pallas",
     "pasta": "pallas",
 }
-RANK_SCALE_147 = {
-    v: round(RANK_SUMS_147[m][1] / RANK_SUMS_147[m][0], 2) for v, m in RANK_MAPPING.items()
+MODULE_RANK_SCALE_147 = {
+    v: round(MODULE_RANK_SUMS_147[m][1] / MODULE_RANK_SUMS_147[m][0], 2)
+    for v, m in MODULE_RANK_MAPPING.items()
 }
-assert RANK_SCALE_147 == {
+assert MODULE_RANK_SCALE_147 == {
     "fp128": 1.24,
     "goldilocks": 1.14,
     "pasta_q64": 1.14,
     "pasta_sis": 1.01,
     "pasta": 1.01,
 }
-RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
+MODULE_RANK_SCALE = {128: {v: 1.0 for v in MODULE_RANK_SCALE_147}, 147: MODULE_RANK_SCALE_147}
 # At the 165-bit level the catalog's own mapping is computed as at 147 bits, from the
 # width tables regenerated at 165 bits: 38 instances move up a rank. The estimator has not been
 # run at that floor for the 64-bit modulus at every cell or for Pallas, so those two mappings'
 # sums are on the line through their 128- and 147-bit values.
-RANK_SUMS_165 = {
+MODULE_RANK_SUMS_165 = {
     "own": 159,
-    "q64": extrapolate_floor(*RANK_SUMS_147["q64"][:2]),
-    "pallas": extrapolate_floor(*RANK_SUMS_147["pallas"][:2]),
+    "q64": extrapolate_floor(*MODULE_RANK_SUMS_147["q64"][:2]),
+    "pallas": extrapolate_floor(*MODULE_RANK_SUMS_147["pallas"][:2]),
 }
-RANK_SCALE[LEVEL3_FLOOR] = {
-    v: round(RANK_SUMS_165[m] / RANK_SUMS_147[m][0], 2) for v, m in RANK_MAPPING.items()
+MODULE_RANK_SCALE[LEVEL3_FLOOR] = {
+    v: round(MODULE_RANK_SUMS_165[m] / MODULE_RANK_SUMS_147[m][0], 2)
+    for v, m in MODULE_RANK_MAPPING.items()
 }
 # WHIR at the higher floor: the reference implementation (WizardOfMenlo/whir at afec1fa) at
 # 2^17 variables over both fields and rates 1/2 to 1/8, 20 bits of proof of work, the Johnson
@@ -2721,7 +2725,7 @@ IMAGE_COORD_BYTES = {"fp128": 16, "goldilocks": 16, "pasta_q64": 16, "pasta_sis"
 IMAGE_SHARE = {v: IMAGE_COORDS * IMAGE_COORD_BYTES[v] / AKITA[128][v][0] for v in IMAGE_COORD_BYTES}
 
 
-def rank_factor_share(variant, factor):
+def module_rank_factor_share(variant, factor):
     """The multiplier on the opening, or on the verifier's work, when the rank grows by `factor`."""
     return 1 + IMAGE_SHARE[variant] * (factor - 1)
 
@@ -2789,7 +2793,7 @@ for variant, hp in itertools.product(
                 log_len = step_rank + math.log2(
                     circuits
                 )  # the decider's accumulator is at the ordinary length, masked or not
-                rank_scale = RANK_SCALE[floor][variant]
+                module_rank_scale = MODULE_RANK_SCALE[floor][variant]
                 # The opening is the floor's own plan; the floor's rank growth over the
                 # catalog's own matrices enters the verifier through the inner images' share.
                 # The accumulation matrix is the floor's ℓ∞ table's, masked or not
@@ -2857,7 +2861,10 @@ for variant, hp in itertools.product(
                         accumulation=atoms,
                         gates=gates,
                         verify=akita_verify(
-                            variant, log_len, zk, rank_factor_share(variant, rank_scale)
+                            variant,
+                            log_len,
+                            zk,
+                            module_rank_factor_share(variant, module_rank_scale),
                         ),
                         folded=K,
                         label=f"step rank {step_rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups"
@@ -4546,7 +4553,7 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                 # measurement at Kishu's digit count; the Pasta-claims plan's extra bytes are
                 # Pasta-width elements that Kishu does not have.
                 log_len = step_rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
-                rank_scale = RANK_SCALE[floor]["goldilocks"]
+                module_rank_scale = MODULE_RANK_SCALE[floor]["goldilocks"]
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = (
                     K * image_bytes(hp) + 2 * K * 32 + 4 + circuits * claim_bytes("kishu", hp)
@@ -4589,7 +4596,7 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                                 "goldilocks",
                                 log_len,
                                 zk,
-                                rank_factor_share("goldilocks", rank_scale),
+                                module_rank_factor_share("goldilocks", module_rank_scale),
                             )
                             + round(bool_verify_ms * WORD_MULTS_PER_MS),
                             folded=K,
@@ -5760,10 +5767,10 @@ def define_figures():
     # the loss of the collision-resistance reduction for the signature of knowledge.
     floor_log_sigma = math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + math.log2(leaf) / 2
     z_floor_bytes = leaf * math.ceil(math.log2(MASK_TAIL) + floor_log_sigma) / 8
-    min_rank = math.ceil(math.log2(leaf))
+    min_step_rank = math.ceil(math.log2(leaf))
     groups = STAGES + 1
     succinct = (
-        akita_bytes("goldilocks", groups - 1, min_rank - math.log2(DIGITS["goldilocks"]))
+        akita_bytes("goldilocks", groups - 1, min_step_rank - math.log2(DIGITS["goldilocks"]))
         + groups * 128
         + 2 * groups * 32
         + 4
@@ -5771,7 +5778,7 @@ def define_figures():
         + BOOL_CHECK["sumcheck"][1]
     )
     fig("qk_z_floor_kbytes", kb(z_floor_bytes))
-    fig("qk_min_rank", min_rank)
+    fig("qk_min_rank", min_step_rank)
     fig("qk_succinct_proof_kbytes", kb(succinct))
     fig("qr_fragment_bytes", QR_FRAGMENT_BYTES)
     fig("qr_frames_per_s", QR_FRAMES_PER_S)
@@ -6139,8 +6146,10 @@ def define_figures():
         fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
         log_beta = masked_log_beta_inf(a, log_n=q_log_n, digit_max=kishu_bits)
         fig(f"mask_log_beta_alpha{a}", sig(log_beta, 3))
-        _, m_rank, m_degree, _ = accumulation_matrix("pasta_q64", DEFAULT_FLOOR, log_beta, q_log_n)
-        fig(f"mask_matrix_alpha{a}", f"{m_rank} × {fmt(m_degree)}")
+        _, m_module_rank, m_degree, _ = accumulation_matrix(
+            "pasta_q64", DEFAULT_FLOOR, log_beta, q_log_n
+        )
+        fig(f"mask_matrix_alpha{a}", f"{m_module_rank} × {fmt(m_degree)}")
         fig(f"mask_bits_alpha{a}", mask_coordinate_bits(a, log_n=q_log_n, digit_max=kishu_bits))
         fig(f"mask_length_alpha{a}", mask_length(a, log_n=q_log_n, digit_max=kishu_bits))
         fig(
@@ -6805,12 +6814,12 @@ def define_figures():
         "level3_compression_cells_certified",
         "the estimator's tables at the level certify each map of the chain at its rank with width to spare, the first two maps at rank 9 over rings of dimension 2 and 1, and the outputs are the chain's",
         all(width >= needed for _, _, width, needed in LEVEL3_COMPRESSION_CELLS)
-        and [rank * d * 128 for rank, d, _, _ in LEVEL3_COMPRESSION_CELLS]
+        and [module_rank * d * 128 for module_rank, d, _, _ in LEVEL3_COMPRESSION_CELLS]
         == [out for _, out, _ in LEVEL3_COMPRESSION_CHAIN]
         and [128 * needed * d for _, d, _, needed in LEVEL3_COMPRESSION_CELLS]
         == [128 * inp for inp, _, _ in LEVEL3_COMPRESSION_CHAIN],
     )
-    fig("level3_rank_scale_own", RANK_SCALE[LEVEL3_FLOOR]["fp128"])
+    fig("level3_rank_scale_own", MODULE_RANK_SCALE[LEVEL3_FLOOR]["fp128"])
     # The claim field and the transcript hash that the level needs.
     lost = math.log2(LEVEL3_CLAIM_NUMERATOR)
     fig("level3_claim_numerator", LEVEL3_CLAIM_NUMERATOR)
@@ -6830,7 +6839,7 @@ def define_figures():
         "a transcript hash is provable at the level with a state of twice the level's bits, which SHA3-384's capacity and digest exceed and BLAKE3's chaining value does not",
         BLAKE3_STATE_BITS < 2 * LEVEL3_FLOOR <= min(SHA3_384_CAPACITY_BITS, 8 * SHA3_384_DIGEST),
     )
-    fig("level3_rank_sum_own", RANK_SUMS_165["own"])
+    fig("level3_rank_sum_own", MODULE_RANK_SUMS_165["own"])
     g147 = pick("goldilocks", step_rank=16, zk=True, hashes="blake3")
     g165 = pick("goldilocks", step_rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
     fig("level3_goldilocks_16_circuits", g165["circuits"])
@@ -6941,7 +6950,7 @@ def define_figures():
         "the 36-fold cells are at ring dimension 512 and above only",
         all(d >= 512 for s in WIDTH_SHRINK_147.values() for d, (m, _) in s.items() if m >= 30),
     )
-    fig("rank_instances", RANK_INSTANCES)
+    fig("rank_instances", MODULE_RANK_INSTANCES)
     # The cost models' bits at each floor's block size (the cost-model table).
     for floor in FLOORS:
         fig(f"block_{floor}", BLOCK_SIZES[floor])
@@ -6952,7 +6961,7 @@ def define_figures():
         "each floor's block size gives the floor's bits under quantum sieving",
         all(round(CORE_SVP_EXPONENTS["quantum"] * BLOCK_SIZES[f]) == f for f in FLOORS),
     )
-    for m, (low, high, moves) in RANK_SUMS_147.items():
+    for m, (low, high, moves) in MODULE_RANK_SUMS_147.items():
         fig(f"rank_sum_{m}_128", low)
         fig(f"rank_sum_{m}_147", high)
         fig(f"rank_moves_{m}", moves)
