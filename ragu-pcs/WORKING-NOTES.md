@@ -5617,3 +5617,32 @@ compressions from that checkout's cost script (`scripts/leansphincs-keygen.py`),
 grinding attempt is one compression with every hash, by the source (the user had suspected so).
 Upstream's main has since moved (its BLAKE2s verifier at height 26 is 299 compressions where the
 pinned checkout proves 298); the page's figures are the pinned checkout's.
+
+## 2026-11-27, 19:30 UTC: one authorization for each spending key
+
+The user: the signing cost is for each distinct spending key in a transaction, not for each
+input note, since zero-knowledge PCD lets one signature (or preimage check) authorize every
+input with that key without revealing that they share one. It applies to every two-input
+transaction. The design the user sketched, which the pages now describe: the authorization is a
+PCD node of its own, proving {(K, M, σ) : σ is a leanSPHINCS signature under K of the digest M}
+or {(qsk, qk) : qk = H^qk(qsk)}, and a higher layer lets steps reuse a child node, so the proof
+is a DAG ([CT10], Definition 3: a directed acyclic multi-graph; keep/CT10.pdf), not a tree.
+Tachyon (d1f5ffb) does not have it: one signature an action, outside the proof, under a
+randomized key.
+
+In the model: `ZOODLES_SIGNING_KEYS = 1` and a `SpendAuth` node. Kishu with zero knowledge:
+Zoodles by leanSPHINCS 0.206 s to 0.110 s, in one step where it took two; with Merkle paths
+0.227 s to 0.131 s; by SLH-DSA 16.1 s to 8.20 s; by preimage 0.0210 s to 0.0209 s.
+
+Two security points from the user, on the Spend Authorization page and NOT costed:
+
+- An intermediate accumulator carries the authorization, which is an optimization for some uses
+  of PCD and a hazard if it leaks. Zoodles ties the proof's transcript to the transaction's
+  digest, as already planned for the hardware wallet's leaf, so every authorization is a
+  signature of knowledge. Kishu has not the context to prevent it in general; it can only offer
+  the signature of knowledge as a facility.
+- With several signers, an authorization node's header says which inputs it signs for, and the
+  transaction's root node checks that every input is covered by some authorization node.
+
+The frontier page's sentence that the SLH-DSA transaction's two spends are "each authorized by"
+a signature became "authorized by one signature", since the fact changed.
