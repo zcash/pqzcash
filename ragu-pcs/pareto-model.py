@@ -113,18 +113,18 @@ def extrapolate_floor(at128, at147, floor=LEVEL3_FLOOR):
     return at147 + (at147 - at128) * (floor - 147) / (147 - 128)
 
 
-def opening_challenge_atoms():
-    """The challenge-field atoms in the non-terminal levels of the shipped schedule's opening,
+def opening_challenge_atoms(name, total):
+    """The challenge-field atoms in the non-terminal levels of a planned schedule's opening,
     and the bytes of the 64-bit profile's extension-opening reduction, from the planner's
-    re-pricing of that schedule (estimates/reprice-replan-base.tsv, the row whose total is
-    AKITA_128's first). The re-pricings give the non-terminal bytes with base-field and
-    challenge-field atoms both at 16 bytes, both at 32, and at 8 and 32, which three sums
-    determine the two counts and the bytes that do not scale."""
-    with (HERE / "estimates" / "reprice-replan-base.tsv").open() as f:
+    re-pricing of that schedule: the file `name` under estimates/, and in it the row with no
+    separately committed group whose total is `total`. The re-pricings give the non-terminal
+    bytes with base-field and challenge-field atoms both at 16 bytes, both at 32, and at 8 and
+    32, which three sums determine the two counts and the bytes that do not scale."""
+    with (HERE / "estimates" / name).open() as f:
         row = next(
             r
             for r in csv.DictReader(f, delimiter="\t")
-            if int(r["original_total"]) == AKITA_128["fp128"][0] and r["logical_key"].endswith("=")
+            if int(r["original_total"]) == total and r["logical_key"].endswith("=")
         )
     at16, at32, at8_32 = (
         int(row[f"{k}_nonterminal"]) for k in ("original", "pallas", "pallas_q64")
@@ -136,17 +136,9 @@ def opening_challenge_atoms():
     return challenge, int(row["goldilocks_terminal_eor"])
 
 
-OPENING_CHALLENGE_ATOMS, GOLDILOCKS_EOR_BYTES = opening_challenge_atoms()
-# At the illustrative level the plan's bytes are on the line through 128 and 147 bits, and
-# the challenge-field atoms are at the level's claim field: 16 bytes more each where the
-# 128-bit field's claims move to its quadratic extension, 8 more where the 64-bit profile's
-# move to the cubic one, whose extension-opening reduction grows by half. The opening's own
-# compressed images, which two compression maps would double, are not separated from its
-# other base-field atoms in the re-pricing and are left as they are.
-LEVEL3_OPENING_EXTRA = {
-    "fp128": 16 * OPENING_CHALLENGE_ATOMS,
-    "goldilocks": 8 * OPENING_CHALLENGE_ATOMS + GOLDILOCKS_EOR_BYTES // 2,
-}
+OPENING_CHALLENGE_ATOMS, GOLDILOCKS_EOR_BYTES = opening_challenge_atoms(
+    "reprice-replan-base.tsv", AKITA_128["fp128"][0]
+)
 # The opening at the 165-bit level, planned by Akita's planner at a 165-bit floor with the
 # level's three-map compression chain (scripts/akita-165-pipeline.sh, on the worktree that
 # scripts/patches/akita/0003-* makes; scripts/akita-150-page-inputs.py prints the table from
@@ -158,6 +150,17 @@ AKITA_165_PLANNED = {
     "pasta_q64": [77724, 81994, 83517, 84144, 86472, 87924],
     "pasta_sis": [95210, 97674, 101757, 99312, 103176, 104628],
     "pasta": [111215, 129034, 138237, 129648, 136584, 138036],
+}
+# The planner keeps each profile's own challenge field. So the level's plan is counted in the
+# same way, and its challenge-field atoms are widened to the level's claim field: 16 bytes more
+# each where the 128-bit field's claims move to its quadratic extension, and 8 more where the
+# 64-bit profile's move to the cubic one, whose extension-opening reduction grows by half.
+LEVEL3_OPENING_CHALLENGE_ATOMS, LEVEL3_GOLDILOCKS_EOR_BYTES = opening_challenge_atoms(
+    "reprice-replan-base-165.tsv", AKITA_165_PLANNED["fp128"][0]
+)
+LEVEL3_OPENING_EXTRA = {
+    "fp128": 16 * LEVEL3_OPENING_CHALLENGE_ATOMS,
+    "goldilocks": 8 * LEVEL3_OPENING_CHALLENGE_ATOMS + LEVEL3_GOLDILOCKS_EOR_BYTES // 2,
 }
 AKITA[LEVEL3_FLOOR] = {
     v: [planned + LEVEL3_OPENING_EXTRA.get(v, 0) for planned in AKITA_165_PLANNED[v]]
@@ -229,10 +232,14 @@ ACCUMULATION_DEGREES = (512, 1024)
 ACCUMULATION_MAX_MODULE_RANK = 6
 
 
+LINF_SOURCES = {}  # (modulus, floor) -> the files its rows came from
+
+
 def load_linf_widths():
     """{(modulus, floor): {(degree, rank): [(bound, width), ...]}}: the largest width in ring
     elements that the ℓ∞ estimator certifies at each bound of the ladder, in bound order."""
     table = {}
+    LINF_SOURCES.clear()
     # The 165-bit level's table is in two files. The 64-bit and 128-bit moduli's rows
     # are the estimator's own, from the tables regenerated at 165 bits. The estimator has not
     # been run for the Pallas modulus at that floor, so its rows are derived from the 147-bit
@@ -246,6 +253,7 @@ def load_linf_widths():
         with (HERE / "estimates" / name).open() as f:
             for r in csv.DictReader(f, delimiter="\t"):
                 cells = table.setdefault((r["modulus"], int(r["floor"])), {})
+                LINF_SOURCES.setdefault((r["modulus"], int(r["floor"])), set()).add(name)
                 cells.setdefault((int(r["d"]), int(r["rank"])), []).append(
                     (int(r["bound"]), int(r["max_width"]))
                 )
@@ -2766,7 +2774,7 @@ def module_rank_factor_share(variant, factor):
 
 
 def floor_label(floor):
-    return {147: ", 147‑bit", LEVEL3_FLOOR: ", Level 3 (derived)"}.get(floor, "")
+    return {147: ", 147‑bit", LEVEL3_FLOOR: ", 165‑bit"}.get(floor, "")
 
 
 def application_policy(hashes, policy):
@@ -4327,6 +4335,9 @@ for mode in ("arc", "rec"):
 # sum-check's; the projection's certificate is not on Kishu's path. Revealing the
 # projection gives no zero knowledge, and the draft's certificates are conditional and not
 # yet formalized.
+# The error of the projection's lower-tail certificate, as bits: 2^-136, conditional on
+# CertifiedJL's estimates (kishu-soundness.md, Theorem B′).
+PROJECTION_ERROR_BITS = 136
 BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, merge multiplications, merge bit gates)
     "projection": (113 / 2**27 * WORD_MULTS_PER_MS, 2592, 0.85, 0, 3_109_760),
     "sumcheck": (437.7 / 2**27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
@@ -4565,6 +4576,12 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
     K = STAGES + 1
     for floor in (*FLOORS, LEVEL3_FLOOR):
         if hp not in floor_policies(floor):
+            continue
+        # The projection's certificate has error 2^-PROJECTION_ERROR_BITS, short of the 165-bit
+        # level, so the level has the sum-check form alone. The 128- and 147-bit floors keep
+        # it: they are the lattice assumption's, and the sum-checks there, in 128-bit fields,
+        # have a larger error than the projection's (LEVEL3_CLAIM_NUMERATOR over the field).
+        if check == "projection" and floor == LEVEL3_FLOOR:
             continue
         for zk in (False,) if check == "projection" else (False, True):
             for length in KISHU_STEP_LENGTHS:
@@ -6870,6 +6887,33 @@ def define_figures():
         == [128 * inp for inp, _, _ in LEVEL3_COMPRESSION_CHAIN],
     )
     fig("level3_rank_scale_own", MODULE_RANK_SCALE[LEVEL3_FLOOR]["fp128"])
+    fig("level3_rank_scale_q64", MODULE_RANK_SCALE[LEVEL3_FLOOR]["goldilocks"])
+    fig("level3_rank_scale_pallas", MODULE_RANK_SCALE[LEVEL3_FLOOR]["pasta"])
+    fig("level3_opening_challenge_atoms", fmt(LEVEL3_OPENING_CHALLENGE_ATOMS))
+    fig("projection_error", tex_pow2(-PROJECTION_ERROR_BITS))
+    # Where each of the level's inputs comes from.
+    derived, certified = "linf-accumulation-widths-derived.tsv", "linf-accumulation-widths-165.tsv"
+    claim(
+        "level3_sources",
+        "at the 165-bit level the opening and its slope are the plan's for every variant, with the level's own count of challenge-field atoms; the accumulation widths are the estimator's for the 64-bit and 128-bit moduli and derived for Pallas alone; the module-rank growth is computed for the catalog's own moduli and extrapolated for the others; and no row uses the Booleanity check by projection, whose error is short of the level and smaller than a 128-bit field's sum-check error",
+        all(
+            AKITA[LEVEL3_FLOOR][v]
+            == [x + LEVEL3_OPENING_EXTRA.get(v, 0) for x in AKITA_165_PLANNED[v]]
+            for v in AKITA_147
+        )
+        and LINF_SOURCES[("q64", LEVEL3_FLOOR)] == {certified}
+        and LINF_SOURCES[("q128", LEVEL3_FLOOR)] == {certified}
+        and LINF_SOURCES[("pallas", LEVEL3_FLOOR)] == {derived}
+        and all(
+            src == {"linf-accumulation-widths.tsv"}
+            for (_, fl), src in LINF_SOURCES.items()
+            if fl != LEVEL3_FLOOR
+        )
+        and MODULE_RANK_SUMS_165["own"] == 159
+        and 128 - math.log2(LEVEL3_CLAIM_NUMERATOR) < PROJECTION_ERROR_BITS < LEVEL3_FLOOR
+        and not any(p["floor"] == LEVEL3_FLOOR and p.get("check") == "projection" for p in points)
+        and any(p["floor"] == 147 and p.get("check") == "projection" for p in points),
+    )
     # The claim field and the transcript hash that the level needs.
     lost = math.log2(LEVEL3_CLAIM_NUMERATOR)
     fig("level3_claim_numerator", LEVEL3_CLAIM_NUMERATOR)
