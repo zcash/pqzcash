@@ -2505,28 +2505,40 @@ assert (
 )
 
 # ---- Security floor ----------------------------------------------------------------
-# Akita's catalog and ARC's openings are sized at a 128-bit floor under the ADPS16 quantum
-# core-SVP model. The higher floor is 147 bits, the most that Akita's rank-one compression
-# maps allow at the catalog's geometry: the compression chain's first map, at ring dimension
-# 16 and width 4,096, certifies at 147.3 bits, and a higher floor would need rank-two maps
-# or two maps where there is one, which doubles the compressed images at every level (a
-# 150-bit floor was tried first, 2026-10-15 to 2026-11-12, and stopped there). At 147 bits
-# Akita's catalog is re-planned by its own planner in a checkout whose single policy, runtime
-# width tables and compression cells are retargeted to that floor (2026-11-12), so the
-# openings in AKITA[147] are planned. What the planner does not give, the prover's rows term
-# and the verifier's inner-image share, takes the rank growth: for the weakest Module-SIS
-# instance of each schedule in the shipped catalog's security report (115 schedules: 79 fp128,
-# 17 fp64, 19 fp32), the smallest module rank whose maximum secure width covers the instance's
-# width, at both floors, with the instance mapped through the modulus that the variant commits
-# over; the ratio of the summed ranks is the factor (scripts/rank-scale.py, from the width tables
-# regenerated at 147 bits: the catalog's own moduli and the Goldilocks table on 2026-11-12,
-# the Pallas table on 2026-11-15). RANK_SUMS_147 holds, per mapping, the summed ranks at 128
-# and 147 bits and the instances that move up a rank: the catalog's own mix of q128, q64 and
-# q32 cells; the 64-bit modulus (the Goldilocks table, identical to q64's for these cells);
-# and Pallas, where the instances sit at the width cap at both floors but one. WHIR's proofs measure 18%
-# larger at 150 bits over both fields, taken as 16% at 147; ARC's openings scale with the
-# floor. Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order
-# near 2^254) and no post-quantum security, so it is shown at the 128-bit floor only, as the
+# Akita's catalog and ARC's openings are sized at a 128-bit floor, under the ADPS16 quantum
+# core-SVP model.
+#
+# The higher floor is 147 bits. That is the most that Akita's shipped compression chain
+# allows at the catalog's geometry: its first map, at ring dimension 16 and width 4,096,
+# certifies at 147.3 bits. A 150-bit floor was tried first (2026-10-15 to 2026-11-12) and
+# stopped there. A higher floor needs another chain, as the 165-bit level has.
+#
+# At 147 bits the openings in AKITA[147] are planned. Akita's own planner re-planned the
+# catalog in a checkout whose single policy, runtime width tables, and compression cells are
+# retargeted to that floor (2026-11-12).
+#
+# The planner leaves two quantities unspecified: the prover's rows term, and the verifier's
+# inner-image share. Both are scaled by the growth of the Module-SIS ranks, RANK_SCALE, which
+# scripts/rank-scale.py computes as follows.
+#
+# - The instances are the weakest Module-SIS instance of each schedule in the shipped
+#   catalog's security report: 115 schedules, of which 79 are fp128, 17 fp64, and 19 fp32.
+# - An instance's rank at a floor is the smallest module rank whose maximum secure width
+#   covers the instance's width, in the width tables regenerated at that floor.
+# - The instance is looked up under the modulus that the variant commits over.
+# - The factor is the summed ranks at the floor over the summed ranks at 128 bits.
+#
+# RANK_SUMS_147 holds, for each mapping, the summed ranks at 128 bits and at 147 bits, and the
+# number of instances that move up a rank. The mappings are: the catalog's own mix of q128,
+# q64, and q32 cells; the 64-bit modulus, from the Goldilocks table, which is identical to
+# q64's for these cells; and Pallas, where all the instances but one sit at the width cap at
+# both floors. The tables were regenerated on 2026-11-12, and Pallas's on 2026-11-15.
+#
+# WHIR's proofs measure 18% larger at 150 bits over both fields, taken as 16% at 147. ARC's
+# openings scale with the floor.
+#
+# Pedersen-IPA over Pasta has about 126 classical bits (Pollard rho on a group of order near
+# 2^254) and no post-quantum security. So it is shown at the 128-bit floor only, as the
 # conventional pre-quantum baseline, and drops out at 147 bits.
 RANK_INSTANCES = 115
 RANK_SUMS_147 = {"own": (121, 150, 29), "q64": (185, 211, 26), "pallas": (117, 118, 1)}
