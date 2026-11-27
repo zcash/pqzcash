@@ -5201,3 +5201,40 @@ efficient; Kishu with zero knowledge still beats everything else handily. The us
 that the key thing is using Akita's F_q for the constraints. The page should say so.
 
 TO DO on this branch: the re-plan's pipeline at block size 623, for overnight.
+
+## 2026-11-27: the level's compression chain, with the user
+
+Worked through interactively. Akita's compression is a fixed chain of two rank-one maps: for the
+128-bit modulus, 8 KiB to 2,048 bits at ring dimension 16, then to 1,024 bits at dimension 8. The
+paper's Appendix G gives them 147.34 and 153.17 quantum bits, so both fall short of 165, not the
+first alone (the user's point). "Rank" is the module rank, the output's ring elements. A map's
+security depends on its output's bits (rank times ring dimension times modulus bits) and its
+input's width, whatever the modulus: the estimator's 147-bit table has identical widths for equal
+output bits, and its single-instance example (`sis_estimator_once`, which reproduces both of the
+paper's figures) gives 171.72 bits for a 2,304-bit output at any of the three moduli.
+
+What the level needs: a first output of 2,304 bits for the 65,536-bit input, and a last output
+whose input is narrow enough. Splitting a map into two half-width rank-one maps does not help,
+since each half keeps its output size. A power-of-two rank-one ladder cannot do it either, at any
+number of stages: some intermediate output must be between sizes, so some map has rank above one
+over a smaller ring (or a ring of another shape, or another modulus). The user's conclusions: the
+finer-output cost is paid by every option; chains whose outputs are whole coefficients only
+(128-bit, or 64-bit for the 64-bit profile); and the nested chain
+
+    65,536 -> 2,304 -> 1,152 -> 1,024 -> 960 bits   (171.72, 170.66, 173.58, 165.36 bits)
+
+whose first two maps give 144 bytes, first three the shipped 128 bytes, and all four 120 bytes
+(whole coefficients at 64 bits only). One map alone would leave 288 bytes, which costs at every
+merge, where the image is hashed and folded; a further map costs once, in the opening. Per merge
+at the level, from the model's functions with the image's size overridden: two maps against three
+is +0.7% of Kishu's accumulation prover at rank 17 (+1.0% with SHA3-384 transcripts) and +2.2% of
+Akita over Goldilocks's at rank 16; three against four is 0.02% for Kishu and 1.1% for Goldilocks,
+and the fourth map only just reaches the level. The model takes three maps, so the level's image
+is 128 bytes as at the other floors, where it had been taken at twice that. The third map's
+witness in the opening is not counted. `scripts/compression-chain.sh` prints the figures.
+
+Found on the way, NOT FIXED: the transaction measure is not monotone in the merge's size. A step
+takes the fewest circuits that hold its merge, and what is left is the application's room, so a
+merge that tips into one more circuit leaves far more room and fewer steps: the leanSPHINCS
+transaction at the level was 0.499 s with a 256-byte image and 0.584 s with a 144-byte one. A
+prover could take the extra circuit by choice; the model does not consider it.
