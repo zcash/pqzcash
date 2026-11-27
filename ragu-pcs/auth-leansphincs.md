@@ -21,11 +21,12 @@ Since the signature is made outside the proof, its message has to bind the trans
 data. In Zoodles it is a BLAKE3 digest of them: each spend's two nullifiers, each output's
 commitment, the change commitment, the fee, and the
 epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
-or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value:
-each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
-commitments that its children's headers carry. The verification, not the digest, is the expensive
-part of the method. In ZIP 2005's Recovery Statement [\[ZIP-2005\]](#ref-zip2005) the message is the
-SigHash.
+or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value: an
+authorization node verifies the signature over it, once for each spending key and not once a spend
+([Spend authorization](spend-authorization.md)), and the fee step recomputes it from the nullifiers
+and commitments that its children's headers carry. The verification, not the digest, is the
+expensive part of the method. In ZIP 2005's Recovery Statement [\[ZIP-2005\]](#ref-zip2005) the
+message is the SigHash.
 
 ## The verifier in the circuit
 

@@ -36,22 +36,23 @@ the maximum-fee note's value less the fee, as Tachyon's does.
 What changes in the tree is the packing: Tachyon gives each circuit a step of its own, whereas a
 Kishu step, one committed witness of a chosen length in digits, holds its own merge, the fee
 circuit, <!--fig:zoodles_fee_digits-->28,941<!--/fig--> digits, and with them as many spends and
-outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->48,688<!--/fig--> digits and an
+outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->37,344<!--/fig--> digits and an
 output <!--fig:zoodles_output_digits-->48,681<!--/fig--> digits, each with its merge
 of <!--fig:zoodles_merge_digits-->9,226<!--/fig--> digits (for more on the cost model of Kishu, see
 [Kishu's Arithmetization](kishu-arithmetization.md)).
-Therefore, <!--fig:zoodles_actions_per_step_21-->9<!--/fig--> actions, each a spend or an output,
+Therefore, <!--fig:zoodles_actions_per_step_21-->10<!--/fig--> actions, each a spend or an output,
 fit beside the merge in a step of
-$2^{21}$ digits, <!--fig:zoodles_actions_per_step_22-->45<!--/fig--> in one of $2^{22}$,
-and <!--fig:zoodles_actions_per_step_23-->117<!--/fig--> in one of $2^{23}$. A transaction's first
+$2^{21}$ digits, <!--fig:zoodles_actions_per_step_22-->50<!--/fig--> in one of $2^{22}$,
+and <!--fig:zoodles_actions_per_step_23-->130<!--/fig--> in one of $2^{23}$. A transaction's first
 step holds no merge, so it has that much more room. A transaction of two inputs and two outputs is
 four actions, and in a step
 of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits it fits
 in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the same
-transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or output, three
-merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS with BLAKE3
-is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.43 million<!--/fig--> digits and takes
-several steps by itself.
+transaction in <!--fig:tachyon_tree_nodes-->12<!--/fig--> steps, two for each spend or output, three
+merges, and the fee, and then rerandomizes. An authorization by leanSPHINCS with BLAKE3
+is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.39 million<!--/fig--> digits, far more than
+the rest of the transaction. It is a node of its own, made once for each spending key and not once a
+spend.
 
 The arithmetic inside the nodes also changes. In Tachyon the set polynomials are Pedersen vector
 commitments and the bridge hash is a Pedersen hash onto Pallas. In Zoodles the set polynomials are
@@ -92,28 +93,31 @@ disabled before Q-day.
 
 ## Spend authorization
 
-Spend authorization is chosen per input, usually the same for all. The [Spend
+Spend authorization is chosen for each spending key, usually the same for all, and is proved once
+for each key that a transaction spends from, not once an input. The [Spend
 authorization](spend-authorization.md) section motivates the two methods and has a page on each: the
 [hash preimage](auth-preimage.md), the check $\mathsf{qk} = \mathsf{H^{qk}}(\mathsf{qsk})$ of ZIP
-2005 [\[ZIP-2005\]](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, proved
-inside the spend step beside the payment key's opening; and a [leanSPHINCS](auth-leansphincs.md)
-signature over a digest of the transaction, verified inside the proof with the public key as a
-witness. The section also covers recovery from Ironwood and from Tachyon, and hardware wallets.
+2005 [\[ZIP-2005\]](#ref-zip2005) with $\mathsf{qk}$ committed in the note's payment key, which the
+spend step opens; and a [leanSPHINCS](auth-leansphincs.md) signature over a digest of the
+transaction, verified inside the proof with the public key as a witness. The section also covers
+recovery from Ironwood and from Tachyon, and hardware wallets.
 
 ## Binding a note to its action
 
-Tachyon binds a note to its action through the randomized key: the randomizer $\alpha =
-\mathsf{PRF}(\mathsf{cm} \| \theta)$ ties $\mathsf{rk}$, which the action publishes and the
-signature verifies under, to the note's commitment inside the proof. Tachyon's book notes that with
-$\mathsf{rk}$ gone the binding has to be re-established as a constraint of the proof statement. In
-Zoodles it is. Every value an action publishes is derived in the step that opens the note. A spend's
-step opens $\mathsf{cm}$ to the payment key, the value, $\psi$, and $\mathsf{rcm}$, derives the
-nullifiers from $\mathsf{nk}$ and $\psi$, and takes the amount from the value. An output's step
+Tachyon binds a note to its action through the randomized key: the randomizer
+$\alpha = \mathsf{PRF}(\mathsf{cm} \| \theta)$ ties $\mathsf{rk}$, which the action publishes and
+the signature verifies under, to the note's commitment inside the proof. Tachyon's book notes that
+with $\mathsf{rk}$ gone the binding has to be re-established as a constraint of the proof statement.
+In Zoodles it is. Every value an action publishes is derived in the step that opens the note. A
+spend's step opens $\mathsf{cm}$ to the payment key, the value, $\psi$, and $\mathsf{rcm}$, derives
+the nullifiers from $\mathsf{nk}$ and $\psi$, and takes the amount from the value. An output's step
 hashes the commitment it publishes from the note it creates. The lineage's attestation of
 $\mathsf{cm}$ reaches the spend step as a PCD header, which the step checks against the commitment
 it opens. The proof tree then carries the published values to the root in its headers. So a preimage
-proof inside a spend step is bound to the whole transaction by the tree, and a signature by [the
-digest](auth-leansphincs.md#the-message) of those values. No randomizer is needed.
+proof, in its authorization node, is bound to the whole transaction by the proof's graph and, as a
+[signature of knowledge](auth-preimage.md#the-signature-of-knowledge), by the transaction's digest
+in its transcript; and a leanSPHINCS signature by [the digest](auth-leansphincs.md#the-message) of
+those values. No randomizer is needed.
 
 ## The lineage
 
@@ -142,14 +146,15 @@ beside it, and [The epoch's tachygram set](zoodles-epoch-set.md) compares the re
 ## Cost
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
-is <!--fig:app_zoodles_preimage_kishu-->251,357<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0210<!--/fig--> s with zero knowledge in a step
+is <!--fig:app_zoodles_preimage_kishu-->240,013<!--/fig--> committed digits and
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0209<!--/fig--> s with zero knowledge in a step
 of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits,
-or <!--fig:tx_zoodles_preimage_kishu_s-->0.00243<!--/fig--> s without. One authorized by leanSPHINCS
-with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.06 million<!--/fig--> digits
-and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.206<!--/fig--> s with zero knowledge in a
-step of <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->$2^{22}$<!--/fig--> digits,
-in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->2<!--/fig--> steps; the frontier page has
+or <!--fig:tx_zoodles_preimage_kishu_s-->0.00232<!--/fig--> s without. One authorized by leanSPHINCS
+with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->3.67 million<!--/fig--> digits
+and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.110<!--/fig--> s with zero knowledge in a
+step
+of <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits,
+in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->1<!--/fig--> steps; the frontier page has
 the BLAKE2s and Keccak variants. Tachyon's own four tachyactions in Kishu with zero knowledge
 take <!--fig:tx_tachyon4_kishu_zk_s-->0.0966<!--/fig--> s, so Zoodles by preimage
 is <!--fig:zoodles_preimage_of_tachyon_pct-->22<!--/fig--> percent of them; on Pedersen-IPA they

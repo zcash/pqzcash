@@ -2022,7 +2022,20 @@ SIGNATURE_AUTHS = {
 ZOODLES_AUTHS = ("preimage", *SIGNATURE_AUTHS)
 
 
+# The spending keys that the page's transaction of ZOODLES_INPUTS inputs spends from: one, a
+# wallet's notes sharing a key. A spend is authorized once for each distinct key, not once an
+# input (the user, 2026-11-27). The authorization is a node of its own, which proves knowledge
+# of a signature under a key over the transaction's digest, or of the preimage of a quantum key,
+# and which every spend from that key uses. So the proof is a directed acyclic graph, as
+# proof-carrying data is defined ([CT10], Definition 3), and not a tree. A zero-knowledge proof can share an
+# authorization without showing that two inputs have one key. Tachyon signs each action
+# outside the proof under a key randomized for that action, and has nothing to share. The
+# control logic that lets a step reuse a child node is not costed. Nor is the check that
+# several signers need: an authorization node's header says which inputs it authorizes, and
+# the root node checks that every input is covered by some authorization node.
+ZOODLES_SIGNING_KEYS = 1
 ZOODLES_NODES = {  # compressions, roots, openings, and the widths of the range checks and sums
+    "SpendAuth": (0, 0, 0, ()),
     "SpendBind": (2, 0, 0, (ZOODLES_EPOCH_BITS, ZOODLES_AMOUNT_BITS)),
     "SpendAction": (1, 2, 1, ()),
     "OutputBind": (2 * ZOODLES_NOTE_COMPRESSIONS, 0, 0, (ZOODLES_AMOUNT_BITS,)),
@@ -2036,9 +2049,10 @@ ZOODLES_ROOT_MULTS = {"pasta": 1, "fp128": 3, "goldilocks": 9}
 
 
 def zoodles_nodes(spends, outputs):
-    """Tachyon's tree without the two rerandomization fuses; the fee circuit is the root and is
-    packed into a step with the rest, as the others are."""
-    return tachyon_nodes(spends, outputs)[:-2]
+    """Tachyon's tree without the two rerandomization fuses, and an authorization node for each
+    spending key; the fee circuit is the root and is packed into a step with the rest, as the
+    others are."""
+    return tachyon_nodes(spends, outputs)[:-2] + ["SpendAuth"] * ZOODLES_SIGNING_KEYS
 
 
 BITZ_CLAIM_MULT_BITS = 128  # a product in BitZ's 128-bit field as committed bits
@@ -2081,14 +2095,14 @@ def zoodles_opening_cost(field, hp):
 
 def zoodles_node_cost(field, hp, node, auth):
     """One Zoodles node in the unit of `field`'s arithmetization: its BLAKE3 compressions, its
-    roots and openings, its bits, and under the signature authorization the leanSPHINCS
-    verifier in a spend's action step and the transaction digest in the fee step."""
+    roots and openings, its bits, and the authorization in its own node: the preimage's one
+    compression, or the signature's verifier, with the transaction digest in the fee step."""
     blake3, roots, openings, widths = ZOODLES_NODES[node]
     verifier = 0
-    if auth == "preimage" and node == "SpendAction":
-        blake3 += 1  # qk = H^qk(qsk), beside the payment key's opening to (nk, qk)
+    if auth == "preimage" and node == "SpendAuth":
+        blake3 += 1  # qk = H^qk(qsk); the spend opens its payment key to (nk, qk)
     if auth in SIGNATURE_AUTHS:
-        if node == "SpendAction":
+        if node == "SpendAuth":
             verifier = hash_app_cost(field, *SIGNATURE_AUTHS[auth])
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
@@ -2104,10 +2118,10 @@ def zoodles_node_cost(field, hp, node, auth):
 def zoodles_node_piop(node, auth):
     blake3, roots, openings, widths = ZOODLES_NODES[node]
     parts = []
-    if auth == "preimage" and node == "SpendAction":
+    if auth == "preimage" and node == "SpendAuth":
         blake3 += 1
     if auth in SIGNATURE_AUTHS:
-        if node == "SpendAction":
+        if node == "SpendAuth":
             parts.append((1, hash_app_piop(*SIGNATURE_AUTHS[auth])))
         if node == "FeeFuse":
             blake3 += ZOODLES_SIGHASH_COMPRESSIONS
@@ -2131,22 +2145,32 @@ def zoodles_merkle_cost(field, hp, auth):
     total = range_digits(field, ZOODLES_SUM_BITS)
     spend = (
         path_cost(field, hp)
-        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
+        + hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS + 2)
         + amount
     )
+    # The authorization, once for each spending key.
     sighash = 0
+    authorization = hash_app_cost(field, "blake3", 1) if auth == "preimage" else 0
     if auth in SIGNATURE_AUTHS:
-        spend += hash_app_cost(field, *SIGNATURE_AUTHS[auth])
+        authorization = hash_app_cost(field, *SIGNATURE_AUTHS[auth])
         sighash = hash_app_cost(field, "blake3", ZOODLES_MERKLE_SIGHASH_COMPRESSIONS)
     output = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + amount
     fee = hash_app_cost(field, "blake3", ZOODLES_NOTE_COMPRESSIONS) + 3 * amount + total
     sums = (ZOODLES_INPUTS + ZOODLES_OUTPUTS - 1) * total
-    return ZOODLES_INPUTS * spend + ZOODLES_OUTPUTS * output + fee + sighash + sums
+    return (
+        ZOODLES_INPUTS * spend
+        + ZOODLES_SIGNING_KEYS * authorization
+        + ZOODLES_OUTPUTS * output
+        + fee
+        + sighash
+        + sums
+    )
 
 
 def zoodles_merkle_piop(auth):
     blake3 = (
-        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2 + (auth == "preimage"))
+        ZOODLES_INPUTS * (ZOODLES_NOTE_COMPRESSIONS + 2)
+        + ZOODLES_SIGNING_KEYS * (auth == "preimage")
         + (ZOODLES_OUTPUTS + 1) * ZOODLES_NOTE_COMPRESSIONS
     )
     parts = [
@@ -2156,7 +2180,7 @@ def zoodles_merkle_piop(auth):
         (ZOODLES_INPUTS + ZOODLES_OUTPUTS, range_check_piop(ZOODLES_SUM_BITS)),
     ]
     if auth in SIGNATURE_AUTHS:
-        parts.append((ZOODLES_INPUTS, hash_app_piop(*SIGNATURE_AUTHS[auth])))
+        parts.append((ZOODLES_SIGNING_KEYS, hash_app_piop(*SIGNATURE_AUTHS[auth])))
         parts.append((ZOODLES_MERKLE_SIGHASH_COMPRESSIONS, BLAKE3_PIOP))
     return piop_sum(*parts)
 
@@ -5971,6 +5995,8 @@ def define_figures():
     # variant; and Tachyon's four tachyactions beside them.
     nodes = zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
     fig("zoodles_nodes", len(nodes))
+    fig("tachyon_tree_nodes", len(tachyon_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)) - 2)
+    fig("zoodles_signing_keys", ZOODLES_SIGNING_KEYS)
     fig("zoodles_blake3", sum(ZOODLES_NODES[n][0] for n in nodes))
     fig("zoodles_roots", sum(ZOODLES_NODES[n][1] for n in nodes))
     fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
@@ -6077,7 +6103,7 @@ def define_figures():
     fig("zoodles_epoch_hashes", ZOODLES_EPOCH_LOG + 2)
     # The Zoodles page's packing in numbers: the nodes' digits by kind, and how many actions a
     # step holds beside the fee, each action a spend or an output with its merge.
-    node_names = tachyon_nodes(2, 2)[:-2]
+    node_names = zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
     node_digits = dict(zip(node_names, APP["zoodles_preimage"][KISHU_ARITHS[0]]["blake3"]))
     spend_digits = node_digits["SpendBind"] + node_digits["SpendAction"]
     output_digits = node_digits["OutputBind"] + node_digits["OutputAction"]
@@ -6090,7 +6116,7 @@ def define_figures():
     )
     fig(
         "zoodles_leansphincs_blake3_spend_digits",
-        millions(sphincs_nodes["SpendBind"] + sphincs_nodes["SpendAction"], 3),
+        millions(sphincs_nodes["SpendAuth"], 3),
     )
     action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
     # Actions in a step beside its merge and the fee node, at the zero-knowledge limb row's

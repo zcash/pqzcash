@@ -581,7 +581,7 @@ keeps growing, and from $\alpha = 59$ the coordinates take a tenth slice. The pa
 measure prices the user's whole chain, and in it each attempt commits the whole mask. On the page's
 $\ell_\infty$ route ([§5.5](#55-checking-the-ranks-with-akitas-estimator)) the matrix does not move
 across these widths, so that measure alone prefers a far wider mask, and 48 is
-within <!--fig:kishu_zk_alpha_page_excess_pct-->19<!--/fig--> percent of its least ([its
+within <!--fig:kishu_zk_alpha_page_excess_pct-->20<!--/fig--> percent of its least ([its
 zero-knowledge section](pareto-template.html#zero-knowledge)); what a wider mask costs there is
 outside the measure, the coordinates' bits and slices in the transfer and the aggregator's range
 checks, and the public merges' rate. On this section's Euclidean route a wider mask costs rank as
