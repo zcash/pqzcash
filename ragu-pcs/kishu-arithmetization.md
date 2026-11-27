@@ -399,8 +399,8 @@ A transaction's prover work is then its steps' commitments and PIOPs, a merge fo
 fold's sum-checks over the accumulator, and the final opening. The frontier page's axes
 [Accumulation prover](pareto-template.html#accumulation-prover), [Prover commitment
 work](pareto-template.html#prover-work), and [Transaction
-prover](pareto-template.html#transaction-prover) say how each is counted, and its
-[Rank](pareto-template.html#rank) section how the step size is chosen. Zero knowledge adds the
+prover](pareto-template.html#transaction-prover) say how each is counted, and its [Step
+rank](pareto-template.html#step-rank) section how the step size is chosen. Zero knowledge adds the
 masked accumulation matrix's rate to every digit and the masking fold once per transaction, as [Zero
 Knowledge for a Lattice Accumulation Step](zk-fiat-shamir-with-aborts.md) describes.
 

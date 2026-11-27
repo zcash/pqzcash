@@ -14,7 +14,7 @@ data define them. The numbers come from:
     checked against Ragu's wire format, `CompressedProof::encoded_len` (7,908 bytes of payload
     at the checked-in configuration, 7,936 with the 28-byte envelope, at tachyon-zcash/ragu
     8109a41c), and the circuit budget: the internal circuits' measured gate counts,
-    which bound the endoscalings per step and the binders at each rank;
+    which bound the endoscalings per step and the binders at each step rank;
   - the Akita planner runs in estimates/ and work/akita-pasta-out/groups/: opening sizes per
     number of separately committed groups, at each width variant (pasta-proof-size.md §8);
   - the WHIR reference implementation's sweep in estimates/whir-sweep-grind.tsv, Ulrich
@@ -75,19 +75,19 @@ gates_per_merge, gate_budget = _model["gates_per_merge"], _model["gate_budget"]
 # growth. At 147 bits: the re-plan of 2026-11-12 in a checkout whose single policy, runtime
 # width tables and compression cells are retargeted to that floor, the Goldilocks rows
 # planned in the fp64 geometry.
-RANKS = (12, 13, 14, 15, 16, 17)  # step circuits of 2^(rank-2) gates
-HASH_RANKS = (
+STEP_RANKS = (12, 13, 14, 15, 16, 17)  # step circuits of 2^(step rank-2) gates
+HASH_STEP_RANKS = (
     13,
     14,
     15,
     16,
-)  # the WHIR-type rows depend on the rank only through their circuit count
-# The bit arithmetizations' steps commit 2^rank bits or digits, and their merge is nearly a
-# fixed cost, so the transaction measure falls with the rank until one step holds the whole
-# application: the recovery circuit's 8.4 million bits at rank 24 for BitZ, its 4.7 million
-# digits at rank 23 for Kishu. The ranks stop there.
-BITZ_RANKS = tuple(range(12, 25))
-FRONTEND_RANKS = tuple(range(12, 24))
+)  # the WHIR-type rows depend on the step rank only through their circuit count
+# The bit arithmetizations' steps commit 2^(step rank) bits or digits, and their merge is nearly a
+# fixed cost, so the transaction measure falls with the step rank until one step holds the whole
+# application: the recovery circuit's 8.4 million bits at step rank 24 for BitZ, its 4.7 million
+# digits at step rank 23 for Kishu. The step ranks stop there.
+BITZ_STEP_RANKS = tuple(range(12, 25))
+FRONTEND_STEP_RANKS = tuple(range(12, 24))
 AKITA_K = [0, 1, 2, 4, 8, 12]
 AKITA_128 = {
     "fp128": [65074, 69044, 71066, 69492, 68485, 70404],
@@ -193,19 +193,19 @@ DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "past
 #
 # Pedersen over Pasta: a size-n multi-scalar multiplication with 255-bit scalars by Pippenger
 # costs about 255/log2(n) mixed point additions per point, so the cost per coefficient falls
-# as 1/rank. The constant is measured (2026-11-14). Ragu's fuse of its production step at
-# rank 13 (tachyon-zcash/ragu 8109a41c) commits the step's own circuit and the Standard
+# as 1/step rank. The constant is measured (2026-11-14). Ragu's fuse of its production step at
+# step rank 13 (tachyon-zcash/ragu 8109a41c) commits the step's own circuit and the Standard
 # profile's 91 circuits with their four stage polynomials: 96 commitments of 2^13
 # coefficients. It takes 1.46 s on one core of an Apple M4 Max with rustc 1.100.0 and no
 # assembly, and 1.27 s with udon's AArch64 assembly, which Ragu does not enable. At the
-# page's rate that is about 5,570 word multiplications per coefficient at rank 13. The
+# page's rate that is about 5,570 word multiplications per coefficient at step rank 13. The
 # earlier estimate, 11 field multiplications of 32 word multiplications per addition, gave
 # 6,900, 24 percent more.
 #
 # Ajtai over R_q = Z_q[X]/(X^d + 1) by NTT, with the accumulation matrix shaped as Akita's
 # catalog shapes its own: a module of `rank` rows over a ring of degree d, 512 or 1024 (the
 # catalog's accumulation matrix is rank one at degree 512 at the 2^14 geometry and 1024 above
-# it, its bound certified on the coefficient ℓ∞ route). Per digit: `rank` pointwise ring
+# it, its bound certified on the coefficient ℓ∞ route). Per digit: `step rank` pointwise ring
 # products and log2(d)/2 butterflies for the digit's share of the transform, each a
 # multiplication at the modulus width: 32 word multiplications at 255 bits, 8 at 128, 2 at 64
 # (Goldilocks's reduction is cheaper still, taken as 1.5). The rank and degree are the
@@ -286,15 +286,15 @@ def accumulation_matrix(variant, floor, log_beta, log_n):
 
 # The accumulator memory measure: what the prover holds between fuses, in bytes. For the
 # lattice rows it is the folded digit vector, the accumulator's coefficients (the batch group's
-# circuits × 2^rank and the stage groups' values, accumulator_coefficients below) in digits, each
+# circuits × 2^(step rank) and the stage groups' values, accumulator_coefficients below) in digits, each
 # digit stored at the width of its accumulator's norm bound. The certified l2 bound at the
 # handoff is about 2^19 (zk-fiat-shamir-with-aborts.md's ledger), which bounds every entry, so
 # 20 bits and a sign. Each fold multiplies the entries by up to 40, so a level below the top
 # needs five bits fewer. The measure is of the top level. The sum-checks expand a digit to an
 # element of the commitment field on the fly (8 bytes at 64 bits, 16 at 128, 32 at Pasta's
 # modulus), which is not storage. Pedersen's
-# is the uncompressed proof, every committed polynomial's 2^rank Pasta coefficients (26.5 MB
-# measured at rank 13 against the 24.9 MB counted). The hash-based rows under ARC hold the
+# is the uncompressed proof, every committed polynomial's 2^(step rank) Pasta coefficients (26.5 MB
+# measured at step rank 13 against the 24.9 MB counted). The hash-based rows under ARC hold the
 # accumulator's codeword, the witness over the rate in the field's elements, and its Merkle
 # tree; under their own recursion only the previous proof. BitZ and the 𝔽₂ family hold the
 # packed codeword with a tree of 256-byte leaves, and the binary-groups row the packed bits.
@@ -478,17 +478,17 @@ def ajtai_per_coefficient(
 
 PEDERSEN_FUSE_SECONDS = 1.46  # Ragu's fuse at the checked-in configuration, one core, no assembly
 PEDERSEN_FUSE_COMMITMENTS = 96  # the step's circuit, the Standard profile's 91 and four stages
-PEDERSEN_FUSE_RANK = 13
+PEDERSEN_FUSE_STEP_RANK = 13
 
 
-def pedersen_per_coefficient(rank):
+def pedersen_per_coefficient(step_rank):
     per_coefficient_measured = (
         PEDERSEN_FUSE_SECONDS
         * 1000
         * WORD_MULTS_PER_MS
-        / (PEDERSEN_FUSE_COMMITMENTS * 2**PEDERSEN_FUSE_RANK)
+        / (PEDERSEN_FUSE_COMMITMENTS * 2**PEDERSEN_FUSE_STEP_RANK)
     )
-    return per_coefficient_measured * PEDERSEN_FUSE_RANK / rank
+    return per_coefficient_measured * PEDERSEN_FUSE_STEP_RANK / step_rank
 
 
 # The user's masking fold, for the page's transaction measure: the expected rejection-sampling
@@ -498,7 +498,7 @@ def pedersen_per_coefficient(rank):
 # merge is added at the point (handoff_merge_cost, handoff_merge_digits): under the note's §5.8
 # deferral the user's merge checks the challenge derivation, the commitment identity and the
 # claim fold, and the aggregator's first fold does the decomposition and the range and norm
-# proofs. A bare leaf handed over without a fuse (LEAF_HANDOFF) masks its own 2^rank digits
+# proofs. A bare leaf handed over without a fuse (LEAF_HANDOFF) masks its own 2^(step rank) digits
 # instead, the row's fold_leaf. §5.8 also moves the attempts off the device's critical path, so
 # this is total work, not latency.
 #
@@ -673,10 +673,10 @@ SUMCHECK_GATES = 400
 
 # Each step circuit's polynomial carries its own evaluation claim: one claim-field element
 # in the proof, one atom absorbed per merge, and a few gates to fold it. This is what makes
-# a larger rank, and so fewer circuits, cheaper for Akita. Under BLAKE3 the claim's hashing,
+# a larger step rank, and so fewer circuits, cheaper for Akita. Under BLAKE3 the claim's hashing,
 # about 3,700 gates for a 16-byte claim and 7,500 for a 32-byte one, can exceed what a small
-# rank's budget holds per circuit, and then no number of circuits suffices: the merge needs a
-# larger rank, or the claims aggregated before absorption, which is a design change.
+# step rank's budget holds per circuit, and then no number of circuits suffices: the merge needs a
+# larger step rank, or the claims aggregated before absorption, which is a design change.
 CLAIM_BYTES = {
     "fp128": 16,
     "goldilocks": 16,
@@ -689,10 +689,10 @@ CLAIM_BYTES = {
 CLAIM_GATES = 4
 
 # The accumulator's length. Its K = STAGES + 1 groups are the fuse's stage polynomials and one
-# batch of every step circuit's witness: one committed vector of circuits × 2^rank coefficients,
+# batch of every step circuit's witness: one committed vector of circuits × 2^(step rank) coefficients,
 # since the merge absorbs one image for the batch and the decider opens it at that length, with
 # each circuit's claim an evaluation of its own slice. So the batch is about the merge's size
-# at every rank at which the merge needs more than one circuit. A stage polynomial is
+# at every step rank at which the merge needs more than one circuit. A stage polynomial is
 # sparse. In Ragu the trace splits by wire position: a stage holds its values at the a and d
 # wires of its reserved gates and is zero elsewhere, and bonding circuits enforce that the
 # stages do not overlap. So a stage's zeros are structural and public, and what is committed
@@ -708,7 +708,7 @@ CLAIM_GATES = 4
 # level's opening method "though the groups' dimensions and points may differ" (the paper's
 # §5), and its planner sizes groups separately. So the mask, the fold's sum-checks and the
 # accumulator's memory run over accumulator_coefficients, the batch plus the stages' values,
-# not K × 2^rank. The merge absorbs K images and folds K groups, and the opening bytes come
+# not K × 2^(step rank). The merge absorbs K images and folds K groups, and the opening bytes come
 # from the planner's runs with K groups of 2^14 coefficients, which overstate the small stage
 # groups.
 STAGE_HEADER = 9
@@ -732,10 +732,10 @@ STAGE_VALUE_COEFFICIENTS = {
 }
 
 
-def accumulator_coefficients(variant, rank, circuits):
-    """The accumulator's coefficients: the batch group's circuits × 2^rank and the stage
+def accumulator_coefficients(variant, step_rank, circuits):
+    """The accumulator's coefficients: the batch group's circuits × 2^(step rank) and the stage
     groups' values, each as the variant commits a claim-field element."""
-    return circuits * 2**rank + STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS[variant]
+    return circuits * 2**step_rank + STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS[variant]
 
 
 def akita_atoms(variant, K, circuits, zk):
@@ -876,17 +876,17 @@ def akita_merge_gates(variant, K, circuits, zk, hp):
     )
 
 
-def akita_circuits(variant, K, rank, zk, hp):
-    """The step circuits a merge needs at this rank: the gate estimate, which grows with the
+def akita_circuits(variant, K, step_rank, zk, hp):
+    """The step circuits a merge needs at this step rank: the gate estimate, which grows with the
     circuit count through each circuit's claim, divided by the budget, at its fixed point;
     None where each circuit adds more gates than the budget holds, so that no count
     converges."""
     per_circuit = circuit_slope(lambda c: akita_merge_gates(variant, K, c, zk, hp))
-    if per_circuit >= gate_budget(rank):
+    if per_circuit >= gate_budget(step_rank):
         return None
     circuits = 1
     for _ in range(2000):
-        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp) / gate_budget(rank))
+        new = math.ceil(akita_merge_gates(variant, K, circuits, zk, hp) / gate_budget(step_rank))
         if new == circuits:
             return circuits
         circuits = new
@@ -943,7 +943,7 @@ def akita_bytes(variant, K, log_len, floor=DEFAULT_FLOOR):
 # ---- Decider work ----------------------------------------------------------------
 # The decider's verification, in the same 64-bit word-multiplication equivalents as the
 # prover, at 3e9 per second of one core. Pedersen-IPA: the two IPAs each need a multi-scalar
-# multiplication of 2^rank points, plus a scalar multiplication per folded commitment to
+# multiplication of 2^(step rank) points, plus a scalar multiplication per folded commitment to
 # combine the instance (about 255 doublings and additions of 11 field multiplications).
 # Akita: the paper's single-thread measurements (Table 16, one thread, 2^27 bits): 4.2 ms at
 # the 128-bit field and 3.9 ms on Goldilocks, growing 0.45 and 0.35 ms per doubling of the
@@ -968,9 +968,10 @@ def akita_verify(variant, log_len, zk, rank_scale=1.0):
     return round(ms * rank_scale * WORD_MULTS_PER_MS)
 
 
-def pedersen_verify(rank, nat, nes):
+def pedersen_verify(step_rank, nat, nes):
     return round(
-        2 * 2**rank * pedersen_per_coefficient(rank) + 2 * (nat + nes + 5) * SCALAR_MULT_WORD_MULTS
+        2 * 2**step_rank * pedersen_per_coefficient(step_rank)
+        + 2 * (nat + nes + 5) * SCALAR_MULT_WORD_MULTS
     )
 
 
@@ -1066,7 +1067,7 @@ def mult_ands(n):
 # Pasta gate at 510 bits. The page's transaction measure takes an application, the recovery
 # circuit or a number of Merkle path checks (APPLICATIONS, in each arithmetization's unit
 # under each policy), and divides it by the step's capacity in the same unit, `step_units`:
-# 2^rank coefficients, which is 2^(rank-2) gates of four wires for the field families, 2^rank
+# 2^(step rank) coefficients, which is 2^(step rank-2) gates of four wires for the field families, 2^(step rank)
 # bits or digits for BitZ and Kishu, and BOOL_STEP_BITS AND gates for the
 # Boolean families; rounded up, since a transaction smaller than a step pays a whole step.
 BITZ_GATE_BITS = 510  # a Pasta gate as committed bits in BitZ's arithmetization: a 255-bit value and a 255-bit quotient
@@ -1275,7 +1276,7 @@ REDUCTIONS_PIOP = (4000, 12000, 0)
 # with a committed carry of about 34 bits; the result, the quotient and the carries are
 # committed. Fingerprint: as BitZ, the relation is one constraint in each of three PIOP
 # instances over random 52-bit primes, each of which a nonzero 510-bit integer satisfies with
-# probability about 2^-43; each instance's evaluation claim becomes about sqrt(2^rank) integer
+# probability about 2^-43; each instance's evaluation claim becomes about sqrt(2^(step rank)) integer
 # column sums by BitZ's tensor split, each exact as one claim in the 64-bit field, and the
 # sums are committed as digits of 61 bits, the route's cost per step.
 MULT_LIMBS = 9  # 29-bit limbs of a 255-bit value
@@ -1689,15 +1690,15 @@ def absorb_piop(bytes_, hp, checked_words=0, whole=False):
 # seed and an OutputAction step. Each action after the first is an ActionMerge; then come the
 # FeeFuse and Ragu's rerandomization, two fuses with the public bootstrap proof as the right
 # child in Ragu at ef7668fb (one in the older Ragu that Tachyon pins). So a transaction of s
-# spends and o outputs is 3s + 3o + 2 nodes. The page re-packs the tree for each rank's step
+# spends and o outputs is 3s + 3o + 2 nodes. The page re-packs the tree for each step rank's step
 # size: a node larger than a step takes whole steps and its remainder joins the rest, which
 # fill steps first-fit decreasing, and each rerandomization fuse, the list's last two nodes,
-# is its own step. At rank 13 over
-# Pasta no two action circuits share a step and the merge rides with the fee step; at rank 15
+# is its own step. At step rank 13 over
+# Pasta no two action circuits share a step and the merge rides with the fee step; at step rank 15
 # every circuit of two tachyactions fits one step. The circuits were measured on 2026-11-14
 # through Ragu's synthesis analysis on Tachyon's steps, at its header size of 9 over its
 # stage of 5 values. They are Pasta gates with Poseidon, a gate being one multiplication with
-# free linear constraints, and all are within the 2,048 of rank 13. In the other
+# free linear constraints, and all are within the 2,048 of step rank 13. In the other
 # arithmetizations the transaction is Tachyon's circuits as they are: a pre-quantum protocol
 # proven in a post-quantum proof system. That is not a useful deployment, which Zoodles is,
 # but it compares the proof systems on the same application. The Poseidon permutations, two
@@ -2436,7 +2437,7 @@ APPLICATION_MULTS = (
 # Ragu's two-pass rerandomization. Zoodles has no such node.
 OWN_LAST_STEPS = {f"tachyon{n}": 2 for n in TACHYON_TRANSACTIONS}
 # The applications whose user hands over a bare leaf without a fuse of their own, so that the
-# masking fold covers the leaf's 2^rank digits rather than a chain's accumulator, and the merge
+# masking fold covers the leaf's 2^(step rank) digits rather than a chain's accumulator, and the merge
 # that folds the leaf is the host's (DATA.leaf_handoff; the hardware-wallets chapter). Every
 # other application's user chain has merges, and its last accumulator is what the fold masks.
 LEAF_HANDOFF = {"qk"}
@@ -2482,18 +2483,18 @@ PCD_HEADERS = (
 )  # the header sizes the page offers; a Tachyon or recovery transaction forces 9
 
 # Pedersen-IPA: the checked-in cycle design, over the configurations the circuit budget
-# allows at each rank, with the fixed circuits as today or packed into the rank's budget.
-for rank in RANKS:
-    if _model["challenges_per_binder"](rank) < 1 or max_endoscalings(rank) < 1:
-        continue  # a rank-12 circuit holds no binder challenge and no endoscaling point
+# allows at each step rank, with the fixed circuits as today or packed into the step rank's budget.
+for step_rank in STEP_RANKS:
+    if _model["challenges_per_binder"](step_rank) < 1 or max_endoscalings(step_rank) < 1:
+        continue  # a step rank-12 circuit holds no binder challenge and no endoscaling point
     for packing in (False, True):
-        Fn, Fm = fixed_counts(rank, packing)
+        Fn, Fm = fixed_counts(step_rank, packing)
         if packing and (Fn, Fm) == (19, 14):
             continue
-        Emax = max_endoscalings(rank)
+        Emax = max_endoscalings(step_rank)
         for E in sorted({e for e in (4, 6, 8, 12, 16, 24, 32, Emax) if e <= Emax}):
-            for binders in range(min_binders(rank), 5):
-                r = size(Fn, Fm, binders, E, E, rank, 0)
+            for binders in range(min_binders(step_rank), 5):
+                r = size(Fn, Fm, binders, E, E, step_rank, 0)
                 if r is None:
                     continue
                 total, nat, nes = r
@@ -2508,7 +2509,7 @@ for rank in RANKS:
                     dict(
                         family="pedersen",
                         pq=False,
-                        rank=rank,
+                        step_rank=step_rank,
                         E=E,
                         binders=binders,
                         floor=128,
@@ -2519,15 +2520,17 @@ for rank in RANKS:
                         zk=None,
                         hashes="poseidon",
                         bytes=total,
-                        prover=round(commitments * 2**rank * pedersen_per_coefficient(rank)),
-                        step_prover=round(2**rank * pedersen_per_coefficient(rank)),
+                        prover=round(
+                            commitments * 2**step_rank * pedersen_per_coefficient(step_rank)
+                        ),
+                        step_prover=round(2**step_rank * pedersen_per_coefficient(step_rank)),
                         fold=0,
-                        memory=commitments * 2**rank * 32,
+                        memory=commitments * 2**step_rank * 32,
                         accumulation=2 * (nat + nes + 5),  # base-field atoms absorbed per merge
                         gates=gates_per_merge(binders, E, E, nat, nes),
-                        verify=pedersen_verify(rank, nat, nes),
+                        verify=pedersen_verify(step_rank, nat, nes),
                         folded=nat + nes + 5,
-                        label=f"rank {rank}, {E} endoscalings/step, {binders} binder{'s' if binders != 1 else ''}"
+                        label=f"step rank {step_rank}, {E} endoscalings/step, {binders} binder{'s' if binders != 1 else ''}"
                         + (", packed" if packing else ""),
                     )
                 )
@@ -2537,7 +2540,7 @@ _checked_in = next(
     p
     for p in points
     if p["family"] == "pedersen"
-    and p["rank"] == PEDERSEN_FUSE_RANK
+    and p["step_rank"] == PEDERSEN_FUSE_STEP_RANK
     and p["E"] == 4
     and p["binders"] == 4
     and not p["packing"]
@@ -2748,7 +2751,7 @@ def floor_policies(floor):
 # the commitment identity on the K images, and folds the claims. The decomposition of the
 # response and the range and norm proofs are the aggregator's first fold's, which the
 # zero-knowledge-layer merge that the accumulation prover prices already carries. The circuit
-# takes whole step circuits of the rank at the masked rank's commitment rate.
+# takes whole step circuits of the step rank at the masked rank's commitment rate.
 def handoff_merge_gates(variant, K, circuits, hp):
     if hp == "poseidon":
         hashing = HASH_GATES_PER_ATOM * (K * ATOMS_PER_COMMITMENT[variant] + circuits)
@@ -2761,14 +2764,14 @@ def handoff_merge_gates(variant, K, circuits, hp):
     )
 
 
-def handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n):
-    steps = math.ceil(handoff_merge_gates(variant, K, circuits, hp) / gate_budget(rank))
-    return steps * 2**rank * ajtai_per_coefficient(variant, True, floor, log_n=log_n)
+def handoff_merge_cost(variant, K, circuits, step_rank, hp, floor, log_n):
+    steps = math.ceil(handoff_merge_gates(variant, K, circuits, hp) / gate_budget(step_rank))
+    return steps * 2**step_rank * ajtai_per_coefficient(variant, True, floor, log_n=log_n)
 
 
 # Akita: no cycle, so endoscalings and binders do not exist. The committed groups are the
 # stages plus one batch of every step circuit's witness; the number of step circuits follows
-# from the merge circuit's gate estimate and the rank's budget.
+# from the merge circuit's gate estimate and the step rank's budget.
 for variant, hp in itertools.product(
     ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta"), (*HASH_POLICIES, *LEVEL3_POLICIES)
 ):
@@ -2777,13 +2780,13 @@ for variant, hp in itertools.product(
         if hp not in floor_policies(floor):
             continue
         for zk in (False, True):
-            for rank in RANKS:
-                circuits = akita_circuits(variant, K, rank, zk, hp)
+            for step_rank in STEP_RANKS:
+                circuits = akita_circuits(variant, K, step_rank, zk, hp)
                 if circuits is None:
-                    continue  # the per-circuit claim's hashing exceeds this rank's budget
+                    continue  # the per-circuit claim's hashing exceeds this step rank's budget
                 gates = akita_merge_gates(variant, K, circuits, zk, hp)
                 atoms = akita_atoms(variant, K, circuits, zk)
-                log_len = rank + math.log2(
+                log_len = step_rank + math.log2(
                     circuits
                 )  # the decider's accumulator is at the ordinary length, masked or not
                 rank_scale = RANK_SCALE[floor][variant]
@@ -2796,7 +2799,7 @@ for variant, hp in itertools.product(
                 instance = (
                     K * image_bytes(hp) + 2 * K * 32 + 4 + circuits * claim_bytes(variant, hp)
                 )
-                accumulator = accumulator_coefficients(variant, rank, circuits)
+                accumulator = accumulator_coefficients(variant, step_rank, circuits)
                 # The bounds' N is this row's accumulator in digits, and the mask's
                 # coordinates are stored at their own width.
                 log_n = math.log2(accumulator * DIGITS[variant])
@@ -2811,7 +2814,7 @@ for variant, hp in itertools.product(
                     dict(
                         family=variant,
                         pq=True,
-                        rank=rank,
+                        step_rank=step_rank,
                         E=None,
                         binders=None,
                         floor=floor,
@@ -2822,9 +2825,9 @@ for variant, hp in itertools.product(
                         change=change,
                         zk=zk,
                         bytes=round(opening + instance),
-                        prover=round(circuits * 2**rank * per_coefficient),
+                        prover=round(circuits * 2**step_rank * per_coefficient),
                         accumulation_prover=round(
-                            circuits * 2**rank * per_coefficient
+                            circuits * 2**step_rank * per_coefficient
                             + sumcheck_factor(variant, hp)
                             * accumulation_sumchecks(variant, accumulator)
                         ),
@@ -2838,16 +2841,16 @@ for variant, hp in itertools.product(
                                 mask_bits,
                             )
                         ),
-                        step_prover=round(2**rank * per_coefficient),
+                        step_prover=round(2**step_rank * per_coefficient),
                         fold=round(
                             mask_fold(variant, accumulator, floor)
-                            + handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n)
+                            + handoff_merge_cost(variant, K, circuits, step_rank, hp, floor, log_n)
                         )
                         if zk
                         else 0,
                         fold_leaf=round(
-                            mask_fold(variant, 2**rank, floor)
-                            + handoff_merge_cost(variant, K, circuits, rank, hp, floor, log_n)
+                            mask_fold(variant, 2**step_rank, floor)
+                            + handoff_merge_cost(variant, K, circuits, step_rank, hp, floor, log_n)
                         )
                         if zk
                         else 0,
@@ -2857,7 +2860,7 @@ for variant, hp in itertools.product(
                             variant, log_len, zk, rank_factor_share(variant, rank_scale)
                         ),
                         folded=K,
-                        label=f"rank {rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups"
+                        label=f"step rank {step_rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups"
                         + HASH_LABEL[hp]
                         + (", ZK" if zk else "")
                         + floor_label(floor),
@@ -3095,12 +3098,12 @@ def arc_merge_gates(variant, rate, log_len, floor=DEFAULT_FLOOR, grind=GRIND_DEF
     return hashes * v["gates"] + 2 * t * 16 + 2000
 
 
-def arc_circuits(variant, rate, rank, floor=DEFAULT_FLOOR, grind=GRIND_DEFAULT, hp="blake3"):
+def arc_circuits(variant, rate, step_rank, floor=DEFAULT_FLOOR, grind=GRIND_DEFAULT, hp="blake3"):
     circuits = 1
     for _ in range(30):
         new = math.ceil(
-            arc_merge_gates(variant, rate, rank + math.log2(circuits), floor, grind, hp)
-            / gate_budget(rank)
+            arc_merge_gates(variant, rate, step_rank + math.log2(circuits), floor, grind, hp)
+            / gate_budget(step_rank)
         )
         if new == circuits:
             return circuits
@@ -3208,9 +3211,9 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
         for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
-                    for rank in HASH_RANKS:
-                        circuits = arc_circuits(variant, rate, rank, floor, grind, hp)
-                        log_len = rank + math.log2(circuits)
+                    for step_rank in HASH_STEP_RANKS:
+                        circuits = arc_circuits(variant, rate, step_rank, floor, grind, hp)
+                        log_len = step_rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
                         native = hv(variant, hp)["native"]
                         extra_bytes, extra_hashes = whir_extra_trees(
@@ -3221,7 +3224,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 family=variant_family(variant),
                                 profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
-                                rank=rank,
+                                step_rank=step_rank,
                                 E=None,
                                 binders=None,
                                 floor=floor,
@@ -3250,7 +3253,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                     + grind_prover(native, grind)
                                 ),
                                 step_prover=round(
-                                    2**rank * arc_per_coefficient(variant, rate, log_len, hp)
+                                    2**step_rank * arc_per_coefficient(variant, rate, log_len, hp)
                                 ),
                                 fold=round(
                                     (zk_prover(log_elems, zk) - 1)
@@ -3271,7 +3274,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                     + 1e6
                                 ),
                                 folded=2,
-                                label=f"rank {rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits"
+                                label=f"step rank {step_rank}, rate {rate}, {arc_openings(rate, floor, grind)} openings/input, {circuits} circuits"
                                 + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
@@ -3284,7 +3287,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
 # no Pasta circuits, so the merge is priced in its own terms: ARC's openings as for the other
 # hash-based variants, each path node a BLAKE3 compression in a block of 2^13 committed bits,
 # Flock's layout for a batch, so the merge is a Boolean witness of that many bits, and there
-# is no rank. Proof bytes come from
+# is no step rank. Proof bytes come from
 # Ulrich Haböck's FRI-Binius proof-size optimizer (frib_optimizer.sage, ported beside it as
 # frib_optimizer.py): the floor's security in the list-decoding regime with the largest list
 # that the correlated-agreement bound allows, up to 2^15, the row's grinding, and the folding
@@ -3653,7 +3656,7 @@ for grind in GRINDS:
                             family="flock",
                             profile="beep" if design.get("beep") else None,
                             pq=True,
-                            rank=None,
+                            step_rank=None,
                             E=None,
                             binders=None,
                             floor=floor,
@@ -3673,7 +3676,7 @@ for grind in GRINDS:
                                 ands * int(rate.split("/")[1]) * 5 / 32
                             ),  # the packed codeword and its tree of 256-byte leaves
                             prover=round(f2_prover(ands, rate, floor, grind, chal, False, None)),
-                            # The family has no rank: its step is a Boolean circuit of BOOL_STEP_BITS AND gates
+                            # The family has no step rank: its step is a Boolean circuit of BOOL_STEP_BITS AND gates
                             # at the merge's per-bit cost, which is its capacity for the transaction measure.
                             step_prover=round(
                                 BOOL_STEP_BITS
@@ -3700,7 +3703,7 @@ for grind in GRINDS:
 # the decider verifies one proof. The merge's hashing is twice the verifier's Merkle hashes
 # at the proof's witness size (the WHIR sweep measured the hashes at 2^17 and the queries
 # per doubling), and the witness is the step's circuits, which hold the application at the
-# rank and the two verifiers, at a fixed point. The prover makes a full proof: the encoding
+# step rank and the two verifiers, at a fixed point. The prover makes a full proof: the encoding
 # and the tree of the witness, then the folding rounds, each an encoding and a tree of the
 # folded polynomial, a geometric series in the folding factor 4, so four thirds of the
 # encode-and-commit work against ARC's two trees. The decider's cost is the same verifier.
@@ -3720,12 +3723,12 @@ def rec_merge_gates(variant, rate, log_len, floor, zk=False, grind=GRIND_DEFAULT
     )
 
 
-def rec_circuits(variant, rate, rank, floor, zk=False, grind=GRIND_DEFAULT, hp="blake3"):
+def rec_circuits(variant, rate, step_rank, floor, zk=False, grind=GRIND_DEFAULT, hp="blake3"):
     circuits = 1
     for _ in range(30):
         new = math.ceil(
-            rec_merge_gates(variant, rate, rank + math.log2(circuits), floor, zk, grind, hp)
-            / gate_budget(rank)
+            rec_merge_gates(variant, rate, step_rank + math.log2(circuits), floor, zk, grind, hp)
+            / gate_budget(step_rank)
         )
         if new == circuits:
             return circuits
@@ -3747,13 +3750,13 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
         for floor in variant_floors(variant):
             for zk in (False, True):
                 for rate in RATES:
-                    for rank in HASH_RANKS:
+                    for step_rank in HASH_STEP_RANKS:
                         # Under recursion only the user's last proof, handed to the public aggregator,
                         # is masked; the public merges and the decider's proof are of public data, so
                         # the zero-knowledge rows equal the plain rows but for the fold, which carries
                         # the one masked proof's extra prover work.
-                        circuits = rec_circuits(variant, rate, rank, floor, False, grind, hp)
-                        log_len = rank + math.log2(circuits)
+                        circuits = rec_circuits(variant, rate, step_rank, floor, False, grind, hp)
+                        log_len = step_rank + math.log2(circuits)
                         log_elems = log_len + math.log2(HASH_VARIANTS[variant]["elems"])
                         native = hv(variant, hp)["native"]
                         points.append(
@@ -3761,7 +3764,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                 family=variant_family(variant) + "_rec",
                                 profile=HASH_VARIANTS[variant].get("profile"),
                                 pq=True,
-                                rank=rank,
+                                step_rank=step_rank,
                                 E=None,
                                 binders=None,
                                 floor=floor,
@@ -3783,7 +3786,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                     + grind_prover(native, grind)
                                 ),
                                 step_prover=round(
-                                    2**rank * rec_per_coefficient(variant, rate, log_len, hp)
+                                    2**step_rank * rec_per_coefficient(variant, rate, log_len, hp)
                                 ),
                                 fold=round(
                                     (zk_prover(log_elems, zk) - 1)
@@ -3800,7 +3803,7 @@ for variant, hp in itertools.product(HASH_VARIANTS, HASH_POLICIES):
                                     + 1e6
                                 ),
                                 folded=2,
-                                label=f"rank {rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, False, grind)):,} hashes/input, {circuits} circuits"
+                                label=f"step rank {step_rank}, rate {rate}, {round(rec_hashes(variant, rate, log_elems, floor, False, grind)):,} hashes/input, {circuits} circuits"
                                 + variant_label(variant)
                                 + HASH_LABEL[hp]
                                 + (", ZK" if zk else "")
@@ -3857,7 +3860,7 @@ for grind in GRINDS:
                             family="flock_rec",
                             profile="beep" if design.get("beep") else None,
                             pq=True,
-                            rank=None,
+                            step_rank=None,
                             E=None,
                             binders=None,
                             floor=floor,
@@ -4134,10 +4137,10 @@ def bitz_mask_elements(log_bits):
     return ZOOK_MASK_COEFFS * (BITZ_ZK_SUMCHECKS * n + n * (n + 1) / 2)
 
 
-def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
+def bitz_point(mode, rate, step_rank, floor, grind=None, zk=False, profile="udr"):
     app_bits = (
-        2**rank
-    )  # the step's application witness: 2^rank committed bits, as a step commits 2^rank coefficients elsewhere
+        2**step_rank
+    )  # the step's application witness: 2^(step rank) committed bits, as a step commits 2^(step rank) coefficients elsewhere
     inv = int(rate.split("/")[1])
     r = inv.bit_length() - 1
     beep = profile == "beep"
@@ -4186,7 +4189,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
         family="bitz_rec" if mode == "rec" else "bitz",
         profile=profile,
         pq=True,
-        rank=rank,
+        step_rank=step_rank,
         E=None,
         binders=None,
         floor=floor,
@@ -4209,7 +4212,7 @@ def bitz_point(mode, rate, rank, floor, grind=None, zk=False, profile="udr"):
         gates=round(hashes * HASH_BITS + verifier),
         verify=round((verify_ms + BITZ_PIOP["verify_ms"]) * WORD_MULTS_PER_MS),
         folded=2,
-        label=f"rank {rank}, rate {rate}, {BITZ_PROFILE_LABEL[profile]}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
+        label=f"step rank {step_rank}, rate {rate}, {BITZ_PROFILE_LABEL[profile]}, {round(hashes):,} hashes/merge, 2^{log_bits:.1f} bits"
         + (", ZK, derived" if zk else "")
         + floor_label(floor),
     )
@@ -4222,8 +4225,8 @@ for mode in ("arc", "rec"):
         ]
         for profile, floor, rate in shapes:
             for zk in (False, True):
-                for rank in BITZ_RANKS:
-                    point = bitz_point(mode, rate, rank, floor, grind, zk, profile)
+                for step_rank in BITZ_STEP_RANKS:
+                    point = bitz_point(mode, rate, step_rank, floor, grind, zk, profile)
                     if point is not None:
                         points.append(point)
 
@@ -4241,7 +4244,7 @@ for mode in ("arc", "rec"):
 # prover 113 ms, the optimized conventional Booleanity sumcheck 438 ms; verifiers 0.85 and
 # 0.023 ms; reduction payloads 2,592 and 1,744 bytes; no commitment opening or hiding. Per
 # bit that is 2.5 and 9.8 word multiplications, beside Akita's own 23.7 per digit at the 64-bit
-# modulus. A step commits 2^rank digits, one bit each. The merge is Akita's, costed in digits
+# modulus. A step commits 2^(step rank) digits, one bit each. The merge is Akita's, costed in digits
 # as the recovery circuit is in recovery_cost. Its arithmetic is over the 64-bit field F_q and
 # its quadratic extension E, the PIOP's own field. As in BitZ, the constraint PIOP runs over
 # the ring itself, and only the final linear claim is proved on the bits. So a multiplication
@@ -4270,8 +4273,8 @@ for mode in ("arc", "rec"):
 # prover. Each coefficient the merge scans is a committed digit, about 26 word
 # multiplications for the accumulation prover. The projection saves the prover 7.3 word
 # multiplications per bit. It is therefore ahead only where a step commits about 3.6 bits per
-# coefficient: 2^rank ≳ 3.6 V − 4.6 V_s − H, with V_s the sum-check verifier's digits and H
-# the rest of the merge. That is rank 23 at the draft's geometry. Separately, ranks of 21 and
+# coefficient: 2^(step rank) ≳ 3.6 V − 4.6 V_s − H, with V_s the sum-check verifier's digits and H
+# the rest of the merge. That is step rank 23 at the draft's geometry. Separately, step ranks of 21 and
 # up are too slow for a Zcash transaction, which puts the frontier's Kishu rows at 19 and 20,
 # where the sum-check form wins. The geometry cannot move this much. The widths are set by
 # the error target, and the first layer's coefficients times its retained prefix entries is
@@ -4296,13 +4299,13 @@ def piop_rounds(entries):
     return math.ceil(math.log2(entries)) + 1
 
 
-def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+def frontend_merge(K, circuits, step_rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
     """Kishu's merge: its digits (the transcript hashing, the images' reductions, the sum-check
     and claim arithmetic, the Booleanity check's verifier and transcript, the verifier of the
     child's constraint PIOP, and its own PIOP transcript, which the merge above absorbs) and
     the word multiplications of its own constraint PIOP; with zero knowledge the zk-layer
     merge's 18 more sum-check elements, as for the lattice rows."""
-    rounds = piop_rounds(circuits * 2**rank)
+    rounds = piop_rounds(circuits * 2**step_rank)
     absorbed = (
         akita_absorbed_bytes("kishu", K, circuits, zk, hp)
         + bool_bytes
@@ -4325,8 +4328,8 @@ def frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=
     return digits, piop_word_mults(piop)
 
 
-def frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
-    return frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)[0]
+def frontend_merge_digits(K, circuits, step_rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
+    return frontend_merge(K, circuits, step_rank, hp, bool_mults, bool_bits, bool_bytes, zk)[0]
 
 
 def kishu_step_overhead_digits(log_len, hp):
@@ -4354,8 +4357,8 @@ def fingerprint_step_extra_digits(log_len, hp):
     )
 
 
-# A Kishu step keeps at least this many circuits of 2^rank digits for the application beside
-# its merge, so that the rank sets the step's capacity for the application as it does for the
+# A Kishu step keeps at least this many circuits of 2^(step rank) digits for the application beside
+# its merge, so that the step rank sets the step's capacity for the application as it does for the
 # other families, and the merge's slack adds to it.
 # The step lengths offered, in digits: eight to each doubling, those at which the application's
 # room, the step less its merge and its own transcript's digits, is a share of the step within
@@ -4406,23 +4409,32 @@ def handoff_merge_digits(K, circuits, hp):
     return digits, piop_word_mults(piop)
 
 
-# A Kishu step is a slot of some circuits of 2^rank digits that the merge and the application
+# A Kishu step is a slot of some circuits of 2^(step rank) digits that the merge and the application
 # share: the merge's digits and the step's own transcript digits take the first part, and the
 # application's nodes fill the rest, as many as fit. The step has the circuits of
 # frontend_circuits, the least that keep STEP_HEADROOM circuits for the application, so that
-# the rank sets the capacity and the merge's slack adds to it; the transaction measure packs
-# the application into that capacity, and the frontier chooses the rank per application. The
+# the step rank sets the capacity and the merge's slack adds to it; the transaction measure packs
+# the application into that capacity, and the frontier chooses the step rank per application. The
 # padding is charged as it costs: the application's digits are committed and range-checked at
 # their own number (unit_cost per digit), since a zero digit costs the Ajtai hash and the range
 # sum-check nothing, while the fold's sum-checks and the mask run over the whole slot, the
-# accumulator's length (accumulator_coefficients: circuits × 2^rank and the stages' values).
+# accumulator's length (accumulator_coefficients: circuits × 2^(step rank) and the stages' values).
 #
 # Zero knowledge for Kishu is Akita's, as the lattice rows have it: the masked rank on
 # every step's digits, the zk-layer merge's 18 more atoms, and the user's masking fold at the
 # handoff, whose rejection sampling runs over the accumulator's digits. The projection form
 # reveals coordinates and has no zero-knowledge rows.
 def kishu_costs(
-    K, circuits, rank, hp, check, floor, zk, route, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS
+    K,
+    circuits,
+    step_rank,
+    hp,
+    check,
+    floor,
+    zk,
+    route,
+    alpha=MASK_ALPHA,
+    sample=MASK_SAMPLE_WORD_MULTS,
 ):
     """A Kishu row's work, and the parts of its masking fold. The merge's commitments, its own
     digits and the step's transcript digits, are the prover measure; with its constraint PIOP
@@ -4433,17 +4445,17 @@ def kishu_costs(
     DATA.piop. The fold is the
     expected rejection-sampling attempts, each a commitment of a mask of the accumulator's
     digits under the masked matrix and as many Gaussian samples, plus the handoff's merge;
-    `fold_leaf` masks one circuit's 2^rank digits instead, for a bare leaf handed over without
+    `fold_leaf` masks one circuit's 2^(step rank) digits instead, for a bare leaf handed over without
     a fuse (LEAF_HANDOFF). `alpha` and `sample` stand in for the mask's Gaussian width and the
     sampler's cost, for the page's sweep of the two."""
     bool_per_bit, bool_bytes, _, bool_mults, bool_bits = BOOL_CHECK[check]
     in_field = sumcheck_factor("kishu", hp)  # the sum-checks at the row's claim field
     bool_per_bit *= in_field
     digits, merge_piop = frontend_merge(
-        K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk
+        K, circuits, step_rank, hp, bool_mults, bool_bits, bool_bytes, zk
     )
     merge_piop *= in_field
-    accumulator = accumulator_coefficients("kishu", rank, circuits)
+    accumulator = accumulator_coefficients("kishu", step_rank, circuits)
     log_n = math.log2(accumulator)  # the bounds' N: this row's accumulator in digits
     bits = DIGIT_MAX["kishu"]
     per_digit = (
@@ -4458,10 +4470,10 @@ def kishu_costs(
         / DIGITS["pasta_q64"]
     )
     per_step_digit = per_digit + bool_per_bit
-    step_log = rank + math.log2(circuits)  # the whole step's length, for its own transcript
+    step_log = step_rank + math.log2(circuits)  # the whole step's length, for its own transcript
     overhead = kishu_step_overhead_digits(step_log, hp)
-    capacity = math.floor(circuits * 2**rank - digits - overhead)
-    assert capacity > 0, (rank, circuits, digits, overhead)
+    capacity = math.floor(circuits * 2**step_rank - digits - overhead)
+    assert capacity > 0, (step_rank, circuits, digits, overhead)
     route_extra = fingerprint_step_extra_digits(step_log, hp) if route == "fingerprint" else 0
     commitments = (digits + overhead) * per_step_digit
     attempts = mask_attempts(alpha) if zk else 0
@@ -4516,13 +4528,15 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
             for length in KISHU_STEP_LENGTHS:
                 # A Kishu step is one committed witness of `length` digits with one evaluation
                 # claim: its constraints are a sum-check over the whole table, which ends in
-                # one claim. So the step's rank is the logarithm of its length, whole or not,
+                # one claim. So the step's step rank is the logarithm of its length, whole or not,
                 # and what the model's shared functions call its circuits is one.
-                rank, circuits = math.log2(length), 1
+                step_rank, circuits = math.log2(length), 1
                 room = (
                     length
-                    - frontend_merge_digits(K, 1, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
-                    - kishu_step_overhead_digits(rank, hp)
+                    - frontend_merge_digits(
+                        K, 1, step_rank, hp, bool_mults, bool_bits, bool_bytes, zk
+                    )
+                    - kishu_step_overhead_digits(step_rank, hp)
                 )
                 if not KISHU_APPLICATION_SHARE[0] <= room / length <= KISHU_APPLICATION_SHARE[1]:
                     continue  # the application's share of the step is outside the range
@@ -4531,20 +4545,20 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                 # variant's are, so its opening and decider follow that variant's plan and
                 # measurement at Kishu's digit count; the Pasta-claims plan's extra bytes are
                 # Pasta-width elements that Kishu does not have.
-                log_len = rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
+                log_len = step_rank + math.log2(circuits) - math.log2(DIGITS["goldilocks"])
                 rank_scale = RANK_SCALE[floor]["goldilocks"]
                 opening = akita_bytes("goldilocks", K - 1, log_len, floor)
                 instance = (
                     K * image_bytes(hp) + 2 * K * 32 + 4 + circuits * claim_bytes("kishu", hp)
                 )
-                accumulator = accumulator_coefficients("kishu", rank, circuits)
+                accumulator = accumulator_coefficients("kishu", step_rank, circuits)
                 for route in MULT_ROUTES:
-                    fields, _ = kishu_costs(K, circuits, rank, hp, check, floor, zk, route)
+                    fields, _ = kishu_costs(K, circuits, step_rank, hp, check, floor, zk, route)
                     points.append(
                         dict(
                             family="bits_q64_poseidon" if hp == "poseidon" else "bits_q64",
                             pq=True,
-                            rank=rank,
+                            step_rank=step_rank,
                             E=None,
                             binders=None,
                             floor=floor,
@@ -4695,7 +4709,7 @@ points.append(
     dict(
         family="bits_akita",
         pq=True,
-        rank=None,
+        step_rank=None,
         E=None,
         binders=None,
         floor=128,
@@ -4744,7 +4758,7 @@ seen, deduped = set(), []
 for p in points:
     key = (
         p["family"],
-        p["rank"],
+        p["step_rank"],
         p["binders"],
         p["packing"],
         p["floor"],
@@ -4799,7 +4813,7 @@ PASTA_COUNTS = ("native", "relation")
 # The security assumption is the dominance test's second requirement: a configuration is
 # dominated only by one that assumes no more. The hash-based families rest on a random oracle
 # alone; Akita's and Kishu's on Module-SIS as well; the Boolean-over-Akita row's security
-# ledger is open, so it ranks above both and removes nothing (the user, 2026-11-21: a lattice
+# ledger is open, so it step ranks above both and removes nothing (the user, 2026-11-21: a lattice
 # scheme must not dominate a hash-based one, and a row that is not baked must not dominate the
 # others). Pedersen-IPA is its own class, so its level never meets another.
 LATTICE_FAMILIES = (
@@ -4837,16 +4851,16 @@ for p in points:
     p["arith"] = p.get("arith") or FIELD[p["family"]]
     if p.get("step_units") is not None:
         continue
-    if p["rank"] is None:
+    if p["step_rank"] is None:
         p["step_units"] = BOOL_STEP_BITS  # a Boolean step, in AND gates
     elif p["arith"] == "bitz" or p["arith"].startswith("bits_pasta"):
-        p["step_units"] = 2 ** p["rank"]  # bits or digits, one per committed coefficient
+        p["step_units"] = 2 ** p["step_rank"]  # bits or digits, one per committed coefficient
     else:
-        p["step_units"] = gate_budget(p["rank"])  # gates of four coefficients
+        p["step_units"] = gate_budget(p["step_rank"])  # gates of four coefficients
 
 
 # The frontier is taken to a tolerance (the user, 2026-11-25). A configuration that is ahead
-# of another by a hair on one measure is not thereby a different choice, and the low ranks of
+# of another by a hair on one measure is not thereby a different choice, and the low step ranks of
 # a hash-based family, whose proofs differ in the fifth digit, crowded the frontier.
 #
 # This is epsilon-dominance (Laumanns, Thiele, Deb and Zitzler, 2002): q epsilon-dominates p
@@ -4914,7 +4928,7 @@ def grind_key(p):
         p["floor"],
         p["zk"],
         p.get("rate"),
-        p["rank"],
+        p["step_rank"],
         p.get("packing"),
         p.get("field"),
         p.get("zkv"),
@@ -4994,7 +5008,7 @@ assert (
 # measure at every transaction size, which is monotone in the per-step prover plus the
 # accumulation prover and in the fold) is never on any frontier, provided the two are
 # selectable only together: the
-# same floor, zero-knowledge variant, hash policy, grinding, rank, packing, field design,
+# same floor, zero-knowledge variant, hash policy, grinding, step rank, packing, field design,
 # endoscalings and binders. Within such a group the rows differ by rate. The header is not a
 # row attribute: the page adds the application's header to every row's bytes alike, at
 # HEADER_ELEMENT_BYTES an element. This keeps the page's size down without removing
@@ -5019,7 +5033,7 @@ def prune_key(p):
         p.get("zkv"),
         p["hashes"],
         p.get("grind"),
-        p["rank"],
+        p["step_rank"],
         p.get("packing"),
         p.get("field"),
         p.get("route"),
@@ -5056,13 +5070,13 @@ pruned = before - len(points)
 
 budget = [
     dict(
-        rank=r,
+        step_rank=r,
         gates=gate_budget(r),
         endoscalings=max_endoscalings(r),
         binders=min_binders(r) if _model["challenges_per_binder"](r) >= 1 else None,
         fixed=fixed_counts(r, True),
     )
-    for r in RANKS
+    for r in STEP_RANKS
 ]
 
 # ---- Prose figures and claims ----------------------------------------------------------
@@ -5230,10 +5244,10 @@ def best_for(family, app, policy="blake3", count=1, **kw):
 KISHU = ("bits_q64", "bits_q64_poseidon")  # Kishu's two hash variants, a family each on the page
 
 
-def rank_text(p):
-    """A row's rank as the figures write it: a Kishu step's length in digits, which need not be
-    a power of two, and the whole rank otherwise."""
-    return step_label(round(2 ** p["rank"])) if p["family"] in KISHU else p["rank"]
+def step_rank_text(p):
+    """A row's step rank as the figures write it: a Kishu step's length in digits, which need not be
+    a power of two, and the whole step rank otherwise."""
+    return step_label(round(2 ** p["step_rank"])) if p["family"] in KISHU else p["step_rank"]
 
 
 def kishu_best(app, **kw):
@@ -5251,14 +5265,14 @@ def kishu_zk_costs(p, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS):
     rounded log of the mask's length, which is 3 for 6 to 11 slices a coordinate. None where
     the width and the step's length together take the mask past that, at the widest masks on
     the longest steps: the merge would grow there, and the sweep leaves the row out."""
-    log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
+    log_n = math.log2(accumulator_coefficients("kishu", p["step_rank"], p["circuits"]))
     slices = mask_length(alpha, log_n=log_n, digit_max=DIGIT_MAX["kishu"])
     if round(math.log2(slices)) != MASK_SUMCHECK_ATOMS // 6:
         return None
     return kishu_costs(
         p["groups"],
         p["circuits"],
-        p["rank"],
+        p["step_rank"],
         p["hashes"],
         p["check"],
         p["floor"],
@@ -5600,7 +5614,7 @@ def define_figures():
     for app in ("qk", "leansphincs_blake2s", "leansphincs_keccak", "leansphincs_blake3"):
         p, w = kishu_best(app, zk=True)
         fig(f"tx_{app}_kishu_zk_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", rank_text(p))
+        fig(f"tx_{app}_kishu_zk_rank", step_rank_text(p))
         if app == "qk":
             merges = tx_steps(p, app, "poseidon") * p["accumulation_prover"]
             fig("tx_qk_kishu_zk_merges_pct", round(100 * merges / w))
@@ -5726,7 +5740,7 @@ def define_figures():
     )
 
     # For the hardware wallets page: the response's information-content floor (the leaf alone,
-    # no padding and no masking elements), a succinct Kishu proof of the leaf at the least rank
+    # no padding and no masking elements), a succinct Kishu proof of the leaf at the least step rank
     # that holds it (one circuit, the opening at the planner's floor), the signature sizes, and
     # the loss of the collision-resistance reduction for the signature of knowledge.
     floor_log_sigma = math.log2(MASK_ALPHA) + math.log2(MASK_CHALLENGE_L1) + math.log2(leaf) / 2
@@ -5776,13 +5790,13 @@ def define_figures():
     fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
     fig("zoodles_sighash_blake3", ZOODLES_SIGHASH_COMPRESSIONS)
     fig("zoodles_sighash_bytes", fmt(ZOODLES_SIGHASH_BYTES))
-    # The digest's hashing against one step at the rank the signature transaction favours.
+    # The digest's hashing against one step at the step rank the signature transaction favours.
     p_sig, _ = kishu_best("zoodles_leansphincs_blake3", zk=True)
     claim(
         "zoodles_sighash_small",
-        "the transaction digest's hashing is under a tenth of one step at the rank Kishu's signature transaction favours",
+        "the transaction digest's hashing is under a tenth of one step at the step rank Kishu's signature transaction favours",
         hash_app_cost(p_sig["arith"], "blake3", ZOODLES_SIGHASH_COMPRESSIONS)
-        < 0.1 * 2 ** p_sig["rank"],
+        < 0.1 * 2 ** p_sig["step_rank"],
     )
     fig(
         "zoodles_opening_kishu_digits",
@@ -5809,7 +5823,7 @@ def define_figures():
         if not full:
             continue
         fig(f"tx_{app}_kishu_s", secs(w))
-        fig(f"tx_{app}_kishu_zk_rank", rank_text(p))
+        fig(f"tx_{app}_kishu_zk_rank", step_rank_text(p))
         fig(f"tx_{app}_kishu_zk_steps", tx_steps(p, app, "blake3"))
         fig(f"tx_{app}_bitz_zk_s", secs(zoodles_bitz_zk[app]))
         p, w = best_for("bits_akita", app, floor=128)
@@ -5867,7 +5881,7 @@ def define_figures():
             and zoodles_bitz_zk[app] < tachyon4_bitz_zk,
         )
     # Zoodles' lineage step: the tree's size and the step, the bucket it replaces, the
-    # families' figures, and the spend at the lineage's rank.
+    # families' figures, and the spend at the lineage's step rank.
     fig("zoodles_bucket_coeffs", fmt(2**ZOODLES_BUCKET_LOG))
     fig("zoodles_bucket_digits", millions(ZOODLES_BUCKET_DIGITS, 3))
     fig("zoodles_epoch_blocks", fmt(ZOODLES_EPOCH_BLOCKS))
@@ -5894,11 +5908,11 @@ def define_figures():
     )
     action = (spend_digits + output_digits) / 2 + node_digits["ActionMerge"]
     # Actions in a step beside its merge and the fee node, at the zero-knowledge limb row's
-    # capacity for the application at each rank.
-    for rank in (21, 22, 23):
-        row = pick("bits_q64", rank=rank, zk=True, route="limbs", floor=DEFAULT_FLOOR)
+    # capacity for the application at each step rank.
+    for step_rank in (21, 22, 23):
+        row = pick("bits_q64", step_rank=step_rank, zk=True, route="limbs", floor=DEFAULT_FLOOR)
         fig(
-            f"zoodles_actions_per_step_{rank}",
+            f"zoodles_actions_per_step_{step_rank}",
             int((row["step_units"] - node_digits["FeeFuse"]) // action),
         )
     # The epoch-set page's comparison of the bucketed table with the sorted tree, whose
@@ -5931,8 +5945,8 @@ def define_figures():
     )
     p, w = kishu_best("zoodles_epoch")
     fig("tx_zoodles_epoch_kishu_s", secs(w))
-    fig("tx_zoodles_epoch_kishu_rank", rank_text(p))
-    lineage_rank = p["rank"]
+    fig("tx_zoodles_epoch_kishu_rank", step_rank_text(p))
+    lineage_step_rank = p["step_rank"]
     p, w = best_for("bitz", "zoodles_epoch")
     fig("tx_zoodles_epoch_bitz_s", secs(w))
     p, w = best_for("flock", "zoodles_epoch")
@@ -5945,17 +5959,19 @@ def define_figures():
     # the spend at the lineage step's best length, or at the shortest zero-knowledge step
     # where that length has no zero-knowledge row, against the spend's own least.
     spend, spend_w = kishu_best("zoodles_preimage", zk=True)
-    zk_lengths = sorted({p["rank"] for f in KISHU for p in shown(f, "poseidon", zk=True)})
-    shared_rank = min((r for r in zk_lengths if r >= lineage_rank), default=zk_lengths[-1])
-    p, w = kishu_best("zoodles_preimage", zk=True, rank=shared_rank)
+    zk_lengths = sorted({p["step_rank"] for f in KISHU for p in shown(f, "poseidon", zk=True)})
+    shared_step_rank = min(
+        (r for r in zk_lengths if r >= lineage_step_rank), default=zk_lengths[-1]
+    )
+    p, w = kishu_best("zoodles_preimage", zk=True, step_rank=shared_step_rank)
     fig("tx_zoodles_preimage_kishu_zk_lineage_rank_s", secs(w))
-    fig("zoodles_shared_step", rank_text(p))
-    fig("zoodles_spend_own_step", rank_text(spend))
+    fig("zoodles_shared_step", step_rank_text(p))
+    fig("zoodles_spend_own_step", step_rank_text(spend))
     fig("zoodles_spend_at_lineage_step_factor", sig(w / spend_w, 2))
     claim(
         "zoodles_lineage_own_length",
         "the lineage step's best length is longer than the zero-knowledge spend's own, and at it the spend costs more than twice its least",
-        lineage_rank > spend["rank"] and w > 2 * spend_w,
+        lineage_step_rank > spend["step_rank"] and w > 2 * spend_w,
     )
     second_preimage = 1 - math.exp(-1)
     fig("sok_second_preimage_pct", round(100 * second_preimage))
@@ -5968,15 +5984,17 @@ def define_figures():
 
     # The recovery circuit per note on one core, at the default floor: each family's best row, as
     # the page's frontier shows it (the Transaction prover paragraph).
-    checked_in = pick("pedersen", floor=128, rank=PEDERSEN_FUSE_RANK, E=4, binders=4, packing=False)
+    checked_in = pick(
+        "pedersen", floor=128, step_rank=PEDERSEN_FUSE_STEP_RANK, E=4, binders=4, packing=False
+    )
     p, w = kishu_best("recovery")
     fig("tx_recovery_kishu_route", p["route"])
     fig("tx_recovery_kishu_s", secs(w))
-    fig("tx_recovery_kishu_rank", rank_text(p))
+    fig("tx_recovery_kishu_rank", step_rank_text(p))
     fig("tx_recovery_kishu_steps", tx_steps(p, "recovery", "poseidon"))
     p, w = best_for("bitz", "recovery")
     fig("tx_recovery_bitz_s", secs(w))
-    fig("tx_recovery_bitz_rank", p["rank"])
+    fig("tx_recovery_bitz_rank", p["step_rank"])
     bitz_recovery_work = w
     claim(
         "bitz_recovery_one_step",
@@ -5986,10 +6004,10 @@ def define_figures():
     bitz_recovery_bytes = p["bytes"]
     p, w = best_for("pasta_q64", "recovery", "poseidon", hashes="poseidon")
     fig("tx_recovery_q64_s", secs(w))
-    fig("tx_recovery_q64_rank", p["rank"])
+    fig("tx_recovery_q64_rank", p["step_rank"])
     p_blake3, w_blake3 = best_for("pasta_q64", "recovery", "blake3", hashes="blake3")
     fig("tx_recovery_q64_blake3_s", secs(w_blake3))
-    fig("tx_recovery_q64_blake3_rank", p_blake3["rank"])
+    fig("tx_recovery_q64_blake3_rank", p_blake3["step_rank"])
     claim(
         "q64_recovery_sumchecks",
         "the Pasta-claims row's recovery prover is nearly all the fold's sum-checks",
@@ -6012,15 +6030,15 @@ def define_figures():
     )
     p, w = best_for("pedersen", "recovery", "poseidon", floor=128)
     fig("tx_recovery_pedersen_best_minutes", minutes(w))
-    fig("tx_recovery_pedersen_best_rank", p["rank"])
+    fig("tx_recovery_pedersen_best_rank", p["step_rank"])
     fig("tx_recovery_pedersen_best_E", p["E"])
     p, w = kishu_best("recovery", zk=True)
     fig("tx_recovery_kishu_zk_route", p["route"])
     fig("tx_recovery_kishu_zk_s", secs(w))
-    fig("tx_recovery_kishu_zk_rank", rank_text(p))
+    fig("tx_recovery_kishu_zk_rank", step_rank_text(p))
     _, parts = kishu_zk_costs(p)
     # The masked bound's N at this row, for the per-digit rates the text quotes.
-    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
+    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["step_rank"], p["circuits"]))
     fig("tx_recovery_kishu_zk_sampling_s", secs(parts["sampling"]))
     fig("mask_sample_ns", sig(MASK_SAMPLE_NS, 2))
     fig("mask_sample_rng_ns", sig(MASK_SAMPLE_RNG_NS, 2))
@@ -6074,8 +6092,8 @@ def define_figures():
     )
     claim(
         "kishu_zk_rank_below_plain",
-        "Kishu's zero-knowledge optimum for the recovery circuit is at a lower rank than the plain row's, which is a single step",
-        p["rank"] < plain["rank"] and plain_steps == 1,
+        "Kishu's zero-knowledge optimum for the recovery circuit is at a lower step rank than the plain row's, which is a single step",
+        p["step_rank"] < plain["step_rank"] and plain_steps == 1,
     )
     fig("mask_alpha", MASK_ALPHA)
     fig("hls18_sample_ns_min", sig(HLS18_CYCLES_PER_SAMPLE[0] / HLS18_GHZ))
@@ -6093,16 +6111,16 @@ def define_figures():
     fig("karney_ns_max", sig(1000 / KARNEY_MSAMPLES_PER_S[0]))
     q, wk = kishu_zk_best("recovery", MASK_ALPHA, KARNEY_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_karney_s", secs(wk))
-    fig("tx_recovery_kishu_zk_karney_rank", rank_text(q))
+    fig("tx_recovery_kishu_zk_karney_rank", step_rank_text(q))
     fig("mask_fast_sample_ns", round(MASK_FAST_SAMPLE_WORD_MULTS / RATE_PER_S * 1e9))
     q, wf = kishu_zk_best("recovery", MASK_ALPHA, MASK_FAST_SAMPLE_WORD_MULTS)
     fig("tx_recovery_kishu_zk_fast_s", secs(wf))
-    fig("tx_recovery_kishu_zk_fast_rank", rank_text(q))
+    fig("tx_recovery_kishu_zk_fast_rank", step_rank_text(q))
     sweep = {}
     for a in MASK_ALPHAS:
         q, wa = kishu_zk_best("recovery", a)
         sweep[a] = wa
-        q_log_n = math.log2(accumulator_coefficients("kishu", q["rank"], q["circuits"]))
+        q_log_n = math.log2(accumulator_coefficients("kishu", q["step_rank"], q["circuits"]))
         fig(f"mask_attempts_alpha{a}", sig(mask_attempts(a)))
         log_beta = masked_log_beta_inf(a, log_n=q_log_n, digit_max=kishu_bits)
         fig(f"mask_log_beta_alpha{a}", sig(log_beta, 3))
@@ -6119,7 +6137,7 @@ def define_figures():
             ),
         )
         fig(f"tx_recovery_kishu_zk_alpha{a}_s", secs(wa))
-        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", rank_text(q))
+        fig(f"tx_recovery_kishu_zk_alpha{a}_rank", step_rank_text(q))
     assert sweep[MASK_ALPHA] == w
     fig("kishu_zk_alpha_48_to_96_pct", sig(100 * (1 - sweep[96] / sweep[48])))
     claim(
@@ -6129,7 +6147,7 @@ def define_figures():
     )
     # The widest and the narrowest masks the table's rows take, and the slices' thresholds on
     # the sweep's grid at the recovery row (the width paragraph).
-    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["rank"], p["circuits"]))
+    recovery_log_n = math.log2(accumulator_coefficients("kishu", p["step_rank"], p["circuits"]))
     fig(
         "mask_bits_alpha1024",
         mask_coordinate_bits(max(MASK_ALPHA_GRID), log_n=recovery_log_n, digit_max=kishu_bits),
@@ -6153,7 +6171,7 @@ def define_figures():
     )
     q, w4 = kishu_best("recovery", zk=True, count=4)
     fig("tx_recovery4_kishu_zk_note_s", secs(w4 / 4))
-    fig("tx_recovery4_kishu_zk_rank", rank_text(q))
+    fig("tx_recovery4_kishu_zk_rank", step_rank_text(q))
 
     # The minimum over the width is shallow: the widths on the grid within two percent of it.
     def band(app, n, sample):
@@ -6174,7 +6192,10 @@ def define_figures():
                 optima[(name, app, n)] = a
                 worst = max(worst, w_page / wo - 1)
             KISHU_ZK_ALPHA.setdefault(f"{app}:{n}", {})[name] = dict(
-                alpha=round(a, 1), rank=rank_text(q), zk_s=secs(wo), page_alpha_s=secs(w_page)
+                alpha=round(a, 1),
+                step_rank=step_rank_text(q),
+                zk_s=secs(wo),
+                page_alpha_s=secs(w_page),
             )
         excess[name] = worst
     lo, hi = band("recovery", 1, MASK_SAMPLE_WORD_MULTS)
@@ -6196,7 +6217,7 @@ def define_figures():
     )
     p, w = best_for("pasta_q64", "recovery", "poseidon", zk=True, hashes="poseidon")
     fig("tx_recovery_q64_zk_s", secs(w))
-    fig("tx_recovery_q64_zk_rank", p["rank"])
+    fig("tx_recovery_q64_zk_rank", p["step_rank"])
     p, w = best_for("bitz", "recovery", zk=True)
     fig("tx_recovery_bitz_zk_s", secs(w))
     fig("tx_recovery_bitz_zk_more_kb", kb(p["bytes"] - bitz_recovery_bytes))
@@ -6214,7 +6235,7 @@ def define_figures():
     fig("tachyon_rank13_gates", fmt(gate_budget(13)))
     claim(
         "tachyon_nodes_fit_rank13",
-        "every Tachyon node fits rank 13's circuit",
+        "every Tachyon node fits step rank 13's circuit",
         all(g <= gate_budget(13) for g, *_ in TACHYON_STEPS.values()),
     )
     action_nodes = ("SpendBind", "SpendAction", "OutputBind", "OutputAction", "FeeFuse")
@@ -6246,14 +6267,14 @@ def define_figures():
     fig("tachyon2_pedersen13_steps", tx_steps(checked_in, "tachyon2", "poseidon"))
     claim(
         "tachyon2_rank13_packing",
-        "at rank 13 no two action circuits of two tachyactions share a step and the merge rides with the fee step",
+        "at step rank 13 no two action circuits of two tachyactions share a step and the merge rides with the fee step",
         tx_steps(checked_in, "tachyon2", "poseidon")
         == len(tachyon_nodes(*TACHYON_TRANSACTIONS[2])) - 1,
     )
-    rank15 = best_for("pedersen", "tachyon2", "poseidon", rank=15, floor=128)[0]
+    rank15 = best_for("pedersen", "tachyon2", "poseidon", step_rank=15, floor=128)[0]
     claim(
         "tachyon2_rank15_one_step",
-        "at rank 15 every circuit of two tachyactions fits one step beside the two rerandomization fuses",
+        "at step rank 15 every circuit of two tachyactions fits one step beside the two rerandomization fuses",
         tx_steps(rank15, "tachyon2", "poseidon") == 3,
     )
     w = tx_work(checked_in, "tachyon2", "poseidon")
@@ -6276,21 +6297,21 @@ def define_figures():
             3,
         ),
     )
-    p, w = best_for("pedersen", "tachyon2", "poseidon", rank=15, floor=128)
+    p, w = best_for("pedersen", "tachyon2", "poseidon", step_rank=15, floor=128)
     fig("tx_tachyon2_pedersen15_s", secs(w))
     fig("tx_tachyon2_pedersen15_E", p["E"])
     fig("tx_tachyon2_pedersen15_steps", tx_steps(p, "tachyon2", "poseidon"))
     p, w = best_for("pasta_q64", "tachyon2", "poseidon", hashes="poseidon")
     fig("tx_tachyon2_q64_s", secs(w))
-    fig("tx_tachyon2_q64_rank", p["rank"])
+    fig("tx_tachyon2_q64_rank", p["step_rank"])
     p, w = best_for("bitz", "tachyon2")
     fig("tx_tachyon2_bitz_s", secs(w))
-    fig("tx_tachyon2_bitz_rank", p["rank"])
+    fig("tx_tachyon2_bitz_rank", p["step_rank"])
     bitz_tachyon2_work = w
     p, w = kishu_best("tachyon2")
     fig("tx_tachyon2_kishu_route", p["route"])
     fig("tx_tachyon2_kishu_s", secs(w))
-    fig("tx_tachyon2_kishu_rank", rank_text(p))
+    fig("tx_tachyon2_kishu_rank", step_rank_text(p))
     fig("tx_tachyon2_kishu_hash", HASH_LABEL[p["hashes"]][2:])
     p, w = best_for("goldilocks", "tachyon2", "poseidon", hashes="poseidon")
     fig("tx_tachyon2_goldilocks_s", secs(w))
@@ -6321,7 +6342,7 @@ def define_figures():
     )
     fig("tx_tachyon16_pedersen_s", secs(w))
     fig("tx_tachyon16_pedersen_steps", tx_steps(checked_in, "tachyon16", "poseidon"))
-    p, w = best_for("pedersen", "tachyon16", "poseidon", rank=15, floor=128)
+    p, w = best_for("pedersen", "tachyon16", "poseidon", step_rank=15, floor=128)
     fig("tx_tachyon16_pedersen15_s", secs(w))
     fig("tx_tachyon16_pedersen15_steps", tx_steps(p, "tachyon16", "poseidon"))
     fig(
@@ -6394,9 +6415,11 @@ def define_figures():
     fig("kishu_stage_digits", sig(STAGE_VALUES_TOTAL * STAGE_VALUE_COEFFICIENTS["kishu"], 2))
     # Kishu's accumulation prover against its step's length: the fold's sum-checks run over the
     # accumulator, which is the step.
-    zk_rows = sorted(shown("bits_q64", "blake3", zk=True, route="limbs"), key=lambda p: p["rank"])
-    fig("kishu_step_shortest", step_label(round(2 ** zk_rows[0]["rank"])))
-    fig("kishu_step_longest", step_label(round(2 ** zk_rows[-1]["rank"])))
+    zk_rows = sorted(
+        shown("bits_q64", "blake3", zk=True, route="limbs"), key=lambda p: p["step_rank"]
+    )
+    fig("kishu_step_shortest", step_label(round(2 ** zk_rows[0]["step_rank"])))
+    fig("kishu_step_longest", step_label(round(2 ** zk_rows[-1]["step_rank"])))
     fig("kishu_accumulation_shortest_m", mil(zk_rows[0]["accumulation_prover"]))
     fig("kishu_accumulation_longest_m", mil(zk_rows[-1]["accumulation_prover"]))
     claim(
@@ -6409,43 +6432,47 @@ def define_figures():
     )
 
     # Accumulator memory (the axes list).
-    fig("memory_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["memory"], 3))
+    fig("memory_q64_rank17", mb(pick("pasta_q64", step_rank=17, hashes="poseidon")["memory"], 3))
     fig(
         "memory_kishu_rank21",
-        mb(pick("bits_q64", rank=21, hashes="blake3", check="sumcheck", route="limbs")["memory"]),
+        mb(
+            pick("bits_q64", step_rank=21, hashes="blake3", check="sumcheck", route="limbs")[
+                "memory"
+            ]
+        ),
     )
     fig(
         "memory_pedersen_rank13",
-        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["memory"]),
+        mb(pick("pedersen", floor=128, step_rank=13, E=4, binders=4, packing=False)["memory"]),
     )
     fig(
         "memory_pedersen_rank13_3",
-        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["memory"], 3),
+        mb(pick("pedersen", floor=128, step_rank=13, E=4, binders=4, packing=False)["memory"], 3),
     )
 
-    # Peak fuse memory (the axes list): Kishu at rank 21 with and without zero knowledge, Akita
-    # with Pasta claims at rank 17, and Pedersen-IPA at rank 13.
-    kishu21 = dict(rank=21, hashes="blake3", check="sumcheck", route="limbs")
+    # Peak fuse memory (the axes list): Kishu at step rank 21 with and without zero knowledge, Akita
+    # with Pasta claims at step rank 17, and Pedersen-IPA at step rank 13.
+    kishu21 = dict(step_rank=21, hashes="blake3", check="sumcheck", route="limbs")
     fig("peak_kishu_rank21_zk", mb(pick("bits_q64", zk=True, **kishu21)["peak_memory"]))
     fig("peak_kishu_rank21", mb(pick("bits_q64", **kishu21)["peak_memory"]))
-    fig("peak_q64_rank17", mb(pick("pasta_q64", rank=17, hashes="poseidon")["peak_memory"], 3))
+    fig("peak_q64_rank17", mb(pick("pasta_q64", step_rank=17, hashes="poseidon")["peak_memory"], 3))
     fig(
         "peak_pedersen_rank13",
-        mb(pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)["peak_memory"]),
+        mb(pick("pedersen", floor=128, step_rank=13, E=4, binders=4, packing=False)["peak_memory"]),
     )
     fig("packed_digit_bits", PACKED_DIGIT_BITS - 1)
 
     # The circuit budget table: the rows of its body.
     def budget_row(b):
         fixed = (
-            _model["packed"](_model["NATIVE_FIXED"], b["rank"]),
-            _model["packed"](_model["NESTED_FIXED"], b["rank"]),
+            _model["packed"](_model["NATIVE_FIXED"], b["step_rank"]),
+            _model["packed"](_model["NESTED_FIXED"], b["step_rank"]),
         )
         today = (len(_model["NATIVE_FIXED"]), len(_model["NESTED_FIXED"]))
         packed = "as today" if fixed == today else f"{fixed[0]}, {fixed[1]}"
         binders = "none fits" if b["binders"] is None else b["binders"]
         return (
-            f'    <tr><td>{b["rank"]}</td><td class="num">{fmt(b["gates"])}</td><td class="num">{b["endoscalings"]}</td>'
+            f'    <tr><td>{b["step_rank"]}</td><td class="num">{fmt(b["gates"])}</td><td class="num">{b["endoscalings"]}</td>'
             f'<td class="num">{binders}</td><td class="num">{packed}</td></tr>'
         )
 
@@ -6472,20 +6499,21 @@ def define_figures():
 
     # Pedersen-IPA's checked-in configuration and the smallest proofs that fit (the Proof bytes
     # item, the Rank paragraph, and pasta-proof-size.md's budget paragraphs).
-    ch = pick("pedersen", floor=128, rank=13, E=4, binders=4, packing=False)
+    ch = pick("pedersen", floor=128, step_rank=13, E=4, binders=4, packing=False)
     fig("pedersen_checked_in_bytes", fmt(ch["bytes"] + 4 * HEADER_ELEMENT_BYTES))
     fig("pedersen_checked_in_wire_bytes", fmt(ch["bytes"] + 4 * HEADER_ELEMENT_BYTES + 28))
     fig("pedersen_checked_in_h2_bytes", fmt(ch["bytes"] + 2 * HEADER_ELEMENT_BYTES))
     fig("pedersen_checked_in_h0_bytes", fmt(ch["bytes"]))
     claim(
         "rank14_adds_128_bytes",
-        "rank 14 adds 128 bytes to the checked-in proof",
-        pick("pedersen", floor=128, rank=14, E=4, binders=4, packing=False)["bytes"] - ch["bytes"]
+        "step rank 14 adds 128 bytes to the checked-in proof",
+        pick("pedersen", floor=128, step_rank=14, E=4, binders=4, packing=False)["bytes"]
+        - ch["bytes"]
         == 128,
     )
     least = {
         r: min(
-            shown("pedersen", "poseidon", rank=r, floor=128),
+            shown("pedersen", "poseidon", step_rank=r, floor=128),
             key=lambda p: (p["bytes"], p["prover"]),
         )
         for r in (14, 15, 16)
@@ -6496,27 +6524,27 @@ def define_figures():
     fig("pedersen_least15_E", least[15]["E"])
     claim(
         "smallest_pedersen_proofs",
-        "the smallest rank-14 proof has the fixed circuits packed, and the smallest rank-15 proof one binder and the fixed circuits packed",
+        "the smallest step rank-14 proof has the fixed circuits packed, and the smallest step rank-15 proof one binder and the fixed circuits packed",
         least[14]["packing"] and least[15]["packing"] and least[15]["binders"] == 1,
     )
     claim(
         "rank16_no_bytes_gain",
-        "rank 16 gains no bytes over rank 15",
+        "step rank 16 gains no bytes over step rank 15",
         least[16]["bytes"] >= least[15]["bytes"],
     )
     claim(
         "rank14_packed_beats_13",
-        "rank 14 with the fixed circuits packed beats rank 13 on bytes, prover commitment work and atoms",
+        "step rank 14 with the fixed circuits packed beats step rank 13 on bytes, prover commitment work and atoms",
         any(
             p["bytes"] < ch["bytes"]
             and p["prover"] < ch["prover"]
             and p["accumulation"] < ch["accumulation"]
-            for p in shown("pedersen", "poseidon", rank=14, packing=True, floor=128)
+            for p in shown("pedersen", "poseidon", step_rank=14, packing=True, floor=128)
         ),
     )
     claim(
         "ranks_15_16_trade_prover",
-        "ranks 15 and 16 buy bytes and atoms with prover commitment work",
+        "step ranks 15 and 16 buy bytes and atoms with prover commitment work",
         all(
             least[r]["bytes"] < least[14]["bytes"]
             and least[r]["accumulation"] < least[14]["accumulation"]
@@ -6533,21 +6561,23 @@ def define_figures():
     fig("min_binders_14", min_binders(14))
     claim(
         "rank12_rows",
-        "rank 12 has no Pedersen-IPA rows and no Akita rows under BLAKE3",
-        not shown("pedersen", "poseidon", rank=12, floor=128)
-        and not any(shown(v, rank=12, hashes="blake3") for v in DIGITS),
+        "step rank 12 has no Pedersen-IPA rows and no Akita rows under BLAKE3",
+        not shown("pedersen", "poseidon", step_rank=12, floor=128)
+        and not any(shown(v, step_rank=12, hashes="blake3") for v in DIGITS),
     )
-    fig("bitz_max_rank", BITZ_RANKS[-1])
+    fig("bitz_max_rank", BITZ_STEP_RANKS[-1])
     fig(
         "kishu_max_step",
-        step_label(round(2 ** max(p["rank"] for f in KISHU for p in points if p["family"] == f))),
+        step_label(
+            round(2 ** max(p["step_rank"] for f in KISHU for p in points if p["family"] == f))
+        ),
     )
 
-    # Akita at rank 16 under the two hash policies (the Hashes paragraph), and rank 17 under
+    # Akita at step rank 16 under the two hash policies (the Hashes paragraph), and step rank 17 under
     # BLAKE3 (the Rank paragraph).
     VARIANTS = tuple(DIGITS)
     PASTA_VARIANTS = ("pasta_q64", "pasta_sis", "pasta")
-    a16 = {(v, hp): pick(v, rank=16, hashes=hp) for v in VARIANTS for hp in HASH_POLICIES}
+    a16 = {(v, hp): pick(v, step_rank=16, hashes=hp) for v in VARIANTS for hp in HASH_POLICIES}
     Kg = STAGES + 1
     absorbed = [
         akita_absorbed_bytes(v, Kg, a16[(v, "blake3")]["circuits"], False) for v in VARIANTS
@@ -6566,13 +6596,13 @@ def define_figures():
     fig("q64_16_blake3_gates", millions(a16[("pasta_q64", "blake3")]["gates"]))
     claim(
         "blake3_rank16_small_fields_same",
-        "Goldilocks and the 128-bit field have the same merge gates and circuits under BLAKE3 at rank 16",
+        "Goldilocks and the 128-bit field have the same merge gates and circuits under BLAKE3 at step rank 16",
         a16[("goldilocks", "blake3")]["gates"] == a16[("fp128", "blake3")]["gates"]
         and a16[("goldilocks", "blake3")]["circuits"] == a16[("fp128", "blake3")]["circuits"],
     )
     claim(
         "blake3_rank16_pasta_same",
-        "the three Pasta variants have the same merge gates and circuits under BLAKE3 at rank 16 to within 5%",
+        "the three Pasta variants have the same merge gates and circuits under BLAKE3 at step rank 16 to within 5%",
         max(a16[(v, "blake3")]["gates"] for v in PASTA_VARIANTS)
         < 1.05 * min(a16[(v, "blake3")]["gates"] for v in PASTA_VARIANTS)
         and len({a16[(v, "blake3")]["circuits"] for v in PASTA_VARIANTS}) == 1,
@@ -6582,7 +6612,7 @@ def define_figures():
     fig("fp128_16_poseidon_circuits", a16[("fp128", "poseidon")]["circuits"])
     claim(
         "poseidon_rank16_two_circuits",
-        "Akita's merge takes two circuits with Poseidon at rank 16",
+        "Akita's merge takes two circuits with Poseidon at step rank 16",
         all(a16[(v, "poseidon")]["circuits"] == 2 for v in VARIANTS),
     )
     for v in ("fp128", "goldilocks"):
@@ -6615,13 +6645,13 @@ def define_figures():
     fig("akita16_more_atoms_min", sig(min(more_atoms)))
     fig("akita16_more_atoms_max", sig(max(more_atoms)))
     cuts = [
-        1 - pick(v, rank=17, hashes="blake3")["prover"] / a16[(v, "blake3")]["prover"]
+        1 - pick(v, step_rank=17, hashes="blake3")["prover"] / a16[(v, "blake3")]["prover"]
         for v in VARIANTS
     ]
     fig("akita17_blake3_cut_pct_min", round(100 * min(cuts)))
     fig("akita17_blake3_cut_pct_max", round(100 * max(cuts)))
     less = {
-        v: a16[(v, "blake3")]["bytes"] - pick(v, rank=17, hashes="blake3")["bytes"]
+        v: a16[(v, "blake3")]["bytes"] - pick(v, step_rank=17, hashes="blake3")["bytes"]
         for v in VARIANTS
     }
     fig("akita17_blake3_less_kb_small", kb(max(less[v] for v in ("fp128", "goldilocks")), 1))
@@ -6659,7 +6689,7 @@ def define_figures():
     fig("slhdsa_192s_over_leansphincs", sig(SLHDSA_192S_VERIFY / LEANSPHINCS_VERIFY["keccak"]))
     # The two signatures' transactions under Kishu's BLAKE3 variant with zero knowledge, at the
     # default floor and at the illustrative level with each transcript hash: the least
-    # transaction work over the ranks, in seconds on one core, and against the first.
+    # transaction work over the step ranks, in seconds on one core, and against the first.
     settings = {
         "147": dict(floor=DEFAULT_FLOOR, hashes="blake3"),
         "level3_blake3": dict(floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3),
@@ -6674,7 +6704,7 @@ def define_figures():
     tx_table = {key: work for key, (_, work) in tx_rows.items()}
     base = tx_table[("leansphincs", "147")]
     slhdsa_row = tx_rows[("slhdsa", "147")][0]
-    fig("sigtx_slhdsa_147_rank", rank_text(slhdsa_row))
+    fig("sigtx_slhdsa_147_rank", step_rank_text(slhdsa_row))
     fig("sigtx_slhdsa_147_steps", tx_steps(slhdsa_row, "zoodles_slhdsa192s", "blake3"))
     for (sig_, setting), work in tx_table.items():
         fig(f"sigtx_{sig_}_{setting}_s", sig(work / WORD_MULTS_PER_SECOND, 3))
@@ -6784,11 +6814,11 @@ def define_figures():
         BLAKE3_STATE_BITS < 2 * LEVEL3_FLOOR <= min(SHA3_384_CAPACITY_BITS, 8 * SHA3_384_DIGEST),
     )
     fig("level3_rank_sum_own", RANK_SUMS_165["own"])
-    g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
-    g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
+    g147 = pick("goldilocks", step_rank=16, zk=True, hashes="blake3")
+    g165 = pick("goldilocks", step_rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
     fig("level3_goldilocks_16_circuits", g165["circuits"])
     fig("goldilocks_16_zk_circuits", g147["circuits"])
-    # An Akita row's step is its circuits of 2^rank gates each, given as a length.
+    # An Akita row's step is its circuits of 2^(step rank) gates each, given as a length.
     fig("level3_goldilocks_16_step", step_text(g165["circuits"] * 2**16))
     fig("goldilocks_16_zk_step", step_text(g147["circuits"] * 2**16))
     fig(
@@ -6801,7 +6831,7 @@ def define_figures():
     # merge, and its proof.
     def kishu_shortest(**where):
         rows = shown("bits_q64", zk=True, route="limbs", check="sumcheck", **where)
-        return min(rows, key=lambda p: p["rank"])
+        return min(rows, key=lambda p: p["step_rank"])
 
     k147 = kishu_shortest(hashes="blake3")
     k165 = kishu_shortest(floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
@@ -6811,7 +6841,7 @@ def define_figures():
         ("level3_kishu", k165),
         ("level3_sha3_384_kishu", k165_sha3_384),
     ):
-        fig(f"{name}_shortest_step", rank_text(row))
+        fig(f"{name}_shortest_step", step_rank_text(row))
         fig(f"{name}_merge_digits_m", sig(row["gates"] / 1e6, 2))
     fig("level3_kishu_prover_pct", round(100 * (k165["prover"] / k147["prover"] - 1)))
     fig("level3_kishu_bytes_pct", round(100 * (k165["bytes"] / k147["bytes"] - 1)))
@@ -6821,7 +6851,7 @@ def define_figures():
         "at the illustrative level Kishu's merge and its commitments are greater with SHA3-384 transcripts than with BLAKE3 ones, and its shortest step longer",
         k165_sha3_384["gates"] > k165["gates"]
         and k165_sha3_384["prover"] > k165["prover"]
-        and k165_sha3_384["rank"] > k165["rank"],
+        and k165_sha3_384["step_rank"] > k165["step_rank"],
     )
     claim(
         "level3_lattice_rows_dearer",
@@ -6831,16 +6861,19 @@ def define_figures():
     )
     lattice_variants = ("fp128", "goldilocks", "pasta_q64", "pasta_sis", "pasta")
     sha3_384_circuits = {
-        rank: [akita_circuits(v, STAGES + 1, rank, True, LEVEL3_SHA3_384) for v in lattice_variants]
-        for rank in RANKS
+        step_rank: [
+            akita_circuits(v, STAGES + 1, step_rank, True, LEVEL3_SHA3_384)
+            for v in lattice_variants
+        ]
+        for step_rank in STEP_RANKS
     }
     # The least step in which each variant's merge fits with a SHA3-384 transcript: over the
-    # ranks where its circuit count converges, the fewest gates, circuits of 2^rank each.
+    # step ranks where its circuit count converges, the fewest gates, circuits of 2^(step rank) each.
     sha3_384_steps = [
         min(
-            sha3_384_circuits[rank][i] * 2**rank
-            for rank in RANKS
-            if sha3_384_circuits[rank][i] is not None
+            sha3_384_circuits[step_rank][i] * 2**step_rank
+            for step_rank in STEP_RANKS
+            if sha3_384_circuits[step_rank][i] is not None
         )
         for i in range(len(lattice_variants))
     ]
@@ -6859,7 +6892,7 @@ def define_figures():
     fig("level3_f2_merge_x", sig(f2_165 / f2_147))
     claim(
         "level3_hash_based_impractical",
-        "at the 165-bit level WHIR over Pasta would need over five times the circuits at rank 16 and the binary-field family's merge would be over four times the bits",
+        "at the 165-bit level WHIR over Pasta would need over five times the circuits at step rank 16 and the binary-field family's merge would be over four times the bits",
         w165 > 5 * w147 and f2_165 > 4 * f2_147,
     )
     fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
@@ -6908,11 +6941,13 @@ def define_figures():
         fig(f"rank_moves_{m}", moves)
         fig(f"rank_scale_{m}", f"{high / low:.2f}")
 
-    # The WHIR-type rows at rate 1/8 and rank 13 (the hash-based families, ARC against
+    # The WHIR-type rows at rate 1/8 and step rank 13 (the hash-based families, ARC against
     # recursion, Hashes and Decider work paragraphs).
     WHIR_TYPES = ("whir", "whir_gold", "whir_hybrid", "plonky3")
     w13 = {
-        (f, hp): pick(f, rate="1/8", rank=13, hashes=hp) for f in WHIR_TYPES for hp in HASH_POLICIES
+        (f, hp): pick(f, rate="1/8", step_rank=13, hashes=hp)
+        for f in WHIR_TYPES
+        for hp in HASH_POLICIES
     }
     whir8 = w13[("whir", "poseidon")]
     arc_pos = [p for f in WHIR_TYPES for p in shown(f, "poseidon", hashes="poseidon")]
@@ -6929,7 +6964,7 @@ def define_figures():
     log_elems = 13 + math.log2(whir8["circuits"]) + math.log2(HASH_VARIANTS["whir"]["elems"])
     fig("whir13_standalone_kb", kb(whir_bytes("whir", "1/8", log_elems, whir8["grind_bits"])))
     fig("whir13_kb", kb(whir8["bytes"]))
-    whir32 = pick("whir", rate="1/32", rank=13, hashes="poseidon")
+    whir32 = pick("whir", rate="1/32", step_rank=13, hashes="poseidon")
     fig("whir13_1_32_kb", kb(whir32["bytes"]))
     fig("whir32_over_8_prover", sig(whir32["prover"] / whir8["prover"]))
     claim(
@@ -6945,7 +6980,7 @@ def define_figures():
         "Goldilocks cuts WHIR's proof by about a sixth and grows its merge",
         0.78 <= gold8["bytes"] / whir8["bytes"] <= 0.9 and gold8["gates"] > whir8["gates"],
     )
-    rec8 = pick("whir_rec", rate="1/8", rank=13, hashes="poseidon")
+    rec8 = pick("whir_rec", rate="1/8", step_rank=13, hashes="poseidon")
     fig("whir_rec13_kb", kb(rec8["bytes"]))
     claim(
         "rec_proofs_half_arc",
@@ -6964,8 +6999,8 @@ def define_figures():
         and 1.3 <= rec8["gates"] / whir8["gates"] <= 1.5,
     )
     rec2, arc2 = (
-        pick("whir_rec", rate="1/2", rank=13, hashes="poseidon"),
-        pick("whir", rate="1/2", rank=13, hashes="poseidon"),
+        pick("whir_rec", rate="1/2", step_rank=13, hashes="poseidon"),
+        pick("whir", rate="1/2", step_rank=13, hashes="poseidon"),
     )
     claim(
         "whir_rec_rate2_saves",
@@ -7012,7 +7047,7 @@ def define_figures():
             for a in shown(f, "poseidon")
         ),
     )
-    fri_rec8 = pick("plonky3_rec", rate="1/8", rank=13, hashes="poseidon")
+    fri_rec8 = pick("plonky3_rec", rate="1/8", step_rank=13, hashes="poseidon")
     claim(
         "fri_rec_twice_arc",
         "FRI's recursion costs about twice ARC",
@@ -7052,14 +7087,14 @@ def define_figures():
     )
     claim(
         "blake3_whir_grind_24",
-        "with BLAKE3 trees the WHIR-type rows take 24 bits of grinding at rate 1/8 and rank 13",
+        "with BLAKE3 trees the WHIR-type rows take 24 bits of grinding at rate 1/8 and step rank 13",
         all(w13[(f, "blake3")]["grind_bits"] == 24 for f in WHIR_TYPES),
     )
     for f in ("whir", "whir_gold", "whir_rec", "whir_gold_rec"):
         fig(
             f"{f}13_poseidon_decider_ms",
             sig(
-                pick(f, rate="1/8", rank=13, hashes="poseidon")["verify"] / WORD_MULTS_PER_MS,
+                pick(f, rate="1/8", step_rank=13, hashes="poseidon")["verify"] / WORD_MULTS_PER_MS,
                 3,
             ),
         )
@@ -7067,7 +7102,9 @@ def define_figures():
         "blake3_whir_deciders_ms",
         "the WHIR-type deciders take about a millisecond with BLAKE3 trees",
         all(
-            0.5 <= pick(f, rate="1/8", rank=13, hashes="blake3")["verify"] / WORD_MULTS_PER_MS <= 2
+            0.5
+            <= pick(f, rate="1/8", step_rank=13, hashes="blake3")["verify"] / WORD_MULTS_PER_MS
+            <= 2
             for f in WHIR_TYPES + ("whir_rec", "whir_gold_rec")
         ),
     )
@@ -7094,7 +7131,9 @@ def define_figures():
             f"grind_{g}_pct",
             sig(100 * grind_prover(hv("whir", "poseidon")["native"], g) / whir8["prover"], 1),
         )
-    whir_rates = [pick("whir", rate=r, rank=13, hashes="poseidon") for r in ("1/2", "1/4", "1/8")]
+    whir_rates = [
+        pick("whir", rate=r, step_rank=13, hashes="poseidon") for r in ("1/2", "1/4", "1/8")
+    ]
     fig("whir13_rates_gates_min", mil(min(p["gates"] for p in whir_rates)))
     fig("whir13_rates_gates_max", mil(max(p["gates"] for p in whir_rates)))
     fig(
@@ -7104,7 +7143,7 @@ def define_figures():
     fig("whir13_over_today_min", sig(min(p["gates"] for p in whir_rates) / ch["gates"], 1))
     fig("whir13_over_today_max", sig(max(p["gates"] for p in whir_rates) / ch["gates"], 1))
     gold_rates = [
-        pick("whir_gold", rate=r, rank=13, hashes="poseidon") for r in ("1/2", "1/4", "1/8")
+        pick("whir_gold", rate=r, step_rank=13, hashes="poseidon") for r in ("1/2", "1/4", "1/8")
     ]
     fig("whir_gold13_kb_min", kb(min(p["bytes"] for p in gold_rates)))
     fig("whir_gold13_kb_max", kb(max(p["bytes"] for p in gold_rates)))
@@ -7169,8 +7208,10 @@ def define_figures():
     )
     fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
     # WHIR over Goldilocks under BEEP: the quadratic extension against the cubic one, at the
-    # 128-bit floor and rank 13.
-    wg = {(q["rate"], q.get("profile")): q for q in shown("whir_gold", floor=BEEP_FLOOR, rank=13)}
+    # 128-bit floor and step rank 13.
+    wg = {
+        (q["rate"], q.get("profile")): q for q in shown("whir_gold", floor=BEEP_FLOOR, step_rank=13)
+    }
     wg_less = [100 * (1 - wg[(r, "beep")]["bytes"] / wg[(r, None)]["bytes"]) for r in RATES]
     wg_memory = [100 * (1 - wg[(r, "beep")]["memory"] / wg[(r, None)]["memory"]) for r in RATES]
     fig("whir_beep_less_pct_min", sig(min(wg_less), 2))
@@ -7317,7 +7358,7 @@ def define_figures():
     )
 
     # BitZ (the BitZ paragraph, ARC against recursion, zero knowledge) and Kishu (its paragraph).
-    b13 = pick("bitz", rank=13, rate="1/8")
+    b13 = pick("bitz", step_rank=13, rate="1/8")
     fig("bitz13_kb", kb(b13["bytes"]))
     fig("bitz13_prover", sci(b13["prover"]))
     fig("bitz13_merge_bits", millions(b13["gates"]))
@@ -7339,7 +7380,7 @@ def define_figures():
     )
     claim(
         "bitz_unbeaten_among_hash_pasta",
-        "no other hash-based family's row with Pasta claims has both a smaller proof and a cheaper prover than BitZ at rank 13, rate 1/8",
+        "no other hash-based family's row with Pasta claims has both a smaller proof and a cheaper prover than BitZ at step rank 13, rate 1/8",
         not any(
             q["pasta"] and q["bytes"] <= b13["bytes"] and q["prover"] <= b13["prover"]
             for f in HASH_FAMILIES
@@ -7420,13 +7461,13 @@ def define_figures():
     )
     claim(
         "bitz_merge_mostly_hashing",
-        "the Merkle hashing is most of a BitZ step's witness at rank 13, and the merge is the size of the 𝔽₂ family's at the same rate",
+        "the Merkle hashing is most of a BitZ step's witness at step rank 13, and the merge is the size of the 𝔽₂ family's at the same rate",
         b13_hash_bits > 0.9 * (b13["gates"] + 2**13) and 0.5 < b13["gates"] / f8["gates"] < 2,
     )
     pasta_akita = [q for fam in ("pasta_q64", "pasta_sis") for q in shown(fam, policy="poseidon")]
     claim(
         "akita_pasta_smaller_than_bitz13",
-        "every Akita row over Pasta has a smaller proof than BitZ's rank-13 ARC row",
+        "every Akita row over Pasta has a smaller proof than BitZ's step rank-13 ARC row",
         bool(pasta_akita) and all(q["bytes"] < b13["bytes"] for q in pasta_akita),
     )
     fig("bitz_beep_queries_25", bitz_queries("beep", 25, 3, BITZ_MEASURED_FLOOR))
@@ -7448,17 +7489,17 @@ def define_figures():
         and least["beep"]["rate"] == RATES[-1]
         and least["beep"]["prover"] > least["udr"]["prover"],
     )
-    b12 = pick("bitz", rank=12, rate="1/8")
+    b12 = pick("bitz", step_rank=12, rate="1/8")
     claim(
         "bitz_rank12_slightly_smaller",
-        "rank 12 gives BitZ a slightly smaller proof and merge prover",
+        "step rank 12 gives BitZ a slightly smaller proof and merge prover",
         b12["bytes"] < b13["bytes"] and b12["prover"] < b13["prover"],
     )
     # The recursion row beside the ARC row, both under unique decoding at the 128-bit floor: at
     # the default floor the recursion's merge is larger than any measured size, so it has no
     # row there.
-    arc128 = pick("bitz", rank=13, rate="1/8", floor=128, profile="udr")
-    bz_rec13 = pick("bitz_rec", rank=13, rate="1/8", floor=128, profile="udr")
+    arc128 = pick("bitz", step_rank=13, rate="1/8", floor=128, profile="udr")
+    bz_rec13 = pick("bitz_rec", step_rank=13, rate="1/8", floor=128, profile="udr")
     fig("bitz13_128_merge_bits_m", mil(arc128["gates"]))
     fig("bitz_rec13_merge_bits", mil(bz_rec13["gates"]))
     fig("bitz_rec_over_arc_hashing", sig(bz_rec13["gates"] / arc128["gates"], 1))
@@ -7474,7 +7515,7 @@ def define_figures():
     fig("arc_openings_1_8_128", round(arc_openings("1/8", 128, 0)))
     fig("ligerito_columns", bitz_queries("udr", math.log2(bz_rec13["gates"]), 3, 128))
     fig("ligerito_levels", len(bitz_levels("udr", math.log2(bz_rec13["gates"]), 3)))
-    b13z = pick("bitz", rank=13, rate="1/8", zk=True)
+    b13z = pick("bitz", step_rank=13, rate="1/8", zk=True)
     fig("bitz13_zk_more_kb", kb(b13z["bytes"] - b13["bytes"]))
     fig("bitz_mask_elements_25", fmt(round(bitz_mask_elements(25))))
     ba = pick("bits_akita", floor=128)
@@ -7509,10 +7550,10 @@ def define_figures():
         ),
     )
     fig("q64_mults_per_pasta_gate", sig(4 * ajtai_per_coefficient("pasta_q64")))
-    k_b = pick("bits_q64", rank=21, hashes="blake3", check="sumcheck", route="limbs")
-    k_p = pick("bits_q64_poseidon", rank=21, check="sumcheck", route="limbs")
-    q_b = pick("pasta_q64", rank=17, hashes="blake3")
-    q_p = pick("pasta_q64", rank=17, hashes="poseidon")
+    k_b = pick("bits_q64", step_rank=21, hashes="blake3", check="sumcheck", route="limbs")
+    k_p = pick("bits_q64_poseidon", step_rank=21, check="sumcheck", route="limbs")
+    q_b = pick("pasta_q64", step_rank=17, hashes="blake3")
+    q_p = pick("pasta_q64", step_rank=17, hashes="poseidon")
     fig("kishu21_blake3_digits", millions(k_b["gates"]))
     fig("kishu21_blake3_kb", kb(k_b["bytes"]))
     fig("kishu21_blake3_prover", sci(k_b["prover"]))
@@ -7522,20 +7563,20 @@ def define_figures():
     fig("kishu21_poseidon_prover", sci(k_p["prover"]))
     sum_bytes, sum_mults, sum_bits = (BOOL_CHECK["sumcheck"][i] for i in (1, 3, 4))
     for f in KISHU:
-        least = min(p["rank"] for p in points if p["family"] == f)
+        least = min(p["step_rank"] for p in points if p["family"] == f)
         fig(f"{f}_min_step", step_label(round(2**least)))
     fig("q64_17_blake3_prover", sci(q_b["prover"]))
     fig("kishu_vs_q64_blake3_prover", sig(q_b["prover"] / k_b["prover"]))
     fig("kishu_vs_q64_poseidon_prover", sig(q_p["prover"] / k_p["prover"]))
     claim(
         "kishu_poseidon_merge_prover_smaller",
-        "under Poseidon too Kishu's merge prover at rank 17 is smaller than the 64-bit variant's",
+        "under Poseidon too Kishu's merge prover at step rank 17 is smaller than the 64-bit variant's",
         k_p["prover"] < q_p["prover"],
     )
     fig("q64_17_blake3_kb", kb(q_b["bytes"]))
     claim(
         "kishu_blake3_dominates_q64",
-        "under BLAKE3 Kishu at rank 17 dominates the 64-bit variant on bytes, prover, accumulation prover, atoms, decider and memory",
+        "under BLAKE3 Kishu at step rank 17 dominates the 64-bit variant on bytes, prover, accumulation prover, atoms, decider and memory",
         all(
             k_b[m] <= q_b[m]
             for m in ("bytes", "prover", "accumulation_prover", "accumulation", "verify", "memory")
@@ -7544,10 +7585,10 @@ def define_figures():
     fig("kishu_vs_q64_poseidon_kb", kb(abs(k_p["bytes"] - q_p["bytes"]), 1))
     claim(
         "kishu_poseidon_proof_smaller",
-        "under Poseidon Kishu's proof at rank 17 is smaller than the 64-bit variant's",
+        "under Poseidon Kishu's proof at step rank 17 is smaller than the 64-bit variant's",
         k_p["bytes"] < q_p["bytes"],
     )
-    bz17 = pick("bitz", rank=17, rate="1/8")
+    bz17 = pick("bitz", step_rank=17, rate="1/8")
     fig("kishu_vs_bitz_bytes", sig(bz17["bytes"] / k_b["bytes"]))
     rk = sorted(bz17["prover"] / k["prover"] for k in (k_b, k_p))
     fig("kishu_vs_bitz_prover_min", sig(rk[0]))
@@ -7589,27 +7630,29 @@ def define_figures():
     fig("claim_gates", CLAIM_GATES)
     claim(
         "kishu_beats_bitz13",
-        "Kishu at rank 17 under BLAKE3 beats BitZ at rank 13 on bytes and prover",
+        "Kishu at step rank 17 under BLAKE3 beats BitZ at step rank 13 on bytes and prover",
         k_b["bytes"] < b13["bytes"] and k_b["prover"] < b13["prover"],
     )
 
     # The page's negative statements: rows that do not exist, and measures that do not move.
     claim(
         "blake3_akita_first_ranks",
-        "under BLAKE3 there are no Akita rows at rank 13, and none at rank 14 for the Pasta variants",
-        not any(shown(v, rank=13, hashes="blake3") for v in VARIANTS)
-        and not any(shown(v, rank=14, hashes="blake3") for v in PASTA_VARIANTS)
-        and all(shown(v, rank=14, hashes="blake3") for v in ("fp128", "goldilocks"))
-        and all(shown(v, rank=15, hashes="blake3") for v in PASTA_VARIANTS),
+        "under BLAKE3 there are no Akita rows at step rank 13, and none at step rank 14 for the Pasta variants",
+        not any(shown(v, step_rank=13, hashes="blake3") for v in VARIANTS)
+        and not any(shown(v, step_rank=14, hashes="blake3") for v in PASTA_VARIANTS)
+        and all(shown(v, step_rank=14, hashes="blake3") for v in ("fp128", "goldilocks"))
+        and all(shown(v, step_rank=15, hashes="blake3") for v in PASTA_VARIANTS),
     )
-    fig("akita14_blake3_circuits", fmt(pick("fp128", rank=14, hashes="blake3")["circuits"]))
-    fig("pasta15_blake3_circuits", fmt(pick("pasta_q64", rank=15, hashes="blake3")["circuits"]))
+    fig("akita14_blake3_circuits", fmt(pick("fp128", step_rank=14, hashes="blake3")["circuits"]))
+    fig(
+        "pasta15_blake3_circuits", fmt(pick("pasta_q64", step_rank=15, hashes="blake3")["circuits"])
+    )
     claim(
         "blake3_first_rank_circuits_shared",
-        "Goldilocks has the 128-bit field's circuit count at rank 14 under BLAKE3, and the three Pasta variants share theirs at rank 15",
-        pick("goldilocks", rank=14, hashes="blake3")["circuits"]
-        == pick("fp128", rank=14, hashes="blake3")["circuits"]
-        and len({pick(v, rank=15, hashes="blake3")["circuits"] for v in PASTA_VARIANTS}) == 1,
+        "Goldilocks has the 128-bit field's circuit count at step rank 14 under BLAKE3, and the three Pasta variants share theirs at step rank 15",
+        pick("goldilocks", step_rank=14, hashes="blake3")["circuits"]
+        == pick("fp128", step_rank=14, hashes="blake3")["circuits"]
+        and len({pick(v, step_rank=15, hashes="blake3")["circuits"] for v in PASTA_VARIANTS}) == 1,
     )
     for v, width in (("fp128", 16), ("pasta_q64", 32)):
         fig(
@@ -7654,7 +7697,7 @@ def define_figures():
             for hp in HASH_POLICIES
             for a in shown(v, "poseidon", hashes=hp)
             for z in shown(v, "poseidon", zk=True, hashes=hp)
-            if z["rank"] == a["rank"]
+            if z["step_rank"] == a["step_rank"]
         ),
     )
     claim(
@@ -7685,13 +7728,15 @@ def define_figures():
             for hp in HASH_POLICIES:
                 for zk in (False, True):
                     for p in shown(v, hp, zk=zk, floor=floor, hashes=hp):
-                        n = accumulator_coefficients(v, p["rank"], p["circuits"]) * DIGITS[v]
-                        rows.append(((v, hp, zk, p["rank"]), v, math.log2(n), DIGIT_MAX[v], zk))
+                        n = accumulator_coefficients(v, p["step_rank"], p["circuits"]) * DIGITS[v]
+                        rows.append(
+                            ((v, hp, zk, p["step_rank"]), v, math.log2(n), DIGIT_MAX[v], zk)
+                        )
         for f in KISHU:
             for zk in (False, True):
                 for p in shown(f, "poseidon", zk=zk, floor=floor):
-                    n = accumulator_coefficients("kishu", p["rank"], p["circuits"])
-                    key = (f, p["check"], p["route"], zk, p["rank"])
+                    n = accumulator_coefficients("kishu", p["step_rank"], p["circuits"])
+                    key = (f, p["check"], p["route"], zk, p["step_rank"])
                     rows.append((key, "pasta_q64", math.log2(n), DIGIT_MAX["kishu"], zk))
         return rows
 
@@ -7772,8 +7817,8 @@ def define_figures():
     fig("matrix_rows_both_floors", len(common))
     fig("matrix_moves_147", len(moves147))
     fig("matrix_moves_150", len(moves150))
-    # A Kishu row's key is (family, check, route, zk, rank); an Akita row's (variant, hash,
-    # zk, rank).
+    # A Kishu row's key is (family, check, route, zk, step rank); an Akita row's (variant, hash,
+    # zk, step rank).
     kishu_moves147 = [key for key in moves147 if key[0] in KISHU]
     fig("matrix_moves_147_kishu", len(kishu_moves147))
     claim(

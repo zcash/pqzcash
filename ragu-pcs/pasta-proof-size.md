@@ -378,7 +378,7 @@ is the instance above, with the six online openings and two online polynomial co
 [§8.1](#81-measured-pedersen-ipa-size-the-group-dependence-and-prover-commitment-work-in-word-multiplications)
 describes, and on each curve a revdot reduction of 4 points and 9 scalars, a batch of 1 point and 11
 scalars, and an IPA of 13 rounds, 1,696 bytes per
-curve. <!--claim:rank14_adds_128_bytes:b4ac42-->Rank 14 adds 128 bytes.<!--/claim--> The model is
+curve. <!--claim:rank14_adds_128_bytes:103069-->Rank 14 adds 128 bytes.<!--/claim--> The model is
 [`ragu-size-model.py`](ragu-size-model.py) beside this note. An independent estimate for a $2^{12}$
 configuration with the endoscaling steps rebalanced gives about 5.9 kbytes. Before the online
 polynomials, the model gave exactly 5,892 bytes at rank 14 with sixteen endoscalings per step on
@@ -396,7 +396,7 @@ counts pinned in Ragu's tests: a rank-14 circuit holds eight endoscalings beside
 not sixteen, and the <!--fig:challenges_bound-->8<!--/fig--> challenges
 need <!--fig:min_binders_14-->2<!--/fig--> binders there, so
 the <!--fig:pedersen_rank14_E16_b1_bytes-->6,372<!--/fig-->-byte configuration does not
-fit. <!--claim:smallest_pedersen_proofs:1efc53-->The smallest proof that fits
+fit. <!--claim:smallest_pedersen_proofs:3bb44a-->The smallest proof that fits
 is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at rank 14, with
 the <!--fig:fixed_native_count-->6<!--/fig--> fixed native circuits packed
 into <!--fig:packed_native_14-->3<!--/fig--> and the <!--fig:fixed_nested_count-->3<!--/fig-->
@@ -404,7 +404,7 @@ nested into <!--fig:packed_nested_14-->1<!--/fig-->,
 or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at rank 15
 with <!--fig:pedersen_least15_E-->16<!--/fig--> endoscalings per step, one binder, and the fixed
 circuits packed into <!--fig:packed_native_15-->2<!--/fig-->
-and <!--fig:packed_nested_15-->1<!--/fig-->.<!--/claim--> <!--claim:rank16_no_bytes_gain:70cb34-->Rank
+and <!--fig:packed_nested_15-->1<!--/fig-->.<!--/claim--> <!--claim:rank16_no_bytes_gain:c28b8e-->Rank
 16 gains nothing further.<!--/claim--> Fewer components is also less prover commitment work: rank 14
 packed needs fewer word multiplications than today's rank 13 as well as fewer bytes. Ragu's several
 committed vectors open in one Akita batch at no visible cost: the catalog prices two polynomials of
@@ -429,7 +429,7 @@ size and the profile's component counts. At tachyon-zcash/ragu 8109a41c (2026-11
 gives <!--fig:pedersen_checked_in_wire_bytes-->7,936<!--/fig--> bytes at rank 13 with a four-element
 header, so <!--fig:pedersen_checked_in_bytes-->7,908<!--/fig--> of payload,
 and <!--fig:pedersen_checked_in_h2_wire_bytes-->7,808<!--/fig--> with a two-element
-header. <!--claim:rank14_adds_128_bytes:b4ac42-->Rank 14 adds 128 bytes, one IPA round per curve, so
+header. <!--claim:rank14_adds_128_bytes:103069-->Rank 14 adds 128 bytes, one IPA round per curve, so
 rank 14 with two header elements and rank 13 with four have the same length.<!--/claim--> The
 payload is 448 bytes more than the 7,460 counted from the structs at the fork of 2026-10-04, because
 every proof now carries two online polynomials. Those are their two commitments and the six
@@ -493,7 +493,7 @@ all <!--fig:challenges_per_binder_15-->8<!--/fig-->, so one binder; rank 16
 holds <!--fig:endoscalings_16-->35<!--/fig-->. Under Pedersen-IPA this makes the merge the main
 consumer of the rank. Every endoscaling step and binder is its own commitment, so a larger circuit
 removes components faster than the IPA adds its 128 bytes per
-rank. <!--claim:smallest_pedersen_proofs:1efc53-->The smallest proof that fits
+rank. <!--claim:smallest_pedersen_proofs:3bb44a-->The smallest proof that fits
 is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at rank 14 with the fixed circuits
 merged, or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at rank 15,
 against <!--fig:pedersen_checked_in_h2_bytes-->7,780<!--/fig--> today, all with two-element
@@ -602,7 +602,7 @@ decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-
 GKR, <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms at
 $2^{25}$ bits and rate 1/2 on one thread; as Quang Dao puts it, the prover with grand-product GKR is
 just really
-expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:5de217-->It is
+expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:8c7f84-->It is
 on the frontier, because its Pasta arithmetic is one relation per multiplication and no other
 hash-based family's row with native or relation Pasta arithmetic has both a smaller proof and a
 cheaper prover; Kishu, described below, beats it on both.<!--/claim--> Akita's Pasta variants beat
@@ -635,7 +635,7 @@ scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients,
 cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig-->
 times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
 to <!--fig:kishu_vs_bitz_prover_max-->64<!--/fig-->
-times. <!--claim:kishu_blake3_dominates_q64:3cb36f-->Against the 64-bit Akita variant, which commits
+times. <!--claim:kishu_blake3_dominates_q64:c39183-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
 is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller, so under conventional hashes
 it dominates that variant on every measure but the merge's count, whose units differ.<!--/claim-->
