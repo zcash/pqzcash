@@ -59,8 +59,8 @@ leanSPHINCS over BLAKE3, with Kishu at 147 bits and a BLAKE3 transcript.
 | Kishu | leanSPHINCS over BLAKE3 | SLH-DSA-SHAKE-192s |
 |---|---|---|
 | 147 bits, BLAKE3 transcript | <!--fig:sigtx_leansphincs_147_s-->0.312<!--/fig--> s (×<!--fig:sigtx_leansphincs_147_x-->1.0<!--/fig-->) | <!--fig:sigtx_slhdsa_147_s-->16.9<!--/fig--> s (×<!--fig:sigtx_slhdsa_147_x-->54<!--/fig-->) |
-| Level 3, BLAKE3 transcript | <!--fig:sigtx_leansphincs_level3_blake3_s-->0.499<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_blake3_x-->1.6<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_blake3_s-->25.1<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_blake3_x-->80<!--/fig-->) |
-| Level 3, SHA3-384 transcript | <!--fig:sigtx_leansphincs_level3_sha3_384_s-->1.23<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_sha3_384_x-->4.0<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_sha3_384_s-->40.3<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_sha3_384_x-->130<!--/fig-->) |
+| Level 3, BLAKE3 transcript | <!--fig:sigtx_leansphincs_level3_blake3_s-->0.582<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_blake3_x-->1.9<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_blake3_s-->24.7<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_blake3_x-->79<!--/fig-->) |
+| Level 3, SHA3-384 transcript | <!--fig:sigtx_leansphincs_level3_sha3_384_s-->0.935<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_sha3_384_x-->3.0<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_sha3_384_s-->37.9<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_sha3_384_x-->120<!--/fig-->) |
 
 In the table, <!--claim:sigtx_each_change_dearer:712618-->each change makes the transaction dearer
 whatever the other two are: down a column the proof system's level and then its transcript hash, and

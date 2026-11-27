@@ -724,8 +724,24 @@ def akita_atoms(variant, K, circuits, zk):
 #     about 2^-120 a round, far above the level, so the 128-bit profile's claims move to its
 #     quadratic extension and the 64-bit profiles' to the cubic one. Pasta's field already
 #     serves.
-#   - A commitment's image is compressed by two maps where the 128- and 147-bit plans have
-#     one, since the rank-one maps certify at 147.3 bits: twice the image's bytes.
+#   - A commitment's image is compressed by a chain of three maps where the 128- and 147-bit
+#     plans have two, to the same 128 bytes. The shipped chain's maps output 2,048 and then
+#     1,024 bits and stop at 147.34 and 153.17 bits (the paper's Appendix G). A map's
+#     security depends on its output's bits and its input's width, so the level needs a
+#     larger first output, and a 1,024-bit last output is secure only for a narrower input
+#     than the first map's output; hence a map between. LEVEL3_COMPRESSION_CHAIN is that
+#     chain, each map as (input bits, output bits, quantum bits) from Akita's own estimator
+#     (scripts/compression-chain.sh). Its outputs are whole coefficients at a 128-bit or a
+#     64-bit modulus. Its first two maps alone are a two-map chain to 144 bytes, and a fourth
+#     map (LEVEL3_COMPRESSION_FOURTH, whole coefficients at 64 bits only) would reach 120
+#     bytes: three are taken, since the third map saves about a percent of a merge and the
+#     fourth far less, at a map that only just reaches the level. The intermediate outputs
+#     are not a power-of-two ring element, so those maps have rank above one over smaller
+#     rings. The third map's witness in the opening, its input's bits for each image, is not
+#     counted.
+LEVEL3_COMPRESSION_CHAIN = ((65536, 2304, 171.72), (2304, 1152, 170.66), (1152, 1024, 173.58))
+LEVEL3_COMPRESSION_FOURTH = (1024, 960, 165.36)
+SHIPPED_COMPRESSION_CHAIN = ((65536, 2048, 147.34), (2048, 1024, 153.17))
 LEVEL3_CLAIM_BYTES = {"fp128": 32, "goldilocks": 24, "kishu": 24}
 IMAGE_BYTES = 128
 
@@ -745,7 +761,10 @@ def claim_bytes(variant, hp):
 
 
 def image_bytes(hp):
-    return 2 * IMAGE_BYTES if level3(hp) else IMAGE_BYTES
+    """A compressed commitment image's bytes under policy `hp`: the same at every level, the
+    illustrative one reaching it by a third map (LEVEL3_COMPRESSION_CHAIN)."""
+    assert hp in (*HASH_POLICIES, *LEVEL3_POLICIES)
+    return IMAGE_BYTES
 
 
 def fold_gates_per_image(hp):
@@ -6537,6 +6556,25 @@ def define_figures():
         and SLHDSA_192S_VERIFY > 10 * LEANSPHINCS_VERIFY["keccak"],
     )
     fig("level3_challenge_weight", challenge_l1(LEVEL3_FLOOR))
+    # The compression chain at the level, and the shipped one's two figures.
+    fig("compression_shipped_first_bits", sig(SHIPPED_COMPRESSION_CHAIN[0][2], 4))
+    fig("compression_shipped_second_bits", sig(SHIPPED_COMPRESSION_CHAIN[1][2], 4))
+    chain3 = LEVEL3_COMPRESSION_CHAIN
+    fig("compression_level3_first", fmt(chain3[0][1]))
+    fig("compression_level3_second", fmt(chain3[1][1]))
+    fig("compression_level3_min_bits", sig(min(c[2] for c in chain3), 4))
+    fig("compression_level3_two_map_bytes", chain3[1][1] // 8)
+    fig("compression_level3_four_map_bytes", LEVEL3_COMPRESSION_FOURTH[1] // 8)
+    fig("compression_level3_fourth_bits", sig(LEVEL3_COMPRESSION_FOURTH[2], 4))
+    claim(
+        "level3_compression_chain_reaches_floor",
+        "the three-map compression chain reaches the illustrative level at every map, chains its maps' sizes from the 8 KiB source to the shipped 1,024-bit payload, a fourth map would reach the level too, and the shipped chain's maps fall short of it",
+        all(c[2] >= LEVEL3_FLOOR for c in (*chain3, LEVEL3_COMPRESSION_FOURTH))
+        and chain3[0][0] == 8 * 8192
+        and chain3[-1][1] == 8 * IMAGE_BYTES == LEVEL3_COMPRESSION_FOURTH[0]
+        and all(x[1] == y[0] for x, y in zip(chain3, chain3[1:]))
+        and all(c[2] < LEVEL3_FLOOR for c in SHIPPED_COMPRESSION_CHAIN),
+    )
     fig("challenge_weight", MASK_CHALLENGE_L1)
     fig("challenge_space", f"$2^{{{round(challenge_space_bits(MASK_CHALLENGE_L1))}}}$")
     fig(

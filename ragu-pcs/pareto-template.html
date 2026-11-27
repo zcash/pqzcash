@@ -1616,12 +1616,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   of $c$ bits, so with BLAKE3 the level is not provable, and with SHA3-384 it
   is. <!--claim:level3_sha3_384_akita_one_rank:e65ec1-->With SHA3-384 Akita's merge converges at
   rank <!--fig:level3_sha3_384_akita_rank-->17<!--/fig--> alone,
-  in <!--fig:level3_sha3_384_akita_circuits_min-->378<!--/fig-->
-  to <!--fig:level3_sha3_384_akita_circuits_max-->1,208<!--/fig-->
+  in <!--fig:level3_sha3_384_akita_circuits_min-->319<!--/fig-->
+  to <!--fig:level3_sha3_384_akita_circuits_max-->1,050<!--/fig-->
   circuits.<!--/claim--> <!--claim:level3_sha3_384_kishu_dearer:80c260-->Kishu's merge at rank 17
-  with zero knowledge is then <!--fig:level3_sha3_384_kishu_17_digits_m-->10<!--/fig--> million
-  digits in <!--fig:level3_sha3_384_kishu_17_circuits-->92<!--/fig--> circuits, and its accumulation
-  prover <!--fig:level3_sha3_384_kishu_17_accumulation_x-->17<!--/fig--> times the 147‑bit
+  with zero knowledge is then <!--fig:level3_sha3_384_kishu_17_digits_m-->9.4<!--/fig--> million
+  digits in <!--fig:level3_sha3_384_kishu_17_circuits-->85<!--/fig--> circuits, and its accumulation
+  prover <!--fig:level3_sha3_384_kishu_17_accumulation_x-->16<!--/fig--> times the 147‑bit
   one.<!--/claim--> The figures below are under BLAKE3.</p>
   <p>Akita's rows at the level are derived as follows:</p>
   <ul>
@@ -1631,8 +1631,16 @@ code { font-family: var(--mono); font-size: 0.92em; }
     through their 128‑ and 147‑bit values, and the
     opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are at the
     level's claim field;</li>
-    <li>a commitment's image is twice its bytes, for two compression maps where the rank-one maps
-    stop at 147.3 bits;</li>
+    <li><!--claim:level3_compression_chain_reaches_floor:28ff66-->a commitment's image is compressed
+    to the same 128 bytes by three maps where the plans have two. The shipped maps, with outputs of
+    2,048 and then 1,024 bits, stop at <!--fig:compression_shipped_first_bits-->147.3<!--/fig-->
+    and <!--fig:compression_shipped_second_bits-->153.2<!--/fig--> bits. By Akita's estimator a chain with outputs
+    of <!--fig:compression_level3_first-->2,304<!--/fig-->, <!--fig:compression_level3_second-->1,152<!--/fig-->, and 1,024 bits has at
+    least <!--fig:compression_level3_min_bits-->170.7<!--/fig--> bits at every map. Its first two maps alone would give
+    an image of <!--fig:compression_level3_two_map_bytes-->144<!--/fig--> bytes, and a fourth map one
+    of <!--fig:compression_level3_four_map_bytes-->120<!--/fig--> bytes at <!--fig:compression_level3_fourth_bits-->165.4<!--/fig-->
+    bits.<!--/claim--> The intermediate outputs are not a power-of-two ring element, so those maps
+    have rank above one over smaller rings;</li>
     <li>a claim is in a challenge field of 192 bits or more, where the 128‑bit field and
     Goldilocks's quadratic extension leave a sum-check far short of the level, and the sum-checks'
     prover is scaled by the field products of a multiplication there; and</li>
@@ -1644,18 +1652,18 @@ code { font-family: var(--mono); font-size: 0.92em; }
     by <!--fig:level3_challenge_bound_bits-->0.64<!--/fig--> bits.<!--/claim--></li>
   </ul>
   <p><!--claim:level3_lattice_rows_dearer:c99147-->At rank 16 with zero knowledge, Akita over
-  Goldilocks then takes <!--fig:level3_goldilocks_16_circuits-->108<!--/fig--> circuits
+  Goldilocks then takes <!--fig:level3_goldilocks_16_circuits-->90<!--/fig--> circuits
   against <!--fig:goldilocks_16_zk_circuits-->57<!--/fig--> at 147
-  bits, <!--fig:level3_goldilocks_16_accumulation_x-->3.2<!--/fig--> times the accumulation prover,
-  and <!--fig:level3_goldilocks_16_bytes_pct-->18<!--/fig-->% more bytes.</p>
+  bits, <!--fig:level3_goldilocks_16_accumulation_x-->2.6<!--/fig--> times the accumulation prover,
+  and <!--fig:level3_goldilocks_16_bytes_pct-->17<!--/fig-->% more bytes.</p>
   <p>Kishu's claims move to the cubic extension of its 64‑bit field, where a multiplication is six
   field products with three values of output. At rank 17 with zero knowledge its merge
-  is <!--fig:level3_kishu_17_digits_m-->1.9<!--/fig--> million digits
-  in <!--fig:level3_kishu_17_circuits-->18<!--/fig--> circuits,
+  is <!--fig:level3_kishu_17_digits_m-->1.7<!--/fig--> million digits
+  in <!--fig:level3_kishu_17_circuits-->17<!--/fig--> circuits,
   against <!--fig:kishu_17_zk_digits_m-->1.3<!--/fig--> million
   in <!--fig:kishu_17_zk_circuits-->13<!--/fig-->, with the accumulation
-  prover <!--fig:level3_kishu_17_accumulation_pct-->156<!--/fig-->% dearer and the
-  proof <!--fig:level3_kishu_17_bytes_pct-->16<!--/fig-->% larger.<!--/claim--> Its sum-checks'
+  prover <!--fig:level3_kishu_17_accumulation_pct-->139<!--/fig-->% dearer and the
+  proof <!--fig:level3_kishu_17_bytes_pct-->15<!--/fig-->% larger.<!--/claim--> Its sum-checks'
   prover, measured in the quadratic extension, is taken at twice that rate, for the six field
   products of a multiplication against three.</p>
   <p>The hash-based families have no row at the level, because none would be

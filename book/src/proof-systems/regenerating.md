@@ -116,6 +116,13 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   `infinity_width_table --policy Quantum147BitADPS16 --profiles pallas --format csv --profile
   local-minimum --output ...` in the worktree: 5.5 hours with the estimator built without its
   `parallel` feature.
+- **The illustrative level** (floor key 165): its accumulation-width table is extrapolated from the
+  147-bit rows by
+  [`scripts/derive-linf-widths.py`](../../../ragu-pcs/scripts/derive-linf-widths.py), whose
+  `--check` tests the rule on the estimator's own tables; the compression chain's security
+  (`LEVEL3_COMPRESSION_CHAIN`, `SHIPPED_COMPRESSION_CHAIN`) is printed by
+  [`scripts/compression-chain.sh`](../../../ragu-pcs/scripts/compression-chain.sh) from Akita's
+  single-instance estimator, in a checkout with the estimator's examples built.
 - **Rank growth** (`RANK_SUMS_147`): over the weakest instance of each of the catalog report's 115
   schedules, the least module rank that covers its width at each floor, mapped through each
   variant's modulus:
