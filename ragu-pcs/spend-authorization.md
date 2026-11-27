@@ -10,6 +10,38 @@ page](pareto-template.html#transaction-prover) prices both as applications of it
 prover: the preimage statement as the device statement, one BLAKE3 compression, and the leanSPHINCS
 verifier with BLAKE3, BLAKE2s, or Keccak.
 
+The pages of this section:
+
+- [Hash preimage](auth-preimage.md): the statement, and why it has to be a signature of knowledge
+  when it is made outside the transaction's own proof.
+- [leanSPHINCS](auth-leansphincs.md): the signature, its pruned key, and its verifier's cost in the
+  circuit.
+- [CAPSS](auth-capss.md): a SNARK-friendly signature as a third method, analysed and not adopted:
+  the method for a prime-field proof system, and for Kishu a second signature route with another
+  assumption and no clear gain.
+- [SLH-DSA at NIST Level 3](auth-slhdsa.md): for illustration only, what a signature at that
+  level would cost inside the proof.
+- [Recovery from Ironwood](recovery-ironwood.md): ZIP 2005's Recovery Statement, and how the two
+  methods fit it.
+- [Recovery from Tachyon](recovery-tachyon.md): Tachyon's key structure, what it lacks for recovery,
+  and the migration transaction.
+- [Hardware wallets](hardware-wallets.md): what a wallet proves on its own under either method, and
+  at what cost.
+
+## Choice of methods
+
+Two methods are needed because signers differ. The hash preimage is what ZIP 2005 already specifies.
+It is much the more efficient for a signer that creates the transaction itself, with no separation
+between the device that holds the spending key and the one that builds the proof. The same holds for
+a signer that is not constrained in outgoing bandwidth or memory. The check is a hash inside a step
+it proves anyway. The leanSPHINCS signature is feasible on a wider range of devices, since signing
+is hashing alone and the signature is a few kilobytes. So it reaches an airgapped wallet on a QR
+channel or a secure element. It may also be compatible with Ethereum's post-quantum signature,
+depending on the details of what Ethereum chooses. A third method, a signature whose verification is
+built for the circuit, is analysed on the CAPSS page.
+
+## Signing multiple inputs at once
+
 An authorization is paid for once for each distinct spending key that a transaction spends from, not
 once for each input note. The proof is zero-knowledge proof-carrying data, so one signature, or one
 preimage check, can authorize every input note that has the same spending key, and nothing reveals
@@ -32,34 +64,6 @@ authorization a [signature of knowledge](auth-preimage.md#the-signature-of-knowl
 transaction. The wallet's leaf that a hardware wallet hands to its host needs the same thing. Kishu
 cannot prevent the hazard in general, since it does not know which statements authorize anything.
 What it can do is offer the signature of knowledge as a facility.
-
-Two methods are needed because signers differ. The hash preimage is what ZIP 2005 already specifies.
-It is much the more efficient for a signer that creates the transaction itself, with no separation
-between the device that holds the spending key and the one that builds the proof. The same holds for
-a signer that is not constrained in outgoing bandwidth or memory. The check is a hash inside a step
-it proves anyway. The leanSPHINCS signature is feasible on a wider range of devices, since signing
-is hashing alone and the signature is a few kilobytes. So it reaches an airgapped wallet on a QR
-channel or a secure element. It may also be compatible with Ethereum's post-quantum signature,
-depending on the details of what Ethereum chooses. A third method, a signature whose verification is
-built for the circuit, is analysed on the CAPSS page.
-
-The pages of this section:
-
-- [Hash preimage](auth-preimage.md): the statement, and why it has to be a signature of knowledge
-  when it is made outside the transaction's own proof.
-- [leanSPHINCS](auth-leansphincs.md): the signature, its pruned key, and its verifier's cost in the
-  circuit.
-- [CAPSS](auth-capss.md): a SNARK-friendly signature as a third method, analysed and not adopted:
-  the method for a prime-field proof system, and for Kishu a second signature route with another
-  assumption and no clear gain.
-- [SLH-DSA at NIST Level 3](auth-slhdsa.md): for illustration only, what a signature at that
-  level would cost inside the proof.
-- [Recovery from Ironwood](recovery-ironwood.md): ZIP 2005's Recovery Statement, and how the two
-  methods fit it.
-- [Recovery from Tachyon](recovery-tachyon.md): Tachyon's key structure, what it lacks for recovery,
-  and the migration transaction.
-- [Hardware wallets](hardware-wallets.md): what a wallet proves on its own under either method, and
-  at what cost.
 
 ## Quantum recovery
 
