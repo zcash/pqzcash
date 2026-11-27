@@ -5,7 +5,7 @@ made outside the proof and verified inside the host's transaction. The signature
 are witnesses, which the zero-knowledge fold hides, so spends stay unlinkable and no re-randomized
 signature is needed. The scheme is leanSPHINCS, the signature of post-quantum Ethereum
 [\[EIP-8288\]](#ref-eip8288) [\[Lit26\]](#ref-lit26). A signature
-is <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes with [\[Wam26\]](#ref-wam26)'s pruned key
+is <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes with [\[Wam26\]](#ref-wam26)'s pruned key
 of lifetime $2^{30}$, the configuration priced
 here, <!--fig:leansphincs_layered_sig_bytes-->6,332<!--/fig--> with its layered forest key,
 and <!--fig:leansphincs_ethereum_bytes-->7,740<!--/fig--> with Ethereum's provisional set. Signing
@@ -20,7 +20,7 @@ storing it has no grind, which [Hardware wallets](hardware-wallets.md) takes up.
 Since the signature is made outside the proof, its message has to bind the transaction's effecting
 data. In Zoodles it is a BLAKE3 digest of them: each spend's two nullifiers, each output's
 commitment, the change commitment, the fee, and the
-epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
+epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
 or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value:
 each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
 commitments that its children's headers carry. The verification, not the digest, is the expensive
@@ -39,22 +39,23 @@ in a digit arithmetization, so in Kishu a BLAKE3 compression
 is <!--fig:blake3_bits-->11,344<!--/fig--> committed bits, a BLAKE2s
 compression <!--fig:blake2s_bits-->16,096<!--/fig-->, and a Keccak-f
 permutation <!--fig:keccak_bits-->92,160<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
-verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
-BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3's
-is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s's, since its
+verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
+BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3's
+is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s's, since its
 compression has seven rounds to BLAKE2s's
 ten.<!--/claim--> <!--claim:leansphincs_keccak_dearer:8d35d3-->With Keccak it
-is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->
+is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->
 times BLAKE2s's, which is Ethereum's open hash question seen from the circuit.<!--/claim--> In a
 Boolean circuit with XOR free the Keccak-to-BLAKE2s ratio
 is <!--fig:leansphincs_keccak_over_blake2s_boolean-->2.3<!--/fig-->. With zero knowledge Kishu
-proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.102<!--/fig--> s on one
-M4 core in a step of <!--fig:tx_leansphincs_blake3_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig-->
-digits, the BLAKE2s one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.145<!--/fig--> s in a step
-of <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->$1.25 \times 2^{22}$<!--/fig--> digits, and the
-Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.781<!--/fig--> s in a step
-of <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->$1.625 \times 2^{22}$<!--/fig--> digits,
-beside <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s for the recovery circuit itself.
+proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.102<!--/fig--> s on one
+M4 core in a step
+of <!--fig:tx_leansphincs_blake3_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits, the BLAKE2s
+one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.145<!--/fig--> s in a step
+of <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->$1.25 \times 2^{22}$<!--/fig--> digits, and the
+Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.781<!--/fig--> s in a step
+of <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->$1.625 \times 2^{22}$<!--/fig--> digits,
+beside <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s for the recovery circuit itself.
 Ethereum's draft fixes Keccak-256 as the scheme's only primitive, and the circuit and the device
 both argue against it. If Ethereum keeps Keccak, there is no compatibility to gain from BLAKE2s
 either, and the choice is between Keccak and BLAKE3, Zoodles' own hash and the cheapest of the three

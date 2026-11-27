@@ -82,7 +82,7 @@ distinct openings of norm at most $\beta/2$ would give such a $z$. So an opening
 short vector, and a long preimage is not an opening of anything.
 
 Akita commits to a polynomial over $\mathbb{F}_q$ by writing each coefficient in balanced base 8,
-digits in $\{-4, \ldots, 3\}$, which is 85 digits per coefficient at 255 bits. The digit vector $w$
+digits in $\{-4, \ldots, 3\}$, which is 85 digits per coefficient at 255 bits. The digit vector $w$
 is short, the polynomial is $p = Gw \bmod q$ for the public recomposition matrix $G$, and
 $p \mapsto \mathrm{digits}(p)$ is not linear.
 
@@ -154,7 +154,7 @@ In a signature $v = cs$ and $z = y + cs$, which is the shape of the fold in
 After acceptance $z \sim D^N_\sigma$ with $\sigma = \alpha \|cs\|_2$, so
 $\|z\|_2 \approx \alpha\sqrt{N}\,\|cs\|_2$. The $\sqrt{N}$ is the price of the technique: every
 coordinate is masked at a width covering the norm of the whole vector. At $N \approx 2^{10}$, as in
-a signature, that is 5 bits; at $N \approx 2^{22}$ it is 11.
+a signature, that is 5 bits; at $N \approx 2^{22}$ it is 11.
 
 ## 3. The protocol: a zero-knowledge user fold
 
@@ -253,7 +253,7 @@ Given the public instance and the output, the simulator:
   $A \cdot \mathrm{digits}(\text{trace})$ of a trace driven by a few hundred secret bits is not
   statistically hiding. Appending uniformly random digits $\rho$ to the committed vector fixes this
   by the leftover hash lemma when $H_\infty(\rho) \ge nd \log_2 q + 2\lambda$. At the parameters of
-  [§5.3](#53-a-worked-example) that is about 86K bits, about 29K base-8 digits or the digits of
+  [§5.3](#53-a-worked-example) that is about 86K bits, about 29K base-8 digits or the digits of
   about 340 random field elements. The padding folds and range-checks like everything else. A
   computational padding of a few thousand bits does the same job under a knapsack-LWE assumption
   that reduces tightly to LWE; [§5.10](#510-a-computational-hiding-padding) gives the argument and
@@ -298,7 +298,7 @@ needs a fresh Gaussian $y$, and a random trace is not one.
 
 With $\sigma = \alpha\|cs\|_2$ and $\alpha = 48$: $\|z\|_2 \approx 48\sqrt{N}\,\|cs\|_2$, and
 $\|z\|_\infty \le 14\sigma = 672\,\|cs\|_2$ fixes the digit count $J$. The uniform-box variant would
-give $\|z\|_\infty \approx N\,\|cs\|_\infty$, about 4 bits worse in $\ell_2$ at $N = 2^{22}$.
+give $\|z\|_\infty \approx N\,\|cs\|_\infty$, about 4 bits worse in $\ell_2$ at $N = 2^{22}$.
 
 ### 5.2 The Module-SIS bound
 
@@ -317,7 +317,7 @@ $$
 
 with $\|z^*\|_2$ the certified Euclidean bound on responses. That is why step 7 certifies the
 $\ell_2$ norm and not only the digit range: a digit range alone gives
-$\|z\|_\infty \sqrt{N} = 14\sigma\sqrt{N}$ rather than $2\sigma\sqrt{N}$, which costs 3 bits of
+$\|z\|_\infty \sqrt{N} = 14\sigma\sqrt{N}$ rather than $2\sigma\sqrt{N}$, which costs 3 bits of
 $\beta$.
 
 The bound is a property of $A$, and $A$ is shared by every commitment that the decider opens through
@@ -358,7 +358,7 @@ assumptions.
 | quantity | assumption or derivation | value |
 |---|---|---|
 | secret committed vectors | three vectors of $2^{14}$ coefficients over Pasta | $3 \cdot 2^{14}$ coefficients |
-| digits $N$ | 85 digits per coefficient | $\approx 2^{22}$ |
+| digits $N$ | 85 digits per coefficient | $\approx 2^{22}$ |
 | $\|s\|_2$ | digits at most 4 | $\le 2^{13}$ |
 | challenge set | ring dimension $d = 512$, ternary, weight 20 | $\binom{512}{20} 2^{20} \approx 2^{138}$ elements |
 | $\|cs\|_2$ | $\le \|c\|_1 \|s\|_2$ | $\le$ <!--fig:note_cs_bound-->$2^{17.3}$<!--/fig--> |
@@ -367,10 +367,10 @@ assumptions.
 | $\|z\|_\infty$ | $14\sigma$ | $\approx$ <!--fig:note_zinf-->$2^{26.7}$<!--/fig--> |
 | digits per coordinate $J$ | balanced base 8 | 9 |
 | masked $\beta$ | $2 \cdot 40 \cdot 2 \cdot \|z\|_2$ | $\approx$ <!--fig:note_beta-->$2^{42.2}$<!--/fig--> |
-| masked rank $nd$ | Akita's estimator, 128 quantum bits | <!--fig:note_masked_rows-->349<!--/fig--> field elements, <!--fig:note_masked_kb-->11.2<!--/fig--> kbytes |
+| masked rank $nd$ | Akita's estimator, 128 quantum bits | <!--fig:note_masked_rows-->349<!--/fig--> field elements, <!--fig:note_masked_kb-->11.2<!--/fig--> kbytes |
 | unmasked $\beta$ | responses of norm about $2^{19}$ | $\approx 2^{27}$ |
-| unmasked rank $nd$ | Akita's estimator, 128 quantum bits | 143 field elements, <!--fig:note_unmasked_kb-->4.6<!--/fig--> kbytes |
-| hiding padding $\rho$ | $nd \log_2 q + 256$ bits of uniform digits | $\approx$ <!--fig:note_padding_kdigits-->30<!--/fig-->K digits |
+| unmasked rank $nd$ | Akita's estimator, 128 quantum bits | 143 field elements, <!--fig:note_unmasked_kb-->4.6<!--/fig--> kbytes |
+| hiding padding $\rho$ | $nd \log_2 q + 256$ bits of uniform digits | $\approx$ <!--fig:note_padding_kdigits-->30<!--/fig-->K digits |
 
 So the mask costs about <!--fig:note_rank_factor-->2.45<!--/fig--> times the commitment rank, 9
 times the witness length handed to the aggregator, and about <!--fig:mask_attempts-->1.3<!--/fig-->
@@ -378,12 +378,12 @@ attempts per fold.
 
 ### 5.4 Other costs
 
-- Witness size. The aggregator receives $JN$ digits instead of $N$: about $2^{25.2}$ digits, 14
-  Mbytes at three bits each, against about 1.5 Mbytes unmasked. The information content is $N$
-  coordinates of <!--fig:note_zinf_bits-->27<!--/fig--> bits,
-  about <!--fig:note_z_mb-->14 Mbytes<!--/fig-->, so the slices are at the limit. The length is paid
+- Witness size. The aggregator receives $JN$ digits instead of $N$: about $2^{25.2}$ digits,
+  14 Mbytes at three bits each, against about 1.5 Mbytes unmasked. The information content is $N$
+  coordinates of <!--fig:note_zinf_bits-->27<!--/fig--> bits,
+  about <!--fig:note_z_mb-->14 Mbytes<!--/fig-->, so the slices are at the limit. The length is paid
   in that transfer and in the aggregator's first fold on this accumulator, whose range checks cover
-  the nine slices and which folds them back to $N$ digits with its other inputs. The folds above are
+  the nine slices and which folds them back to $N$ digits with its other inputs. The folds above are
   at the ordinary length; what every fold pays is the rank of [§5.2](#52-the-module-sis-bound).
 - Prover time per attempt: one commitment $Ay$ of a vector with 23-bit entries, plus Gaussian
   sampling of $N$ coordinates. The commitment is $(\mathit{rows}/d) \cdot (N/d)$ ring products. At
@@ -394,32 +394,31 @@ attempts per fold.
   about <!--fig:note_mults-->$2^{24.4}$<!--/fig--> multiplications, or $2^{26}$ operations with the
   additions and reductions. At 32 word multiplications per Pasta multiplication that is
   about <!--fig:note_word_mults-->$2^{29.4}$<!--/fig--> word
-  multiplications, <!--fig:zk_note_commit_s-->0.232<!--/fig--> s at $3 \cdot 10^9$ per second on one
+  multiplications, <!--fig:zk_note_commit_s-->0.232<!--/fig--> s at $3 \cdot 10^9$ per second on one
   core. At a 64-bit commitment modulus the rows are four times as many and each multiplication two
   words, about a fifth of that. The sampling, $2^{22}$ coordinates at
   $\sigma \approx$ <!--fig:note_sigma-->$2^{22.9}$<!--/fig--> as a rounded continuous Gaussian at
   about <!--fig:mask_sample_ns-->7.1<!--/fig--> nanoseconds each (the sampling point below),
-  is <!--fig:zk_note_sampling_s-->0.0294<!--/fig-->
-  s, <!--fig:zk_note_sampling_over_commit-->0.13<!--/fig--> times the commitment. So an attempt
-  is <!--fig:zk_note_attempt_s-->0.261<!--/fig--> s, and a
-  fold <!--fig:zk_note_fold_s-->0.335<!--/fig--> s at the expected
+  is <!--fig:zk_note_sampling_s-->0.0294<!--/fig--> s, <!--fig:zk_note_sampling_over_commit-->0.13<!--/fig-->
+  times the commitment. So an attempt is <!--fig:zk_note_attempt_s-->0.261<!--/fig--> s, and a
+  fold <!--fig:zk_note_fold_s-->0.335<!--/fig--> s at the expected
   $M \approx$ <!--fig:mask_attempts-->1.3<!--/fig--> attempts of $\alpha = 48$. Against that, a fold
-  is <!--fig:zk_note_fold_alpha12_s-->0.705<!--/fig--> s at
+  is <!--fig:zk_note_fold_alpha12_s-->0.705<!--/fig--> s at
   the <!--fig:mask_attempts_alpha12-->2.7<!--/fig--> attempts of $\alpha = 12$
-  and <!--fig:zk_note_fold_alpha6_s-->1.93<!--/fig--> s at
+  and <!--fig:zk_note_fold_alpha6_s-->1.93<!--/fig--> s at
   the <!--fig:mask_attempts_alpha6-->7.5<!--/fig--> of $\alpha = 6$
-  ([§5.6](#56-cutting-the-masked-bound)), or <!--fig:zk_note_fold_karney_s-->1.91<!--/fig--> s with
+  ([§5.6](#56-cutting-the-masked-bound)), or <!--fig:zk_note_fold_karney_s-->1.91<!--/fig--> s with
   [Karney's](#ref-kar16) exact sampler at <!--fig:mask_karney_sample_ns-->300<!--/fig-->
   nanoseconds. These are costs at Pasta's modulus. What a post-quantum Zcash would prove with such a
   fold is a migration, which [the frontier page](pareto-template.html#transaction-prover) prices
   with Kishu, whose commitments are at a 64-bit modulus. Recovering one or four Tachyon or Ironwood
   notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0155<!--/fig-->
-  to <!--fig:zk_note_migration_max_s-->0.187<!--/fig--> s of prover there without zero knowledge,
+  to <!--fig:zk_note_migration_max_s-->0.187<!--/fig--> s of prover there without zero knowledge,
   and <!--fig:zk_note_migration_zk_min_s-->0.0487<!--/fig-->
-  to <!--fig:zk_note_migration_zk_max_s-->0.422<!--/fig--> s with
+  to <!--fig:zk_note_migration_zk_max_s-->0.422<!--/fig--> s with
   it. <!--claim:kishu_migration_zk_overhead:ba9fd7-->So zero knowledge
   adds <!--fig:zk_note_zk_over_plain_pct_min-->130<!--/fig-->
-  to <!--fig:zk_note_zk_over_plain_pct_max-->210<!--/fig--> percent to such a transaction, more than
+  to <!--fig:zk_note_zk_over_plain_pct_max-->210<!--/fig--> percent to such a transaction, more than
   the whole prover without it: unmasked, a migration that fits one step has no merge at
   all.<!--/claim--> [§5.8](#58-the-users-online-cost) moves the attempts and the obligations off the
   device's critical path. The merge circuit sees only the accepted attempt.
@@ -463,7 +462,7 @@ attempts per fold.
   it, and Akita's $\ell_\infty$ certification prices both the masked and the unmasked matrix more
   favourably, which is the route [the frontier page](pareto-template.html#security-floor) takes
   ([§5.5](#55-checking-the-ranks-with-akitas-estimator)). The witness size is the example's, three
-  vectors of $2^{14}$ coefficients, so the 14 Mbytes is four times larger at $2^{16}$.
+  vectors of $2^{14}$ coefficients, so the 14 Mbytes is four times larger at $2^{16}$.
 
 ### 5.5 Checking the ranks with Akita's estimator
 
@@ -473,7 +472,7 @@ its planner that sizes every matrix: repository `LayerZero-Labs/akita` at commit
 `akita-sis-estimator`, Euclidean path, configuration `akita_euclidean_table` (ADPS16 quantum
 Core-SVP, 128-bit floor). The driver [`pasta_rank.rs`](pasta_rank.rs) beside this note, added as an
 example to a scratch clone, takes the Pallas base-field prime, $2^{22}$ columns, and a Euclidean
-collision bound, and binary-searches the least number of scalar rows reaching 128 bits. One
+collision bound, and binary-searches the least number of scalar rows reaching 128 bits. One
 adjustment: the estimator reports infinity when the BKZ block it needs exceeds the lattice dimension
 it chose, which at tiny row counts hides a trivial attack in a larger sublattice. The driver
 therefore takes the cheapest attack over the estimator's own dimension and a ladder of explicit
@@ -499,7 +498,7 @@ to within half a percent, which is [§5.2](#52-the-module-sis-bound) made concre
 
 - The pinned Python lattice-estimator in Akita's `third_party` submodule, run under Sage with
   [`sage-sis-check.py`](sage-sis-check.py) beside this note, gives the same Pasta figures. At
-  $2^{27}$, 143 rows give 128.26 bits with block 484 in dimension 2690, and 142 rows give 126.94. At
+  $2^{27}$, 143 rows give 128.26 bits with block 484 in dimension 2690, and 142 rows give 126.94. At
   $2^{41.6}$, 340 rows give 128.53 with block 485 in dimension 4151, and 339 rows give 128.00. The
   Rust estimator ports the same formula, so this checks the port and the driver, not the cost model.
 - A shipped schedule, `artifacts/schedules/fp128_dense.aks` row 0, has a Euclidean terminal instance
@@ -509,10 +508,10 @@ to within half a percent, which is [§5.2](#52-the-module-sis-bound) made concre
 - The catalog security report covers 115 schedule rows across the three moduli and passes its own
   check; every weakest instance is a coefficient-$\ell_\infty$ instance at the 128.26-bit floor. For
   the root inner matrix of `fp128_onehot_recursive`, ring dimension 512, rank 1, width 131072,
-  $\ell_\infty$ bound 835380, the $\ell_\infty$ estimator reports at least 128.26 bits at dimensions
-  512 and 384 and 84.0 bits at 256. So 512 is the least power of two that meets the floor.
+  $\ell_\infty$ bound 835380, the $\ell_\infty$ estimator reports at least 128.26 bits at dimensions
+  512 and 384 and 84.0 bits at 256. So 512 is the least power of two that meets the floor.
 - The six compression maps of [the paper's](#ref-dbk26) Table 5, rank one with $\ell_\infty$ bound
-  one, pass the 128-bit floor under the proven-pruned profile; the paper states at least 147 bits
+  one, pass the 128-bit floor under the proven-pruned profile; the paper states at least 147 bits
   for them.
 
 This checks that the [§5.3](#53-a-worked-example) ranks are what Akita's estimator gives for the
@@ -534,7 +533,7 @@ page](pareto-template.html) sizes the accumulation matrix this way, at each row'
 from Akita's width tables at the catalog's bound ladder and at the catalog's ring degrees of 512 and
 1,024 ([its security-floor
 section](pareto-template.html#security-floor)). <!--claim:note_linf_pasta_unchanged:4d31e0-->At this
-example's $N = 2^{22}$ digits and its 128-bit floor, over the Pasta modulus the masked matrix
+example's $N = 2^{22}$ digits and its 128-bit floor, over the Pasta modulus the masked matrix
 is <!--fig:note_linf_pasta_masked-->rank 1 at degree 512<!--/fig-->, the unmasked matrix's own, so
 on that route the mask costs the Pasta rows nothing on the matrix.<!--/claim--> At the 64-bit
 modulus it is <!--fig:note_linf_q64_masked-->rank 2 at degree 1,024<!--/fig-->
@@ -560,29 +559,29 @@ whole digit goes. At $N = 2^{22}$:
 
 | α | ‖c‖₁ and the challenge set | attempts | log₂ β | rank factor | coordinate bits | J | masked accumulator |
 |---|---|---|---|---|---|---|---|
-| 96 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.1 | 43.2 | 2.56 | 27.7 | 10 | 15.7 Mbytes |
-| 48 ([§5.3](#53-a-worked-example)) | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.3 | 42.2 | 2.45 | 26.7 | 9 | 14.2 Mbytes |
-| 24 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.7 | 41.2 | 2.33 | 25.7 | 9 | 14.2 Mbytes |
-| 12 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 2.7 | 40.2 | 2.22 | 24.7 | 9 | 14.2 Mbytes |
-| 6 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 7.5 | 39.2 | 2.11 | 23.7 | 8 | 12.6 Mbytes |
-| 4 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 20.7 | 38.6 | 2.05 | 23.1 | 8 | 12.6 Mbytes |
-| 12 | 32 (d = 128, weight 32, $2^{132}$ challenges) | 2.7 | 41.6 | 2.37 | 25.4 | 9 | 14.2 Mbytes |
-| 6 | 32 (d = 128, weight 32, $2^{132}$ challenges) | 7.5 | 40.6 | 2.26 | 24.4 | 9 | 14.2 Mbytes |
-| 12 | 16 (d = 1024, weight 16, $2^{132}$ challenges) | 2.7 | 39.6 | 2.15 | 24.4 | 9 | 14.2 Mbytes |
-| 6 | 16 (d = 1024, weight 16, $2^{132}$ challenges) | 7.5 | 38.6 | 2.04 | 23.4 | 8 | 12.6 Mbytes |
+| 96 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.1 | 43.2 | 2.56 | 27.7 | 10 | 15.7 Mbytes |
+| 48 ([§5.3](#53-a-worked-example)) | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.3 | 42.2 | 2.45 | 26.7 | 9 | 14.2 Mbytes |
+| 24 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 1.7 | 41.2 | 2.33 | 25.7 | 9 | 14.2 Mbytes |
+| 12 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 2.7 | 40.2 | 2.22 | 24.7 | 9 | 14.2 Mbytes |
+| 6 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 7.5 | 39.2 | 2.11 | 23.7 | 8 | 12.6 Mbytes |
+| 4 | 20 (d = 512, weight 20, $2^{138}$ challenges) | 20.7 | 38.6 | 2.05 | 23.1 | 8 | 12.6 Mbytes |
+| 12 | 32 (d = 128, weight 32, $2^{132}$ challenges) | 2.7 | 41.6 | 2.37 | 25.4 | 9 | 14.2 Mbytes |
+| 6 | 32 (d = 128, weight 32, $2^{132}$ challenges) | 7.5 | 40.6 | 2.26 | 24.4 | 9 | 14.2 Mbytes |
+| 12 | 16 (d = 1024, weight 16, $2^{132}$ challenges) | 2.7 | 39.6 | 2.15 | 24.4 | 9 | 14.2 Mbytes |
+| 6 | 16 (d = 1024, weight 16, $2^{132}$ challenges) | 7.5 | 38.6 | 2.04 | 23.4 | 8 | 12.6 Mbytes |
 
 The page's choice, and [§5.3](#53-a-worked-example)'s, is $\alpha = 48$ with the weight-20
 challenges. A narrower mask saves rank. $\alpha = 12$ takes the factor from 2.45 to 2.22
 for <!--fig:mask_attempts_alpha12-->2.7<!--/fig--> attempts instead
-of <!--fig:mask_attempts-->1.3<!--/fig-->; $\alpha = 6$ brings 2.11 and a masked accumulator of 12.6
-Mbytes for <!--fig:mask_attempts_alpha6-->7.5<!--/fig--> attempts at
-about <!--fig:zk_note_attempt_alpha6_s-->0.26<!--/fig--> s each; and $\alpha = 4$ buys little more
+of <!--fig:mask_attempts-->1.3<!--/fig-->; $\alpha = 6$ brings 2.11 and a masked accumulator of
+12.6 Mbytes for <!--fig:mask_attempts_alpha6-->7.5<!--/fig--> attempts at
+about <!--fig:zk_note_attempt_alpha6_s-->0.26<!--/fig--> s each; and $\alpha = 4$ buys little more
 for three times the attempts. A wider one saves attempts, which cannot fall below one while the rank
 keeps growing, and from $\alpha = 59$ the coordinates take a tenth slice. The page's transaction
 measure prices the user's whole chain, and in it each attempt commits the whole mask. On the page's
 $\ell_\infty$ route ([§5.5](#55-checking-the-ranks-with-akitas-estimator)) the matrix does not move
 across these widths, so that measure alone prefers a far wider mask, and 48 is
-within <!--fig:kishu_zk_alpha_page_excess_pct-->19<!--/fig--> percent of its least ([its
+within <!--fig:kishu_zk_alpha_page_excess_pct-->19<!--/fig--> percent of its least ([its
 zero-knowledge section](pareto-template.html#zero-knowledge)); what a wider mask costs there is
 outside the measure, the coordinates' bits and slices in the transfer and the aggregator's range
 checks, and the public merges' rate. On this section's Euclidean route a wider mask costs rank as
@@ -595,10 +594,10 @@ leaves nearly unchanged. The $\sqrt{N}$ in $\|z\|_2$ is the larger term, and
 
 The $\sqrt{N}$ in $\|z\|_2$ is the price of masking the whole vector at one width
 ([§2.4](#24-the-cost-in-norm)). Masking block by block, $z_b = y_b + c_b s_b$ over $B$ blocks of
-$N_b = N/B$ digits, replaces $\sqrt{N}$ by $\sqrt{N_b}$: at $B = 256$ that is four bits off the
+$N_b = N/B$ digits, replaces $\sqrt{N}$ by $\sqrt{N_b}$: at $B = 256$ that is four bits off the
 bound, a rank factor of 2.00 instead of 2.45 with [§5.3](#53-a-worked-example)'s parameters, or 1.70
-instead of 2.11 at $\alpha = 6$, and 23-bit coordinates, eight digits, an accumulator of 12.6
-Mbytes. The difficulty is making the rejection test independent per block. A rejected block
+instead of 2.11 at $\alpha = 6$, and 23-bit coordinates, eight digits, an accumulator of
+12.6 Mbytes. The difficulty is making the rejection test independent per block. A rejected block
 resamples its mask, which changes the mask's commitment and so the challenge; with one challenge for
 every block, one rejection restarts them all, and the acceptance probability $M^{-B}$ vanishes. Two
 ways around it:
@@ -608,7 +607,7 @@ ways around it:
   $A s_b$, and the accumulator's commitment binds only the outer commitment of the concatenated
   images, $\sum_b B_b t_b$ (Akita §4.5). With distinct $c_b$ the verifier cannot form
   $\sum_b c_b B_b t_b$ from the one outer commitment. So the accumulator would carry $B$ commitments
-  per committed vector instead of one: compressed, 128 bytes each, 32 kbytes per vector at
+  per committed vector instead of one: compressed, 128 bytes each, 32 kbytes per vector at
   $B = 256$, six vectors per step, and the merge absorbs them all, about 12,000 atoms against 180.
   The claims split the same way, into per-block partials, $B$ per claim point, which Akita's
   terminal already uses. At $B = 16$ the saving is two bits and one digit, and the cost 16
@@ -624,7 +623,7 @@ ways around it:
   sampling and the binding of $kB$ candidate masks before the challenge. Akita's compression maps
   are linear, so the binding can be a Merkle tree over the candidates' compressed images, with the
   $B$ chosen leaves opened in the merge circuit and summed: 256 paths of about 14 hashes, a million
-  gates, plus 256 images of 128 bytes absorbed, about a thousand atoms, in the zero-knowledge
+  gates, plus 256 images of 128 bytes absorbed, about a thousand atoms, in the zero-knowledge
   layer's merge only. A single lattice commitment to all candidates with the selection proven as a
   linear relation would be cheaper and is a further design. The masks' commitments are the same $Ay$
   as before, so the extraction argument and the bound are unchanged apart from $\sqrt{N_b}$.
@@ -637,7 +636,7 @@ accumulator and merge, not the final proof.
 
 The <!--claim:mask_fold_phone_seconds:a8efc2-->fold of
 [§3](#3-the-protocol-a-zero-knowledge-user-fold) runs once per transaction on the user's device:
-the <!--fig:zk_note_fold_s-->0.335<!--/fig--> s of [§5.4](#54-other-costs) on a fast core, a few
+the <!--fig:zk_note_fold_s-->0.335<!--/fig--> s of [§5.4](#54-other-costs) on a fast core, a few
 seconds on a phone, which is still worth moving off the critical path.<!--/claim--> Two changes move
 nearly all of it.
 
@@ -653,7 +652,7 @@ nearly all of it.
   $\alpha = 48$, <!--fig:note_batch_alpha12-->11<!--/fig--> for $\alpha = 12$
   and <!--fig:note_batch_alpha6-->33<!--/fig--> for $\alpha = 6$; on failure the device samples
   online. Extraction rewinds until two transcripts use the same index, $k + 1$ transcripts in the
-  worst case instead of two, which costs about $\log_2 k$ bits of tightness. The merge circuit
+  worst case instead of two, which costs about $\log_2 k$ bits of tightness. The merge circuit
   absorbs the $k$ compressed commitments, four atoms each, and derives $c$ from them.
 - Deferred obligations. The decomposition of $z$ into slices, their commitments, and the range and
   norm proofs of step 7 need not be the user's. The aggregator's first fold decomposes its inputs
@@ -667,14 +666,14 @@ nearly all of it.
   rejection sampling makes independent of $s$; the obligations it now proves are about $z$, which it
   holds, and they guard the decider against a malformed $z$ rather than the transaction against the
   aggregator, so it checks $z$'s norm on receipt and refuses a bad one. This is the deferral of
-  [open point 7](#7-open-points), and it takes nine commitments of $N$ digits and the sum-checks off
+  [open point 7](#7-open-points), and it takes nine commitments of $N$ digits and the sum-checks off
   the device.
 
 What remains online is $z = y + cs$: a ring product by a sparse ternary challenge, 32 additions per
 coordinate, and one vector addition, about $2^{27}$ additions, a tenth of a second on a phone core;
 the evaluations $u_i$ of the chosen mask at the claim points; and the transfer of $z$,
-about <!--fig:note_z_mb-->14 Mbytes<!--/fig--> at <!--fig:note_zinf_bits-->27<!--/fig--> bits per
-coordinate, 13 Mbytes at $\alpha = 12$ and 12 Mbytes with [§5.7](#57-masking-in-blocks)'s blocks.
+about <!--fig:note_z_mb-->14 Mbytes<!--/fig--> at <!--fig:note_zinf_bits-->27<!--/fig--> bits per
+coordinate, 13 Mbytes at $\alpha = 12$ and 12 Mbytes with [§5.7](#57-masking-in-blocks)'s blocks.
 The transfer is the cost that does not move, since the information content of $z$ is set by the
 mask's width.
 
@@ -728,9 +727,9 @@ down through Akita's own levels to a terminal response short enough that the ver
 commitment, as the decider does, and have the aggregator's first merge circuit verify that opening.
 This seals the handoff the way recursion does ([the page's zero-knowledge
 section](pareto-template.html#zero-knowledge)), and it is a decider's verification inside a step
-circuit, once per transaction. Its transcript alone is an opening proof of about 85 kbytes to
-absorb: some $2 \cdot 10^7$ gates with a conventional hash at 14,900 gates per 64 bytes, or about
-$2 \cdot 10^5$ with Poseidon at 72 gates per atom, before the sum-check arithmetic. What it would
+circuit, once per transaction. Its transcript alone is an opening proof of about 85 kbytes to
+absorb: some $2 \cdot 10^7$ gates with a conventional hash at 14,900 gates per 64 bytes, or about
+$2 \cdot 10^5$ with Poseidon at 72 gates per atom, before the sum-check arithmetic. What it would
 save is the masked matrix's rate on the transaction's steps and merges. On this section's Euclidean
 route that is a factor of 1.7 to 1.9 on their commitments, about a quarter of a second for a
 $2^{17}$-gate transaction over Goldilocks at rank 13 on the page, against a masking fold of under
@@ -778,16 +777,16 @@ cheapest is the dual hybrid attack, which exploits the binary secret; the primal
 hundred bits dearer, so a primal estimate alone overstates the margin. At [the frontier
 page's](pareto-template.html#transaction-prover) matrix for the wallet's
 statement, <!--fig:qk_device_matrix_rows-->1,024<!--/fig--> rows, a padding
-of <!--fig:hiding_padding_bits-->4,800<!--/fig--> bits costs the
+of <!--fig:hiding_padding_bits-->4,800<!--/fig--> bits costs the
 attacker <!--fig:hiding_padding_attack_bits-->149<!--/fig--> quantum bits, the 147-bit floor's
-padding, and one of <!--fig:hiding_padding_bits_128-->4,400<!--/fig-->
-bits <!--fig:hiding_padding_attack_bits_128-->128<!--/fig-->, so the page takes the least padding on
-the sweep's grid, 50 bits where the floors are crossed, that reaches each floor. The padding's
-hardness falls with the rows: at this note's 1,385 Euclidean rows 5,000 bits
-give <!--fig:hiding_padding_attack_bits_1385-->140<!--/fig--> bits, and at 2,048 rows they would
-fall short of the 128-bit floor.<!--/claim--> Fewer rows mean a larger secret dimension $k - m$ and
-fewer samples, both of which help the padding. Whether the dual attack's analysis holds in the
-regime it is scored in has been disputed ([Ducas and Pulles](#ref-dp23), CRYPTO 2023), so the
+padding, and one
+of <!--fig:hiding_padding_bits_128-->4,400<!--/fig--> bits <!--fig:hiding_padding_attack_bits_128-->128<!--/fig-->,
+so the page takes the least padding on the sweep's grid, 50 bits where the floors are crossed, that
+reaches each floor. The padding's hardness falls with the rows: at this note's 1,385 Euclidean rows
+5,000 bits give <!--fig:hiding_padding_attack_bits_1385-->140<!--/fig--> bits, and at 2,048 rows
+they would fall short of the 128-bit floor.<!--/claim--> Fewer rows mean a larger secret dimension
+$k - m$ and fewer samples, both of which help the padding. Whether the dual attack's analysis holds
+in the regime it is scored in has been disputed ([Ducas and Pulles](#ref-dp23), CRYPTO 2023), so the
 estimator may credit the attacker with more than the attack delivers; keeping its figure is the
 conservative choice, as keeping the ADPS16 quantum model is. The statistical padding is still the
 dearer option by an order of magnitude; the [Hardware wallets](hardware-wallets.md) page prices
@@ -842,8 +841,8 @@ both.
    [§5.8](#58-the-users-online-cost) argues for the deferral.
 8. Decide whether the hiding padding $\rho$ goes into every staged commitment or only into the
    published ones.
-9. Look for a sign-hiding structure that would make the bimodal variant applicable, saving about 3.6
-   bits of $\beta$ and one digit of $J$.
+9. Look for a sign-hiding structure that would make the bimodal variant applicable, saving about
+   3.6 bits of $\beta$ and one digit of $J$.
 10. Revisit the two-matrix design of
     [§5.9](#59-two-matrices-confining-the-rank-to-the-zero-knowledge-layer-and-where-that-stalls) if
     a succinct proof of a change of commitment matrix appears, for instance from a structured

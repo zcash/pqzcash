@@ -24,10 +24,10 @@ compression. <!--claim:slhdsa_192s_cheaper_to_verify:cd2bff-->SLH-DSA-SHAKE-192f
 has <!--fig:slhdsa_192f_layers-->22<!--/fig--> layers where SLH-DSA-SHAKE-192s
 has <!--fig:slhdsa_192s_layers-->7<!--/fig-->. So 192s takes an
 expected <!--fig:slhdsa_192s_perms-->3,070<!--/fig--> Keccak permutations to verify, for a signature
-of <!--fig:slhdsa_192s_sig_bytes-->16,224<!--/fig--> bytes. 192f
+of <!--fig:slhdsa_192s_sig_bytes-->16,224<!--/fig--> bytes. 192f
 takes <!--fig:slhdsa_192f_perms-->9,006<!--/fig-->
 permutations, <!--fig:slhdsa_192f_over_s_perms-->2.9<!--/fig--> times as many, for a signature
-of <!--fig:slhdsa_192f_sig_bytes-->35,664<!--/fig--> bytes. Either is far more than leanSPHINCS:
+of <!--fig:slhdsa_192f_sig_bytes-->35,664<!--/fig--> bytes. Either is far more than leanSPHINCS:
 192s takes <!--fig:slhdsa_192s_over_leansphincs-->12<!--/fig--> times its permutations.<!--/claim-->
 So 192s is the set considered.
 
@@ -38,12 +38,12 @@ verifier's count is an expectation, since the chains' lengths depend on the mess
 ## The cost in the circuit
 
 A Zoodles transaction of two spends by SLH-DSA-SHAKE-192s and two outputs
-is <!--fig:app_zoodles_slhdsa192s_kishu-->566 million<!--/fig--> of Kishu's digits. At the frontier
+is <!--fig:app_zoodles_slhdsa192s_kishu-->566 million<!--/fig--> of Kishu's digits. At the frontier
 page's default floor, with zero knowledge and a BLAKE3 transcript, Kishu proves it
-in <!--fig:sigtx_slhdsa_147_s-->16.1<!--/fig--> s on one core,
+in <!--fig:sigtx_slhdsa_147_s-->16.1<!--/fig--> s on one core,
 in <!--fig:sigtx_slhdsa_147_steps-->10<!--/fig--> steps of a step
-of <!--fig:sigtx_slhdsa_147_rank-->$1.75 \times 2^{25}$<!--/fig--> digits. The same transaction with
-leanSPHINCS over BLAKE3 takes <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s. The frontier
+of <!--fig:sigtx_slhdsa_147_rank-->$1.75 \times 2^{25}$<!--/fig--> digits. The same transaction with
+leanSPHINCS over BLAKE3 takes <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s. The frontier
 page's transaction list has the SLH-DSA transaction, marked as for illustration only, so that its
 cost can be seen under any family and floor.
 
@@ -54,13 +54,13 @@ raises the security floor for the proof system, also to approximately NIST Level
 SHA3-384 for its transcript as an alternative to BLAKE3. The table gives Kishu's prover time for the
 transaction of two spends and two outputs with zero knowledge, in seconds on one core, under each
 signature and each setting of the proof system. The factor in brackets is against the first cell:
-leanSPHINCS over BLAKE3, with Kishu at 147 bits and a BLAKE3 transcript.
+leanSPHINCS over BLAKE3, with Kishu at 147 bits and a BLAKE3 transcript.
 
 | Kishu | leanSPHINCS over BLAKE3 | SLH-DSA-SHAKE-192s |
 |---|---|---|
-| 147 bits, BLAKE3 transcript | <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s (×<!--fig:sigtx_leansphincs_147_x-->1.0<!--/fig-->) | <!--fig:sigtx_slhdsa_147_s-->16.1<!--/fig--> s (×<!--fig:sigtx_slhdsa_147_x-->73<!--/fig-->) |
-| Level 3, BLAKE3 transcript | <!--fig:sigtx_leansphincs_level3_blake3_s-->0.262<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_blake3_x-->1.2<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_blake3_s-->22.4<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_blake3_x-->100<!--/fig-->) |
-| Level 3, SHA3-384 transcript | <!--fig:sigtx_leansphincs_level3_sha3_384_s-->0.348<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_sha3_384_x-->1.6<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_sha3_384_s-->26.7<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_sha3_384_x-->120<!--/fig-->) |
+| 147 bits, BLAKE3 transcript | <!--fig:sigtx_leansphincs_147_s-->0.222<!--/fig--> s (×<!--fig:sigtx_leansphincs_147_x-->1.0<!--/fig-->) | <!--fig:sigtx_slhdsa_147_s-->16.1<!--/fig--> s (×<!--fig:sigtx_slhdsa_147_x-->73<!--/fig-->) |
+| Level 3, BLAKE3 transcript | <!--fig:sigtx_leansphincs_level3_blake3_s-->0.262<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_blake3_x-->1.2<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_blake3_s-->22.4<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_blake3_x-->100<!--/fig-->) |
+| Level 3, SHA3-384 transcript | <!--fig:sigtx_leansphincs_level3_sha3_384_s-->0.348<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_sha3_384_x-->1.6<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_sha3_384_s-->26.7<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_sha3_384_x-->120<!--/fig-->) |
 
 In the table, <!--claim:sigtx_each_change_dearer:712618-->each change makes the transaction dearer
 whatever the other two are: down a column the proof system's level and then its transcript hash, and

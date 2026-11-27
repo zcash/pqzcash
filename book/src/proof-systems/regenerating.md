@@ -77,7 +77,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   ([`ragu-size-model.py`](../../../ragu-pcs/ragu-size-model.py)): the component structure is Ragu's
   wire format, and the gate and constraint counts are the ones that ragu_pcd's internal tests pin
   (`crates/ragu_pcd/src/internal/tests.rs` at 8109a41c). `python ragu-size-model.py` prints the
-  checked-in proof, 7,908 bytes, and `python ragu-size-model.py budget` the budget table. After a
+  checked-in proof, 7,908 bytes, and `python ragu-size-model.py budget` the budget table. After a
   Ragu change, read the pinned counts off those tests and update the constants at the top of the
   size model.
 - **The fuse** (`PEDERSEN_FUSE_SECONDS`): in the Ragu checkout, `cargo bench -p ragu_pcd --features
@@ -109,7 +109,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
 - **The 165-bit level's plan** (`AKITA_165_PLANNED`, `SLOPE[165]`,
   `LEVEL3_COMPRESSION_CELLS`, `RANK_SUMS_165`):
   [`scripts/akita-165-pipeline.sh`](../../../ragu-pcs/scripts/akita-165-pipeline.sh), on the
-  `level3-165` worktree, regenerates the width tables at 165 bits (about four hours;
+  `level3-165` worktree, regenerates the width tables at 165 bits (about four hours;
   `SKIP_TABLES=1` resumes), re-sizes the nine compression cells and checks that each covers its
   map, rebuilds, and runs the re-plan into `work/akita-165-out/replan`. Then:
 
@@ -138,14 +138,14 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   been generated and the 128-bit one stands in for it.
 - **The 147-bit floor** (`AKITA_147`, `SLOPE[147]`):
   [`scripts/akita-147-pipeline.sh`](../../../ragu-pcs/scripts/akita-147-pipeline.sh), on the
-  worktree that the checkout script made, regenerates its width tables at 147 bits (hours;
+  worktree that the checkout script made, regenerates its width tables at 147 bits (hours;
   `SKIP_TABLES=1` resumes), re-sizes the compression cells, rebuilds and runs
   [`scripts/akita-147-replan.sh`](../../../ragu-pcs/scripts/akita-147-replan.sh); then `python
   scripts/akita-150-page-inputs.py work/akita-147-out/replan` prints the two dicts in the model's
   shape. [`scripts/akita-150-tables.sh`](../../../ragu-pcs/scripts/akita-150-tables.sh) writes CSV
   width tables at a given floor for every modulus, and the Pallas table alone is
   `infinity_width_table --policy Quantum147BitADPS16 --profiles pallas --format csv --profile
-  local-minimum --output ...` in the worktree: 5.5 hours with the estimator built without its
+  local-minimum --output ...` in the worktree: 5.5 hours with the estimator built without its
   `parallel` feature.
 - **The 165-bit level's derived parts** (floor key 165): the Pallas modulus's accumulation-width
   table is extrapolated from the 147-bit rows by
@@ -184,7 +184,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   the largest width that Akita's ℓ∞ estimator certifies at each module rank and each bound of the
   catalog's ladder, at ring degrees 512 and 1024, for the Pallas, 64-bit and 128-bit moduli at both
   floors. The 64-bit and 128-bit moduli come from the production tables the estimator writes into
-  `akita-params` (`generated_sis_table/q64.rs`, `q128.rs`, in the pinned checkout at 128 bits and
+  `akita-params` (`generated_sis_table/q64.rs`, `q128.rs`, in the pinned checkout at 128 bits and
   the 147-bit worktree at 147), Pallas from the CSV width tables above; the Goldilocks CSV tables
   are checked to coincide with the 64-bit modulus's rows, which the Goldilocks variant reads. The
   estimator evaluates only the catalog's own cells, so a bound is rounded up to the ladder:
@@ -201,8 +201,8 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
 - **The hiding padding's hardness** (`HIDING_PADDING_ATTACK_BITS`, `HIDING_PADDING_SWEEP`): the
   pinned lattice estimator in Akita's `third_party` submodule, which the checkout script
   initialises, under Sage, costs every LWE attack on the knapsack-LWE instance behind the hardware
-  wallet's padding at 5,000 bits and 1,024, 1,385, and 2,048 rows, then sweeps the padding from
-  3,500 to 6,000 bits at the device's 1,024 rows, by 250 and by 50 where the floors are crossed,
+  wallet's padding at 5,000 bits and 1,024, 1,385, and 2,048 rows, then sweeps the padding from
+  3,500 to 6,000 bits at the device's 1,024 rows, by 250 and by 50 where the floors are crossed,
   under the ADPS16 quantum model: `sage scripts/knapsack-lwe-check.py` from `ragu-pcs`, about an
   hour.
 
@@ -215,7 +215,7 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
 - **The sweeps** ([`estimates/whir-sweep.tsv`](../../../ragu-pcs/estimates/whir-sweep.tsv),
   [`estimates/whir-sweep-grind.tsv`](../../../ragu-pcs/estimates/whir-sweep-grind.tsv)): the
   reference binary at 2^17, 2^18 and 2^20 variables over `Field256` and `Goldilocks3`, rates 1/2 to
-  1/64, maximum proof of work 0, 16, 20 and 24 bits, 128 bits in the Johnson regime, three verifier
+  1/64, maximum proof of work 0, 16, 20 and 24 bits, 128 bits in the Johnson regime, three verifier
   repetitions:
 
   ```
@@ -235,7 +235,7 @@ and the sum over rounds from its `commit ... samples N` lines.
   deterministic; its prover times are not used.
 - **The higher floor** (`WHIR_147`):
   [`scripts/whir-sweep-147.sh`](../../../ragu-pcs/scripts/whir-sweep-147.sh) runs the same binary at
-  128 and 147 bits over both fields at rates 1/2 to 1/8; the model takes the mean ratios.
+  128 and 147 bits over both fields at rates 1/2 to 1/8; the model takes the mean ratios.
 - **Zero knowledge** (`ZK_BYTES`, `ZK_HASHES`, `ZK_PROVER`): Plonky3's HVZK-WHIR benchmark,
   `RUSTFLAGS="-Ctarget-cpu=native" cargo bench --bench zk_overhead -p p3-whir -- whir_zk_overhead`
   in `work/plonky3-src`.
@@ -255,7 +255,7 @@ Flock's throughput and shares are typed from the two papers.
 `scripts/bitz-rerun.sh build`:
 
 - `scripts/bitz-st-sweep.sh st 22-29 udrg:1:4:128 udrg:3:4:128` for the unique-decoding rows, rates
-  1/2 and 1/8 at 128 bits; and
+  1/2 and 1/8 at 128 bits; and
 - with the patch under `scripts/patches/bitz/` applied by `git am` and the build repeated,
   `scripts/bitz-st-sweep.sh st 22-28 beep:custom:1:4:128` and so on to `beep:custom:6:4:128`, for
   the rows derived from BEEP, rates 1/2 to 1/64.

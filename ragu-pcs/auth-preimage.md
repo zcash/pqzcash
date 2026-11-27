@@ -61,9 +61,9 @@ the signature-of-knowledge property would have to be a named hypothesis.
 ### A route that is available: the non-injectivity of the hash
 
 A classical argument avoids simulation extractability altogether, and it fits this statement
-unusually well. $\mathsf{H^{qk}}$ maps 256 bits to 256 bits, so a uniformly random $\mathsf{qsk}$
+unusually well. $\mathsf{H^{qk}}$ maps 256 bits to 256 bits, so a uniformly random $\mathsf{qsk}$
 has a second preimage with probability about
-$1 - 1/e$, <!--fig:sok_second_preimage_pct-->63<!--/fig--> percent. The reduction to the collision
+$1 - 1/e$, <!--fig:sok_second_preimage_pct-->63<!--/fig--> percent. The reduction to the collision
 resistance of $\mathsf{H^{qk}}$ picks $\mathsf{qsk}$ itself, answers every signing query with the
 real prover, and extracts a preimage from the forgery. A zero-knowledge proof is witness
 indistinguishable [\[FS90\]](#ref-fs90). So when a second preimage exists, the forger's view is the

@@ -16,6 +16,10 @@ cd "$(dirname "$0")/.."
 # is not, and the check fails the build on a line that it would have shortened.
 "${PYTHON:-python3}" scripts/wrap-prose.py --check
 
+# A figure is joined to its unit by a no-break space, so that the two do not part at a line
+# break; `python scripts/nbsp-units.py --write` puts in the ones that are missing.
+"${PYTHON:-python3}" scripts/nbsp-units.py --check
+
 # The model prints its summary line first, then every point; only the summary is shown. It
 # fails when a figure quoted in the tracked prose is stale against the model, or a claim the
 # prose makes no longer holds; `python ragu-pcs/pareto-model.py --fill` refreshes the figures.

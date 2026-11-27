@@ -12,7 +12,7 @@ Akita variant has a different obligation, which is not Kishu's; it is the subjec
 Kishu's claim field is $\mathbb{F}_q$ with $q = 2^{64}-59$, which is Akita's own 64-bit
 commitment modulus. There is no decoupling of the commitment modulus from the claim field: the
 digits are committed as any small digit vector is, bits where the circuit needs bits and
-Akita's own base-8 digits for integer words, and the evaluation claims are
+Akita's own base-8 digits for integer words, and the evaluation claims are
 Akita's ordinary claims at the 64-bit profile, over the quadratic extension
 $E = \mathbb{F}_q[u]/(u^2-2)$ that the draft's sum-check uses. The Pasta values never reach the
 commitment: a value's digits are read as eight 32-bit limbs

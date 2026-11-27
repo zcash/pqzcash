@@ -35,21 +35,22 @@ the maximum-fee note's value less the fee, as Tachyon's does.
 
 What changes in the tree is the packing: Tachyon gives each circuit a step of its own, whereas a
 Kishu step, one committed witness of a chosen length in digits, holds its own merge, the fee
-circuit, <!--fig:zoodles_fee_digits-->28,941<!--/fig--> digits, and with them as many spends and
-outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->48,688<!--/fig--> digits and an
-output <!--fig:zoodles_output_digits-->48,681<!--/fig--> digits, each with its merge
-of <!--fig:zoodles_merge_digits-->9,226<!--/fig--> digits (for more on the cost model of Kishu, see
+circuit, <!--fig:zoodles_fee_digits-->28,941<!--/fig--> digits, and with them as many spends and
+outputs as fit. A spend uses <!--fig:zoodles_spend_digits-->48,688<!--/fig--> digits and an
+output <!--fig:zoodles_output_digits-->48,681<!--/fig--> digits, each with its merge
+of <!--fig:zoodles_merge_digits-->9,226<!--/fig--> digits (for more on the cost model of Kishu, see
 [Kishu's Arithmetization](kishu-arithmetization.md)).
 Therefore, <!--fig:zoodles_actions_per_step_21-->9<!--/fig--> actions, each a spend or an output,
-fit beside the merge in a step of $2^{21}$
-digits, <!--fig:zoodles_actions_per_step_22-->45<!--/fig--> in one of $2^{22}$,
+fit beside the merge in a step of
+$2^{21}$ digits, <!--fig:zoodles_actions_per_step_22-->45<!--/fig--> in one of $2^{22}$,
 and <!--fig:zoodles_actions_per_step_23-->117<!--/fig--> in one of $2^{23}$. A transaction's first
 step holds no merge, so it has that much more room. A transaction of two inputs and two outputs is
-four actions, and in a step of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig-->
-digits it fits in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree
-proves the same transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or
-output, three merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS with
-BLAKE3 is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.43 million<!--/fig--> digits and takes
+four actions, and in a step
+of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits it fits
+in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the same
+transaction in <!--fig:zoodles_nodes-->12<!--/fig--> steps, two for each spend or output, three
+merges, and the fee, and then rerandomizes. A spend authorized by leanSPHINCS with BLAKE3
+is <!--fig:zoodles_leansphincs_blake3_spend_digits-->3.43 million<!--/fig--> digits and takes
 several steps by itself.
 
 The arithmetic inside the nodes also changes. In Tachyon the set polynomials are Pedersen vector
@@ -124,7 +125,7 @@ past the epoch's published tachygrams, proving that its nullifier is not among t
 Tachyon does this with set polynomials. The epoch's tachygrams are split into buckets by a
 quadratic-residue profile, each bucket a polynomial opened at the nullifier, and the step folds the
 bucket's contents. Over Kishu's digits a bucket of <!--fig:zoodles_bucket_coeffs-->8,192<!--/fig-->
-tachygrams is <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits to fold for every note
+tachygrams is <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits to fold for every note
 in every epoch, most of them the builder's work rather than the wallet's. The frontier page prices
 the alternative: a sorted Merkle tree over the
 epoch's <!--fig:zoodles_epoch_tachygrams-->1,048,576<!--/fig-->
@@ -132,8 +133,8 @@ tachygrams, <!--fig:zoodles_epoch_per_block-->256<!--/fig--> a block. The exclus
 nullifier's two neighbours as one leaf with its path of <!--fig:zoodles_epoch_hashes-->22<!--/fig-->
 hashes, two 256-bit comparisons, and the epoch range
 check: <!--fig:app_zoodles_epoch_kishu-->250,000<!--/fig--> Kishu digits. That
-takes <!--fig:tx_zoodles_epoch_kishu_s-->0.00248<!--/fig--> s a note an epoch in a step
-of <!--fig:tx_zoodles_epoch_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits on one core,
+takes <!--fig:tx_zoodles_epoch_kishu_s-->0.00248<!--/fig--> s a note an epoch in a step
+of <!--fig:tx_zoodles_epoch_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits on one core,
 without zero knowledge, since the lineage never leaves the wallet. On that count the tree is well
 ahead. The bucket route as Tachyon folds it, at a capacity chosen for digits, is still to be priced
 beside it, and [The epoch's tachygram set](zoodles-epoch-set.md) compares the representations.
@@ -142,18 +143,18 @@ beside it, and [The epoch's tachygram set](zoodles-epoch-set.md) compares the re
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
 is <!--fig:app_zoodles_preimage_kishu-->251,357<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0210<!--/fig--> s with zero knowledge in a step
-of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits,
-or <!--fig:tx_zoodles_preimage_kishu_s-->0.00243<!--/fig--> s without. One authorized by leanSPHINCS
-with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.06 million<!--/fig--> digits
-and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.206<!--/fig--> s with zero knowledge in a
-step of <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->$2^{22}$<!--/fig--> digits,
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0210<!--/fig--> s with zero knowledge in a step
+of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits,
+or <!--fig:tx_zoodles_preimage_kishu_s-->0.00243<!--/fig--> s without. One authorized by leanSPHINCS
+with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.06 million<!--/fig--> digits
+and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.206<!--/fig--> s with zero knowledge in a
+step of <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->$2^{22}$<!--/fig--> digits,
 in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->2<!--/fig--> steps; the frontier page has
 the BLAKE2s and Keccak variants. Tachyon's own four tachyactions in Kishu with zero knowledge
-take <!--fig:tx_tachyon4_kishu_zk_s-->0.0966<!--/fig--> s, so Zoodles by preimage
-is <!--fig:zoodles_preimage_of_tachyon_pct-->22<!--/fig--> percent of them; on Pedersen-IPA they
-take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these ranks a step commits
-$2^{\mathrm{rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas coefficients in
+take <!--fig:tx_tachyon4_kishu_zk_s-->0.0966<!--/fig--> s, so Zoodles by preimage
+is <!--fig:zoodles_preimage_of_tachyon_pct-->22<!--/fig--> percent of them; on Pedersen-IPA they
+take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these ranks a step commits
+$2^{\mathrm{rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas coefficients in
 bits, which is the fifth bullet above. The [frontier page](pareto-template.html#transaction-prover)
 gives the same transactions under every scheme it prices.
 

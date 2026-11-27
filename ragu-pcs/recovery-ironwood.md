@@ -26,8 +26,8 @@ $\mathsf{SoK^{qsk}}$ as a signature scheme with key $\mathsf{qk}$, 1-of-$n$, whi
 adversary corrupting up to $t - 1$ wallets is bounded by re-randomized FROST; [Hardware
 wallets](hardware-wallets.md) sets out that model. The frontier page prices the recovery circuit as
 an application: in Kishu with zero knowledge it
-takes <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s on one core in a step
-of <!--fig:tx_recovery_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits.
+takes <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s on one core in a step
+of <!--fig:tx_recovery_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits.
 
 ## The signature method as an arm of the Recovery Statement
 

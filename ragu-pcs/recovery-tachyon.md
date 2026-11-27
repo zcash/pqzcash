@@ -46,7 +46,7 @@ FROST group derives $\mathsf{qsk}$ from its privately agreed value as ZIP 2005 p
 $\mathsf{ak}$ still the distributed key generation's output. The cost is one more field in the
 commitment and, in the recovery proof, one BLAKE3
 compression, <!--fig:app_qk_bits-->11,344<!--/fig--> Kishu digits, which the recovery circuit
-application already charges for $\mathsf{H^{qk}}$, and the reduction's range check of 256 bits.
+application already charges for $\mathsf{H^{qk}}$, and the reduction's range check of 256 bits.
 
 ## The migration transaction
 
@@ -61,11 +61,11 @@ the structure for Tachyon's notes as it is for Zoodles' own epochs. The shape is
 Statement over Tachyon's note format, with Poseidon where Orchard has Sinsemilla. The [frontier
 page](pareto-template.html#transaction-prover) prices the migration as an application, in Zoodles'
 proof tree with a recovery node for each input. With Kishu the recovery spend
-is <!--fig:app_tachyon_recovery_kishu-->1.3 million<!--/fig--> digits, by limbs, of a
-transaction's <!--fig:app_tachyon_zoodles1_kishu-->1.4 million<!--/fig-->. Recovering one note
-takes <!--fig:tx_tachyon_zoodles1_kishu_zk_s-->0.0487<!--/fig--> s of prover on one core with zero
+is <!--fig:app_tachyon_recovery_kishu-->1.3 million<!--/fig--> digits, by limbs, of a
+transaction's <!--fig:app_tachyon_zoodles1_kishu-->1.4 million<!--/fig-->. Recovering one note
+takes <!--fig:tx_tachyon_zoodles1_kishu_zk_s-->0.0487<!--/fig--> s of prover on one core with zero
 knowledge, and four notes in one
-transaction <!--fig:tx_tachyon_zoodles4_kishu_zk_s-->0.148<!--/fig--> s. The spend derives and
+transaction <!--fig:tx_tachyon_zoodles4_kishu_zk_s-->0.148<!--/fig--> s. The spend derives and
 excludes one epoch's nullifier. A note's nullifiers for the other epochs it has lived through need a
 lineage of their own, as Zoodles' notes have, which is not priced.
 

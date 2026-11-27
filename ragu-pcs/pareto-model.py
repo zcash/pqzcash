@@ -5393,11 +5393,11 @@ def auto(v, n):
 
 def kb(x, n=None):
     """Bytes in units of 1000, written kbytes, since KB is read as either 1000 or 1024 bytes."""
-    return sig(x / 1000, auto(x / 1000, n)) + " kbytes"
+    return sig(x / 1000, auto(x / 1000, n)) + "\u00a0kbytes"
 
 
 def mb(x, n=2):
-    return sig(x / 1e6, n) + " Mbytes"
+    return sig(x / 1e6, n) + "\u00a0Mbytes"
 
 
 def mil(x, n=None):
@@ -5406,7 +5406,11 @@ def mil(x, n=None):
 
 
 def millions(x, n=None):
-    return f"{mil(x, n)} million" if x >= 1e5 else f"{sig(x / 1e3, auto(x / 1e3, n))} thousand"
+    return (
+        f"{mil(x, n)}\u00a0million"
+        if x >= 1e5
+        else f"{sig(x / 1e3, auto(x / 1e3, n))}\u00a0thousand"
+    )
 
 
 def fmt(x):
@@ -5465,7 +5469,9 @@ def define_figures():
     fig("poseidon_ragu_gates", POSEIDON_RAGU_GATES)
     fig("mask_attempts", sig(MASK_ATTEMPTS))
     fig("mask_sample_word_mults", MASK_SAMPLE_WORD_MULTS)
-    fig("app_recovery_boolean", f"{sig(APP['recovery']['boolean']['blake3'] / 1e9, 3)} billion")
+    fig(
+        "app_recovery_boolean", f"{sig(APP['recovery']['boolean']['blake3'] / 1e9, 3)}\u00a0billion"
+    )
     fig("app_recovery_bitz", millions(APP["recovery"]["bitz"]["blake3"]))
     for a in KISHU_ARITHS:
         fig(f"app_recovery_kishu_{kishu_route(a)}", millions(APP["recovery"][a]["blake3"]))
@@ -5732,8 +5738,8 @@ def define_figures():
         "qk_device_witness_kbytes",
         kb((leaf + padding + mask_elements * element_digits * element_bits) / 8),
     )
-    fig("device_mcu_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['mcu'] / 1e6, 1)} million")
-    fig("device_se_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['secure_element'] / 1e6, 1)} million")
+    fig("device_mcu_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['mcu'] / 1e6, 1)}\u00a0million")
+    fig("device_se_rate", f"{sig(DEVICE_WORD_MULTS_PER_S['secure_element'] / 1e6, 1)}\u00a0million")
     fig("qk_device_mcu_s", sig(device_online / DEVICE_WORD_MULTS_PER_S["mcu"]))
     fig(
         "qk_device_secure_element_s", sig(device_online / DEVICE_WORD_MULTS_PER_S["secure_element"])
@@ -7217,7 +7223,7 @@ def define_figures():
             for fld in (192, 191)
         ),
     )
-    fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)} billion")
+    fig("f2_192_1_64_prover", f"{sig(f192['1/64']['prover'] / 1e9)}\u00a0billion")
     # WHIR over Goldilocks under BEEP: the quadratic extension against the cubic one, at the
     # 128-bit floor and step rank 13.
     wg = {

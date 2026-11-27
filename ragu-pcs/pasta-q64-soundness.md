@@ -10,7 +10,7 @@ ones, the subject of [The soundness obligations behind Kishu](kishu-soundness.md
 
 **Akita with Pasta claims over the 64-bit commitment (`pasta_q64`).** The claim field is
 Pallas's field $\mathbb{F}_p$. The witness is the balanced base-8 digit vector of the
-$\mathbb{F}_p$ coefficients, 85 digits each, committed under Akita's Ajtai matrix over
+$\mathbb{F}_p$ coefficients, 85 digits each, committed under Akita's Ajtai matrix over
 $R_{q_c} = \mathbb{Z}_{q_c}[X]/(X^{64}+1)$ with $q_c = 2^{64}-59$. The sum-checks, the partials
 and the claim values are $\mathbb{F}_p$ values. The ring relations modulo $q_c$ are checked
 over $\mathbb{F}_p$ with explicit quotient witnesses: $Az - \sum_i c_i t_i = q_c k$ over the
@@ -52,9 +52,9 @@ hold modulo $q_c$. The magnitudes to pin:
 - The ring relation: $\lvert (Az)_i \rvert \le N \cdot q_c \cdot \lVert z \rVert_\infty$ for
   $N$ digit columns, so with $N = 2^{22}$ and the accumulated $\lVert z \rVert_\infty \le 2^{27}$
   that is $2^{113} < p/2 \approx 2^{253}$: fine. But the quotient $k$ is then up to
-  $N \cdot \lVert z \rVert_\infty = 2^{49}$, 17 base-8 digits, where
+  $N \cdot \lVert z \rVert_\infty = 2^{49}$, 17 base-8 digits, where
   [§6.3](pasta-proof-size.md#63-decoupling-the-commitment-modulus-from-the-claim-field) says
-  "eleven base-8 digits per relation coordinate" with "$\lvert k \rvert$ around $2^{31}$". The
+  "eleven base-8 digits per relation coordinate" with "$\lvert k \rvert$ around $2^{31}$". The
   count depends on where in the tree the relation is checked: a fresh witness has digits at
   most 4, an accumulated one entries near the norm bound. The proof must fix the quotient's
   width per level, and the page's digit count for $k$ may be low.
@@ -82,7 +82,7 @@ after the first fold: 32 word multiplications in $\mathbb{F}_p$, against 2 at th
 commitment modulus. The page's accumulation prover prices the sum-checks at the claim field's
 rate, since the same commit of 2026-11-14. Before it the `pasta_q64` rows were charged the
 commitment modulus's rate, so their accumulation term was low by a factor of three to four.
-Kishu is unaffected: its sum-checks are over $E$ at 64 bits, which is what the draft measured.
+Kishu is unaffected: its sum-checks are over $E$ at 64 bits, which is what the draft measured.
 
 ## 5. What to do next, once the statement is reviewed
 
