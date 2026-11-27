@@ -4338,6 +4338,14 @@ for mode in ("arc", "rec"):
 # The error of the projection's lower-tail certificate, as bits: 2^-136, conditional on
 # CertifiedJL's estimates (kishu-soundness.md, Theorem B′).
 PROJECTION_ERROR_BITS = 136
+# Akita's target for every Fiat-Shamir query: it grinds a proof of work before a challenge
+# whose error, a loss factor over the challenge set's size, would exceed 2^-128, with the least
+# bits that bring it within (TRANSCRIPT_SECURITY_BITS and grind_bits_for_loss in its
+# akita-params crate, at the pinned revision). The 147-bit and 165-bit patches leave the target
+# at 128. So at the 128- and 147-bit floors the transcript's soundness is 128 bits, and the
+# 147-bit floor is the lattice assumption's alone. At the 165-bit level the model enlarges the
+# claim field instead (LEVEL3_CLAIM_BYTES), which needs no grinding.
+TRANSCRIPT_SECURITY_BITS = 128
 BOOL_CHECK = {  # (word multiplications per bit, payload bytes, verifier ms, merge multiplications, merge bit gates)
     "projection": (113 / 2**27 * WORD_MULTS_PER_MS, 2592, 0.85, 0, 3_109_760),
     "sumcheck": (437.7 / 2**27 * WORD_MULTS_PER_MS, 1744, 0.023, 3000, 0),
@@ -4579,8 +4587,8 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
             continue
         # The projection's certificate has error 2^-PROJECTION_ERROR_BITS, short of the 165-bit
         # level, so the level has the sum-check form alone. The 128- and 147-bit floors keep
-        # it: they are the lattice assumption's, and the sum-checks there, in 128-bit fields,
-        # have a larger error than the projection's (LEVEL3_CLAIM_NUMERATOR over the field).
+        # it: Akita's transcript there is held to TRANSCRIPT_SECURITY_BITS, which the
+        # projection's error is within.
         if check == "projection" and floor == LEVEL3_FLOOR:
             continue
         for zk in (False,) if check == "projection" else (False, True):
@@ -6891,11 +6899,18 @@ def define_figures():
     fig("level3_rank_scale_pallas", MODULE_RANK_SCALE[LEVEL3_FLOOR]["pasta"])
     fig("level3_opening_challenge_atoms", fmt(LEVEL3_OPENING_CHALLENGE_ATOMS))
     fig("projection_error", tex_pow2(-PROJECTION_ERROR_BITS))
+    fig("transcript_security_bits", TRANSCRIPT_SECURITY_BITS)
+    # The grinding that Kishu's own claim reduction would need to reach that target in its
+    # 128-bit field, which the model does not charge.
+    fig(
+        "kishu_claim_grind_bits",
+        math.ceil(TRANSCRIPT_SECURITY_BITS - (2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR))),
+    )
     # Where each of the level's inputs comes from.
     derived, certified = "linf-accumulation-widths-derived.tsv", "linf-accumulation-widths-165.tsv"
     claim(
         "level3_sources",
-        "at the 165-bit level the opening and its slope are the plan's for every variant, with the level's own count of challenge-field atoms; the accumulation widths are the estimator's for the 64-bit and 128-bit moduli and derived for Pallas alone; the module-rank growth is computed for the catalog's own moduli and extrapolated for the others; and no row uses the Booleanity check by projection, whose error is short of the level and smaller than a 128-bit field's sum-check error",
+        "at the 165-bit level the opening and its slope are the plan's for every variant, with the level's own count of challenge-field atoms; the accumulation widths are the estimator's for the 64-bit and 128-bit moduli and derived for Pallas alone; the module-rank growth is computed for the catalog's own moduli and extrapolated for the others; and no row uses the Booleanity check by projection, whose error is short of the level and within the transcript's 128-bit target at the lower floors",
         all(
             AKITA[LEVEL3_FLOOR][v]
             == [x + LEVEL3_OPENING_EXTRA.get(v, 0) for x in AKITA_165_PLANNED[v]]
@@ -6910,7 +6925,8 @@ def define_figures():
             if fl != LEVEL3_FLOOR
         )
         and MODULE_RANK_SUMS_165["own"] == 159
-        and 128 - math.log2(LEVEL3_CLAIM_NUMERATOR) < PROJECTION_ERROR_BITS < LEVEL3_FLOOR
+        and TRANSCRIPT_SECURITY_BITS <= PROJECTION_ERROR_BITS < LEVEL3_FLOOR
+        and TRANSCRIPT_SECURITY_BITS == min(FLOORS) < DEFAULT_FLOOR
         and not any(p["floor"] == LEVEL3_FLOOR and p.get("check") == "projection" for p in points)
         and any(p["floor"] == 147 and p.get("check") == "projection" for p in points),
     )

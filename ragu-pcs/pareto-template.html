@@ -1633,7 +1633,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     of <!--fig:level3_state_bits_needed-->330<!--/fig--> bits. BLAKE3's chaining value is 256 bits, which gives a proof only up to <!--fig:level3_blake3_provable_work-->$2^{91}$<!--/fig-->
     work. SHA3-384's capacity is 768 bits.<!--/claim--></li>
   </ul>
-  <p>Nothing at the level is measured. <!--claim:level3_sources:b3f3cb-->Its rows are obtained as
+  <p>Nothing at the level is measured. <!--claim:level3_sources:d9ad60-->Its rows are obtained as
   follows, in three kinds: planned or certified by Akita's own tools at the level, derived from
   the 147‑bit rows, and not re-examined.<!--/claim--></p>
   <ul>
@@ -1658,7 +1658,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
     Goldilocks read the 64‑bit modulus's.</li>
     <li>Kishu's Booleanity check by projection has no row at the level. Its certificate's error
     is <!--fig:projection_error-->$2^{-136}$<!--/fig-->, short of the level, so the level's rows
-    use the sum-check form alone. At the 128‑ and 147‑bit floors the rows without zero knowledge keep the check. Those floors are the lattice assumption's: the sum-checks there are in 128‑bit fields, whose own error, about <!--fig:level3_claim_error_128-->$2^{-121}$<!--/fig--> an attempt, is larger than the projection's, so the check is not the weakest part there.</li>
+    use the sum-check form alone. At the 128‑ and 147‑bit floors the rows without zero knowledge keep the check. Akita's
+    transcript is held to <!--fig:transcript_security_bits-->128<!--/fig--> bits at those floors,
+    by a proof of work before each challenge whose error would otherwise exceed that, and the
+    check's error is within it. The 147‑bit plan keeps that target, so the 147‑bit floor is the
+    lattice assumption's alone.</li>
     <li>The rest of a row is derived from its 147‑bit row, with the four changes above.</li>
     <li>The mask's statistical parameters are the zk note's, unchanged. They bound what a
     distinguisher learns from each proof it sees, which grows with the number of proofs and not
