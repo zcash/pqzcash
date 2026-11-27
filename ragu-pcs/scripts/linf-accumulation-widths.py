@@ -19,6 +19,12 @@ the 64-bit and 128-bit CSV tables joined by a comma:
         128 TABLES_128_DIR PALLAS_128.csv GOLDILOCKS_128.csv \\
         147 TABLES_147_DIR PALLAS_147.csv GOLDILOCKS_147.csv \\
         150 Q64_150.csv,Q128_150.csv PALLAS_150.csv GOLDILOCKS_150.csv > estimates/linf-accumulation-widths.tsv
+
+A `-` in place of a Pallas or Goldilocks table leaves that modulus's rows, or that check, out.
+The 165-bit level's rows for the 64-bit and 128-bit moduli are written that way, from the
+production tables of the worktree that scripts/akita-165-pipeline.sh regenerates:
+    python scripts/linf-accumulation-widths.py 165 TABLES_165_DIR - - \
+        > estimates/linf-accumulation-widths-165.tsv
 """
 
 import csv
@@ -76,8 +82,12 @@ def main():
             q128 = rust_table(Path(source) / "q128.rs")
         else:
             q64, q128 = (csv_table(path) for path in source.split(","))
-        check_coincidence(q64, csv_table(goldilocks), floor)
-        for modulus, table in (("pallas", csv_table(pallas)), ("q64", q64), ("q128", q128)):
+        if goldilocks != "-":
+            check_coincidence(q64, csv_table(goldilocks), floor)
+        moduli = [("q64", q64), ("q128", q128)]
+        if pallas != "-":
+            moduli.insert(0, ("pallas", csv_table(pallas)))
+        for modulus, table in moduli:
             for (d, bound), widths in sorted(table.items()):
                 if d not in DEGREES or bound < MIN_BOUND:
                     continue

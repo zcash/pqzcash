@@ -21,7 +21,11 @@ is not a measurement and is left out of the check; in the derivation it stays at
 Usage:
     python scripts/derive-linf-widths.py --check estimates/linf-accumulation-widths.tsv
     python scripts/derive-linf-widths.py SOURCE_FLOOR TARGET_FLOOR \\
-        estimates/linf-accumulation-widths.tsv > estimates/linf-accumulation-widths-derived.tsv
+        estimates/linf-accumulation-widths.tsv [MODULUS ...] \\
+        > estimates/linf-accumulation-widths-derived.tsv
+With moduli named, only their rows are derived. `--check` with a second table compares a
+derived table with the estimator's own at the same floor:
+    python scripts/derive-linf-widths.py --check DERIVED.tsv CERTIFIED.tsv
 """
 
 import collections
@@ -83,15 +87,42 @@ def check(path):
                 )
 
 
+def compare(derived_path, certified_path):
+    """The error of a derived table against the estimator's own table at the same floor."""
+    key = lambda r: (r["modulus"], int(r["floor"]), int(r["d"]), int(r["rank"]), int(r["bound"]))
+    certified = {key(r): int(r["max_width"]) for r in read(certified_path)}
+    errors, zeroed = collections.defaultdict(list), collections.Counter()
+    for r in read(derived_path):
+        a, b = int(r["max_width"]), certified.get(key(r))
+        if b is None or a in SEARCH_CAPS or b in SEARCH_CAPS or b <= 1:
+            continue
+        if a <= 1:
+            zeroed[r["modulus"]] += 1
+        else:
+            errors[r["modulus"]].append(math.log2(a) - math.log2(b))
+    for modulus, e in sorted(errors.items()):
+        print(
+            f"{modulus}: {len(e)} cells, error in log2(width)"
+            f" median {statistics.median(e):+.3f},"
+            f" 5th to 95th percentile {statistics.quantiles(e, n=20)[0]:+.3f}"
+            f" to {statistics.quantiles(e, n=20)[-1]:+.3f};"
+            f" {zeroed[modulus]} cells derived as no width where the estimator certifies one"
+        )
+
+
 def main():
     if sys.argv[1] == "--check":
-        check(sys.argv[2])
+        if len(sys.argv) > 3:
+            compare(sys.argv[2], sys.argv[3])
+        else:
+            check(sys.argv[2])
         return
     source, target, path = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+    moduli = set(sys.argv[4:])
     out = csv.writer(sys.stdout, delimiter="\t", lineterminator="\n")
     out.writerow(["modulus", "floor", "d", "rank", "bound", "max_width"])
     for r in read(path):
-        if int(r["floor"]) != source:
+        if int(r["floor"]) != source or (moduli and r["modulus"] not in moduli):
             continue
         width = derive(int(r["max_width"]), int(r["d"]), int(r["bound"]), source, target)
         out.writerow([r["modulus"], target, r["d"], r["rank"], r["bound"], width])

@@ -106,11 +106,36 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   built with the `catalog-security` feature, as the re-plan scripts run it. The per-K group runs
   behind the opening tables are not kept under [`estimates/`](../../../ragu-pcs/estimates/); the
   re-plan scripts reproduce them.
-- **The illustrative level, planned** (not yet in the model, whose rows at the level are derived):
+- **The 165-bit level's plan** (`AKITA_165_PLANNED`, `SLOPE[165]`,
+  `LEVEL3_COMPRESSION_CELLS`, `RANK_SUMS_165`):
   [`scripts/akita-165-pipeline.sh`](../../../ragu-pcs/scripts/akita-165-pipeline.sh), on the
-  `level3-165` worktree, regenerates the width tables at 165 bits (`SKIP_TABLES=1` resumes),
-  re-sizes the nine compression cells and checks that each covers its map, rebuilds, and runs the
-  re-plan into `work/akita-165-out/replan`.
+  `level3-165` worktree, regenerates the width tables at 165 bits (about four hours;
+  `SKIP_TABLES=1` resumes), re-sizes the nine compression cells and checks that each covers its
+  map, rebuilds, and runs the re-plan into `work/akita-165-out/replan`. Then:
+
+  ```
+  python scripts/akita-150-page-inputs.py work/akita-165-out/replan
+  python scripts/linf-accumulation-widths.py 165 \
+      work/akita-src-165/crates/akita-params/src/sis/generated_sis_table - - \
+      > estimates/linf-accumulation-widths-165.tsv
+  python scripts/derive-linf-widths.py 147 165 estimates/linf-accumulation-widths.tsv pallas \
+      > estimates/linf-accumulation-widths-derived.tsv
+  python scripts/rank-scale.py estimates/catalog-security.tsv \
+      work/akita-src/crates/akita-params/src/sis/generated_sis_table \
+      work/akita-src-165/crates/akita-params/src/sis/generated_sis_table \
+      estimates/linf-width-table-goldilocks.csv estimates/linf-width-table-goldilocks.csv
+  ```
+
+  The first prints the opening's bytes; its slopes are from 2^14 to 2^16, and the model's are from
+  the 2^14 and 2^24 rows of the same files (2^26 for Goldilocks). The second writes the level's
+  accumulation widths for the 64-bit and 128-bit moduli, and the third derives Pallas's, which the
+  estimator has not been run for at the level. Deriving all three moduli and running
+  `scripts/derive-linf-widths.py --check DERIVED.tsv estimates/linf-accumulation-widths-165.tsv`
+  gives the rule's error against the estimator: a median of +0.004 in log2 of the width for the
+  64-bit modulus and +0.014 for the 128-bit one, with 5th to 95th percentiles of about -0.12 to
+  +0.48. The last command's `own` line is the level's rank growth for the catalog's own moduli; its
+  `q64` line is not meaningful there, since the 64-bit modulus's CSV table at the level has not
+  been generated and the 128-bit one stands in for it.
 - **The 147-bit floor** (`AKITA_147`, `SLOPE[147]`):
   [`scripts/akita-147-pipeline.sh`](../../../ragu-pcs/scripts/akita-147-pipeline.sh), on the
   worktree that the checkout script made, regenerates its width tables at 147 bits (hours;
@@ -122,8 +147,8 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   `infinity_width_table --policy Quantum147BitADPS16 --profiles pallas --format csv --profile
   local-minimum --output ...` in the worktree: 5.5 hours with the estimator built without its
   `parallel` feature.
-- **The illustrative level** (floor key 165): its accumulation-width table is extrapolated from the
-  147-bit rows by
+- **The 165-bit level's derived parts** (floor key 165): the Pallas modulus's accumulation-width
+  table is extrapolated from the 147-bit rows by
   [`scripts/derive-linf-widths.py`](../../../ragu-pcs/scripts/derive-linf-widths.py), whose
   `--check` tests the rule on the estimator's own tables; the compression chain's security
   (`LEVEL3_COMPRESSION_CHAIN`, `SHIPPED_COMPRESSION_CHAIN`) is printed by

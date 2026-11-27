@@ -1600,8 +1600,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   ML-KEM-768 and ML-DSA-65: a block size of about <!--fig:level3_block-->623<!--/fig-->, which
   is <!--fig:level3_classical_bits-->182<!--/fig--> classical core-SVP bits and 165 in this page's
   quantum unit. That is a lenient reading of 192 bits. The hash-based families take 165 bits as
-  their soundness level, as they take 147 at the default floor. Nothing at the level is planned or
-  measured: every row there is derived from its 147‑bit row, and is ranked with the
+  their soundness level, as they take 147 at the default floor. Nothing at the level is measured.
+  Akita's openings are planned at the level by its own planner. The rest of every row is derived
+  from its 147‑bit row, so the rows are ranked with the
   strongest <a href="#requirements">assumption</a>.</p>
   <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
   256‑bit bottlenecks inside, so the trees hash with SHA3-384. For the transcript the control offers
@@ -1616,24 +1617,42 @@ code { font-family: var(--mono); font-size: 0.92em; }
   then <!--fig:level3_sha3_384_kishu_merge_digits_m-->7.6<!--/fig--> million digits, so its shortest step
   is <!--fig:level3_sha3_384_kishu_shortest_step-->1.25 × 2^23<!--/fig--> digits, and the merge's commitments
   are <!--fig:level3_sha3_384_kishu_prover_x-->9.1<!--/fig--> times the 147‑bit ones.<!--/claim--> The figures below are under BLAKE3.</p>
-  <p>Akita's rows at the level are derived as follows:</p>
+  <p>Akita's rows at the level are made as follows:</p>
   <ul>
-    <li>the accumulation matrix is looked up in a width table extrapolated from the 147‑bit one, by
-    a rule that reproduces the estimator's own 147‑ and 150‑bit widths from the lower floors';</li>
-    <li>the opening's bytes, their growth with the witness, and the rank growth are on the line
-    through their 128‑ and 147‑bit values, and the
-    opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are at the
-    level's claim field;</li>
+    <li>the accumulation matrix is looked up in the estimator's width table, regenerated at 165
+    bits, for the 64‑bit and 128‑bit moduli. The estimator has not been run at the level for the
+    Pallas modulus, whose table is extrapolated from the 147‑bit one, by a rule that reproduces the
+    other two moduli's widths at the level closely;</li>
+    <li><!--claim:level3_plan_below_line:620853-->the opening's bytes and their growth with the
+    witness are planned: Akita's planner was run at a 165‑bit floor with the level's compression
+    chain. The plan is below the line through the 128‑ and 147‑bit plans. Summed over the group
+    counts, the 128‑bit field's opening is <!--fig:level3_plan_fp128_pct-->1.2<!--/fig-->% larger
+    than at 147 bits where the line gives <!--fig:level3_line_fp128_pct-->11<!--/fig-->%, and
+    Goldilocks's is <!--fig:level3_plan_goldilocks_pct-->6.3<!--/fig-->% larger where the line
+    gives <!--fig:level3_line_goldilocks_pct-->5.5<!--/fig-->%.<!--/claim--> The planner keeps
+    each profile's own challenge field, so the
+    opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are then
+    widened to the level's claim field;</li>
+    <li>the growth of the Module-SIS ranks, which scales the prover's rows term, is computed from
+    the regenerated tables for the catalog's own moduli, a factor
+    of <!--fig:level3_rank_scale_own-->1.31<!--/fig--> over the 128‑bit floor. For the other
+    moduli it is on the line through its 128‑ and 147‑bit values;</li>
     <li><!--claim:level3_compression_chain_reaches_floor:28ff66-->a commitment's image is compressed
-    to the same 128 bytes by three maps where the plans have two. The shipped maps, with outputs of
+    to the same 128 bytes by three maps where the shipped chain has two. The shipped maps, with outputs of
     2,048 and then 1,024 bits, stop at <!--fig:compression_shipped_first_bits-->147.3<!--/fig-->
     and <!--fig:compression_shipped_second_bits-->153.2<!--/fig--> bits. By Akita's estimator a chain with outputs
     of <!--fig:compression_level3_first-->2,304<!--/fig-->, <!--fig:compression_level3_second-->1,152<!--/fig-->, and 1,024 bits has at
     least <!--fig:compression_level3_min_bits-->170.7<!--/fig--> bits at every map. Its first two maps alone would give
     an image of <!--fig:compression_level3_two_map_bytes-->144<!--/fig--> bytes, and a fourth map one
     of <!--fig:compression_level3_four_map_bytes-->120<!--/fig--> bytes at <!--fig:compression_level3_fourth_bits-->165.4<!--/fig-->
-    bits.<!--/claim--> The intermediate outputs are not a power-of-two ring element, so those maps
-    have rank above one over smaller rings;</li>
+    bits.<!--/claim--> <!--claim:level3_compression_cells_certified:f97956-->The intermediate outputs
+    are not one power-of-two ring element, so the first two maps have
+    rank <!--fig:compression_level3_rank-->9<!--/fig--> over smaller power-of-two rings, of
+    dimension 2 and 1 for the 128‑bit modulus. The estimator's tables at the level certify each
+    map with <!--fig:compression_level3_spare_min_pct-->15<!--/fig-->%
+    to <!--fig:compression_level3_spare_max_pct-->27<!--/fig-->% of input width to
+    spare.<!--/claim--> The chain is in the planner only: the prover and the verifier are not
+    adapted to it;</li>
     <li>a claim is in a challenge field of 192 bits or more, where the 128‑bit field and
     Goldilocks's quadratic extension leave a sum-check far short of the level, and the sum-checks'
     prover is scaled by the field products of a multiplication there; and</li>
@@ -2195,8 +2214,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   openings at 147 bits are planned, not scaled.</p>
   <p>The floor is 147 rather than 150 because the compression chain is built from rank-one maps. At
   the catalog's geometry its first map, at ring dimension 16 and width 4,096, certifies at 147.3
-  bits. A 150-bit floor allows that map a width of 3,806, so the chain would need rank-two maps, or
-  two maps where it has one, and either doubles the compressed images at every level.</p>
+  bits. A 150-bit floor allows that map a width of 3,806, so the chain itself would have to change, as it
+  does at the <a href="#level-3">165‑bit level</a>.</p>
   <p><!--claim:matrix_moves_147_blake3_wide,kishu_masked_matrix_same_at_150,matrix_moves_150_unmasked:717f5d-->The
   accumulation matrix agrees about where the floor's cost begins. Of
   the <!--fig:matrix_rows_both_floors-->574<!--/fig--> lattice rows shown at both

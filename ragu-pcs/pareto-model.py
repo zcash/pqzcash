@@ -145,11 +145,26 @@ LEVEL3_OPENING_EXTRA = {
     "fp128": 16 * OPENING_CHALLENGE_ATOMS,
     "goldilocks": 8 * OPENING_CHALLENGE_ATOMS + GOLDILOCKS_EOR_BYTES // 2,
 }
+# The opening at the 165-bit level, planned by Akita's planner at a 165-bit floor with the
+# level's three-map compression chain (scripts/akita-165-pipeline.sh, on the worktree that
+# scripts/patches/akita/0003-* makes; scripts/akita-150-page-inputs.py prints the table from
+# the run's output). The planner keeps each profile's own challenge field, so the level's wider
+# challenge-field atoms are added to it.
+AKITA_165_PLANNED = {
+    "fp128": [73450, 76842, 81629, 76928, 80632, 81380],
+    "goldilocks": [68642, 72234, 72384, 73215, 75391, 76082],
+    "pasta_q64": [77724, 81994, 83517, 84144, 86472, 87924],
+    "pasta_sis": [95210, 97674, 101757, 99312, 103176, 104628],
+    "pasta": [111215, 129034, 138237, 129648, 136584, 138036],
+}
 AKITA[LEVEL3_FLOOR] = {
-    v: [
-        round(extrapolate_floor(a, b)) + LEVEL3_OPENING_EXTRA.get(v, 0)
-        for a, b in zip(AKITA_128[v], AKITA_147[v])
-    ]
+    v: [planned + LEVEL3_OPENING_EXTRA.get(v, 0) for planned in AKITA_165_PLANNED[v]]
+    for v in AKITA_147
+}
+# What the line through the 128- and 147-bit plans would have given at the level, for the
+# page's comparison of the plan with it.
+AKITA_165_EXTRAPOLATED = {
+    v: [round(extrapolate_floor(a, b)) for a, b in zip(AKITA_128[v], AKITA_147[v])]
     for v in AKITA_147
 }
 
@@ -157,13 +172,18 @@ AKITA[LEVEL3_FLOOR] = {
 # growth is concave (fp128: 1,126 per doubling from 2^14 to 2^16, 459 from 2^16 to 2^24, 229
 # beyond), and the page extrapolates from 2^14 to about 2^23, so the slope over those ten
 # doublings is the one to use; at 128 bits Goldilocks takes fp128's, scaled as its table is,
-# and at 147 bits its own 2^14 and 2^26 rows.
+# and at 147 bits and at the 165-bit level its own 2^14 and 2^26 rows. The level's slopes
+# are from the level's plan.
 SLOPE = {
     128: {"fp128": 592, "goldilocks": 555, "pasta_q64": 953, "pasta_sis": 1112, "pasta": 1371},
     147: {"fp128": 584, "goldilocks": 662, "pasta_q64": 1104, "pasta_sis": 1118, "pasta": 1175},
 }
 SLOPE[LEVEL3_FLOOR] = {
-    v: round(extrapolate_floor(SLOPE[128][v], SLOPE[147][v])) for v in SLOPE[147]
+    "fp128": 656,
+    "goldilocks": 870,
+    "pasta_q64": 1209,
+    "pasta_sis": 990,
+    "pasta": 1318,
 }
 DIGITS = {"fp128": 43, "goldilocks": 22, "pasta_q64": 85, "pasta_sis": 85, "pasta": 85}
 
@@ -211,9 +231,16 @@ def load_linf_widths():
     """{(modulus, floor): {(degree, rank): [(bound, width), ...]}}: the largest width in ring
     elements that the ℓ∞ estimator certifies at each bound of the ladder, in bound order."""
     table = {}
-    # The second file is the illustrative level's table, derived from the 147-bit rows by
-    # scripts/derive-linf-widths.py.
-    for name in ("linf-accumulation-widths.tsv", "linf-accumulation-widths-derived.tsv"):
+    # The 165-bit level's table is in two files. The 64-bit and 128-bit moduli's rows
+    # are the estimator's own, from the tables regenerated at 165 bits. The estimator has not
+    # been run for the Pallas modulus at that floor, so its rows are derived from the 147-bit
+    # ones by scripts/derive-linf-widths.py, whose rule gave the other two moduli's widths at
+    # the level to a median error under 0.02 in log2 of the width.
+    for name in (
+        "linf-accumulation-widths.tsv",
+        "linf-accumulation-widths-165.tsv",
+        "linf-accumulation-widths-derived.tsv",
+    ):
         with (HERE / "estimates" / name).open() as f:
             for r in csv.DictReader(f, delimiter="\t"):
                 cells = table.setdefault((r["modulus"], int(r["floor"])), {})
@@ -740,6 +767,12 @@ def akita_atoms(variant, K, circuits, zk):
 #     rings. The third map's witness in the opening, its input's bits for each image, is not
 #     counted.
 LEVEL3_COMPRESSION_CHAIN = ((65536, 2304, 171.72), (2304, 1152, 170.66), (1152, 1024, 173.58))
+# The chain in Akita's planner (scripts/patches/akita/0003-*), for the 128-bit modulus: each
+# map's module rank, its ring dimension, the largest input width in ring elements that the
+# estimator's table regenerated at 165 bits certifies at that rank, and the width that an
+# 8 KiB source needs (scripts/akita-165-pipeline.sh writes both to compression-cells.txt). The
+# 64-bit and 32-bit moduli's cells are the same maps at twice and four times the dimension.
+LEVEL3_COMPRESSION_CELLS = ((9, 2, 38558, 32768), (9, 1, 2662, 2304), (1, 8, 184, 144))
 LEVEL3_COMPRESSION_FOURTH = (1024, 960, 165.36)
 SHIPPED_COMPRESSION_CHAIN = ((65536, 2048, 147.34), (2048, 1024, 153.17))
 LEVEL3_CLAIM_BYTES = {"fp128": 32, "goldilocks": 24, "kishu": 24}
@@ -2560,10 +2593,17 @@ assert RANK_SCALE_147 == {
     "pasta": 1.01,
 }
 RANK_SCALE = {128: {v: 1.0 for v in RANK_SCALE_147}, 147: RANK_SCALE_147}
-# At the illustrative level the summed ranks are extrapolated as the plan's bytes are.
+# At the 165-bit level the catalog's own mapping is computed as at 147 bits, from the
+# width tables regenerated at 165 bits: 38 instances move up a rank. The estimator has not been
+# run at that floor for the 64-bit modulus at every cell or for Pallas, so those two mappings'
+# sums are on the line through their 128- and 147-bit values.
+RANK_SUMS_165 = {
+    "own": 159,
+    "q64": extrapolate_floor(*RANK_SUMS_147["q64"][:2]),
+    "pallas": extrapolate_floor(*RANK_SUMS_147["pallas"][:2]),
+}
 RANK_SCALE[LEVEL3_FLOOR] = {
-    v: round(extrapolate_floor(*RANK_SUMS_147[m][:2]) / RANK_SUMS_147[m][0], 2)
-    for v, m in RANK_MAPPING.items()
+    v: round(RANK_SUMS_165[m] / RANK_SUMS_147[m][0], 2) for v, m in RANK_MAPPING.items()
 }
 # WHIR at the higher floor: the reference implementation (WizardOfMenlo/whir at afec1fa) at
 # 2^17 variables over both fields and rates 1/2 to 1/8, 20 bits of proof of work, the Johnson
@@ -6663,6 +6703,44 @@ def define_figures():
         2 * math.log2(challenge_l1(LEVEL3_FLOOR) / MASK_CHALLENGE_L1) < 1,
     )
     fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
+
+    # The level's planned opening against the 147-bit plan, summed over the group counts,
+    # beside what the line through the 128- and 147-bit plans gives.
+    def over_147(table, v):
+        return 100 * (sum(table[v]) / sum(AKITA_147[v]) - 1)
+
+    for v in ("fp128", "goldilocks"):
+        fig(f"level3_plan_{v}_pct", sig(over_147(AKITA_165_PLANNED, v)))
+        fig(f"level3_line_{v}_pct", sig(over_147(AKITA_165_EXTRAPOLATED, v)))
+    claim(
+        "level3_plan_below_line",
+        "the level's planned opening is below the line through the 128- and 147-bit plans for every variant but Goldilocks, where the two are within a point",
+        all(
+            over_147(AKITA_165_PLANNED, v) < over_147(AKITA_165_EXTRAPOLATED, v)
+            for v in AKITA_147
+            if v != "goldilocks"
+        )
+        and abs(
+            over_147(AKITA_165_PLANNED, "goldilocks")
+            - over_147(AKITA_165_EXTRAPOLATED, "goldilocks")
+        )
+        < 1,
+    )
+    spare = [100 * (width / needed - 1) for _, _, width, needed in LEVEL3_COMPRESSION_CELLS]
+    fig("compression_level3_spare_min_pct", math.floor(min(spare)))
+    fig("compression_level3_spare_max_pct", math.floor(max(spare)))
+    fig("compression_level3_rank", LEVEL3_COMPRESSION_CELLS[0][0])
+    claim(
+        "level3_compression_cells_certified",
+        "the estimator's tables at the level certify each map of the chain at its rank with width to spare, the first two maps at rank 9 over rings of dimension 2 and 1, and the outputs are the chain's",
+        all(width >= needed for _, _, width, needed in LEVEL3_COMPRESSION_CELLS)
+        and [rank * d * 128 for rank, d, _, _ in LEVEL3_COMPRESSION_CELLS]
+        == [out for _, out, _ in LEVEL3_COMPRESSION_CHAIN]
+        and [128 * needed * d for _, d, _, needed in LEVEL3_COMPRESSION_CELLS]
+        == [128 * inp for inp, _, _ in LEVEL3_COMPRESSION_CHAIN],
+    )
+    fig("level3_rank_scale_own", RANK_SCALE[LEVEL3_FLOOR]["fp128"])
+    fig("level3_rank_sum_own", RANK_SUMS_165["own"])
     g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
     g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
     fig("level3_goldilocks_16_circuits", g165["circuits"])
