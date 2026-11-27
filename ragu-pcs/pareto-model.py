@@ -40,17 +40,19 @@ HERE = pathlib.Path(__file__).resolve().parent
 # user, 2026-11-23); FLOORS below lists both. Pedersen-IPA and the binary-groups row exist at
 # the 128-bit floor alone, so their figures name it.
 DEFAULT_FLOOR = 147
-# An illustrative third level, to show what a move towards 192 bits costs (the user,
-# 2026-11-26). It is NIST's Level 3 as the Level 3 lattice standards meet it, ML-KEM-768 and
-# ML-DSA-65: a block size of about 623, which is 182 classical core-SVP bits and 165 in the
-# page's quantum unit, so the level's key is 165. The hash-based rows take 165 bits as their
-# soundness level too, as they take 147 at that floor. No hash of 256 bits of state gives a
-# Merkle tree or a transcript this level, and BLAKE3's longer outputs have 256-bit bottlenecks
-# inside, so a Merkle tree's hash is SHA3-384. For the transcript the page offers both
-# choices, as two hash policies that the level's rows carry: BLAKE3 and SHA3-384
-# (conventional_hash_gates says what each gives). Nothing at this level is planned or
-# measured: the rows are derived from the 147-bit ones, where the lattice rows are built, and
-# the page marks them so.
+# A third level, at 165 bits (the user, 2026-11-26). It is based on lattice parameters of
+# similar conjectured security to NIST's Level 3, as ML-KEM-768 and ML-DSA-65 meet it: a block
+# size of about 623, which is 182 classical core-SVP bits and 165 in the page's quantum unit,
+# so the level's key is 165. It began as an illustration that a move towards 192 bits is not
+# cheap; for the lattice rows it turned out feasible, and the hash-based families have no row.
+#
+# No hash with 256 bits of state gives a Merkle tree or a provable transcript this level, and
+# BLAKE3's longer outputs have 256-bit bottlenecks inside. So a Merkle tree's hash is
+# SHA3-384. For the transcript the page offers both choices, as two hash policies that the
+# level's rows carry: BLAKE3 and SHA3-384 (conventional_hash_gates says what each gives).
+#
+# Nothing at the level is measured. The openings are planned by Akita's planner
+# (AKITA_165_PLANNED); the rest of a row is derived from its 147-bit row.
 LEVEL3_FLOOR = 165
 LEVEL3_BLAKE3 = "level3_blake3"  # the level with BLAKE3 transcripts
 LEVEL3_SHA3_384 = "level3_sha3_384"  # the level with SHA3-384 transcripts
@@ -745,10 +747,12 @@ def akita_atoms(variant, K, circuits, zk):
     )
 
 
-# What the illustrative level changes in a lattice row's merge, beside its hash:
-#   - A claim is an element of a challenge field of at least LEVEL3_CLAIM_BITS bits. The
-#     128-bit field's and Goldilocks's quadratic extension's 128 bits leave a sum-check at
-#     about 2^-120 a round, far above the level, so the 128-bit profile's claims move to its
+# What the 165-bit level changes in a lattice row's merge, beside its hash:
+#   - A claim is an element of a challenge field large enough for the sum-checks' error. A
+#     sum-check of m variables has an error of a small multiple of m over the field's size
+#     (LEVEL3_CLAIM_NUMERATOR, for Kishu's claim reduction), so the field needs some bits more
+#     than the level's 165. The 128-bit field's and Goldilocks's quadratic extension's 128 bits
+#     give about 2^-121, far short of it, so the 128-bit profile's claims move to its
 #     quadratic extension and the 64-bit profiles' to the cubic one. Pasta's field already
 #     serves.
 #   - A commitment's image is compressed by a chain of three maps where the 128- and 147-bit
@@ -776,6 +780,16 @@ LEVEL3_COMPRESSION_CELLS = ((9, 2, 38558, 32768), (9, 1, 2662, 2304), (1, 8, 184
 LEVEL3_COMPRESSION_FOURTH = (1024, 960, 165.36)
 SHIPPED_COMPRESSION_CHAIN = ((65536, 2048, 147.34), (2048, 1024, 153.17))
 LEVEL3_CLAIM_BYTES = {"fp128": 32, "goldilocks": 24, "kishu": 24}
+# The numerator of the error of Kishu's claim reduction over a field E: at most (4m + 1)/|E|
+# for m variables (kishu-soundness.md, Theorem B), with m at most 31 (its Lemma B3).
+LEVEL3_CLAIM_NUMERATOR = 4 * 31 + 1
+# A chained or sponge transcript hash with a state of c bits is provable for work T while the
+# proofs' lost term, about T^2/2^c, is within the level's T/2^165: up to 2^(c - 165) work, and
+# at every work up to the level's when c is twice the level. BLAKE3's chaining value is 256
+# bits and SHA3-384's capacity 768. A Merkle tree's binding at the level needs the same of a
+# digest: a collision search of work T succeeds with about T^2/2^n for n bits of output.
+BLAKE3_STATE_BITS = 256
+SHA3_384_CAPACITY_BITS = 768
 IMAGE_BYTES = 128
 
 
@@ -812,8 +826,8 @@ def conventional_hash_gates(bytes_, hp):
     user, 2026-11-26). No attack on a 256-bit transcript hash is known at the level, but the
     security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
     T^2/2^c for work T and a state of c bits, so with BLAKE3 the level is not provable, and
-    with SHA3-384 it is: the term
-    which at c = 256 is above the level's T/2^192 beyond 2^64 work."""
+    with SHA3-384 it is. The level allows work T a success probability of T/2^165, and at
+    c = 256 the lost term is above that beyond 2^91 work."""
     return {
         "blake3": lambda: transcript_compressions(bytes_) * BLAKE3_GATES,
         "sha3_384": lambda: sha3_384_permutations(bytes_) * HASH_UNITS["keccak"]["gates"],
@@ -4362,6 +4376,16 @@ def step_label(length):
     return f"2^{r}" if k == 1 else f"{k:g} × 2^{r}"
 
 
+def step_text(length):
+    """A step's length in binary scientific notation, a mantissa in [1, 2) to three significant
+    figures times a power of two, for a length that is not one of the rows' labelled ones."""
+    r = math.floor(math.log2(length))
+    k = round(length / 2**r, 2)
+    if k == 2:
+        r, k = r + 1, 1
+    return f"2^{r}" if k == 1 else f"{k:g} × 2^{r}"
+
+
 def handoff_merge_digits(K, circuits, hp):
     """Kishu's handoff merge under the note's §5.8 deferral (handoff_merge_gates for the lattice
     rows): its digits and its PIOP's word multiplications, for the mask's K images and claim
@@ -6740,11 +6764,33 @@ def define_figures():
         == [128 * inp for inp, _, _ in LEVEL3_COMPRESSION_CHAIN],
     )
     fig("level3_rank_scale_own", RANK_SCALE[LEVEL3_FLOOR]["fp128"])
+    # The claim field and the transcript hash that the level needs.
+    lost = math.log2(LEVEL3_CLAIM_NUMERATOR)
+    fig("level3_claim_numerator", LEVEL3_CLAIM_NUMERATOR)
+    fig("level3_claim_bits_needed", LEVEL3_FLOOR + math.ceil(lost))
+    fig("level3_claim_error_128", math.floor(128 - lost))
+    fig("level3_claim_error_cubic", math.floor(3 * Q64_BITS - lost))
+    claim(
+        "level3_claim_field_reaches_level",
+        "the error of Kishu's claim reduction is below 2^-165 in the cubic extension of the 64-bit field and above it in a 128-bit field, and the level's claims are in the cubic extension for the 64-bit profiles and in the 128-bit field's quadratic extension",
+        3 * Q64_BITS - lost >= LEVEL3_FLOOR > 128 - lost
+        and LEVEL3_CLAIM_BYTES == {"fp128": 32, "goldilocks": 24, "kishu": 24},
+    )
+    fig("level3_state_bits_needed", 2 * LEVEL3_FLOOR)
+    fig("level3_blake3_provable_work", BLAKE3_STATE_BITS - LEVEL3_FLOOR)
+    claim(
+        "level3_transcript_hash_requirement",
+        "a transcript hash is provable at the level with a state of twice the level's bits, which SHA3-384's capacity and digest exceed and BLAKE3's chaining value does not",
+        BLAKE3_STATE_BITS < 2 * LEVEL3_FLOOR <= min(SHA3_384_CAPACITY_BITS, 8 * SHA3_384_DIGEST),
+    )
     fig("level3_rank_sum_own", RANK_SUMS_165["own"])
     g147 = pick("goldilocks", rank=16, zk=True, hashes="blake3")
     g165 = pick("goldilocks", rank=16, zk=True, floor=LEVEL3_FLOOR, hashes=LEVEL3_BLAKE3)
     fig("level3_goldilocks_16_circuits", g165["circuits"])
     fig("goldilocks_16_zk_circuits", g147["circuits"])
+    # An Akita row's step is its circuits of 2^rank gates each, given as a length.
+    fig("level3_goldilocks_16_step", step_text(g165["circuits"] * 2**16))
+    fig("goldilocks_16_zk_step", step_text(g147["circuits"] * 2**16))
     fig(
         "level3_goldilocks_16_accumulation_x",
         sig(g165["accumulation_prover"] / g147["accumulation_prover"]),
@@ -6779,7 +6825,7 @@ def define_figures():
     )
     claim(
         "level3_lattice_rows_dearer",
-        "at the illustrative level Akita over Goldilocks at rank 16 takes more circuits, more accumulation prover, and more bytes than at 147 bits, and Kishu's merge is more digits, with more commitment work and more bytes",
+        "at the 165-bit level Akita over Goldilocks takes a longer step, more accumulation prover, and more bytes than at 147 bits, and Kishu's merge is more digits, with more commitment work and more bytes",
         all(g165[k] > g147[k] for k in ("circuits", "accumulation_prover", "bytes"))
         and all(k165[k] > k147[k] for k in ("gates", "prover", "bytes")),
     )
@@ -6788,16 +6834,18 @@ def define_figures():
         rank: [akita_circuits(v, STAGES + 1, rank, True, LEVEL3_SHA3_384) for v in lattice_variants]
         for rank in RANKS
     }
-    sha3_384_rank = min(r for r in RANKS if all(c is not None for c in sha3_384_circuits[r]))
-    fig("level3_sha3_384_akita_rank", sha3_384_rank)
-    fig("level3_sha3_384_akita_circuits_min", fmt(min(sha3_384_circuits[sha3_384_rank])))
-    fig("level3_sha3_384_akita_circuits_max", fmt(max(sha3_384_circuits[sha3_384_rank])))
-    claim(
-        "level3_sha3_384_akita_one_rank",
-        "with SHA3-384 transcripts Akita's merge converges for no variant below the highest rank",
-        sha3_384_rank == max(RANKS)
-        and all(c is None for r in RANKS if r < sha3_384_rank for c in sha3_384_circuits[r]),
-    )
+    # The least step in which each variant's merge fits with a SHA3-384 transcript: over the
+    # ranks where its circuit count converges, the fewest gates, circuits of 2^rank each.
+    sha3_384_steps = [
+        min(
+            sha3_384_circuits[rank][i] * 2**rank
+            for rank in RANKS
+            if sha3_384_circuits[rank][i] is not None
+        )
+        for i in range(len(lattice_variants))
+    ]
+    fig("level3_sha3_384_akita_step_min", step_text(min(sha3_384_steps)))
+    fig("level3_sha3_384_akita_step_max", step_text(max(sha3_384_steps)))
     w147 = arc_circuits("whir", "1/8", 16, DEFAULT_FLOOR, GRIND_DEFAULT, "blake3")
     w165 = arc_circuits("whir", "1/8", 16, LEVEL3_FLOOR, GRIND_DEFAULT, LEVEL3_BLAKE3)
     fig("whir_16_blake3_circuits", fmt(w147))
@@ -6811,7 +6859,7 @@ def define_figures():
     fig("level3_f2_merge_x", sig(f2_165 / f2_147))
     claim(
         "level3_hash_based_impractical",
-        "at the illustrative level WHIR over Pasta would need over five times the circuits at rank 16 and the binary-field family's merge would be over four times the bits",
+        "at the 165-bit level WHIR over Pasta would need over five times the circuits at rank 16 and the binary-field family's merge would be over four times the bits",
         w165 > 5 * w147 and f2_165 > 4 * f2_147,
     )
     fig("whir_hashes_147_pct", round(100 * (WHIR_HASHES_SCALE[147] - 1)))
@@ -8124,6 +8172,7 @@ def write_book_files(page, data_json):
         ),
         "spend-authorization": ("spend-authorization.md", "../zoodles/spend-authorization.html"),
         "auth-slhdsa": ("auth-slhdsa.md", "../zoodles/spend-authorization/slh-dsa.html"),
+        "kishu-soundness": ("kishu-soundness.md", "kishu/kishu-soundness.html"),
     }
     note_ids = {
         name: {

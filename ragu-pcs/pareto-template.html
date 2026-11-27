@@ -1603,42 +1603,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>⚠️ This level makes significant design changes to its schemes relative to Akita, including a
   three-stage map construction using larger ranks that has not been fully reviewed or analyzed.
   Therefore, it is ranked with the strongest <a href="#requirements">assumption</a>.</p>
-  <p>No hash with 256 bits of state gives a Merkle tree that level, and BLAKE3's longer outputs have
-  256‑bit bottlenecks inside, so the trees hash with SHA3-384. For the transcript the control offers
-  both. No attack on a 256‑bit transcript hash is known at the level. But the security proofs for
-  Fiat–Shamir over a chained or sponge hash lose a term of about $T^2/2^c$ for work $T$ and a state
-  of $c$ bits, so with BLAKE3 the level is not provable, and with SHA3-384 it
-  is. <!--claim:level3_sha3_384_akita_one_rank:e65ec1-->With SHA3-384 Akita's merge converges at
-  rank <!--fig:level3_sha3_384_akita_rank-->17<!--/fig--> alone,
-  in <!--fig:level3_sha3_384_akita_circuits_min-->319<!--/fig-->
-  to <!--fig:level3_sha3_384_akita_circuits_max-->1,050<!--/fig-->
-  circuits.<!--/claim--> <!--claim:level3_sha3_384_kishu_dearer:062405-->Kishu's merge with zero knowledge is
-  then <!--fig:level3_sha3_384_kishu_merge_digits_m-->7.6<!--/fig--> million digits, so its shortest step
-  is <!--fig:level3_sha3_384_kishu_shortest_step-->1.25 × 2^23<!--/fig--> digits, and the merge's commitments
-  are <!--fig:level3_sha3_384_kishu_prover_x-->9.1<!--/fig--> times the 147‑bit ones.<!--/claim--> The figures below are under BLAKE3.</p>
-  <p>Nothing at the level is measured. Akita's openings are planned at the level by its own
-  planner, and the rest of every row is derived from its 147‑bit row, as follows:</p>
+  <p>A scheme at the level differs from its 147‑bit form in four ways:</p>
   <ul>
-    <li>the accumulation matrix is looked up in the estimator's width table, regenerated at 165
-    bits, for the 64‑bit and 128‑bit moduli. The estimator has not been run at the level for the
-    Pallas modulus, whose table is extrapolated from the 147‑bit one, by a rule that reproduces the
-    other two moduli's widths at the level closely;</li>
-    <li><!--claim:level3_plan_below_line:620853-->the opening's bytes and their growth with the
-    witness are planned: Akita's planner was run at a 165‑bit floor with the level's compression
-    chain. The plan is below the line through the 128‑ and 147‑bit plans. Summed over the group
-    counts, the 128‑bit field's opening is <!--fig:level3_plan_fp128_pct-->1.2<!--/fig-->% larger
-    than at 147 bits where the line gives <!--fig:level3_line_fp128_pct-->11<!--/fig-->%, and
-    Goldilocks's is <!--fig:level3_plan_goldilocks_pct-->6.3<!--/fig-->% larger where the line
-    gives <!--fig:level3_line_goldilocks_pct-->5.5<!--/fig-->%.<!--/claim--> The planner keeps
-    each profile's own challenge field, so the
-    opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are then
-    widened to the level's claim field;</li>
-    <li>the growth of the Module-SIS ranks, which scales the prover's rows term, is computed from
-    the regenerated tables for the catalog's own moduli, a factor
-    of <!--fig:level3_rank_scale_own-->1.31<!--/fig--> over the 128‑bit floor. For the other
-    moduli it is on the line through its 128‑ and 147‑bit values;</li>
-    <li><!--claim:level3_compression_chain_reaches_floor:28ff66-->a commitment's image is compressed
-    to the same 128 bytes by three maps where the shipped chain has two. The shipped maps, with outputs of
+    <li><!--claim:level3_compression_chain_reaches_floor:28ff66-->A commitment's image is compressed
+    to the same 128 bytes by three maps where Akita's chain has two. Akita's maps, with outputs of
     2,048 and then 1,024 bits, stop at <!--fig:compression_shipped_first_bits-->147.3<!--/fig-->
     and <!--fig:compression_shipped_second_bits-->153.2<!--/fig--> bits. By Akita's estimator a chain with outputs
     of <!--fig:compression_level3_first-->2,304<!--/fig-->, <!--fig:compression_level3_second-->1,152<!--/fig-->, and 1,024 bits has at
@@ -1651,34 +1619,88 @@ code { font-family: var(--mono); font-size: 0.92em; }
     dimension 2 and 1 for the 128‑bit modulus. The estimator's tables at the level certify each
     map with <!--fig:compression_level3_spare_min_pct-->15<!--/fig-->%
     to <!--fig:compression_level3_spare_max_pct-->27<!--/fig-->% of input width to
-    spare.<!--/claim--> The chain is in the planner only: the prover and the verifier are not
-    adapted to it;</li>
-    <li>a claim is in a challenge field of 192 bits or more, where the 128‑bit field and
-    Goldilocks's quadratic extension leave a sum-check far short of the level, and the sum-checks'
-    prover is scaled by the field products of a multiplication there; and</li>
-    <li><!--claim:level3_challenge_weight_small_effect:04a991-->the fold's ternary challenge has
+    spare.<!--/claim--> The chain exists in the planner only: the prover and the verifier are not
+    adapted to it.</li>
+    <li><!--claim:level3_claim_field_reaches_level:d8c1c0-->A claim is in a larger challenge field.
+    A sum-check's error is a small multiple of its number of variables over the field's size. For
+    Kishu's claim reduction over a field $E$ in $m$ variables it is at most $(4m+1)/|E|$, with
+    $m \le 31$, a numerator of at most <!--fig:level3_claim_numerator-->125<!--/fig-->
+    (<span class="noteref" data-note="kishu-soundness" data-section="3">Theorem B</span>). So the
+    level needs a field of about <!--fig:level3_claim_bits_needed-->172<!--/fig--> bits, not 165.
+    The 128‑bit field and Goldilocks's quadratic extension, each of 128 bits, give an error of
+    about $2^{-<!--fig:level3_claim_error_128-->121<!--/fig-->}$. So the 128‑bit field's claims
+    move to its quadratic extension, of 256 bits, and the 64‑bit fields' to their cubic extension,
+    of 192 bits, where the error is about
+    $2^{-<!--fig:level3_claim_error_cubic-->185<!--/fig-->}$.<!--/claim--> The errors of Akita's own
+    sum-checks at the level have not been worked out here, and are taken to be of the same form.
+    The sum-checks' prover is scaled by the field products of a multiplication in the larger
+    field.</li>
+    <li><!--claim:level3_challenge_weight_small_effect:04a991-->The fold's ternary challenge has
     weight <!--fig:level3_challenge_weight-->25<!--/fig-->, for $2^{165}$ challenges in degree 512,
     where the catalog's weight <!--fig:challenge_weight-->20<!--/fig-->
-    gives <!--fig:challenge_space-->$2^{138}$<!--/fig-->, which raises the bound that the
+    gives <!--fig:challenge_space-->$2^{138}$<!--/fig-->. That raises the bound that the
     accumulation matrix is certified at
     by <!--fig:level3_challenge_bound_bits-->0.64<!--/fig--> bits.<!--/claim--></li>
+    <li><!--claim:level3_transcript_hash_requirement:7a0d3a-->The transcript's hash is a choice,
+    which the control offers: BLAKE3 or SHA3-384. No attack on a 256‑bit transcript hash is known
+    at the level. But the security proofs for Fiat–Shamir over a chained or sponge hash lose a
+    term of about $T^2/2^c$ for work $T$ and a state of $c$ bits. The level allows work $T$ a
+    success probability of $T/2^{165}$, so a proof at the level needs a state
+    of <!--fig:level3_state_bits_needed-->330<!--/fig--> bits. BLAKE3's chaining value is 256
+    bits, which gives a proof only up to $2^{<!--fig:level3_blake3_provable_work-->91<!--/fig-->}$
+    work. SHA3-384's capacity is 768 bits.<!--/claim--></li>
   </ul>
-  <p><!--claim:level3_lattice_rows_dearer:86455d-->At rank 16 with zero knowledge, Akita over
-  Goldilocks then takes <!--fig:level3_goldilocks_16_circuits-->90<!--/fig--> circuits
-  against <!--fig:goldilocks_16_zk_circuits-->57<!--/fig--> at 147
+  <p>Nothing at the level is measured. Its rows are obtained as follows:</p>
+  <ul>
+    <li><!--claim:level3_plan_below_line:620853-->The opening's bytes and their growth with the
+    witness are planned: Akita's planner was run at a 165‑bit floor with the three-map chain. The
+    plan is below the line through the 128‑ and 147‑bit plans. Summed over the group counts, the
+    128‑bit field's opening is <!--fig:level3_plan_fp128_pct-->1.2<!--/fig-->% larger than at 147
+    bits where the line gives <!--fig:level3_line_fp128_pct-->11<!--/fig-->%, and Goldilocks's
+    is <!--fig:level3_plan_goldilocks_pct-->6.3<!--/fig-->% larger where the line
+    gives <!--fig:level3_line_goldilocks_pct-->5.5<!--/fig-->%.<!--/claim--> The planner keeps
+    each profile's own challenge field, so the
+    opening's <!--fig:opening_challenge_atoms-->687<!--/fig--> challenge-field elements are then
+    widened to the level's.</li>
+    <li>The accumulation matrix is looked up in the estimator's width table, regenerated at 165
+    bits, for the 64‑bit and 128‑bit moduli. The estimator has not been run at the level for the
+    Pallas modulus, whose table is extrapolated from the 147‑bit one, by a rule that reproduces the
+    other two moduli's widths at the level closely.</li>
+    <li>The growth of the Module-SIS ranks, which scales the prover's rows term, is computed from
+    the regenerated tables for the catalog's own moduli, a factor
+    of <!--fig:level3_rank_scale_own-->1.31<!--/fig--> over the 128‑bit floor. For the other
+    moduli it is on the line through its 128‑ and 147‑bit values.</li>
+    <li>The rest of a row is derived from its 147‑bit row, with the four changes above.</li>
+  </ul>
+  <p><!--claim:level3_lattice_rows_dearer:f9c020-->With a BLAKE3 transcript and zero knowledge,
+  Akita over Goldilocks in circuits of $2^{16}$ gates takes a step
+  of <!--fig:level3_goldilocks_16_step-->1.41 × 2^22<!--/fig--> gates
+  against <!--fig:goldilocks_16_zk_step-->1.78 × 2^21<!--/fig--> at 147
   bits, <!--fig:level3_goldilocks_16_accumulation_x-->2.6<!--/fig--> times the accumulation prover,
-  and <!--fig:level3_goldilocks_16_bytes_pct-->17<!--/fig-->% more bytes.</p>
-  <p>Kishu's claims move to the cubic extension of its 64‑bit field, where a multiplication is six
-  field products with three values of output. With zero knowledge its merge
-  is <!--fig:level3_kishu_merge_digits_m-->1.7<!--/fig--> million digits, against <!--fig:kishu_merge_digits_m-->1.3<!--/fig-->
-  million at 147 bits, so its shortest step is <!--fig:level3_kishu_shortest_step-->1.125 × 2^21<!--/fig--> digits
+  and <!--fig:level3_goldilocks_16_bytes_pct-->17<!--/fig-->% more bytes. Kishu's merge with zero
+  knowledge is <!--fig:level3_kishu_merge_digits_m-->1.7<!--/fig--> million digits,
+  against <!--fig:kishu_merge_digits_m-->1.3<!--/fig--> million at 147 bits, so its shortest step
+  is <!--fig:level3_kishu_shortest_step-->1.125 × 2^21<!--/fig--> digits
   against <!--fig:kishu_shortest_step-->1.625 × 2^20<!--/fig-->. The merge's commitments
   are <!--fig:level3_kishu_prover_pct-->94<!--/fig-->% dearer and the
-  proof <!--fig:level3_kishu_bytes_pct-->15<!--/fig-->% larger.<!--/claim--> Its sum-checks'
+  proof <!--fig:level3_kishu_bytes_pct-->15<!--/fig-->% larger.<!--/claim--> In Kishu's cubic
+  extension a multiplication is six field products with three values of output. Its sum-checks'
   prover, measured in the quadratic extension, is taken at twice that rate, for the six field
-  products of a multiplication against three.</p>
-  <p>The hash-based families have no row at the level, because none would be
-  practical. <!--claim:level3_hash_based_impractical:00d6f0-->A tree node under SHA3-384 is a Keccak
+  products against three.</p>
+  <p>With a SHA3-384 transcript the step that holds Akita's merge is
+  of <!--fig:level3_sha3_384_akita_step_min-->1.25 × 2^25<!--/fig-->
+  to <!--fig:level3_sha3_384_akita_step_max-->1.03 × 2^27<!--/fig--> gates, over its five
+  variants. <!--claim:level3_sha3_384_kishu_dearer:062405-->Kishu's merge with zero
+  knowledge is then <!--fig:level3_sha3_384_kishu_merge_digits_m-->7.6<!--/fig--> million digits,
+  so its shortest step is <!--fig:level3_sha3_384_kishu_shortest_step-->1.25 × 2^23<!--/fig-->
+  digits, and the merge's commitments
+  are <!--fig:level3_sha3_384_kishu_prover_x-->9.1<!--/fig--> times the 147‑bit
+  ones.<!--/claim--></p>
+  <p>The hash-based families have no row at the level. A Merkle tree's binding needs a digest of
+  twice the level's bits, as a transcript needs a state: a collision search of work $T$ succeeds
+  with about $T^2/2^n$ for $n$ bits of output. So their trees would hash with SHA3-384, whose
+  output is 384 bits; BLAKE3's longer outputs have 256‑bit bottlenecks
+  inside. <!--claim:level3_hash_based_impractical:df76fb-->A tree node under SHA3-384 is a Keccak
   permutation, <!--fig:keccak_over_blake3_gates-->6.2<!--/fig--> times BLAKE3's gates in a prime
   field, and the openings grow with the level. So WHIR over Pasta at rate 1/8 and rank 16 would
   need <!--fig:level3_whir_16_circuits-->38,525<!--/fig--> circuits
