@@ -5996,7 +5996,8 @@ def define_figures():
     nodes = zoodles_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)
     fig("zoodles_nodes", len(nodes))
     fig("tachyon_tree_nodes", len(tachyon_nodes(ZOODLES_INPUTS, ZOODLES_OUTPUTS)) - 2)
-    fig("zoodles_signing_keys", ZOODLES_SIGNING_KEYS)
+    # In words, as the sentence that carries it reads.
+    fig("zoodles_signing_keys", {1: "one", 2: "two"}[ZOODLES_SIGNING_KEYS])
     fig("zoodles_blake3", sum(ZOODLES_NODES[n][0] for n in nodes))
     fig("zoodles_roots", sum(ZOODLES_NODES[n][1] for n in nodes))
     fig("zoodles_openings", sum(ZOODLES_NODES[n][2] for n in nodes))
