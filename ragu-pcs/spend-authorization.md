@@ -38,7 +38,7 @@ it proves anyway. The leanSPHINCS signature is feasible on a wider range of devi
 is hashing alone and the signature is a few kilobytes. So it reaches an airgapped wallet on a QR
 channel or a secure element. It may also be compatible with Ethereum's post-quantum signature,
 depending on the details of what Ethereum chooses. A third method, a signature whose verification is
-built for the circuit, is analysed on the CAPSS page.
+built for the circuit, is analysed on the [CAPSS](auth-capss.md) page.
 
 ## Signing multiple inputs at once
 
