@@ -5527,3 +5527,93 @@ converges at no rank below the grid's highest.
 
 "Illustrative" remains in code comments (the model, the page's script, three scripts), unseen
 by readers.
+
+## 2026-11-27, 17:00 UTC: what a floor means, and the level's inputs checked
+
+A long review pass with the user, after the level's section was rewritten. All of it is committed
+on `security-192`, none of it pushed, and PR #9's description does not cover it.
+
+**Naming and presentation** (the user's rulings):
+
+- "Step rank" for the logarithm of a step's length, `step_rank` in code; "module rank" for a
+  matrix's or a map's, `MODULE_RANK_…` in code. A third sense stays "rank": the zk note's rank nd,
+  a count of field elements (its 143 and 340). `MASK_RANK` is a factor on that one.
+- A step length in the prose is math, a mantissa in [1, 2) times a power of two (`tex_step`).
+- A figure and its unit are joined by a no-break space, U+00A0, written as an escape in code.
+  `scripts/nbsp-units.py --write` puts them in, and the book build runs its `--check`.
+- A figure marker never sits inside a math span. The model now fails on one (`marker_in_math`);
+  three had slipped in and rendered literally.
+- Dibits stay (the user: cheap to implement; ze had only hoped for a conceptual simplification).
+  They are used for a word's remainder and for the wallet's mask elements at 147 bits.
+
+**What a floor covers.** A proof's soundness has two parts. The lattice assumption binds the
+commitment, and the floor sizes that. The chance that a challenge lets a false claim pass is a
+count over the challenge's field or set, multiplied by the attacker's hash queries; no lattice
+estimate enters it. Akita holds that second part to 128 bits by a proof of work before each
+challenge whose error would exceed 2^-128 (`TRANSCRIPT_SECURITY_BITS` in its akita-params), and
+the patches for 147 and 165 bits LEAVE THAT AT 128. The user's reading, which the page now
+states where the floor is defined: the 147-bit floor is 128 bits with the lattice part held to a
+more conservative cost model, not 147 bits throughout. Kishu's own claim reduction, at about
+2^-121 an attempt in its 128-bit field, needs no proof of work for 7 bits, since an attempt
+costs more than 2^7 operations (the user). Grover-type search is left out of this (the user:
+Grover is infeasible for this search space and number of targets).
+
+**What the Level 3 standards do for the same part** (read from the Kyber and Dilithium round-3
+specifications and FIPS 203 and 204): ML-KEM-768's bound has a term 4 q δ with decryption
+failure δ = 2^-164.8, so 162.8 bits, and its authors say that this term need not decrease with
+the security parameter, only stay under 2^-128 with margin. ML-DSA-65's challenge space has 225
+bits; its commitment hash is 384 bits for 192 bits of collision strength. So 162.8 bits is an
+upper bound on what the level's transcript needs to match ML-KEM-768, and hashes at the level
+are sized at twice the level, which is the page's case for SHA3-384.
+
+**The level's inputs, checked one by one.** Three had been read off another floor's data:
+
+- The claim field: not "192 bits or more", and not 165 either. The error is (4m+1)/|E| for
+  Kishu's claim reduction, so about 172 bits are needed for 165; the cubic extension gives 2^-185.
+- The transcript hash's bound was computed for a 192-bit level (2^64 work); at 165 bits a
+  256-bit state gives a proof up to 2^91 work.
+- The wallet's hiding padding at the level was sized from a sweep at 1,024 rows, but the
+  wallet's matrix there has 2,048 rows at every digit width. Swept at 2,048 rows it is 768
+  bytes (165.9 quantum bits; 767 bytes is the least; the user chose 768). No plotted row used it.
+- The opening's challenge-field elements were the 128-bit schedule's 687; the level's plan has
+  976. With them widened Kishu's proof is 18% larger than at 147 bits and Akita over
+  Goldilocks's 20%.
+- Kishu's Booleanity check by projection (error 2^-136) had rows at the level; removed there.
+
+A claim, `level3_sources`, now checks where each input comes from.
+
+**Costs, simulated in the model, not benchmarked** (probes under work/):
+
+- The lattice floor alone, 147 to 165 with the three-map chain and the 128-bit claim field
+  kept: no change to a Kishu prover with zero knowledge or to the mask's preparation, +4.8% a
+  digit without zero knowledge, +6% proof bytes, +4% verifier. The masked matrix is already
+  module rank 2 at degree 1,024 at 147 bits, which the 165-bit tables still certify.
+- The claim field alone, 128 to 192 bits at the 147-bit floor: recovery +9.8%, Zoodles by
+  leanSPHINCS +18%, Zoodles by preimage +38%. With the sum-checks at 1.5 times (base times
+  extension) in place of twice: +4.9%, +13%, +35%; with no sum-check penalty: 0, +7%, +32%.
+  What remains is the merge, a third larger in every case, since each transcript element is
+  three 64-bit values where it was two. Toom-3 in the circuit changes nothing visible.
+- Grinding as the other lever, measured with Akita's planner in the 147-bit worktree: raising
+  the transcript target from 128 to 140 bits costs at most 0.6 kbytes of nonces; 144 and 147
+  fail on Akita's cap of 25 bits a proof of work. So grinding reaches about 140 bits, and
+  anything above needs the larger field, which overshoots to about 185.
+- NOT costed at either floor: the opening's prover; computing the compression maps; applying
+  the fold challenge.
+
+So for Kishu the two levels differ mostly by the claim field, and the lattice floor is the
+cheap part. The chain allows a floor of 170 bits (its weakest map has 170.66), as the shipped
+chain allows 147; the page states the level as 165 and notes that it could be re-planned at 170.
+
+**TO DISCUSS with the user, not decided:** the page's controls. The lattice floor and the
+transcript level are separate choices with very different costs, and the level bundles them.
+The user wants to think about it: separate controls for the lattice-based and hash-based
+families' security were already intended, and the design has to fit with that.
+
+Also added: tables in the hardware-wallets note of the padding at each floor with the handoff
+it gives, and of the pruned leanSPHINCS key by kept-subtree height. Its lifetimes are the table
+of proved lifetimes in the local sphincs.art checkout (8157875); key generation is in BLAKE2s
+compressions from that checkout's cost script (`scripts/leansphincs-keygen.py`), 7% more than the
+226 * 2^b + 2 (h - b) hash calls, since a one-time leaf's hash is several compressions; and a
+grinding attempt is one compression with every hash, by the source (the user had suspected so).
+Upstream's main has since moved (its BLAKE2s verifier at height 26 is 299 compressions where the
+pinned checkout proves 298); the page's figures are the pinned checkout's.
