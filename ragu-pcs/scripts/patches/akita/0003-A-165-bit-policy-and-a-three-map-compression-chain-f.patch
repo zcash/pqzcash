@@ -1,0 +1,1054 @@
+From 2947b89bf2be3d25eb0486266b443b440c12ba44 Mon Sep 17 00:00:00 2001
+From: Daira-Emma Hopwood <daira@jacaranda.org>
+Date: Fri, 27 Nov 2026 04:35:06 +0000
+Subject: [PATCH] A 165-bit policy and a three-map compression chain, for
+ planning
+
+The single policy is the ADPS16-quantum gate at 165 bits, the level of
+ML-KEM-768 and ML-DSA-65. The rank-one compression maps certify at
+147.3 and 153.2 bits, so the chain becomes three maps with images of
+2,304, 1,152, and 1,024 bits: rank 9 over a ring a quarter of the
+terminal map's dimension, rank 9 over one an eighth of it, and rank 1
+at the terminal dimension. The terminal payload stays 128 bytes.
+
+This is for planning only. The parameters and the planner count a map's
+relation rows and quotient rows by its rank. The rows of one map share a
+family identity, the dispatch table has no arm for the small ring
+dimensions, and the prover and the verifier are not adapted.
+
+The compression cells hold the widths that an 8 KiB source needs. The
+width tables are not regenerated here, only renamed for the policy: both
+are to be regenerated at the floor, and the cells re-sized from them.
+
+Tests of akita-params that fail at this commit: the dispatch arms for
+the compression ladder; the witness tail's pinned length; and three that
+pin table contents (two rank boundaries and the artifact digest).
+
+Co-Authored-By: Claude Mythos 5.2 <noreply@anthropic.com>
+---
+ crates/akita-params/src/compression.rs        |  80 ++++++++++----
+ crates/akita-params/src/compression/chain.rs  |  21 ++--
+ .../src/layout/digit_range/internal_tests.rs  |   2 +-
+ crates/akita-params/src/layout/params.rs      |   2 +-
+ .../akita-params/src/layout/relation_rows.rs  |  25 +++--
+ .../src/layout/setup_prefix_slots.rs          |   2 +-
+ crates/akita-params/src/lib.rs                |   3 +-
+ .../akita-params/src/sis/ajtai_key/table.rs   |  12 +--
+ crates/akita-params/src/sis/compression.rs    |  80 ++++++++------
+ .../src/sis/generated_sis_table/mod.rs        |   4 +-
+ .../src/sis/generated_sis_table/q128.rs       |   2 +-
+ .../src/sis/generated_sis_table/q32.rs        |   2 +-
+ .../src/sis/generated_sis_table/q64.rs        |   2 +-
+ crates/akita-params/src/witness/tail.rs       | 100 ++++++++++--------
+ crates/akita-schedules/src/audit.rs           |   2 +-
+ crates/akita-schedules/src/candidate.rs       |   4 +-
+ .../examples/euclidean_width_table.rs         |   2 +-
+ .../examples/infinity_width_table.rs          |   6 +-
+ crates/akita-sis-estimator/src/config.rs      |  18 ++--
+ .../src/euclidean_width_table.rs              |   2 +-
+ crates/akita-sis-estimator/src/width_table.rs |   8 +-
+ .../src/width_table/tests.rs                  |   2 +-
+ .../tests/security_policy_models.rs           |   2 +-
+ crates/akita-types/src/proof/stage1.rs        |   4 +-
+ 24 files changed, 227 insertions(+), 160 deletions(-)
+
+diff --git a/crates/akita-params/src/compression.rs b/crates/akita-params/src/compression.rs
+index 9d1c17d..63c9057 100644
+--- a/crates/akita-params/src/compression.rs
++++ b/crates/akita-params/src/compression.rs
+@@ -21,7 +21,18 @@ pub const MAX_COMPRESSION_INPUT_BYTES: usize = 8 * 1024;
+ pub const COMPRESSION_TARGET_BYTES: usize = 128;
+ 
+ /// Exact number of maps in every compression chain.
+-pub const COMPRESSION_MAP_COUNT: usize = 2;
++pub const COMPRESSION_MAP_COUNT: usize = 3;
++
++/// Output module rank of each map in the chain, the same for every profile.
++///
++/// The chain's images are 2,304, then 1,152, then 1,024 bits. The first two
++/// are nine ring elements each, over a ring a quarter and an eighth of the
++/// terminal map's dimension; the terminal image is one ring element.
++pub const COMPRESSION_MAP_RANKS: [usize; COMPRESSION_MAP_COUNT] = [9, 9, 1];
++
++/// Relation rows of one compression chain: one row for each output ring
++/// element of each map.
++pub const COMPRESSION_RELATION_ROWS_PER_CHAIN: usize = 19;
+ 
+ /// Schedule-bound encoding of one fold level's public B/D images.
+ #[derive(
+@@ -223,17 +234,18 @@ impl CompressionPolicyId {
+ pub const COMPRESSION_POLICY: CompressionPolicyId =
+     CompressionPolicyId::NegativeBinaryTwoMapExactMonotoneCutover8KiBV3;
+ 
+-/// The two compression-only ring dimensions for one modulus profile.
++/// The three compression-only ring dimensions for one modulus profile, in map
++/// order, paired with [`COMPRESSION_MAP_RANKS`].
+ ///
+-/// These dimensions are not A/B/D commitment-matrix dimensions. In
+-/// particular, the q128 ladder deliberately uses D=16 and D=8 while every
++/// These dimensions are not A/B/D commitment-matrix dimensions. The q128
++/// chain is rank 9 at D=2, rank 9 at D=1, and rank 1 at D=8, while every
+ /// commitment matrix is admitted only at D>=64.
+ #[must_use]
+-pub const fn compression_ring_dimensions(profile: SisModulusProfileId) -> [usize; 2] {
++pub const fn compression_ring_dimensions(profile: SisModulusProfileId) -> [usize; 3] {
+     match profile {
+-        SisModulusProfileId::Q128OffsetA7F7 => [16, 8],
+-        SisModulusProfileId::Q64Offset59 => [32, 16],
+-        SisModulusProfileId::Q32Offset99 => [64, 32],
++        SisModulusProfileId::Q128OffsetA7F7 => [2, 1, 8],
++        SisModulusProfileId::Q64Offset59 => [4, 2, 16],
++        SisModulusProfileId::Q32Offset99 => [8, 4, 32],
+     }
+ }
+ 
+@@ -272,10 +284,10 @@ impl CompressionMapPlan {
+                 "compression map input must be nonempty".into(),
+             ));
+         }
+-        if output_rank != 1 {
+-            return Err(AkitaError::InvalidSetup(format!(
+-                "compression map must be rank one, got rank {output_rank}"
+-            )));
++        if output_rank == 0 {
++            return Err(AkitaError::InvalidSetup(
++                "compression map rank must be nonzero".into(),
++            ));
+         }
+         if !compression_ring_dimensions(modulus_profile).contains(&ring_dimension) {
+             return Err(AkitaError::InvalidSetup(format!(
+@@ -686,9 +698,9 @@ mod tests {
+     #[test]
+     fn ladder_geometry_and_complete_image_bound_are_checked() {
+         for (profile, field_bytes, dimensions) in [
+-            (SisModulusProfileId::Q128OffsetA7F7, 16, [16, 8]),
+-            (SisModulusProfileId::Q64Offset59, 8, [32, 16]),
+-            (SisModulusProfileId::Q32Offset99, 4, [64, 32]),
++            (SisModulusProfileId::Q128OffsetA7F7, 16, [2, 1, 8]),
++            (SisModulusProfileId::Q64Offset59, 8, [4, 2, 16]),
++            (SisModulusProfileId::Q32Offset99, 4, [8, 4, 32]),
+         ] {
+             let plan = CompressionChainPlan::for_complete_source(
+                 profile,
+@@ -716,6 +728,20 @@ mod tests {
+                     .collect::<Vec<_>>(),
+                 dimensions
+             );
++            assert_eq!(
++                plan.maps()
++                    .iter()
++                    .map(|map| map.output_rank())
++                    .collect::<Vec<_>>(),
++                COMPRESSION_MAP_RANKS
++            );
++            assert_eq!(
++                plan.maps()
++                    .iter()
++                    .map(|map| map.output_rank())
++                    .sum::<usize>(),
++                COMPRESSION_RELATION_ROWS_PER_CHAIN
++            );
+             assert_eq!(plan.policy(), COMPRESSION_POLICY);
+             assert_eq!(plan.source_bytes(), MAX_COMPRESSION_INPUT_BYTES);
+             assert_eq!(plan.terminal_coefficients() * field_bytes, 128);
+@@ -724,14 +750,14 @@ mod tests {
+                 CompressionChainPlan::new(
+                     profile,
+                     plan.source_coefficients(),
+-                    [plan.maps()[0], plan.maps()[1]],
++                    [plan.maps()[0], plan.maps()[1], plan.maps()[2]],
+                 )
+                 .unwrap(),
+                 "canonical derivation must match checked reconstruction",
+             );
+             assert_eq!(
+                 plan.max_setup_field_elements().unwrap(),
+-                plan.maps()[0].padded_digit_count()
++                plan.maps()[0].output_rank() * plan.maps()[0].padded_digit_count()
+             );
+             assert!(CompressionChainPlan::try_for_complete_source(
+                 profile,
+@@ -777,11 +803,21 @@ mod tests {
+         assert!(CompressionMapPlan::new(profile, 64, 32, 1).is_err());
+ 
+         let plan = CompressionChainPlan::for_complete_source(profile, 64).unwrap();
+-        let wrong_continuation =
+-            CompressionMapPlan::new(profile, 15, plan.maps()[1].ring_dimension(), 1).unwrap();
+-        assert!(
+-            CompressionChainPlan::new(profile, 64, [plan.maps()[0], wrong_continuation]).is_err()
+-        );
++        let wrong_continuation = CompressionMapPlan::new(
++            profile,
++            15,
++            plan.maps()[1].ring_dimension(),
++            plan.maps()[1].output_rank(),
++        )
++        .unwrap();
++        assert!(CompressionChainPlan::new(
++            profile,
++            64,
++            [plan.maps()[0], wrong_continuation, plan.maps()[2]]
++        )
++        .is_err());
++        // A map's rank is fixed by its cell.
++        assert!(CompressionMapPlan::new(profile, 15, plan.maps()[1].ring_dimension(), 1).is_err());
+         assert!(CompressionChainWitness::new(plan.clone(), Vec::new()).is_err());
+         assert!(CompressionTerminalPayload::<Prime128OffsetA7F7>::new(
+             plan.clone(),
+diff --git a/crates/akita-params/src/compression/chain.rs b/crates/akita-params/src/compression/chain.rs
+index 7ece3b3..8f0b47b 100644
+--- a/crates/akita-params/src/compression/chain.rs
++++ b/crates/akita-params/src/compression/chain.rs
+@@ -70,7 +70,6 @@ impl CompressionChainPlan {
+             )));
+         }
+         let mut expected_input = source_coefficients;
+-        let mut previous_dimension: Option<usize> = None;
+         for map in &maps {
+             if map.modulus_profile() != modulus_profile {
+                 return Err(AkitaError::InvalidSetup(
+@@ -82,15 +81,7 @@ impl CompressionChainPlan {
+                     "compression map input does not continue the preceding image".into(),
+                 ));
+             }
+-            if let Some(previous) = previous_dimension {
+-                if previous.checked_div(2) != Some(map.ring_dimension()) {
+-                    return Err(AkitaError::InvalidSetup(
+-                        "compression ring dimensions must halve at each map".into(),
+-                    ));
+-                }
+-            }
+             expected_input = map.output_coefficients();
+-            previous_dimension = Some(map.ring_dimension());
+         }
+         let terminal_bytes = expected_input.checked_mul(field_bytes).ok_or_else(|| {
+             AkitaError::InvalidSetup("compression terminal byte length overflow".into())
+@@ -170,20 +161,24 @@ impl CompressionChainPlan {
+                     "compression chain exceeded {COMPRESSION_MAP_COUNT} maps"
+                 )));
+             }
+-            let map =
+-                CompressionMapPlan::new(modulus_profile, input_coefficients, ring_dimension, 1)?;
++            let map = CompressionMapPlan::new(
++                modulus_profile,
++                input_coefficients,
++                ring_dimension,
++                COMPRESSION_MAP_RANKS[map_count],
++            )?;
+             input_coefficients = map.output_coefficients();
+             let output_bytes = input_coefficients.checked_mul(field_bytes).ok_or_else(|| {
+                 AkitaError::InvalidSetup("compression output byte length overflow".into())
+             })?;
+             maps[map_count] = Some(map);
+             if output_bytes == COMPRESSION_TARGET_BYTES {
+-                let [Some(first), Some(second)] = maps else {
++                let [Some(first), Some(second), Some(third)] = maps else {
+                     return Err(AkitaError::InvalidSetup(format!(
+                         "compression chain must contain exactly {COMPRESSION_MAP_COUNT} maps"
+                     )));
+                 };
+-                let plan = Self::new(modulus_profile, source_coefficients, [first, second])?;
++                let plan = Self::new(modulus_profile, source_coefficients, [first, second, third])?;
+                 let _ = cache.set(plan.clone());
+                 return Ok(Some(plan));
+             }
+diff --git a/crates/akita-params/src/layout/digit_range/internal_tests.rs b/crates/akita-params/src/layout/digit_range/internal_tests.rs
+index 5b7d136..5842a1e 100644
+--- a/crates/akita-params/src/layout/digit_range/internal_tests.rs
++++ b/crates/akita-params/src/layout/digit_range/internal_tests.rs
+@@ -7,7 +7,7 @@ use crate::sis::{
+ #[test]
+ fn compact_route_shape_matches_materialized_shapes_and_rejects_bad_norms() {
+     let key = SisL2TableKey {
+-        policy: SisSecurityPolicyId::Quantum147BitADPS16,
++        policy: SisSecurityPolicyId::Quantum165BitADPS16,
+         table_digest: SisL2TableDigest::CURRENT,
+         modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+         ring_dimension: 64,
+diff --git a/crates/akita-params/src/layout/params.rs b/crates/akita-params/src/layout/params.rs
+index a5b0020..5d3a4df 100644
+--- a/crates/akita-params/src/layout/params.rs
++++ b/crates/akita-params/src/layout/params.rs
+@@ -26,7 +26,7 @@ fn compression_relation_row_count(
+ ) -> Result<usize, AkitaError> {
+     let compression_rows = num_commitments
+         .checked_add(1)
+-        .and_then(|chains| chains.checked_mul(crate::COMPRESSION_MAP_COUNT))
++        .and_then(|chains| chains.checked_mul(crate::COMPRESSION_RELATION_ROWS_PER_CHAIN))
+         .ok_or_else(CommittedGroupParams::relation_matrix_row_overflow)?;
+     base_rows
+         .checked_add(compression_rows)
+diff --git a/crates/akita-params/src/layout/relation_rows.rs b/crates/akita-params/src/layout/relation_rows.rs
+index 4b6daf6..bb8429d 100644
+--- a/crates/akita-params/src/layout/relation_rows.rs
++++ b/crates/akita-params/src/layout/relation_rows.rs
+@@ -30,10 +30,12 @@ enum RelationRowRun {
+     CompressionF {
+         group_index: usize,
+         map_index: usize,
++        count: usize,
+         geometry: RelationRowGeometry,
+     },
+     CompressionH {
+         map_index: usize,
++        count: usize,
+         geometry: RelationRowGeometry,
+     },
+ }
+@@ -99,22 +101,27 @@ impl RelationRowRun {
+             Self::Opening { count, geometry } => {
+                 rows.extend((0..count).map(|row| RelationRowFamily::Opening { row, geometry }));
+             }
++            // One row for each output ring element of the map. The rows of a map
++            // share one family identity: sizing counts them, and nothing here
++            // tells them apart.
+             Self::CompressionF {
+                 group_index,
+                 map_index,
++                count,
+                 geometry,
+-            } => rows.push(RelationRowFamily::CompressionF {
++            } => rows.extend((0..count).map(|_| RelationRowFamily::CompressionF {
+                 group_index,
+                 map_index,
+                 geometry,
+-            }),
++            })),
+             Self::CompressionH {
+                 map_index,
++                count,
+                 geometry,
+-            } => rows.push(RelationRowFamily::CompressionH {
++            } => rows.extend((0..count).map(|_| RelationRowFamily::CompressionH {
+                 map_index,
+                 geometry,
+-            }),
++            })),
+         }
+     }
+ }
+@@ -177,6 +184,7 @@ impl RelationRhsLayout {
+                     visit(RelationRowRun::CompressionF {
+                         group_index,
+                         map_index,
++                        count: plan.maps()[map_index].output_rank(),
+                         geometry,
+                     });
+                 }
+@@ -185,6 +193,7 @@ impl RelationRhsLayout {
+                 )?;
+                 visit(RelationRowRun::CompressionH {
+                     map_index,
++                    count: compression.opening_plan.maps()[map_index].output_rank(),
+                     geometry,
+                 });
+             }
+@@ -434,12 +443,14 @@ mod tests {
+         .into_iter()
+         .map(str::to_owned)
+         .collect::<Vec<_>>();
+-        for map_index in 0..crate::COMPRESSION_MAP_COUNT {
+-            expected.extend([
++        for (map_index, rank) in crate::COMPRESSION_MAP_RANKS.into_iter().enumerate() {
++            for name in [
+                 format!("F{map_index}:0"),
+                 format!("F{map_index}:1"),
+                 format!("H{map_index}"),
+-            ]);
++            ] {
++                expected.extend(std::iter::repeat_n(name, rank));
++            }
+         }
+         assert_eq!(actual, expected);
+     }
+diff --git a/crates/akita-params/src/layout/setup_prefix_slots.rs b/crates/akita-params/src/layout/setup_prefix_slots.rs
+index af18d72..d10b51e 100644
+--- a/crates/akita-params/src/layout/setup_prefix_slots.rs
++++ b/crates/akita-params/src/layout/setup_prefix_slots.rs
+@@ -611,7 +611,7 @@ mod tests {
+ 
+     #[test]
+     fn setup_prefix_policy_wire_tag_tracks_policy_identity() {
+-        let policy = SisSecurityPolicyId::Quantum147BitADPS16;
++        let policy = SisSecurityPolicyId::Quantum165BitADPS16;
+         let mut wire = Vec::new();
+         serialize_sis_security_policy(policy, &mut wire).expect("serialize SIS security policy");
+         assert_eq!(wire, vec![1]);
+diff --git a/crates/akita-params/src/lib.rs b/crates/akita-params/src/lib.rs
+index 202949a..68b9bcb 100644
+--- a/crates/akita-params/src/lib.rs
++++ b/crates/akita-params/src/lib.rs
+@@ -29,7 +29,8 @@ pub use commitment_slicing::{CommitmentSliceCount, CommitmentSliceGeometry};
+ pub use compression::{
+     compression_ring_dimensions, CommitmentPayloadGeometry, CommitmentPayloadMode,
+     CommitmentPayloadPhase, CompressionChainPlan, CompressionChainWitness, CompressionMapPlan,
+-    CompressionPolicyId, CompressionTerminalPayload, PackedNegativeBinary, COMPRESSION_MAP_COUNT,
++    CompressionPolicyId, CompressionTerminalPayload, PackedNegativeBinary, COMPRESSION_MAP_COUNT, COMPRESSION_MAP_RANKS,
++    COMPRESSION_RELATION_ROWS_PER_CHAIN,
+     COMPRESSION_POLICY, COMPRESSION_TARGET_BYTES, MAX_COMPRESSION_INPUT_BYTES,
+ };
+ pub use config::{DecompositionParams, SetupContributionMode};
+diff --git a/crates/akita-params/src/sis/ajtai_key/table.rs b/crates/akita-params/src/sis/ajtai_key/table.rs
+index 10eaa06..e09680e 100644
+--- a/crates/akita-params/src/sis/ajtai_key/table.rs
++++ b/crates/akita-params/src/sis/ajtai_key/table.rs
+@@ -89,28 +89,28 @@ impl SisMatrixRole {
+ pub enum SisSecurityPolicyId {
+     /// Corrected ADPS16 quantum LGSA estimator at a 128-bit target.
+     #[default]
+-    Quantum147BitADPS16,
++    Quantum165BitADPS16,
+ }
+ 
+ impl SisSecurityPolicyId {
+     /// Stable wire/catalog tag for this policy.
+     pub const fn tag(self) -> u8 {
+         match self {
+-            Self::Quantum147BitADPS16 => 1,
++            Self::Quantum165BitADPS16 => 1,
+         }
+     }
+ 
+     /// Descriptive policy name used in diagnostics and generated metadata.
+     pub const fn name(self) -> &'static str {
+         match self {
+-            Self::Quantum147BitADPS16 => "Quantum147BitADPS16",
++            Self::Quantum165BitADPS16 => "Quantum165BitADPS16",
+         }
+     }
+ 
+     /// Parse the stable wire/catalog tag.
+     pub const fn from_tag(tag: u8) -> Option<Self> {
+         match tag {
+-            1 => Some(Self::Quantum147BitADPS16),
++            1 => Some(Self::Quantum165BitADPS16),
+             _ => None,
+         }
+     }
+@@ -122,7 +122,7 @@ mod policy_id_tests {
+ 
+     #[test]
+     fn policy_has_the_unversioned_stable_tag() {
+-        let policy = SisSecurityPolicyId::Quantum147BitADPS16;
++        let policy = SisSecurityPolicyId::Quantum165BitADPS16;
+         assert_eq!(policy.tag(), 1);
+         assert_eq!(SisSecurityPolicyId::from_tag(1), Some(policy));
+         assert_eq!(SisSecurityPolicyId::from_tag(2), None);
+@@ -204,7 +204,7 @@ impl SisModulusProfileId {
+ 
+ /// Default policy used by production presets.
+ pub const DEFAULT_SIS_SECURITY_POLICY: SisSecurityPolicyId =
+-    SisSecurityPolicyId::Quantum147BitADPS16;
++    SisSecurityPolicyId::Quantum165BitADPS16;
+ 
+ /// Policies with checked-in SIS table support.
+ pub const SUPPORTED_SIS_SECURITY_POLICIES: &[SisSecurityPolicyId] = &[DEFAULT_SIS_SECURITY_POLICY];
+diff --git a/crates/akita-params/src/sis/compression.rs b/crates/akita-params/src/sis/compression.rs
+index 2a8bcb6..c7e5551 100644
+--- a/crates/akita-params/src/sis/compression.rs
++++ b/crates/akita-params/src/sis/compression.rs
+@@ -1,8 +1,8 @@
+ //! Narrow SIS coverage for production compressed commitments.
+ //!
+ //! This coverage is deliberately separate from the production A/B/D matrix
+-//! roles and schedule identity. It prices only the six rank-one F/H cells used
+-//! by the fixed two-map protocol.
++//! roles and schedule identity. It prices only the nine F/H cells used by the
++//! fixed three-map protocol.
+ 
+ use super::{SisModulusProfileId, SisSecurityPolicyId};
+ 
+@@ -16,22 +16,27 @@ pub struct CompressionSisCell {
+     pub modulus_profile: SisModulusProfileId,
+     /// Ring dimension.
+     pub ring_dimension: u32,
+-    /// Largest ADPS16-quantum-secure input width at rank one.
++    /// Module rank of the cell's map.
++    pub rank: usize,
++    /// Largest ADPS16-quantum-secure input width at that rank.
+     pub sis_max_width: u64,
+ }
+ 
+-/// Six rank-one cells: `(profile, ring_dimension, sis_max_width)`.
++/// Nine cells: `(profile, ring_dimension, rank, sis_max_width)`.
+ ///
+-/// Sized at the 147-bit floor: each width is the rank-one, coefficient bound 1
+-/// entry of the 147-bit infinity width table for the cell (the shipped 128-bit
+-/// cells are 508, 7_077, 254, 3_538, 127, 1_769).
+-const COMPRESSION_SIS_CELLS: &[(SisModulusProfileId, u32, u64)] = &[
+-    (SisModulusProfileId::Q128OffsetA7F7, 8, 302),
+-    (SisModulusProfileId::Q128OffsetA7F7, 16, 4_138),
+-    (SisModulusProfileId::Q64Offset59, 16, 151),
+-    (SisModulusProfileId::Q64Offset59, 32, 2_069),
+-    (SisModulusProfileId::Q32Offset99, 32, 75),
+-    (SisModulusProfileId::Q32Offset99, 64, 1_034),
++/// Sized at the 165-bit floor: each width is the entry at the cell's rank and
++/// coefficient bound 1 of the 165-bit infinity width table for the cell's
++/// dimension.
++const COMPRESSION_SIS_CELLS: &[(SisModulusProfileId, u32, usize, u64)] = &[
++    (SisModulusProfileId::Q128OffsetA7F7, 2, 9, 32_768),
++    (SisModulusProfileId::Q128OffsetA7F7, 1, 9, 2_304),
++    (SisModulusProfileId::Q128OffsetA7F7, 8, 1, 144),
++    (SisModulusProfileId::Q64Offset59, 4, 9, 16_384),
++    (SisModulusProfileId::Q64Offset59, 2, 9, 1_152),
++    (SisModulusProfileId::Q64Offset59, 16, 1, 72),
++    (SisModulusProfileId::Q32Offset99, 8, 9, 8_192),
++    (SisModulusProfileId::Q32Offset99, 4, 9, 576),
++    (SisModulusProfileId::Q32Offset99, 32, 1, 36),
+ ];
+ 
+ /// Enumerate the exact production compression coverage cells.
+@@ -40,9 +45,10 @@ pub fn compression_sis_cells() -> impl ExactSizeIterator<Item = CompressionSisCe
+         .iter()
+         .copied()
+         .map(
+-            |(modulus_profile, ring_dimension, sis_max_width)| CompressionSisCell {
++            |(modulus_profile, ring_dimension, rank, sis_max_width)| CompressionSisCell {
+                 modulus_profile,
+                 ring_dimension,
++                rank,
+                 sis_max_width,
+             },
+         )
+@@ -61,11 +67,14 @@ pub fn compression_sis_cell(
+     COMPRESSION_SIS_CELLS
+         .iter()
+         .copied()
+-        .find(|&(profile, dimension, _)| profile == modulus_profile && dimension == ring_dimension)
++        .find(|&(profile, dimension, _, _)| {
++            profile == modulus_profile && dimension == ring_dimension
++        })
+         .map(
+-            |(modulus_profile, ring_dimension, sis_max_width)| CompressionSisCell {
++            |(modulus_profile, ring_dimension, rank, sis_max_width)| CompressionSisCell {
+                 modulus_profile,
+                 ring_dimension,
++                rank,
+                 sis_max_width,
+             },
+         )
+@@ -73,7 +82,7 @@ pub fn compression_sis_cell(
+ 
+ /// Minimum ADPS16-quantum-secure module rank for one compression matrix.
+ ///
+-/// The compression protocol is structurally rank one, so this returns `Some(1)`
++/// Each map's rank is fixed by the protocol, so this returns the cell's rank
+ /// iff `width` is nonzero and at most the cell's SIS-certified max width.
+ #[must_use]
+ pub fn min_compression_secure_rank(
+@@ -83,21 +92,24 @@ pub fn min_compression_secure_rank(
+     coeff_linf_bound: u128,
+     width: u64,
+ ) -> Option<usize> {
+-    if policy != SisSecurityPolicyId::Quantum147BitADPS16 {
++    if policy != SisSecurityPolicyId::Quantum165BitADPS16 {
+         return None;
+     }
+     let cell = compression_sis_cell(modulus_profile, ring_dimension, coeff_linf_bound)?;
+-    (width > 0 && width <= cell.sis_max_width).then_some(1)
++    (width > 0 && width <= cell.sis_max_width).then_some(cell.rank)
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     #[test]
+-    fn coverage_is_exactly_the_six_rank_one_compression_cells() {
+-        assert_eq!(COMPRESSION_SIS_CELLS.len(), 6);
+-        for &(profile, d, _) in COMPRESSION_SIS_CELLS {
+-            assert!(compression_sis_cell(profile, d, 1).is_some());
++    fn coverage_is_exactly_the_nine_compression_cells() {
++        assert_eq!(COMPRESSION_SIS_CELLS.len(), 9);
++        for &(profile, d, rank, _) in COMPRESSION_SIS_CELLS {
++            assert_eq!(
++                compression_sis_cell(profile, d, 1).map(|cell| cell.rank),
++                Some(rank)
++            );
+         }
+ 
+         assert!(compression_sis_cell(SisModulusProfileId::Q128OffsetA7F7, 64, 1).is_none());
+@@ -107,35 +119,37 @@ mod tests {
+         assert!(compression_sis_cell(SisModulusProfileId::Q32Offset99, 16, 1).is_none());
+         assert!(compression_sis_cell(SisModulusProfileId::Q32Offset99, 128, 1).is_none());
+         assert!(compression_sis_cell(SisModulusProfileId::Q128OffsetA7F7, 8, 2).is_none());
++        // The widths are regenerated with the tables, so the ranks are what is
++        // pinned here.
+         assert_eq!(
+-            compression_sis_cell(SisModulusProfileId::Q128OffsetA7F7, 16, 1)
++            compression_sis_cell(SisModulusProfileId::Q128OffsetA7F7, 2, 1)
+                 .expect("first q128 map")
+-                .sis_max_width,
+-            7_077
++                .rank,
++            9
+         );
+         assert_eq!(
+             compression_sis_cell(SisModulusProfileId::Q32Offset99, 32, 1)
+                 .expect("terminal q32 map")
+-                .sis_max_width,
+-            127
++                .rank,
++            1
+         );
+     }
+ 
+     #[test]
+     fn every_reachable_width_has_a_rank_in_the_narrow_table() {
+-        for &(profile, d, sis_max_width) in COMPRESSION_SIS_CELLS {
++        for &(profile, d, rank, sis_max_width) in COMPRESSION_SIS_CELLS {
+             assert_eq!(
+                 min_compression_secure_rank(
+-                    SisSecurityPolicyId::Quantum147BitADPS16,
++                    SisSecurityPolicyId::Quantum165BitADPS16,
+                     profile,
+                     d,
+                     1,
+                     sis_max_width
+                 ),
+-                Some(1)
++                Some(rank)
+             );
+             assert!(min_compression_secure_rank(
+-                SisSecurityPolicyId::Quantum147BitADPS16,
++                SisSecurityPolicyId::Quantum165BitADPS16,
+                 profile,
+                 d,
+                 1,
+diff --git a/crates/akita-params/src/sis/generated_sis_table/mod.rs b/crates/akita-params/src/sis/generated_sis_table/mod.rs
+index 38e5aee..b93d42f 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/mod.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/mod.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum147BitADPS16.
++// SIS max-width tables for Quantum165BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+@@ -32,7 +32,7 @@ pub(crate) fn sis_max_widths(
+     d: u32,
+     coeff_linf_bound: u128,
+ ) -> Option<&'static [u64]> {
+-    if policy != SisSecurityPolicyId::Quantum147BitADPS16 {
++    if policy != SisSecurityPolicyId::Quantum165BitADPS16 {
+         return None;
+     }
+     match modulus_profile {
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q128.rs b/crates/akita-params/src/sis/generated_sis_table/q128.rs
+index 1360e0a..fc07101 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q128.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q128.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum147BitADPS16.
++// SIS max-width tables for Quantum165BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q32.rs b/crates/akita-params/src/sis/generated_sis_table/q32.rs
+index 0cbba39..acc305f 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q32.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q32.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum147BitADPS16.
++// SIS max-width tables for Quantum165BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-params/src/sis/generated_sis_table/q64.rs b/crates/akita-params/src/sis/generated_sis_table/q64.rs
+index f400540..3d51e4d 100644
+--- a/crates/akita-params/src/sis/generated_sis_table/q64.rs
++++ b/crates/akita-params/src/sis/generated_sis_table/q64.rs
+@@ -1,6 +1,6 @@
+ // AUTO-GENERATED by crates/akita-sis-estimator/examples/infinity_width_table.rs -- do not edit by hand.
+ //
+-// SIS max-width tables for Quantum147BitADPS16.
++// SIS max-width tables for Quantum165BitADPS16.
+ // Sole hard gate: ADPS16 quantum LGSA model >= 128 bits.
+ // Each row records the selected optimizer's accepted cutoff and rejected successor.
+ // Shape and norm: LGSA, coefficient L-infinity.
+diff --git a/crates/akita-params/src/witness/tail.rs b/crates/akita-params/src/witness/tail.rs
+index 5f6826a..9eb2ae0 100644
+--- a/crates/akita-params/src/witness/tail.rs
++++ b/crates/akita-params/src/witness/tail.rs
+@@ -400,6 +400,7 @@ fn resolve<S: TailSink>(
+         relation_coefficient_block,
+         "compression witness alignment overflow",
+     )?;
++    let mut next_compression_row = first_compression_row;
+     for map_index in 0..COMPRESSION_MAP_COUNT {
+         let mut layer_alignment =
+             relation_layout.opening_compression_plan()?.maps()[map_index].ring_dimension();
+@@ -417,70 +418,79 @@ fn resolve<S: TailSink>(
+         let h_map = relation_layout.opening_compression_plan()?.maps()[map_index];
+         sink.place_h_span(h_map)?;
+ 
++        // A map of rank r has r relation rows, each with its quotient row. They
++        // are consecutive in the canonical order, a group's rows and then the
++        // opening's. The sink records the first row of each run.
+         let h_quotient_row = if let Some(quotient_depth) = plan.quotient_depth() {
+             for relation_group_index in 0..num_groups {
+-                let row_index = first_compression_row
+-                    .checked_add(map_index * (num_groups + 1) + relation_group_index)
+-                    .ok_or_else(|| {
++                let (planned_group_index, group_plan) =
++                    relation_layout.group_compression_plan(relation_group_index)?;
++                let first_row = next_compression_row;
++                for _ in 0..group_plan.maps()[map_index].output_rank() {
++                    let row_index = next_compression_row;
++                    next_compression_row = row_index.checked_add(1).ok_or_else(|| {
+                         AkitaError::InvalidSetup("compression quotient index overflow".into())
+                     })?;
+-                let row = *row_families.get(row_index).ok_or_else(|| {
+-                    AkitaError::InvalidSetup("compression F quotient row is missing".into())
++                    let row = *row_families.get(row_index).ok_or_else(|| {
++                        AkitaError::InvalidSetup("compression F quotient row is missing".into())
++                    })?;
++                    let (group_index, geometry) = match row {
++                        RelationRowFamily::CompressionF {
++                            group_index,
++                            map_index: row_map_index,
++                            geometry,
++                        } if row_map_index == map_index => (group_index, geometry),
++                        _ => {
++                            return Err(AkitaError::InvalidSetup(
++                                "compression F quotient order disagrees with relation rows"
++                                    .into(),
++                            ))
++                        }
++                    };
++                    if group_index != planned_group_index {
++                        return Err(AkitaError::InvalidSetup(
++                            "compression F quotient group disagrees with its compression plan"
++                                .into(),
++                        ));
++                    }
++                    sink.place_quotient_row(
++                        row_index,
++                        geometry,
++                        quotient_depth,
++                        "compression quotient width overflow",
++                        "compression quotient range overflow",
++                    )?;
++                }
++                sink.record_f_quotient_row(planned_group_index, first_row);
++            }
++            let h_quotient_row = next_compression_row;
++            for _ in 0..h_map.output_rank() {
++                let row_index = next_compression_row;
++                next_compression_row = row_index.checked_add(1).ok_or_else(|| {
++                    AkitaError::InvalidSetup("compression quotient index overflow".into())
++                })?;
++                let h_row = *row_families.get(row_index).ok_or_else(|| {
++                    AkitaError::InvalidSetup("compression H quotient row is missing".into())
+                 })?;
+-                let (group_index, geometry) = match row {
+-                    RelationRowFamily::CompressionF {
+-                        group_index,
++                let h_geometry = match h_row {
++                    RelationRowFamily::CompressionH {
+                         map_index: row_map_index,
+                         geometry,
+-                    } if row_map_index == map_index => (group_index, geometry),
++                    } if row_map_index == map_index => geometry,
+                     _ => {
+                         return Err(AkitaError::InvalidSetup(
+-                            "compression F quotient order disagrees with relation rows".into(),
++                            "compression H quotient order disagrees with relation rows".into(),
+                         ))
+                     }
+                 };
+-                let (planned_group_index, _) =
+-                    relation_layout.group_compression_plan(relation_group_index)?;
+-                if group_index != planned_group_index {
+-                    return Err(AkitaError::InvalidSetup(
+-                        "compression F quotient group disagrees with its compression plan".into(),
+-                    ));
+-                }
+                 sink.place_quotient_row(
+                     row_index,
+-                    geometry,
++                    h_geometry,
+                     quotient_depth,
+                     "compression quotient width overflow",
+                     "compression quotient range overflow",
+                 )?;
+-                sink.record_f_quotient_row(group_index, row_index);
+             }
+-            let h_quotient_row = first_compression_row
+-                .checked_add(map_index * (num_groups + 1) + num_groups)
+-                .ok_or_else(|| {
+-                    AkitaError::InvalidSetup("compression quotient index overflow".into())
+-                })?;
+-            let h_row = *row_families.get(h_quotient_row).ok_or_else(|| {
+-                AkitaError::InvalidSetup("compression H quotient row is missing".into())
+-            })?;
+-            let h_geometry = match h_row {
+-                RelationRowFamily::CompressionH {
+-                    map_index: row_map_index,
+-                    geometry,
+-                } if row_map_index == map_index => geometry,
+-                _ => {
+-                    return Err(AkitaError::InvalidSetup(
+-                        "compression H quotient order disagrees with relation rows".into(),
+-                    ))
+-                }
+-            };
+-            sink.place_quotient_row(
+-                h_quotient_row,
+-                h_geometry,
+-                quotient_depth,
+-                "compression quotient width overflow",
+-                "compression quotient range overflow",
+-            )?;
+             Some(h_quotient_row)
+         } else {
+             None
+diff --git a/crates/akita-schedules/src/audit.rs b/crates/akita-schedules/src/audit.rs
+index 17ffbf1..02e97ba 100644
+--- a/crates/akita-schedules/src/audit.rs
++++ b/crates/akita-schedules/src/audit.rs
+@@ -624,7 +624,7 @@ mod tests {
+                 log_open_bound: Some(128),
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum165BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+diff --git a/crates/akita-schedules/src/candidate.rs b/crates/akita-schedules/src/candidate.rs
+index c1b4f13..50869de 100644
+--- a/crates/akita-schedules/src/candidate.rs
++++ b/crates/akita-schedules/src/candidate.rs
+@@ -175,7 +175,7 @@ mod tests {
+                 log_open_bound: Some(1),
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum165BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+@@ -233,7 +233,7 @@ mod tests {
+                 log_open_bound: None,
+             },
+             sis_modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+-            sis_security_policy: SisSecurityPolicyId::Quantum147BitADPS16,
++            sis_security_policy: SisSecurityPolicyId::Quantum165BitADPS16,
+             sis_table_digest: SisTableDigest::CURRENT,
+             sis_l2_table_digest: SisL2TableDigest::CURRENT,
+             claim_ext_degree: 1,
+diff --git a/crates/akita-sis-estimator/examples/euclidean_width_table.rs b/crates/akita-sis-estimator/examples/euclidean_width_table.rs
+index 6bda6da..323a8f8 100644
+--- a/crates/akita-sis-estimator/examples/euclidean_width_table.rs
++++ b/crates/akita-sis-estimator/examples/euclidean_width_table.rs
+@@ -16,7 +16,7 @@ use std::{
+     time::Instant,
+ };
+ 
+-const TABLE_HEADER: &str = "// AUTO-GENERATED by crates/akita-sis-estimator/examples/euclidean_width_table.rs -- do not edit by hand.\n//\n// SIS width thresholds for 147-bit quantum security (ADPS16, Euclidean norm=2).\n// Rust estimator path: akita-sis-estimator::euclidean_width_table.\n// Keys bound the squared norm of the complete scalar collision vector.\n\n";
++const TABLE_HEADER: &str = "// AUTO-GENERATED by crates/akita-sis-estimator/examples/euclidean_width_table.rs -- do not edit by hand.\n//\n// SIS width thresholds for 165-bit quantum security (ADPS16, Euclidean norm=2).\n// Rust estimator path: akita-sis-estimator::euclidean_width_table.\n// Keys bound the squared norm of the complete scalar collision vector.\n\n";
+ 
+ #[derive(Debug)]
+ struct Args {
+diff --git a/crates/akita-sis-estimator/examples/infinity_width_table.rs b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+index 834ffc4..5af83db 100644
+--- a/crates/akita-sis-estimator/examples/infinity_width_table.rs
++++ b/crates/akita-sis-estimator/examples/infinity_width_table.rs
+@@ -671,8 +671,8 @@ fn parse_profile(value: &str) -> InfinityWidthProfile {
+ 
+ fn parse_policy(value: &str) -> SisSecurityPolicy {
+     match value {
+-        "Quantum147BitADPS16" => SisSecurityPolicy::Quantum147BitADPS16,
+-        _ => fatal("--policy must be Quantum147BitADPS16"),
++        "Quantum165BitADPS16" => SisSecurityPolicy::Quantum165BitADPS16,
++        _ => fatal("--policy must be Quantum165BitADPS16"),
+     }
+ }
+ 
+@@ -711,7 +711,7 @@ where
+ 
+ fn usage(code: i32) -> ! {
+     eprintln!(
+-        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--policy Quantum147BitADPS16] [--progress-every N] [--skip-validation]"
++        "usage: infinity_width_table [--output PATH] [--format csv|rust-split] [--results-dir PATH] [--plan-only|--assemble-only|--shard INDEX/COUNT] [--profiles q32,q64,q128] [--dims 32,64,128,256,512] [--bounds B1,B2] [--max-rank N] [--search-cap N] [--profile local-minimum|lattice-estimator|exhaustive-serial|exhaustive-parallel] [--policy Quantum165BitADPS16] [--progress-every N] [--skip-validation]"
+     );
+     process::exit(code);
+ }
+diff --git a/crates/akita-sis-estimator/src/config.rs b/crates/akita-sis-estimator/src/config.rs
+index 6b7761e..7f051be 100644
+--- a/crates/akita-sis-estimator/src/config.rs
++++ b/crates/akita-sis-estimator/src/config.rs
+@@ -44,9 +44,9 @@ pub struct SisSecurityConstraint {
+ /// SIS security policy understood by the offline estimator.
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+ pub enum SisSecurityPolicy {
+-    /// Corrected ADPS16 quantum LGSA gate at 147 bits (this worktree's single
++    /// Corrected ADPS16 quantum LGSA gate at 165 bits (this worktree's single
+     /// policy; the shipped one is the same gate at 128 bits).
+-    Quantum147BitADPS16,
++    Quantum165BitADPS16,
+ }
+ 
+ impl SisSecurityPolicy {
+@@ -54,7 +54,7 @@ impl SisSecurityPolicy {
+     #[must_use]
+     pub const fn label(self) -> &'static str {
+         match self {
+-            Self::Quantum147BitADPS16 => "Quantum147BitADPS16",
++            Self::Quantum165BitADPS16 => "Quantum165BitADPS16",
+         }
+     }
+ 
+@@ -62,11 +62,11 @@ impl SisSecurityPolicy {
+     #[must_use]
+     pub const fn adps16_quantum_constraint(self) -> SisSecurityConstraint {
+         match self {
+-            Self::Quantum147BitADPS16 => SisSecurityConstraint {
++            Self::Quantum165BitADPS16 => SisSecurityConstraint {
+                 reduction_model: ReductionCostModel::Adps16 {
+                     mode: Adps16Mode::Quantum,
+                 },
+-                minimum_log2_rop: 147.0,
++                minimum_log2_rop: 165.0,
+             },
+         }
+     }
+@@ -75,8 +75,8 @@ impl SisSecurityPolicy {
+ impl From<akita_params::sis::SisSecurityPolicyId> for SisSecurityPolicy {
+     fn from(policy: akita_params::sis::SisSecurityPolicyId) -> Self {
+         match policy {
+-            akita_params::sis::SisSecurityPolicyId::Quantum147BitADPS16 => {
+-                Self::Quantum147BitADPS16
++            akita_params::sis::SisSecurityPolicyId::Quantum165BitADPS16 => {
++                Self::Quantum165BitADPS16
+             }
+         }
+     }
+@@ -218,7 +218,7 @@ impl EstimateConfig {
+     /// proven-pruned beta and zeta search.
+     #[must_use]
+     pub fn akita_infinity_table() -> Self {
+-        Self::akita_infinity_table_for(SisSecurityPolicy::Quantum147BitADPS16)
++        Self::akita_infinity_table_for(SisSecurityPolicy::Quantum165BitADPS16)
+     }
+ 
+     /// The same certificate profile with the proven-pruned decision threshold
+@@ -438,7 +438,7 @@ mod tests {
+ 
+     #[test]
+     fn quantum_policy_pins_the_single_adps16_gate() {
+-        let policy = SisSecurityPolicy::Quantum147BitADPS16;
++        let policy = SisSecurityPolicy::Quantum165BitADPS16;
+         assert_eq!(
+             policy.adps16_quantum_constraint(),
+             SisSecurityConstraint {
+diff --git a/crates/akita-sis-estimator/src/euclidean_width_table.rs b/crates/akita-sis-estimator/src/euclidean_width_table.rs
+index 9553443..7bdcea8 100644
+--- a/crates/akita-sis-estimator/src/euclidean_width_table.rs
++++ b/crates/akita-sis-estimator/src/euclidean_width_table.rs
+@@ -13,7 +13,7 @@ use rayon::prelude::*;
+ use std::collections::{BTreeMap, BTreeSet};
+ 
+ /// This worktree's L2 table target security level (the shipped one is 128).
+-pub const DEFAULT_EUCLIDEAN_TARGET_BITS: f64 = 147.0;
++pub const DEFAULT_EUCLIDEAN_TARGET_BITS: f64 = 165.0;
+ /// Exact modulus domain owned by the independent Euclidean table.
+ pub const EUCLIDEAN_FAMILIES: &[AkitaModulusProfileId] = &[
+     AkitaModulusProfileId::Q32Offset99,
+diff --git a/crates/akita-sis-estimator/src/width_table.rs b/crates/akita-sis-estimator/src/width_table.rs
+index 539d79b..15586c6 100644
+--- a/crates/akita-sis-estimator/src/width_table.rs
++++ b/crates/akita-sis-estimator/src/width_table.rs
+@@ -303,7 +303,7 @@ impl Default for InfinityWidthTableConfig {
+             ring_dims: RING_DIMS.to_vec(),
+             coeff_linf_bounds: COEFF_LINF_BOUNDS.clone(),
+             max_rank: DEFAULT_MAX_RANK,
+-            policy: SisSecurityPolicy::Quantum147BitADPS16,
++            policy: SisSecurityPolicy::Quantum165BitADPS16,
+             search_cap: None,
+             profile: InfinityWidthProfile::LocalMinimum,
+             progress_every: None,
+@@ -321,7 +321,7 @@ pub fn is_production_infinity_width_table_config(config: &InfinityWidthTableConf
+         && same_set(&config.ring_dims, RING_DIMS.as_slice())
+         && same_set(&config.coeff_linf_bounds, &COEFF_LINF_BOUNDS)
+         && config.max_rank == DEFAULT_MAX_RANK
+-        && config.policy == SisSecurityPolicy::Quantum147BitADPS16
++        && config.policy == SisSecurityPolicy::Quantum165BitADPS16
+         && config.search_cap.is_none()
+         && config.profile == InfinityWidthProfile::LocalMinimum
+         && config.explicit_origins.is_none()
+@@ -820,7 +820,7 @@ fn max_secure_width_row(
+     // reach at all; there the estimate degenerates to a non-finite cost.
+     // Read that as insecure, so the row records no secure width, rather than
+     // stopping the table. The production policy keeps the stop.
+-    let lenient = policy != SisSecurityPolicy::Quantum147BitADPS16;
++    let lenient = policy != SisSecurityPolicy::Quantum165BitADPS16;
+     let discovery = |width| {
+         let cost = estimate_width(
+             modulus_profile,
+@@ -1111,7 +1111,7 @@ fn parse_csv_record(record: &str) -> Result<InfinityWidthRow> {
+         );
+     }
+     let policy = match fields[0] {
+-        "Quantum147BitADPS16" => SisSecurityPolicy::Quantum147BitADPS16,
++        "Quantum165BitADPS16" => SisSecurityPolicy::Quantum165BitADPS16,
+         _ => return invalid_config("work_result", "unknown SIS policy label"),
+     };
+     let modulus_profile = AkitaModulusProfileId::parse(fields[1])?;
+diff --git a/crates/akita-sis-estimator/src/width_table/tests.rs b/crates/akita-sis-estimator/src/width_table/tests.rs
+index 78dcc0c..7b7c39a 100644
+--- a/crates/akita-sis-estimator/src/width_table/tests.rs
++++ b/crates/akita-sis-estimator/src/width_table/tests.rs
+@@ -165,7 +165,7 @@ fn runtime_table_emits_direct_q128_d512_rows() {
+             rank: u32::try_from(index + 1).unwrap(),
+             coeff_linf_bound: 2,
+             max_width,
+-            policy: SisSecurityPolicy::Quantum147BitADPS16,
++            policy: SisSecurityPolicy::Quantum165BitADPS16,
+             search_cap: DEFAULT_SEARCH_CAP,
+             hit_cap: false,
+             profile: InfinityWidthProfile::LocalMinimum,
+diff --git a/crates/akita-sis-estimator/tests/security_policy_models.rs b/crates/akita-sis-estimator/tests/security_policy_models.rs
+index 5d593c6..197ddf1 100644
+--- a/crates/akita-sis-estimator/tests/security_policy_models.rs
++++ b/crates/akita-sis-estimator/tests/security_policy_models.rs
+@@ -5,7 +5,7 @@ use akita_sis_estimator::{
+ 
+ #[test]
+ fn policy_uses_only_the_adps16_quantum_model() {
+-    let policy = SisSecurityPolicy::Quantum147BitADPS16;
++    let policy = SisSecurityPolicy::Quantum165BitADPS16;
+     assert_eq!(
+         policy.adps16_quantum_constraint().reduction_model,
+         ReductionCostModel::Adps16 {
+diff --git a/crates/akita-types/src/proof/stage1.rs b/crates/akita-types/src/proof/stage1.rs
+index 3e1c76e..e68c0fb 100644
+--- a/crates/akita-types/src/proof/stage1.rs
++++ b/crates/akita-types/src/proof/stage1.rs
+@@ -194,7 +194,7 @@ mod tests {
+     fn route_authority_derives_exact_headerless_stage1_shapes() {
+         let plan = DigitRangePlan::new(64).unwrap();
+         let linf = InnerCommitSecurityRoute::Linf(SisTableKey {
+-            policy: SisSecurityPolicyId::Quantum147BitADPS16,
++            policy: SisSecurityPolicyId::Quantum165BitADPS16,
+             table_digest: SisTableDigest::CURRENT,
+             modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+             role: akita_params::SisMatrixRole::Inner,
+@@ -207,7 +207,7 @@ mod tests {
+ 
+         let l2 = InnerCommitSecurityRoute::L2 {
+             table_key: SisL2TableKey {
+-                policy: SisSecurityPolicyId::Quantum147BitADPS16,
++                policy: SisSecurityPolicyId::Quantum165BitADPS16,
+                 table_digest: SisL2TableDigest::CURRENT,
+                 modulus_profile: SisModulusProfileId::Q128OffsetA7F7,
+                 ring_dimension: 64,
+-- 
+2.55.0
+
