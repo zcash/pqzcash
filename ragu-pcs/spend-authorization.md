@@ -51,11 +51,12 @@ a quantum spending key $\mathsf{qsk}$ with $\mathsf{qk} = \mathsf{H^{qk}}(\maths
 spend from that key uses it. So the proof is a directed acyclic graph and not a tree, which is how
 proof-carrying data is defined [\[CT10, Definition 3\]](#ref-ct10). Tachyon has no such sharing: it
 signs each action outside the proof, under a key randomized for that action. The frontier page's
-transactions of two inputs spend from <!--fig:zoodles_signing_keys-->one<!--/fig--> spending key. A
-transaction's inputs may be authorized by several parties, each for some of them. So an
+transactions of two inputs spend from <!--fig:zoodles_signing_keys-->one<!--/fig--> spending key.
+
+A transaction's inputs may be authorized by several parties, each for some of them. So an
 authorization node's header says which inputs it authorizes, and the transaction's root node checks
 that every input is covered by some authorization node. Neither that check nor the control logic
-that lets a step use a node twice is costed.
+that lets a step use a node twice is costed, because the cost is likely to be negligible.
 
 Sharing has a hazard. An accumulator inside the proof that holds an authorization would authorize
 whatever proof it were built into, so it must not be usable in another transaction if it leaks.
