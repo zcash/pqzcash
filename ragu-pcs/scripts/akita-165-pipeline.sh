@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Plan Akita at the illustrative level: a 165-bit ADPS16-quantum floor, the core-SVP level of
+# Plan Akita at the 165-bit level: a 165-bit ADPS16-quantum floor, the core-SVP level of
 # ML-KEM-768 and ML-DSA-65, with the three-map compression chain that the level needs (images
 # of 2,304, 1,152, and 1,024 bits; see scripts/compression-chain.sh). It works on the worktree
 # work/akita-src-165 that scripts/akita-checkout.sh makes, on the branch level3-165, where

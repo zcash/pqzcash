@@ -5,8 +5,8 @@
 # describes. The worktree work/akita-src-150, on the branch pasta-widths-147, gets 0001-* and
 # 0002-*, the 147-bit policy; scripts/akita-147-pipeline.sh then regenerates its width tables.
 # The worktree work/akita-src-165, on the branch level3-165, gets all three patches: 0003-* is
-# the 165-bit policy and the three-map compression chain of the frontier page's illustrative
-# level, for planning only, and scripts/akita-165-pipeline.sh regenerates its width tables.
+# the 165-bit policy and the three-map compression chain of the frontier page's 165-bit level,
+# for planning only, and scripts/akita-165-pipeline.sh regenerates its width tables.
 # The lattice estimator that scripts/knapsack-lwe-check.py runs is Akita's third_party submodule,
 # initialised in the clone. Paths are relative to the ragu-pcs directory; the checkouts live under
 # work/, or under $RAGU_PCS_WORK. A checkout that already exists is left as it is.

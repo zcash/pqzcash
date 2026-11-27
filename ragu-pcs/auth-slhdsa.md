@@ -62,7 +62,7 @@ leanSPHINCS over BLAKE3, with Kishu at 147 bits and a BLAKE3 transcript.
 | Level 3, BLAKE3 transcript | <!--fig:sigtx_leansphincs_level3_blake3_s-->0.128<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_blake3_x-->1.2<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_blake3_s-->11.2<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_blake3_x-->100<!--/fig-->) |
 | Level 3, SHA3-384 transcript | <!--fig:sigtx_leansphincs_level3_sha3_384_s-->0.276<!--/fig--> s (×<!--fig:sigtx_leansphincs_level3_sha3_384_x-->2.5<!--/fig-->) | <!--fig:sigtx_slhdsa_level3_sha3_384_s-->13.5<!--/fig--> s (×<!--fig:sigtx_slhdsa_level3_sha3_384_x-->120<!--/fig-->) |
 
-In the table, <!--claim:sigtx_each_change_dearer:712618-->each change makes the transaction dearer
+In the table, <!--claim:sigtx_each_change_dearer:a49e80-->each change makes the transaction dearer
 whatever the other two are: down a column the proof system's level and then its transcript hash, and
 across a row the signature.<!--/claim--> The signature is by far the largest of the three, since the
 transaction's digits are almost all the two verifiers'.

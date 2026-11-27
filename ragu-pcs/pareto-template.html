@@ -1600,7 +1600,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Therefore, it is ranked with the strongest <a href="#requirements">assumption</a>.</p>
   <p>A scheme at the level differs from its 147‑bit form in four ways:</p>
   <ul>
-    <li><!--claim:level3_compression_chain_reaches_floor:28ff66-->A commitment's image is compressed
+    <li><!--claim:level3_compression_chain_reaches_floor:cf7864-->A commitment's image is compressed
     to the same 128 bytes by three maps where Akita's chain has two. Akita's maps, with outputs of
     2,048 and then 1,024 bits, stop at <!--fig:compression_shipped_first_bits-->147.3<!--/fig-->
     and <!--fig:compression_shipped_second_bits-->153.2<!--/fig--> bits. By Akita's estimator a chain with outputs
@@ -1634,7 +1634,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     sum-checks at the level have not been worked out here, and are taken to be of the same form.
     The sum-checks' prover is scaled by the field products of a multiplication in the larger
     field.</li>
-    <li><!--claim:level3_challenge_weight_small_effect:04a991-->The fold's ternary challenge has
+    <li><!--claim:level3_challenge_weight_small_effect:8e6492-->The fold's ternary challenge has
     weight <!--fig:level3_challenge_weight-->25<!--/fig-->, for $2^{165}$ challenges in degree 512,
     where the catalog's weight <!--fig:challenge_weight-->20<!--/fig-->
     gives <!--fig:challenge_space-->$2^{138}$<!--/fig-->. That raises the bound that the
@@ -1705,7 +1705,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>With a SHA3-384 transcript the step that holds Akita's merge is
   of <!--fig:level3_sha3_384_akita_step_min-->$1.25 \times 2^{25}$<!--/fig-->
   to <!--fig:level3_sha3_384_akita_step_max-->$1.03 \times 2^{27}$<!--/fig--> gates, over its five
-  variants. <!--claim:level3_sha3_384_kishu_dearer:062405-->Kishu's merge with zero
+  variants. <!--claim:level3_sha3_384_kishu_dearer:25727e-->Kishu's merge with zero
   knowledge is then <!--fig:level3_sha3_384_kishu_merge_digits_m-->7.6<!--/fig--> million digits,
   so its shortest step is <!--fig:level3_sha3_384_kishu_shortest_step-->$1.25 \times 2^{23}$<!--/fig--> digits, and the merge's commitments
   are <!--fig:level3_sha3_384_kishu_prover_x-->9.1<!--/fig--> times the 147‑bit
@@ -2478,7 +2478,7 @@ function selected() {
   const transcript = document.querySelector('input[name=transcript]:checked').value;
   return DATA.points.filter(p => fams.includes(p.family) && (p.step_rank === null || stepRanks.includes(p.step_rank))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
     && (p.zk === null || p.zk === zk) && (p.floor === null || p.floor === floor)
-    && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === transcript || (hashes === 'poseidon' && p.hashes === 'poseidon'))  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the illustrative level's rows are under its transcript hash alone
+    && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === transcript || (hashes === 'poseidon' && p.hashes === 'poseidon'))  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the 165-bit level's rows are under its transcript hash alone
     && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
 }
 const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', bits_q64: 'Module-SIS, random oracle', bits_q64_poseidon: 'Module-SIS, random oracle', bits_akita: 'Module-SIS, random oracle; security ledger open',
@@ -2567,7 +2567,7 @@ function fmt(n) { return n.toLocaleString('en-GB'); }
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; a
 // Tachyon tree's last nodes, Ragu's two rerandomization fuses, are steps of their own. The
 // model's tx_steps is the same function.
-// An application's own hashing is counted under the page's policy for a row with no hashing of its own, and at BLAKE3's count for the illustrative level's rows, whose statement is unchanged.
+// An application's own hashing is counted under the page's policy for a row with no hashing of its own, and at BLAKE3's count for the 165-bit level's rows, whose statement is unchanged.
 const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes.startsWith('level3_') ? 'blake3' : p.hashes];
 // A proof tree's nodes packed into steps of capacity cap: a node larger than a step takes
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; the
@@ -2687,7 +2687,7 @@ function hover(p) {
   return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure: ${fmtWork(val(p, `transaction_${side}`))} ${unitName()}`).join('')}<br>${CHANGE[p.change]}`;
 }
 function render() {
-  // The transcript's hash is a choice at the illustrative level alone.
+  // The transcript's hash is a choice at the 165-bit level alone.
   const atLevel3 = document.querySelector('input[name=floor]:checked').value === '165';
   for (const r of document.querySelectorAll('input[name=transcript]')) r.disabled = !atLevel3;
   document.getElementById('transcriptgroup').classList.toggle('off', !atLevel3);

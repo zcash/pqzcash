@@ -367,7 +367,7 @@ def challenge_space_bits(weight, degree=CHALLENGE_DEGREE):
 
 def challenge_l1(floor):
     """The fold challenge's ℓ1 norm at a floor: the catalog's weight, MASK_CHALLENGE_L1, whose
-    2^138 challenges the 128- and 147-bit plans keep, and at the illustrative level the least
+    2^138 challenges the 128- and 147-bit plans keep, and at the 165-bit level the least
     weight whose challenge set has 2^165 members, since a fold's knowledge error is the
     reciprocal of the set's size."""
     if floor != LEVEL3_FLOOR:
@@ -809,7 +809,7 @@ def level3(hp):
 
 def claim_bytes(variant, hp):
     """A claim's bytes for `variant` under hash policy `hp`, which says whether the row is at
-    the illustrative level."""
+    the 165-bit level."""
     return (
         LEVEL3_CLAIM_BYTES.get(variant, CLAIM_BYTES[variant])
         if level3(hp)
@@ -819,7 +819,7 @@ def claim_bytes(variant, hp):
 
 def image_bytes(hp):
     """A compressed commitment image's bytes under policy `hp`: the same at every level, the
-    illustrative one reaching it by a third map (LEVEL3_COMPRESSION_CHAIN)."""
+    165-bit one reaching it by a third map (LEVEL3_COMPRESSION_CHAIN)."""
     assert hp in (*HASH_POLICIES, *LEVEL3_POLICIES)
     return IMAGE_BYTES
 
@@ -832,7 +832,7 @@ def fold_gates_per_image(hp):
 def conventional_hash_gates(bytes_, hp):
     """Prime-field gates to hash a transcript of `bytes_` with the row's conventional hash:
     the keyed BLAKE3 chain, or where TRANSCRIPT_HASH says so SHA3-384's sponge, a Keccak permutation for
-    each SHA3_384_RATE bytes with its padding byte. The illustrative level offers both (the
+    each SHA3_384_RATE bytes with its padding byte. The 165-bit level offers both (the
     user, 2026-11-26). No attack on a 256-bit transcript hash is known at the level, but the
     security proofs for Fiat–Shamir over a chained or sponge hash lose a term of about
     T^2/2^c for work T and a state of c bits, so with BLAKE3 the level is not provable, and
@@ -1686,7 +1686,7 @@ POSEIDON_Q64_PIOP = piop_sum(
 RANGE_CHECK_PIOP = piop_sum((1, (1, 2, 0)), (1, word_range_piop(Q64_BITS)))
 # Three field products by Karatsuba; the output's two values' range checks.
 E_MULT_PIOP = piop_sum((1, (3, 12, 0)), (2, word_range_piop(Q64_BITS)))
-# At the illustrative level Kishu's claims are in the cubic extension of F_q, 192 bits: an
+# At the 165-bit level Kishu's claims are in the cubic extension of F_q, 192 bits: an
 # element is three F_q values, and a multiplication is six field products by Karatsuba with
 # three values of output. The sum-checks' prover, measured in the quadratic extension, is
 # scaled by the field products of a multiplication, six against three: after a sum-check's
@@ -2827,7 +2827,7 @@ def floor_label(floor):
 def application_policy(hashes, policy):
     """The hash policy that an application's own hashing is counted under for a row: the
     page's policy for a row that has no hashing of its own, and BLAKE3's count at the
-    illustrative level, where the application's statement is unchanged and only the proof
+    165-bit level, where the application's statement is unchanged and only the proof
     system's hash differs."""
     if hashes == "any":
         return policy
@@ -2835,7 +2835,7 @@ def application_policy(hashes, policy):
 
 
 def floor_policies(floor):
-    """The hash policies that rows exist under at a floor: at the illustrative level its two
+    """The hash policies that rows exist under at a floor: at the 165-bit level its two
     readings of the transcript's hash, and no Poseidon, whose instances are at 128 bits."""
     return LEVEL3_POLICIES if floor == LEVEL3_FLOOR else HASH_POLICIES
 
@@ -4955,7 +4955,7 @@ for p in points:
     # A row derived from an analysis that no implementation certifies (BitZ under BEEP) is ranked
     # with the strongest assumption, so that it removes no certified row from the frontier.
     # Rows that no implementation or plan backs are ranked with the strongest assumption: the
-    # rows derived from BEEP, and every row of the illustrative level.
+    # rows derived from BEEP, and every row of the 165-bit level.
     derived = p.get("profile") == "beep" or p["floor"] == LEVEL3_FLOOR
     p["assumption"] = 2 if derived else ASSUMPTION_LEVEL[p["family"]]
 
@@ -5093,7 +5093,7 @@ for (cls, zk, floor), hp in itertools.product(
         for p, on in zip(sub, pareto(sub)):
             p["frontier"] = p.get("frontier", False) or on
 
-# The illustrative level's frontiers, one for each reading of the transcript's hash.
+# The 165-bit level's frontiers, one for each reading of the transcript's hash.
 for zk, hp in itertools.product((False, True), LEVEL3_POLICIES):
     sub = [
         p
@@ -6889,7 +6889,7 @@ def define_figures():
     for v in VARIANTS:
         fig(f"image_share_pct_{v}", round(100 * IMAGE_SHARE[v]))
     fig("whir_scale_147_pct", round(100 * (WHIR_SCALE[147] - 1)))
-    # The illustrative level: its lattice rows beside the 147-bit ones, the SHA3-384 transcript's
+    # The 165-bit level: its lattice rows beside the 147-bit ones, the SHA3-384 transcript's
     # consequence for them, and why the hash-based families have no row.
     fig("level3_block", BLOCK_SIZES[LEVEL3_FLOOR])
     fig("opening_challenge_atoms", OPENING_CHALLENGE_ATOMS)
@@ -6905,7 +6905,7 @@ def define_figures():
     fig("slhdsa_192f_over_s_perms", sig(SLHDSA_192F_VERIFY / SLHDSA_192S_VERIFY))
     fig("slhdsa_192s_over_leansphincs", sig(SLHDSA_192S_VERIFY / LEANSPHINCS_VERIFY["keccak"]))
     # The two signatures' transactions under Kishu's BLAKE3 variant with zero knowledge, at the
-    # default floor and at the illustrative level with each transcript hash: the least
+    # default floor and at the 165-bit level with each transcript hash: the least
     # transaction work over the step ranks, in seconds on one core, and against the first.
     settings = {
         "147": dict(floor=DEFAULT_FLOOR, hashes="blake3"),
@@ -6928,7 +6928,7 @@ def define_figures():
         fig(f"sigtx_{sig_}_{setting}_x", sig(work / base, 2))
     claim(
         "sigtx_each_change_dearer",
-        "each of the three changes, the signature to SLH-DSA, the level to the illustrative one, and the transcript to SHA3-384, makes the Zoodles transaction dearer for Kishu whatever the other two are",
+        "each of the three changes, the signature to SLH-DSA, the level to the 165-bit one, and the transcript to SHA3-384, makes the Zoodles transaction dearer for Kishu whatever the other two are",
         all(tx_table[("slhdsa", s_)] > tx_table[("leansphincs", s_)] for s_ in settings)
         and all(
             tx_table[(g, "147")] < tx_table[(g, "level3_blake3")] < tx_table[(g, "level3_sha3_384")]
@@ -6955,7 +6955,7 @@ def define_figures():
     fig("compression_level3_fourth_bits", sig(LEVEL3_COMPRESSION_FOURTH[2], 4))
     claim(
         "level3_compression_chain_reaches_floor",
-        "the three-map compression chain reaches the illustrative level at every map, chains its maps' sizes from the 8 KiB source to the shipped 1,024-bit payload, a fourth map would reach the level too, and the shipped chain's maps fall short of it",
+        "the three-map compression chain reaches the 165-bit level at every map, chains its maps' sizes from the 8 KiB source to the shipped 1,024-bit payload, a fourth map would reach the level too, and the shipped chain's maps fall short of it",
         all(c[2] >= LEVEL3_FLOOR for c in (*chain3, LEVEL3_COMPRESSION_FOURTH))
         and chain3[0][0] == 8 * 8192
         and chain3[-1][1] == 8 * IMAGE_BYTES == LEVEL3_COMPRESSION_FOURTH[0]
@@ -6970,7 +6970,7 @@ def define_figures():
     )
     claim(
         "level3_challenge_weight_small_effect",
-        "the illustrative level's heavier fold challenge raises the masked bound by under a bit",
+        "the 165-bit level's heavier fold challenge raises the masked bound by under a bit",
         2 * math.log2(challenge_l1(LEVEL3_FLOOR) / MASK_CHALLENGE_L1) < 1,
     )
     fig("level3_classical_bits", round(CORE_SVP_EXPONENTS["classical"] * BLOCK_SIZES[LEVEL3_FLOOR]))
@@ -7116,7 +7116,7 @@ def define_figures():
     fig("level3_sha3_384_kishu_prover_x", sig(k165_sha3_384["prover"] / k147["prover"]))
     claim(
         "level3_sha3_384_kishu_dearer",
-        "at the illustrative level Kishu's merge and its commitments are greater with SHA3-384 transcripts than with BLAKE3 ones, and its shortest step longer",
+        "at the 165-bit level Kishu's merge and its commitments are greater with SHA3-384 transcripts than with BLAKE3 ones, and its shortest step longer",
         k165_sha3_384["gates"] > k165["gates"]
         and k165_sha3_384["prover"] > k165["prover"]
         and k165_sha3_384["step_rank"] > k165["step_rank"],

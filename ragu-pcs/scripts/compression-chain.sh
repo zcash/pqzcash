@@ -10,7 +10,7 @@
 # (cargo build --release -p akita-sis-estimator --examples):
 #   scripts/compression-chain.sh AKITA_CHECKOUT
 # It prints the shipped two-map chain, which the paper's Appendix G gives as 147.34 and
-# 153.17 bits, and the chain for the illustrative level. That chain's first two maps are a
+# 153.17 bits, and the chain for the 165-bit level. That chain's first two maps are a
 # two-map chain to 144 bytes, its first three a three-map chain to the shipped 128 bytes,
 # which is the one the level assumes, and all four a chain to 120 bytes, whose last output is
 # a multiple of 64 bits and not of 128.
@@ -37,4 +37,4 @@ chain() {
 
 printf 'input_bits\toutput_bits\tblock\tquantum_bits\n'
 chain "shipped" 65536 2048 1024
-chain "illustrative level: two maps, three, or four" 65536 2304 1152 1024 960
+chain "165-bit level: two maps, three, or four" 65536 2304 1152 1024 960
