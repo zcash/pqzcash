@@ -147,8 +147,19 @@ needs the width the product needs: a bit, in the hashes. A value that enters con
 through linear combinations is written in tribits. That is any integer word: a limb, a quotient, a
 carry, an amount, or an element of $\mathbb{F}_q$. A dibit or a bit takes the remainder if the width
 is not a multiple of three. The commitment, the fold, and the mask cost the same per digit at any of
-these widths. The range check costs one product a bit, two a dibit, and four a tribit, by Akita's
-paired predicate. So a tribit holds three bits for a little over a third of their cost.
+these widths.
+
+The range check does depend on the width. It is Akita's, which calls it the paired predicate. Akita
+holds a digit of $b$ values balanced, in $\{-b/2, \ldots, b/2 - 1\}$. Those values pair up: $k$ and
+$-1-k$ give the same product $w(w+1) = k(k+1)$. So over the alphabet $w(w+1)$ takes only $b/2$
+values, and $w$ is in the alphabet exactly when $w(w+1)$ is a root of a fixed polynomial $Q$ of
+degree $b/2$. For a tribit, $Q(r) = r(r-2)(r-6)(r-12)$. For a bit, $Q(r) = r$, and the check is
+the Booleanity check $w(w+1) = 0$ on the balanced bit.
+
+The check costs one product to form $w(w+1)$ and $b/2 - 1$ more to evaluate $Q$, so $b/2$ products
+a digit. That is one product a bit, two a dibit, and four a tribit. Three bits cost three digits'
+commitment and three products; a tribit costs one digit's commitment and four products. So a tribit
+holds three bits for a little over a third of their cost.
 
 A word of $\ell < 64$ bits is a linear combination of its digits, which costs nothing to form. Bit
 vectors of any fixed length can be represented directly, as can elements of $\mathbb{F}_q$
