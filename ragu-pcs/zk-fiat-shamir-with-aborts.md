@@ -413,10 +413,10 @@ attempts per fold.
   nanoseconds. These are costs at Pasta's modulus. What a post-quantum Zcash would prove with such a
   fold is a migration, which [the frontier page](pareto-template.html#transaction-prover) prices
   with Kishu, whose commitments are at a 64-bit modulus. Recovering one or four Tachyon or Ironwood
-  notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0593<!--/fig-->
-  to <!--fig:zk_note_migration_max_s-->0.356<!--/fig--> s of prover there without zero knowledge,
-  and <!--fig:zk_note_migration_zk_min_s-->0.113<!--/fig-->
-  to <!--fig:zk_note_migration_zk_max_s-->0.513<!--/fig--> s with
+  notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0605<!--/fig-->
+  to <!--fig:zk_note_migration_max_s-->0.358<!--/fig--> s of prover there without zero knowledge,
+  and <!--fig:zk_note_migration_zk_min_s-->0.115<!--/fig-->
+  to <!--fig:zk_note_migration_zk_max_s-->0.515<!--/fig--> s with
   it. <!--claim:kishu_migration_zk_overhead:6b5dd4-->So zero knowledge
   adds <!--fig:zk_note_zk_over_plain_pct_min-->44<!--/fig-->
   to <!--fig:zk_note_zk_over_plain_pct_max-->90<!--/fig--> percent to such a

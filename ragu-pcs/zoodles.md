@@ -130,7 +130,7 @@ tachygrams, <!--fig:zoodles_epoch_per_block-->256<!--/fig--> a block. The exclus
 nullifier's two neighbours as one leaf with its path of <!--fig:zoodles_epoch_hashes-->22<!--/fig-->
 hashes, two 256-bit comparisons, and the epoch range
 check: <!--fig:app_zoodles_epoch_kishu-->250,000<!--/fig--> Kishu digits. That
-takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0274<!--/fig--> s a note an epoch at
+takes <!--fig:tx_zoodles_epoch_kishu_s-->0.0275<!--/fig--> s a note an epoch at
 rank <!--fig:tx_zoodles_epoch_kishu_rank-->18<!--/fig--> on one core, without zero knowledge, since
 the lineage never leaves the wallet. On that count the tree is well ahead. The bucket route as
 Tachyon folds it, at a capacity chosen for digits, is still to be priced beside it, and [The epoch's
@@ -140,9 +140,9 @@ tachygram set](zoodles-epoch-set.md) compares the representations.
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
 is <!--fig:app_zoodles_preimage_kishu-->251,357<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0508<!--/fig--> s with zero knowledge at
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0509<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_preimage_kishu_zk_rank-->18<!--/fig-->,
-or <!--fig:tx_zoodles_preimage_kishu_s-->0.0273<!--/fig--> s without. One authorized by leanSPHINCS
+or <!--fig:tx_zoodles_preimage_kishu_s-->0.0274<!--/fig--> s without. One authorized by leanSPHINCS
 with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->7.06 million<!--/fig--> digits
 and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.300<!--/fig--> s with zero knowledge at
 rank <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->22<!--/fig-->,

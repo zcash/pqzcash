@@ -1266,19 +1266,20 @@ def kishu_route(arith):
     return arith.removeprefix("bits_pasta_")
 
 
-def fingerprint_step_sums(rank):
-    """The fingerprint route's column sums a step: about sqrt(2^rank) for each instance."""
-    return FINGERPRINT_INSTANCES * math.ceil(2 ** (rank / 2))
+def fingerprint_step_sums(log_len):
+    """The fingerprint route's column sums for a step of 2^log_len digits, the whole step and
+    not one circuit of it: about the square root of the length for each instance."""
+    return FINGERPRINT_INSTANCES * math.ceil(2 ** (log_len / 2))
 
 
-def fingerprint_step_digits(rank):
-    return fingerprint_step_sums(rank) * word_digits(COLUMN_SUM_BITS)
+def fingerprint_step_digits(log_len):
+    return fingerprint_step_sums(log_len) * word_digits(COLUMN_SUM_BITS)
 
 
-def fingerprint_step_range_mults(rank):
+def fingerprint_step_range_mults(log_len):
     """The column sums' range checks beyond one product a digit, in word multiplications."""
     return piop_word_mults(
-        (fingerprint_step_sums(rank) * word_range_products(COLUMN_SUM_BITS), 0, 0)
+        (fingerprint_step_sums(log_len) * word_range_products(COLUMN_SUM_BITS), 0, 0)
     )
 
 
@@ -4262,24 +4263,26 @@ def frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_byt
     return frontend_merge(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)[0]
 
 
-def kishu_step_overhead_digits(rank, hp):
-    """Digits an application step adds to its 2^rank by either route: its PIOP transcript over
-    the 64-bit field, absorbed and verified in the merge above."""
-    rounds = piop_rounds(2**rank)
+def kishu_step_overhead_digits(log_len, hp):
+    """Digits a step of 2^log_len digits, the whole step and not one circuit of it, adds by
+    either route: its PIOP transcript over the 64-bit field, absorbed and verified in the
+    merge above."""
+    rounds = piop_rounds(2**log_len)
     transcript = rounds * PIOP_ROUND_ELEMENTS * claim_bytes("kishu", hp)
     checked = 0 if hp == "poseidon" else ceil_div(transcript, 8)
     return absorb_digits(transcript, hp, checked) + rounds * PIOP_ROUND_MULTS * e_mult_digits(hp)
 
 
-def fingerprint_step_extra_digits(rank, hp):
-    """The fingerprint route's digits on a step that has multiplications: the column sums of
-    its three instances, and their transcripts absorbed and verified in the merge above. A
-    step of hashes alone runs no instance and pays nothing, so the routes tie there."""
-    rounds = piop_rounds(2**rank)
+def fingerprint_step_extra_digits(log_len, hp):
+    """The fingerprint route's digits on a step of 2^log_len digits that has multiplications:
+    the column sums of its three instances, and their transcripts absorbed and verified in
+    the merge above. A step of hashes alone runs no instance and pays nothing, so the routes
+    tie there."""
+    rounds = piop_rounds(2**log_len)
     transcripts = FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_ELEMENTS * FINGERPRINT_PRIME_BYTES
     checked = 0 if hp == "poseidon" else ceil_div(transcripts, 8)
     return (
-        fingerprint_step_digits(rank)
+        fingerprint_step_digits(log_len)
         + absorb_digits(transcripts, hp, checked)
         + FINGERPRINT_INSTANCES * rounds * PIOP_ROUND_MULTS * e_mult_digits(hp)
     )
@@ -4308,9 +4311,9 @@ def frontend_circuits(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk=False):
     per_circuit = merge_marginal_circuit(K, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
     if per_circuit >= 2**rank:
         return None
-    fixed = kishu_step_overhead_digits(rank, hp) + STEP_HEADROOM * 2**rank
     circuits = 1
     for _ in range(200):
+        fixed = kishu_step_overhead_digits(rank + math.log2(circuits), hp) + STEP_HEADROOM * 2**rank
         new = math.ceil(
             (
                 frontend_merge_digits(K, circuits, rank, hp, bool_mults, bool_bits, bool_bytes, zk)
@@ -4395,10 +4398,11 @@ def kishu_costs(
         ajtai_per_coefficient("pasta_q64", True, floor, alpha, rank, bits) / DIGITS["pasta_q64"]
     )
     per_step_digit = per_digit + bool_per_bit
-    overhead = kishu_step_overhead_digits(rank, hp)
+    step_log = rank + math.log2(circuits)  # the whole step's length, for its own transcript
+    overhead = kishu_step_overhead_digits(step_log, hp)
     capacity = math.floor(circuits * 2**rank - digits - overhead)
     assert capacity >= STEP_HEADROOM * 2**rank, (rank, circuits, digits, overhead)
-    route_extra = fingerprint_step_extra_digits(rank, hp) if route == "fingerprint" else 0
+    route_extra = fingerprint_step_extra_digits(step_log, hp) if route == "fingerprint" else 0
     commitments = (digits + overhead) * per_step_digit
     attempts = mask_attempts(alpha) if zk else 0
     handoff_digits, handoff_piop = handoff_merge_digits(K, circuits, hp)
@@ -4419,7 +4423,7 @@ def kishu_costs(
         step_units=capacity,
         step_units_mults=math.floor(capacity - route_extra) if capacity > route_extra else None,
         route_step=(
-            round(route_extra * per_step_digit + fingerprint_step_range_mults(rank))
+            round(route_extra * per_step_digit + fingerprint_step_range_mults(step_log))
             if route == "fingerprint"
             else 0
         ),

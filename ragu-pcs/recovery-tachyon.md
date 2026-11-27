@@ -63,9 +63,9 @@ page](pareto-template.html#transaction-prover) prices the migration as an applic
 proof tree with a recovery node for each input. With Kishu the recovery spend
 is <!--fig:app_tachyon_recovery_kishu-->1.3 million<!--/fig--> digits, by limbs, of a
 transaction's <!--fig:app_tachyon_zoodles1_kishu-->1.4 million<!--/fig-->. Recovering one note
-takes <!--fig:tx_tachyon_zoodles1_kishu_zk_s-->0.113<!--/fig--> s of prover on one core with zero
+takes <!--fig:tx_tachyon_zoodles1_kishu_zk_s-->0.115<!--/fig--> s of prover on one core with zero
 knowledge, and four notes in one
-transaction <!--fig:tx_tachyon_zoodles4_kishu_zk_s-->0.226<!--/fig--> s. The spend derives and
+transaction <!--fig:tx_tachyon_zoodles4_kishu_zk_s-->0.228<!--/fig--> s. The spend derives and
 excludes one epoch's nullifier. A note's nullifiers for the other epochs it has lived through need a
 lineage of their own, as Zoodles' notes have, which is not priced.
 
