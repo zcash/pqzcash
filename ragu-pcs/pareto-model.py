@@ -7880,15 +7880,15 @@ def define_figures():
     fig("note_linf_masked_beta", tex_pow2(sig(note_beta_inf, 3)))
     fig("note_linf_unmasked_beta", tex_pow2(sig(unmasked_log_beta_inf(), 3)))
     u, m = matrices("pasta_sis", 128, MASK_LOG_N, 4)
-    fig("note_linf_pasta_masked", f"rank {m[1]} at degree {fmt(m[2])}")
+    fig("note_linf_pasta_masked", f"module rank {m[1]} at degree {fmt(m[2])}")
     claim(
         "note_linf_pasta_unchanged",
         "on the ℓ∞ route the note's example over the Pasta modulus has the same accumulation matrix masked and unmasked",
         shape(u) == shape(m),
     )
     u, m = matrices("pasta_q64", 128, MASK_LOG_N, 4)
-    fig("note_linf_q64_plain", f"rank {u[1]} at degree {fmt(u[2])}")
-    fig("note_linf_q64_masked", f"rank {m[1]} at degree {fmt(m[2])}")
+    fig("note_linf_q64_plain", f"module rank {u[1]} at degree {fmt(u[2])}")
+    fig("note_linf_q64_masked", f"module rank {m[1]} at degree {fmt(m[2])}")
     fig("note_linf_q64_factor", sig(m[0] / u[0], 3))
     # The accumulator's digit vector, N base-8 digits, and the masked one's MASK_LENGTH slices.
     unmasked_bytes = 2**MASK_LOG_N * 3 / 8

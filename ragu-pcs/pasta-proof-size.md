@@ -40,9 +40,9 @@ self-contained:
   and once at Goldilocks widths (64-bit base field, degree-2 challenge extension, as the fp64
   presets use).
 - [`scripts/akita-pasta-estimates.sh`](scripts/akita-pasta-estimates.sh): builds, runs the
-  re-pricing and the rank ladder, then generates the full Euclidean and $\ell_\infty$ width tables
-  for both new moduli as CSV, one log per step and a summary with timings. The tables and TSVs it
-  writes are tracked under [`estimates/`](estimates/).
+  re-pricing and the rank ladder, then generates the full Euclidean and $\ell_\infty$ width
+  tables for both new moduli as CSV, one log per step and a summary with timings. The tables and
+  TSVs it writes are tracked under [`estimates/`](estimates/).
 
 Reproduce the re-pricing alone, in the patched clone, with:
 
@@ -143,10 +143,10 @@ native-planning effects of [§2](#2-what-re-pricing-means).
 
 Goldilocks does not need any new work for proof sizes. Re-pricing the fp64 rows at Goldilocks widths
 reproduces the fp64 figures to the byte, because the widths and the extension degree are the same.
-The SIS estimator gives the same ranks as the 64-bit representative at every bound tried, since the
-two moduli differ by one part in $2^{32}$ in $\log_2 q$. What Goldilocks changes is runtime only:
-its 2-adicity makes $X^d + 1$ split completely, the same challenge-set question that Pasta raises in
-[§5.4 of the zk note](zk-fiat-shamir-with-aborts.md#54-other-costs).
+The SIS estimator gives the same ranks as the 64-bit representative at every bound tried,
+since the two moduli differ by one part in $2^{32}$ in $\log_2 q$. What Goldilocks changes is
+runtime only: its 2-adicity makes $X^d + 1$ split completely, the same challenge-set question that
+Pasta raises in [§5.4 of the zk note](zk-fiat-shamir-with-aborts.md#54-other-costs).
 
 ## 4. SIS tables for the new moduli
 
@@ -158,13 +158,14 @@ over the canonical role cells, took 2.4 hours for Pallas and 1.1 for Goldilocks
 the 9,480 cells are secure up to the search cap, against 7,243 at Goldilocks, because a single ring
 row at 255 bits already carries most of the bits that a cell needs. Three readings from the tables:
 
-- Per $\ell_\infty$ cell, the least rank that is secure at any width carries about the same number
-  of bits at both moduli, as [§5.2 of the zk
+- Per $\ell_\infty$ cell, the least module rank that is secure at any width carries about the same
+  number of bits at both moduli, as [§5.2 of the zk
   note](zk-fiat-shamir-with-aborts.md#52-the-module-sis-bound) predicts, with Pallas coarser. At
-  ring dimension 128 and coefficient bound 7, Pallas needs rank 1, 128 rows and 32.5K bits, where
-  Goldilocks needs rank 4, 512 rows and 32.8K bits. At ring dimension 64 and the same bound, Pallas
-  needs rank 2 (32.5K bits) where Goldilocks needs rank 7 (28.7K bits). The whole-row granularity
-  costs Pallas 13% there, so a native Pasta profile would prefer the smaller ring dimensions.
+  ring dimension 128 and coefficient bound 7, Pallas needs module rank 1, 128 rows and 32.5K bits,
+  where Goldilocks needs rank 4, 512 rows and 32.8K bits. At ring dimension 64 and the same bound,
+  Pallas needs rank 2 (32.5K bits) where Goldilocks needs rank 7 (28.7K bits). The whole-row
+  granularity costs Pallas 13% there, so a native Pasta profile would prefer the smaller ring
+  dimensions.
 
 - At a Euclidean collision bound of $2^{22}$ and ring dimension 64, one ring row at Pallas (64 rows,
   16,256 bits) secures widths up to 14 ring elements, and rank 2 secures any width. Goldilocks needs
@@ -207,12 +208,12 @@ or relation sum-check is run.
 
 So the clear message per block is $(n_A + 1)\, d_A$ field elements: $n_A d_A$ coordinates of $t_i$
 and $d_A$ of $e_i$. In the shipped $2^{14}$ dense schedule that is 1,344 coordinates of $t$ against
-448 of $e$ (seven blocks, rank 3, ring dimension 64), plus 16,384 digit-valued response coordinates
-at about 1.4 bytes each. The inner images, not the partials, are three quarters of the clear field
-elements. Folding them away means one more committed level, which the planner priced and rejected.
-At Pasta a field element costs 32 bytes revealed, or about 85 three-bit digits carried, and folding
-compresses those digits by only the block count. Revealing wins, which is why the planner stops
-where it does.
+448 of $e$ (seven blocks, module rank 3, ring dimension 64), plus 16,384 digit-valued response
+coordinates at about 1.4 bytes each. The inner images, not the partials, are three quarters of the
+clear field elements. Folding them away means one more committed level, which the planner priced and
+rejected. At Pasta a field element costs 32 bytes revealed, or about 85 three-bit digits carried,
+and folding compresses those digits by only the block count. Revealing wins, which is why the
+planner stops where it does.
 
 ### 6.2 Inner images are SIS-sized, not field-sized
 
@@ -333,7 +334,7 @@ coefficients over Pasta, and every figure here is flat from that size upward, so
 circuit size is not where the cost comes from.
 
 **Accumulator instance.** Today's compressed instance, counted from Ragu's structs at the checked-in
-production rank, lists 50 native and 45 nested commitment components. With the registry and
+production step rank, lists 50 native and 45 nested commitment components. With the registry and
 accumulator points on each side that is 100 points of 32 bytes, plus 19 scalars and the two headers:
 3,812 bytes plus 64 per header element. Of the 95 components, 54 are endoscaling steps and 4 are
 challenge binders, which exist only because of the curve cycle, and several more are the bridge and
@@ -358,9 +359,9 @@ which every accumulator is committed, by about 2.4 times ([§5 of the zk
 note](zk-fiat-shamir-with-aborts.md#5-costs)). This is the one cost that the zero-knowledge option
 changes materially, and it is paid between provers, not in any proof. The length belongs to the
 masked accumulator alone: the aggregator's first fold on it returns to $N$ digits, so the
-accumulators above the zero-knowledge layer are the unmasked size, and the rank is what every fold
-pays, in the prover's commitment work; Akita's internal levels and terminal keep their own bounds,
-so the decider's opening is nearly unchanged.
+accumulators above the zero-knowledge layer are the unmasked size, and the rank is what every
+fold pays, in the prover's commitment work; Akita's internal levels and terminal keep their own
+bounds, so the decider's opening is nearly unchanged.
 
 **Decider proof.** The Akita opening of the final accumulator, which is what Ragu's compression
 produces for a third party. At $2^{14}$ to $2^{16}$ coefficients:
@@ -371,47 +372,48 @@ produces for a third party. At $2^{14}$ to $2^{16}$ coefficients:
 | Pasta claims, 64-bit commitments ([§6.3](#63-decoupling-the-commitment-modulus-from-the-claim-field)) | 71 to 74 kbytes |
 | Pasta for everything ([§6.2](#62-inner-images-are-sis-sized-not-field-sized)) | 83 to 87 kbytes |
 
-Today's compressed proof, counted from the structs at rank 13,
+Today's compressed proof, counted from the structs at step rank 13,
 is <!--fig:pedersen_checked_in_h0_bytes-->7,652<!--/fig--> bytes plus 64 per header
 element, <!--fig:pedersen_checked_in_bytes-->7,908<!--/fig--> with a header of four elements. That
 is the instance above, with the six online openings and two online polynomial commitments that
 [§8.1](#81-measured-pedersen-ipa-size-the-group-dependence-and-prover-commitment-work-in-word-multiplications)
 describes, and on each curve a revdot reduction of 4 points and 9 scalars, a batch of 1 point and 11
 scalars, and an IPA of 13 rounds, 1,696 bytes per
-curve. <!--claim:rank14_adds_128_bytes:103069-->Rank 14 adds 128 bytes.<!--/claim--> The model is
-[`ragu-size-model.py`](ragu-size-model.py) beside this note. An independent estimate for a $2^{12}$
-configuration with the endoscaling steps rebalanced gives about 5.9 kbytes. Before the online
-polynomials, the model gave exactly 5,892 bytes at rank 14 with sixteen endoscalings per step on
-both sides, one binder, and a two-element header, so that is presumably the configuration found; it
-is <!--fig:pedersen_rank14_E16_b1_bytes-->6,372<!--/fig--> bytes now. The extra rank costs
-128 bytes, one IPA round per curve. Going from four to eight endoscalings per step removes 37
+curve. <!--claim:rank14_adds_128_bytes:103069-->Step rank 14 adds 128 bytes.<!--/claim--> The model
+is [`ragu-size-model.py`](ragu-size-model.py) beside this note. An independent estimate for a
+$2^{12}$ configuration with the endoscaling steps rebalanced gives about 5.9 kbytes. Before the
+online polynomials, the model gave exactly 5,892 bytes at step rank 14 with sixteen endoscalings per
+step on both sides, one binder, and a two-element header, so that is presumably the configuration
+found; it is <!--fig:pedersen_rank14_E16_b1_bytes-->6,372<!--/fig--> bytes now. The extra step rank
+costs 128 bytes, one IPA round per curve. Going from four to eight endoscalings per step removes 37
 committed components, 1,184 bytes, and the doubled circuit is what makes room for them; the step
 from eight to sixteen saves a further 320 bytes, and a third doubling of the circuit would cost
-another 128 bytes for less than that. Its floor at rank 14 is about 6.2 kbytes, because 4.6 kbytes
-is independent of every parameter: the 19 instance scalars, the online openings and commitments,
-both curves' reduction and batch messages, and both IPAs. Below 5.5 kbytes needs changes to the
-compression protocol itself, such as fewer opened polynomials, rather than parameter choices. The
-model also prices the circuit budget (`python ragu-size-model.py budget`), from the internal
-circuits' gate counts pinned in Ragu's tests: a rank-14 circuit holds eight endoscalings beside a
-step's overhead, not sixteen, and the <!--fig:challenges_bound-->8<!--/fig--> challenges
-need <!--fig:min_binders_14-->2<!--/fig--> binders there, so
+another 128 bytes for less than that. Its floor at step rank 14 is about 6.2 kbytes, because
+4.6 kbytes is independent of every parameter: the 19 instance scalars, the online openings and
+commitments, both curves' reduction and batch messages, and both IPAs. Below 5.5 kbytes needs
+changes to the compression protocol itself, such as fewer opened polynomials, rather than parameter
+choices. The model also prices the circuit budget (`python ragu-size-model.py budget`), from the
+internal circuits' gate counts pinned in Ragu's tests: a circuit of step rank 14 holds eight
+endoscalings beside a step's overhead, not sixteen, and the <!--fig:challenges_bound-->8<!--/fig-->
+challenges need <!--fig:min_binders_14-->2<!--/fig--> binders there, so
 the <!--fig:pedersen_rank14_E16_b1_bytes-->6,372<!--/fig-->-byte configuration does not
 fit. <!--claim:smallest_pedersen_proofs:3bb44a-->The smallest proof that fits
-is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at rank 14, with
+is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at step rank 14, with
 the <!--fig:fixed_native_count-->6<!--/fig--> fixed native circuits packed
 into <!--fig:packed_native_14-->3<!--/fig--> and the <!--fig:fixed_nested_count-->3<!--/fig-->
 nested into <!--fig:packed_nested_14-->1<!--/fig-->,
-or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at rank 15
+or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at step rank 15
 with <!--fig:pedersen_least15_E-->16<!--/fig--> endoscalings per step, one binder, and the fixed
 circuits packed into <!--fig:packed_native_15-->2<!--/fig-->
-and <!--fig:packed_nested_15-->1<!--/fig-->.<!--/claim--> <!--claim:rank16_no_bytes_gain:c28b8e-->Rank
-16 gains nothing further.<!--/claim--> Fewer components is also less prover commitment work: rank 14
-packed needs fewer word multiplications than today's rank 13 as well as fewer bytes. Ragu's several
-committed vectors open in one Akita batch at no visible cost: the catalog prices two polynomials of
-$2^{15}$ within two bytes of one of $2^{16}$, and a separately committed group adds 0.6 to 2 kbytes.
-The opening grows by about 0.4 kbytes per doubling of the final witness length, so the masked
-witness of the zero-knowledge option adds a few kilobytes. A compressed lattice PCD proof is the
-opening plus the 2.5 kbytes instance: 68 to 90 kbytes, or 9 to 11 times today's.
+and <!--fig:packed_nested_15-->1<!--/fig-->.<!--/claim--> <!--claim:rank16_no_bytes_gain:c28b8e-->Step
+rank 16 gains nothing further.<!--/claim--> Fewer components is also less prover commitment work:
+step rank 14 packed needs fewer word multiplications than today's step rank 13 as well as fewer
+bytes. Ragu's several committed vectors open in one Akita batch at no visible cost: the catalog
+prices two polynomials of $2^{15}$ within two bytes of one of $2^{16}$, and a separately committed
+group adds 0.6 to 2 kbytes. The opening grows by about 0.4 kbytes per doubling of the final witness
+length, so the masked witness of the zero-knowledge option adds a few kilobytes. A compressed
+lattice PCD proof is the opening plus the 2.5 kbytes instance: 68 to 90 kbytes, or 9 to 11 times
+today's.
 
 **Reading the table.** The decider proof is 9 to 11 times today's, and the field width moves it by a
 quarter at most. The per-edge material is about twice today's. So the decoupled commitment modulus
@@ -424,17 +426,17 @@ application's business.
 
 **Measured.** Ragu's wire format (`crates/ragu_pcd/src/wire/`, since its PR #875) encodes a
 compressed proof field by field at fixed widths behind a 28-byte versioned envelope, and
-`CompressedProof::encoded_len::<R, HEADER_SIZE>()` gives the exact length from the rank, the header
-size and the profile's component counts. At tachyon-zcash/ragu 8109a41c (2026-11-13) it
-gives <!--fig:pedersen_checked_in_wire_bytes-->7,936<!--/fig--> bytes at rank 13 with a four-element
-header, so <!--fig:pedersen_checked_in_bytes-->7,908<!--/fig--> of payload,
+`CompressedProof::encoded_len::<R, HEADER_SIZE>()` gives the exact length from the step rank, the
+header size and the profile's component counts. At tachyon-zcash/ragu 8109a41c (2026-11-13) it
+gives <!--fig:pedersen_checked_in_wire_bytes-->7,936<!--/fig--> bytes at step rank 13 with a
+four-element header, so <!--fig:pedersen_checked_in_bytes-->7,908<!--/fig--> of payload,
 and <!--fig:pedersen_checked_in_h2_wire_bytes-->7,808<!--/fig--> with a two-element
-header. <!--claim:rank14_adds_128_bytes:103069-->Rank 14 adds 128 bytes, one IPA round per curve, so
-rank 14 with two header elements and rank 13 with four have the same length.<!--/claim--> The
-payload is 448 bytes more than the 7,460 counted from the structs at the fork of 2026-10-04, because
-every proof now carries two online polynomials. Those are their two commitments and the six
-openings, a point and a value for each slot of the left, right and output proofs. The component
-counts are otherwise unchanged, 50 native and 45 nested commitments.
+header. <!--claim:rank14_adds_128_bytes:103069-->Step rank 14 adds 128 bytes, one IPA round per
+curve, so step rank 14 with two header elements and step rank 13 with four have the same
+length.<!--/claim--> The payload is 448 bytes more than the 7,460 counted from the structs at the
+fork of 2026-10-04, because every proof now carries two online polynomials. Those are their two
+commitments and the six openings, a point and a value for each slot of the left, right and output
+proofs. The component counts are otherwise unchanged, 50 native and 45 nested commitments.
 
 Online polynomials are Ragu's polynomial oracles. A step's application circuit can open each of the
 six slots once at the challenge $\zeta$, drawn after the polynomials and the staged values are
@@ -459,7 +461,7 @@ multiplications per coefficient, dense polynomials assumed:
 
 | commitment | per coefficient | basis |
 |---|---|---|
-| Pedersen over Pasta, rank 14 | <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> | Ragu's fuse measured at rank 13, 1.46 s on one core for 96 commitments of $2^{13}$ coefficients, scaled by Pippenger's 255/rank mixed additions per coefficient |
+| Pedersen over Pasta, step rank 14 | <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> | Ragu's fuse measured at step rank 13, 1.46 s on one core for 96 commitments of $2^{13}$ coefficients, scaled by Pippenger's 255/rank mixed additions per coefficient |
 | Ajtai, Pasta modulus | <!--fig:ajtai_per_coeff_pasta-->15,000<!--/fig--> | 85 digits, rows/64 + 3 multiplications per digit by NTT, 32 word multiplications each |
 | Ajtai, 128-bit field | <!--fig:ajtai_per_coeff_fp128-->1,900<!--/fig--> | 43 digits, 8 word multiplications each |
 | Ajtai, Pasta claims with 64-bit commitments | <!--fig:ajtai_per_coeff_pasta_q64-->940<!--/fig--> | 85 digits, 2 word multiplications each |
@@ -482,32 +484,33 @@ arithmetic as a requirement in the dominance test, and its Knobs and Circuit bud
 every assumption behind the numbers.
 
 
-**Circuit budget and rank.** The gate counts of the internal circuits, pinned in Ragu's tests at
-rank 13, bound the parameters at each rank. A rank-13 circuit
+**Circuit budget and step rank.** The gate counts of the internal circuits, pinned in Ragu's tests
+at step rank 13, bound the parameters at each step rank. A circuit of step rank 13
 of <!--fig:budget_gates_13-->2,048<!--/fig--> gates holds <!--fig:endoscalings_13-->4<!--/fig-->
 endoscalings per step and binds <!--fig:challenges_per_binder_13-->2<!--/fig--> challenges per
-binder. Rank 14 holds <!--fig:endoscalings_14-->8<!--/fig-->
-and <!--fig:challenges_per_binder_14-->5<!--/fig-->; rank 15
+binder. Step rank 14 holds <!--fig:endoscalings_14-->8<!--/fig-->
+and <!--fig:challenges_per_binder_14-->5<!--/fig-->; step rank 15
 holds <!--fig:endoscalings_15-->17<!--/fig--> and
-all <!--fig:challenges_per_binder_15-->8<!--/fig-->, so one binder; rank 16
+all <!--fig:challenges_per_binder_15-->8<!--/fig-->, so one binder; step rank 16
 holds <!--fig:endoscalings_16-->35<!--/fig-->. Under Pedersen-IPA this makes the merge the main
-consumer of the rank. Every endoscaling step and binder is its own commitment, so a larger circuit
-removes components faster than the IPA adds its 128 bytes per
+consumer of the step rank. Every endoscaling step and binder is its own commitment, so a larger
+circuit removes components faster than the IPA adds its 128 bytes per step
 rank. <!--claim:smallest_pedersen_proofs:3bb44a-->The smallest proof that fits
-is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at rank 14 with the fixed circuits
-merged, or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at rank 15,
+is <!--fig:pedersen_least14_bytes-->6,468<!--/fig--> bytes at step rank 14 with the fixed circuits
+merged, or <!--fig:pedersen_least15_bytes-->6,244<!--/fig--> bytes at step rank 15,
 against <!--fig:pedersen_checked_in_h2_bytes-->7,780<!--/fig--> today, all with two-element
-headers.<!--/claim--> Rank 14 also needs fewer word multiplications than today. The application and
-the merge therefore compete for the rank. Under Akita the merge verifier is spread over as many step
-circuits of the rank's size as it needs, and their witnesses open as one batch. Its commitments are
-therefore nearly flat in rank, while the fold's sum-checks over the accumulator, K groups of 2^rank
-coefficients, grow with it; the page's accumulation prover measure counts both. From rank 13 to 16
-the per-circuit evaluation claims save about 160 bytes and a dozen absorbed atoms, against a few
-percent of prover commitment work spent padding the last circuit. The rank then follows the largest
-application step. The limits are the padding of every polynomial to $2^{\text{rank}}$ coefficients,
-the opening's growth of 0.5 to 2 kbytes per doubling of the batched witness, and the prover's memory
-per circuit. The Pareto page shows all of this per configuration, and marks each one as needing
-parameter changes only, code changes within the protocol, or design changes.
+headers.<!--/claim--> Step rank 14 also needs fewer word multiplications than today. The application
+and the merge therefore compete for the step rank. Under Akita the merge verifier is spread over as
+many step circuits of the step rank's size as it needs, and their witnesses open as one batch. Its
+commitments are therefore nearly flat in step rank, while the fold's sum-checks over the
+accumulator, K groups of $2^{\text{step rank}}$ coefficients, grow with it; the page's accumulation
+prover measure counts both. From step rank 13 to 16 the per-circuit evaluation claims save about
+160 bytes and a dozen absorbed atoms, against a few percent of prover commitment work spent padding
+the last circuit. The step rank then follows the largest application step. The limits are the
+padding of every polynomial to $2^{\text{step rank}}$ coefficients, the opening's growth of 0.5 to
+2 kbytes per doubling of the batched witness, and the prover's memory per circuit. The Pareto page
+shows all of this per configuration, and marks each one as needing parameter changes only, code
+changes within the protocol, or design changes.
 
 **Hash-based comparison.** The Pareto page also prices WHIR (ePrint 2024/1586) with ARC accumulation
 (ePrint 2024/1731) over Pasta's own field, which is FFT friendly. The proof sizes come from WHIR's
@@ -530,22 +533,22 @@ of <!--fig:whir13_rates_gates_min-->1.3<!--/fig-->
 to <!--fig:whir13_rates_gates_max-->3.7<!--/fig--> million
 gates, <!--fig:whir13_over_akita_poseidon-->50<!--/fig--> times Akita's estimate
 and <!--fig:whir13_over_today_min-->10<!--/fig--> to <!--fig:whir13_over_today_max-->30<!--/fig-->
-times today's. Ragu's step circuits hold 2,048 gates each at rank 13, so that merge verifier has to
-be spread over hundreds of them. Committing their witnesses in Poseidon Merkle trees then costs
-about a hundred times Pedersen-IPA's prover commitment work. WARP (ePrint 2025/753) has the same
-opening count for Reed–Solomon codes; its linear-time prover needs linear-time codes and does not
-help, since hashing rather than encoding is the cost. Basefold is subsumed by WHIR over Reed–Solomon
-codes, and Zook (ePrint 2026/391) makes zero knowledge free at the IOP
+times today's. Ragu's step circuits hold 2,048 gates each at step rank 13, so that merge verifier
+has to be spread over hundreds of them. Committing their witnesses in Poseidon Merkle trees then
+costs about a hundred times Pedersen-IPA's prover commitment work. WARP (ePrint 2025/753) has the
+same opening count for Reed–Solomon codes; its linear-time prover needs linear-time codes and does
+not help, since hashing rather than encoding is the cost. Basefold is subsumed by WHIR over
+Reed–Solomon codes, and Zook (ePrint 2026/391) makes zero knowledge free at the IOP
 level. <!--claim:whir_gold_sixth_off:4b4110-->Moving everything to Goldilocks, with the claims in
 its cubic extension, cuts the prover by about <!--fig:whir_gold_prover_cut-->5<!--/fig--> times and
 the proof by a sixth, to <!--fig:whir_gold13_kb_min-->315 kbytes<!--/fig-->
-to <!--fig:whir_gold13_kb_max-->787 kbytes<!--/fig--> at rank 13.<!--/claim--> It grows the merge,
-because a Goldilocks Poseidon costs more gates per node. A hybrid with a Pasta witness committed as
-four 64-bit limbs gains nothing, unlike Akita's decoupled commitment modulus. The Pasta merge
-circuit forces Pasta's hash on the trees, and four limbs per coefficient is more hashing, not less.
-So the hash-based route is dominated by Akita on every measure here. What it offers is a native
-Pasta field and a mature deployment base. To compete it would need a design with far larger step
-circuits and a cheaper hash. The binary-field systems of 2026, Flock (arXiv 2607.27491) and
+to <!--fig:whir_gold13_kb_max-->787 kbytes<!--/fig--> at step rank 13.<!--/claim--> It grows the
+merge, because a Goldilocks Poseidon costs more gates per node. A hybrid with a Pasta witness
+committed as four 64-bit limbs gains nothing, unlike Akita's decoupled commitment modulus. The Pasta
+merge circuit forces Pasta's hash on the trees, and four limbs per coefficient is more hashing, not
+less. So the hash-based route is dominated by Akita on every measure here. What it offers is a
+native Pasta field and a mature deployment base. To compete it would need a design with far larger
+step circuits and a cheaper hash. The binary-field systems of 2026, Flock (arXiv 2607.27491) and
 Binius64, show what that design looks like. They are Boolean circuits over $\mathbb{F}_2$ with
 claims in $\mathbb{F}_{2^{128}}$. Flock proves 82,000 BLAKE3 compressions per second on one core,
 with proofs of 205 to 395 kbytes at 100 bits. At that rate the Merkle hashes of an ARC merge are
@@ -594,7 +597,7 @@ out-of-domain samples before each fold. No implementation of it exists; the fron
 rows from it, at the 128-bit floor, where the stand-alone proof
 is <!--fig:bitz_beep_25_r3_kb-->150 kbytes<!--/fig--> at rate 1/8
 and <!--fig:bitz_beep_25_r6_kb-->126 kbytes<!--/fig--> at 1/64. The figures below are the certified
-ones. With its hybrid SNARK's PIOPs added, BitZ with ARC at rank 13 and rate 1/8 comes
+ones. With its hybrid SNARK's PIOPs added, BitZ with ARC at step rank 13 and rate 1/8 comes
 to <!--fig:bitz13_kb-->538 kbytes<!--/fig-->, <!--fig:bitz13_prover-->1.1e9<!--/fig--> word
 multiplications, a <!--fig:bitz13_merge_bits-->67 million<!--/fig--> bit merge and
 a <!--fig:bitz13_decider_ms-->9.74<!--/fig--> ms
@@ -632,8 +635,9 @@ sum-check form; with
 Poseidon <!--fig:kishu21_poseidon_kb-->74 kbytes<!--/fig-->, <!--fig:kishu21_poseidon_prover-->1.8e7<!--/fig-->
 and <!--fig:kishu21_poseidon_digits-->0.72 million<!--/fig--> digits. The projection form's verifier
 scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> public coefficients, which recursion
-cannot afford. So against BitZ at rank 17 its proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig-->
-times smaller and its merge prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
+cannot afford. So against BitZ at step rank 17 its proof
+is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig--> times smaller and its merge
+prover <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
 to <!--fig:kishu_vs_bitz_prover_max-->64<!--/fig-->
 times. <!--claim:kishu_blake3_dominates_q64:c39183-->Against the 64-bit Akita variant, which commits
 every wire of a hash gate as a 255-bit value, its merge prover under BLAKE3
@@ -644,8 +648,8 @@ security analysis, with its grinding, and a tighter analysis would cut them, so 
 upper bound. The page's measures are the recursion's, the step's commitments, the accumulator's
 opening and the merge circuit, which every design pays and which can be estimated, whereas which
 application circuit to benchmark is hard to agree on, since it depends on the application; so the
-application enters only through the rank. The recovery circuit itself is hash-heavy: its expensive
-parts are seven BLAKE2b-512 compressions by ZIP 2005's cost section, beside two Sinsemilla
+application enters only through the step rank. The recovery circuit itself is hash-heavy: its
+expensive parts are seven BLAKE2b-512 compressions by ZIP 2005's cost section, beside two Sinsemilla
 commitments, two full-width Pallas scalar multiplications, a Merkle path, and a BLAKE3 compression
 in the quantum-key signature. In Kishu a Boolean hash costs one bit per wire, and the integer
 arithmetic simulates $\mathbb{F}_p$ without a bit decomposition per operation, with range checks
@@ -676,13 +680,13 @@ its Module-SIS instance costs at least $2^{128}$ operations under the quantum co
 ignores the polynomial factors. The block size that reaches a given root Hermite factor is taken
 from the BKZ 2.0 analysis of [CN11]. Every instance in the catalog lands at block size 484 to 486,
 in lattices of dimension 2,000 to 4,800. The catalog's own security check reports 128.26 bits on
-each. A cross-check with the maintained lattice estimator [LE] agrees on the ranks ([§5.5 of the zk
-note](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator)). The estimator is
-maintained; the paper that introduced it, [APS15], is not, and its authors say so in a 2019 note.
-The estimator costs BKZ as 8·n calls to an SVP oracle of the block size, with sieving per [BDGL16]
-classically and per [LMvdP15] and [Laa16] quantumly. It follows [ADPS16] for the primal attack, as
-[AGVW17] established, and leaves out the dimensions for free of [Duc18] and [ADH+19]. The same block
-size under other models:
+each. A cross-check with the maintained lattice estimator [LE] agrees on the ranks ([§5.5 of
+the zk note](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator)). The
+estimator is maintained; the paper that introduced it, [APS15], is not, and its authors say so in a
+2019 note. The estimator costs BKZ as 8·n calls to an SVP oracle of the block size, with sieving per
+[BDGL16] classically and per [LMvdP15] and [Laa16] quantumly. It follows [ADPS16] for the primal
+attack, as [AGVW17] established, and leaves out the dimensions for free of [Duc18] and [ADH+19]. The
+same block size under other models:
 
 | Cost model | Bits at $\beta = 485$ | Source |
 |---|---|---|
@@ -699,8 +703,8 @@ sit between its levels 2 and 3 on the same model.
 - *Proof-level slack, not the assumption.* Lattice schemes have slipped before by sizing for honest
   norms rather than the extractor's. Akita sizes for the extractor's collision bound, which is why
   the masked variant needs 340 scalar rows against 143 on the zk note's [Euclidean
-  route](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator), and rank 2
-  against rank 1 at the 64-bit modulus on the $\ell_\infty$ route [the frontier
+  route](zk-fiat-shamir-with-aborts.md#55-checking-the-ranks-with-akitas-estimator), and module rank
+  2 against module rank 1 at the 64-bit modulus on the $\ell_\infty$ route [the frontier
   page](pareto-template.html#security-floor) takes. But the knowledge-soundness proof in the quantum
   random-oracle model is still in progress. And the decoupled commitment modulus of
   [§6.3](#63-decoupling-the-commitment-modulus-from-the-claim-field) has no soundness argument yet
@@ -731,9 +735,9 @@ Module-SIS since [LS15], and standardization behind it.
 **A margin.** [The frontier page's](pareto-template.html#security-floor) higher floor is 147 quantum
 bits, which moves the block size from 484 to about 556. It was to be 150. The width tables were
 generated at 150 bits first ([`scripts/akita-150-tables.sh`](scripts/akita-150-tables.sh); those
-tables are not kept under [`estimates/`](estimates/)). There the Euclidean rank ladder alone needs
-12 percent more rows (the `pasta_rank` example under the 150-bit policy), and the coefficient-L∞
-tables, which size the catalog's matrices, move
+tables are not kept under [`estimates/`](estimates/)). There the Euclidean rank ladder alone
+needs 12 percent more rows (the `pasta_rank` example under the 150-bit policy), and the
+coefficient-L∞ tables, which size the catalog's matrices, move
 more. <!--claim:shrink_q32_least,shrink_36fold_large_dims:117006-->Where the 147-bit floor binds,
 the median shrink of the maximum secure width, over the cells where neither width is at the
 estimator's search cap and the width falls, is a factor of <!--fig:shrink_small_min-->2<!--/fig-->
@@ -745,22 +749,22 @@ above, the 32-bit modulus at the low end of each range.<!--/claim--> The excepti
 dimension of each table, where it is about 60. The q64 and Goldilocks tables each have 83 small
 cells with no secure width at all. But a re-plan at 150 bits cannot run. Akita's compression chain
 is built from rank-one maps, and at the catalog's geometry its first map, at ring dimension 16 and
-width 4,096, certifies at 147.3 bits; the 150-bit cell allows width 3,806. Raising the maps to rank
-two, or splitting them, would double the compressed images at every level. So the floor is 147 bits,
-the most the rank-one maps allow. At that floor Akita's catalog is re-planned by its own planner, in
-a checkout whose single policy, runtime width tables and compression cells are retargeted to
-147 bits (2026-11-12). The page's openings there are therefore planned rather than scaled. The
-planner does not give the prover's rows term or the verifier's inner-image share. For those the
-page's model takes the 115 weakest Module-SIS instances in the shipped catalog's security report
-([`estimates/catalog-security.tsv`](estimates/catalog-security.tsv)) and, for each, the smallest
-module rank that covers the instance's width at both floors. With the catalog's own mix of moduli
-the ranks sum to <!--fig:rank_sum_own_128-->121<!--/fig--> at 128 bits and
+width 4,096, certifies at 147.3 bits; the 150-bit cell allows width 3,806. A higher floor needs
+another chain, as the frontier page's [165-bit level](pareto-template.html#level-3) has. So the
+floor is 147 bits, the most the rank-one maps allow. At that floor Akita's catalog is re-planned by
+its own planner, in a checkout whose single policy, runtime width tables and compression cells are
+retargeted to 147 bits (2026-11-12). The page's openings there are therefore planned rather than
+scaled. The planner does not give the prover's rows term or the verifier's inner-image share. For
+those the page's model takes the 115 weakest Module-SIS instances in the shipped catalog's security
+report ([`estimates/catalog-security.tsv`](estimates/catalog-security.tsv)) and, for each, the
+smallest module rank that covers the instance's width at both floors. With the catalog's own mix of
+moduli the module ranks sum to <!--fig:rank_sum_own_128-->121<!--/fig--> at 128 bits and
 to <!--fig:rank_sum_own_147-->150<!--/fig--> at 147 bits, a factor
 of <!--fig:rank_scale_own-->1.24<!--/fig-->, with <!--fig:rank_moves_own-->29<!--/fig--> instances
-moving up a rank; at 150 bits the sum was 154, a factor of 1.27. Over a 64-bit modulus, where the
-ranks are higher to begin with, the sums are 185 and 211, a factor of 1.14, with 26 moving; at
-150 bits 215, a factor of 1.16. The q64 and Goldilocks tables are identical for these cells. Over
-Pallas the instances sit at the width cap at both floors but one: the sums
+moving up a module rank; at 150 bits the sum was 154, a factor of 1.27. Over a 64-bit modulus, where
+the module ranks are higher to begin with, the sums are 185 and 211, a factor of 1.14, with 26
+moving; at 150 bits 215, a factor of 1.16. The q64 and Goldilocks tables are identical for these
+cells. Over Pallas the instances sit at the width cap at both floors but one: the sums
 are <!--fig:rank_sum_pallas_128-->117<!--/fig--> and <!--fig:rank_sum_pallas_147-->118<!--/fig-->, a
 factor of <!--fig:rank_scale_pallas-->1.01<!--/fig-->. WHIR's proofs, measured with the reference
 implementation over both fields, are <!--fig:whir_scale_147_pct-->16<!--/fig--> percent larger at

@@ -55,12 +55,12 @@ accumulator, and split accumulation needs the witness of whatever it folds. So t
 a masked witness: the response $z = y + cs$ of the [zero-knowledge
 note](zk-fiat-shamir-with-aborts.md) (the zk note), a Gaussian mask $y$ added to the leaf's digits
 $s$ under a challenge $c$. Rejection sampling makes the accepted $z$ independent of the secret. The
-mask covers the leaf's $2^{\mathrm{rank}}$ digits alone, since the wallet hands over no accumulator
-of its own. The transaction measure charges the user's handoff the host's merge that folds the leaf,
-and a small merge of the handoff's own: the challenge derivation, the commitment identity, and the
-claim fold. The decomposition and the range and norm proofs are deferred to the host (the zk note's
-[§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a one-compression leaf the
-host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
+mask covers the leaf's $2^{\text{step rank}}$ digits alone, since the wallet hands over no
+accumulator of its own. The transaction measure charges the user's handoff the host's merge that
+folds the leaf, and a small merge of the handoff's own: the challenge derivation, the commitment
+identity, and the claim fold. The decomposition and the range and norm proofs are deferred to the
+host (the zk note's [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a
+one-compression leaf the host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
 measure's <!--fig:tx_qk_kishu_zk_s-->0.0247<!--/fig--> s in a step
 of <!--fig:tx_qk_kishu_zk_rank-->$1.875 \times 2^{19}$<!--/fig--> digits
 is <!--fig:tx_qk_kishu_zk_merges_pct-->93<!--/fig--> percent merge
@@ -73,8 +73,8 @@ simulatable: the hiding commitment, the mask's commitment, the challenge, the cl
 obligation transcripts. So the host can derive the challenge, prove the fold's merge and the
 obligations (the zk note's [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost) deferral),
 and verify the leaf's sum-checks in its own merge. The wallet keeps what touches the secret. It
-commits the leaf with a hiding padding at the masked rank. It proves its constraint and Booleanity
-sum-checks under Libra-style masking polynomials, since the host sees their
+commits the leaf with a hiding padding at the masked rank. It proves its constraint and
+Booleanity sum-checks under Libra-style masking polynomials, since the host sees their
 transcripts: <!--fig:qk_sumcheck_mask_elements-->112<!--/fig--> committed elements of
 $\mathbb{F}_q$. <!--claim:device_element_widths:773881-->Each is committed in the widest digits that
 keep the vector's matrix at the padding sweep's rows, judged by the vector's exact $\ell_2$
@@ -145,7 +145,7 @@ regenerated from a seed as the mask can. With no padding and no masking elements
 own <!--fig:app_qk_bits-->11,344<!--/fig--> coordinates still
 make <!--fig:qk_z_floor_kbytes-->30 kbytes<!--/fig-->. A succinct Kishu proof of the leaf in place
 of the response would be about <!--fig:qk_succinct_proof_kbytes-->72 kbytes<!--/fig-->, whatever the
-rank from <!--fig:qk_min_rank-->14<!--/fig--> up, since nearly all of it is the opening's fixed
+step rank from <!--fig:qk_min_rank-->14<!--/fig--> up, since nearly all of it is the opening's fixed
 parts, the compression levels and the terminal.<!--/claim--> A narrower mask saves two or three bits
 a coordinate at the price of idle-time attempts, and a lighter challenge set a fraction of a bit.
 The transfer cannot be avoided by moving the fold elsewhere: split accumulation needs the host to

@@ -80,9 +80,10 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   checked-in proof, 7,908 bytes, and `python ragu-size-model.py budget` the budget table. After a
   Ragu change, read the pinned counts off those tests and update the constants at the top of the
   size model.
-- **The fuse** (`PEDERSEN_FUSE_SECONDS`): in the Ragu checkout, `cargo bench -p ragu_pcd --features
-  multicore --bench criterion_fuse`, the Merge2 step at the production rank with one worker, on one
-  core, no assembly. The model calibrates the Pedersen prover to it.
+- **The fuse** (`PEDERSEN_FUSE_SECONDS`): in the Ragu checkout,
+  `cargo bench -p ragu_pcd --features multicore --bench criterion_fuse`, the Merge2 step at the
+  production step rank with one worker, on one core, no assembly. The model calibrates the Pedersen
+  prover to it.
 - **Tachyon's circuits** (`TACHYON_STEPS`): apply the patch under
   [`scripts/patches/ragu/`](../../../ragu-pcs/scripts/patches/ragu/) with `git am` to the Ragu
   worktree at a1395401, copy [`scripts/tachyon-gates/`](../../../ragu-pcs/scripts/tachyon-gates/) to
@@ -133,9 +134,9 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   `scripts/derive-linf-widths.py --check DERIVED.tsv estimates/linf-accumulation-widths-165.tsv`
   gives the rule's error against the estimator: a median of +0.004 in log2 of the width for the
   64-bit modulus and +0.014 for the 128-bit one, with 5th to 95th percentiles of about -0.12 to
-  +0.48. The last command's `own` line is the level's rank growth for the catalog's own moduli; its
-  `q64` line is not meaningful there, since the 64-bit modulus's CSV table at the level has not
-  been generated and the 128-bit one stands in for it.
+  +0.48. The last command's `own` line is the level's module-rank growth for the catalog's own
+  moduli; its `q64` line is not meaningful there, since the 64-bit modulus's CSV table at the level
+  has not been generated and the 128-bit one stands in for it.
 - **The 147-bit floor** (`AKITA_147`, `SLOPE[147]`):
   [`scripts/akita-147-pipeline.sh`](../../../ragu-pcs/scripts/akita-147-pipeline.sh), on the
   worktree that the checkout script made, regenerates its width tables at 147 bits (hours;
@@ -154,9 +155,9 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   (`LEVEL3_COMPRESSION_CHAIN`, `SHIPPED_COMPRESSION_CHAIN`) is printed by
   [`scripts/compression-chain.sh`](../../../ragu-pcs/scripts/compression-chain.sh) from Akita's
   single-instance estimator, in a checkout with the estimator's examples built.
-- **Rank growth** (`RANK_SUMS_147`): over the weakest instance of each of the catalog report's 115
-  schedules, the least module rank that covers its width at each floor, mapped through each
-  variant's modulus:
+- **Module-rank growth** (`RANK_SUMS_147`): over the weakest instance of each of the catalog
+  report's 115 schedules, the least module rank that covers its width at each floor, mapped through
+  each variant's modulus:
 
   ```
   python scripts/rank-scale.py estimates/catalog-security.tsv \

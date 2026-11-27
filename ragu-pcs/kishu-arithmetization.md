@@ -229,7 +229,7 @@ Kishu commits its digits over Akita's 64-bit modulus, plus the range check. For 
 Booleanity check at <!--fig:bool_projection_per_bit-->2.5<!--/fig-->
 or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications. A dibit or a tribit costs
 one or three products more at the same rate, charged with the application's constraints. A step
-commits $2^{\mathrm{rank}}$ digits. Its constraints are charged as well as its digits: the
+commits $2^{\text{step rank}}$ digits. Its constraints are charged as well as its digits: the
 constraint PIOP, a sum-check over the committed table, costs
 about <!--fig:constraint_term_mults-->9.8<!--/fig--> word multiplications per product term of a
 constraint, the measured rate of the Booleanity sum-check. A nonzero coefficient of a linear
@@ -258,12 +258,12 @@ product terms. By the fingerprint route the relation is one constraint in each
 of <!--fig:fingerprint_instances-->3<!--/fig--> PIOP instances over random 52-bit primes, as BitZ
 checks it, at <!--fig:mult_fingerprint_digits-->170<!--/fig--> digits. The price is per step that
 has multiplications, so a step of hashes alone pays nothing and the routes tie on the path
-applications. Each instance's evaluation claim becomes about $\sqrt{2^{\mathrm{rank}}}$ integer
+applications. Each instance's evaluation claim becomes about $\sqrt{2^{\text{step rank}}}$ integer
 column sums by BitZ's tensor split, each exact as one claim in the 64-bit field and committed as a
 word
 of <!--fig:column_sum_bits-->61<!--/fig--> bits, <!--fig:column_sum_digits-->21<!--/fig--> digits.
-That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at rank 21, with three
-more transcripts for the merge above. So the recovery circuit
+That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at step rank 21, with
+three more transcripts for the merge above. So the recovery circuit
 is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
 and <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route. Its
 constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0135<!--/fig-->
@@ -412,13 +412,13 @@ Knowledge for a Lattice Accumulation Step](zk-fiat-shamir-with-aborts.md) descri
 [Relation to Ragu](#relation-to-ragu) above gives the differences in the arithmetization itself.
 Beyond it, Ragu commits a step's trace as one structured polynomial of degree below $4n$, by
 Pedersen, and checks the gates and constraints together by one revdot identity at random points,
-sound by Schwartz–Zippel in the field. A step of rank $r$ commits $2^r$ coefficients, so
-$2^{r-2}$ gates: at rank 13, Ragu's production rank, 2,048 gates, which every one of Tachyon's
-circuits fits. Kishu differs in these ways:
+sound by Schwartz–Zippel in the field. A step of step rank $r$ commits $2^r$ coefficients, so
+$2^{r-2}$ gates: at step rank 13, Ragu's production step rank, 2,048 gates, which every one of
+Tachyon's circuits fits. Kishu differs in these ways:
 
 - **A value's digits cost less than a coefficient.** Ragu's gate costs about one Pallas
   multiplication of Pedersen work per wire, about <!--fig:pedersen_per_coeff_13-->5,600<!--/fig-->
-  word multiplications a coefficient at rank 13. Kishu's digit
+  word multiplications a coefficient at step rank 13. Kishu's digit
   costs <!--fig:kishu_digit_mults-->11.0<!--/fig--> to commit, so a Pasta
   value's <!--fig:value_digits-->85<!--/fig--> tribits
   cost <!--fig:kishu_value_commit_mults-->935<!--/fig-->, well under one coefficient.
@@ -443,8 +443,8 @@ circuits fits. Kishu differs in these ways:
   64-bit field's quadratic extension, <!--fig:kishu_claim_bytes-->16<!--/fig--> bytes, so a Pasta
   value is proved through limbs or a fingerprint.
 - **The step is larger and its size is a knob.** Ragu's step is fixed at $2^{13}$ coefficients;
-  Kishu's is $2^{\mathrm{rank}}$ digits over a range of ranks, and one Kishu step holds several of
-  Tachyon's circuits, as the [Zoodles](zoodles.md) page's packing shows.
+  Kishu's is $2^{\text{step rank}}$ digits over a range of step ranks, and one Kishu step holds
+  several of Tachyon's circuits, as the [Zoodles](zoodles.md) page's packing shows.
 - **The merge verifies a lattice fold.** Ragu's merge circuits verify Pedersen-IPA accumulation with
   Poseidon transcripts over Pallas ([the frontier page's circuit
   budget](pareto-template.html#circuit-budget)); Kishu's verify Akita's fold, its sum-checks and

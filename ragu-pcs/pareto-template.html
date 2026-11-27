@@ -280,7 +280,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <div class="stack">
     <div class="group"><a href="#circuit-budget" class="eyebrow">Pedersen‑IPA's fixed circuits</a>
       <label><input type="checkbox" class="packing" value="today" checked id="packing-today"> as today, one circuit each</label>
-      <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the rank's budget</label>
+      <label><input type="checkbox" class="packing" value="packed" checked id="packing-packed"> packed into the step rank's budget</label>
     </div>
     </div>
     <div class="group wide"><span class="eyebrow"><a href="#grinding">Hash-based families' grinding</a> (query phase proof-of-work)</span>
@@ -321,7 +321,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>Dominance is taken to a tolerance, <!--fig:frontier_tolerance_pct-->2<!--/fig-->% by default.
   This is ε-dominance <a href="#ref-ltdz02">[LTDZ02]</a>: a configuration ε-dominates another when
   it is no more than the tolerance worse on every measure, and no worse on the three requirements.
-  So a rank that buys a hair less proof is not thereby a different choice. The tolerance is
+  So a step rank that buys a hair less proof is not thereby a different choice. The tolerance is
   selectable under Frontier: exact, 2%, or 5%.</p>
   <p>The frontier is built without a grid, which would keep two configurations that are within the
   tolerance of each other whenever a cell boundary fell between them. The configurations are taken
@@ -412,40 +412,40 @@ code { font-family: var(--mono); font-size: 0.92em; }
   class's frontier or only on its family's. The per-family box collapses each family to its own
   frontier instead, so that a dominated family still shows its best configurations.</p>
   <h3 id="step-rank">Step rank</h3>
-  <p>A step at rank $r$ commits $2^r$ coefficients: $2^{r-2}$ gates of four wires for the field
-  arithmetizations, and $2^r$ bits or digits for BitZ and Kishu, which alone go past rank 17.</p>
+  <p>A step at step rank $r$ commits $2^r$ coefficients: $2^{r-2}$ gates of four wires for the field
+  arithmetizations, and $2^r$ bits or digits for BitZ and Kishu, which alone go past step rank 17.</p>
   <p>For Pedersen-IPA, the circuit budget below limits the endoscalings per step and the binders at
-  each rank, which makes rank a real trade-off. A larger circuit holds more endoscalings and fewer
+  each step rank, which makes step rank a real trade-off. A larger circuit holds more endoscalings and fewer
   binders, which removes committed components and with them bytes and atoms, while the IPA grows by
-  128 bytes per rank and every remaining polynomial
-  doubles. <!--claim:rank14_packed_beats_13,ranks_15_16_trade_prover:e85f9c-->Rank 14 with the fixed
-  circuits packed beats rank 13 on bytes, prover commitment work and atoms; ranks 15 and 16 buy
+  128 bytes per step rank and every remaining polynomial
+  doubles. <!--claim:rank14_packed_beats_13,ranks_15_16_trade_prover:e85f9c-->Step rank 14 with the fixed
+  circuits packed beats step rank 13 on bytes, prover commitment work and atoms; step ranks 15 and 16 buy
   bytes and atoms with prover commitment work.<!--/claim--></p>
-  <p>For Akita the step circuits' witnesses open as one batch, so with Poseidon the rank moves bytes
+  <p>For Akita the step circuits' witnesses open as one batch, so with Poseidon the step rank moves bytes
   and atoms only through each circuit's own evaluation claim and the last circuit's unused capacity,
-  a few hundred bytes across the range. With BLAKE3 the claims' absorption makes the rank decisive,
+  a few hundred bytes across the range. With BLAKE3 the claims' absorption makes the step rank decisive,
   as the <a href="#hashes-in-circuits">Hashes section</a> says. The more significant trade is the
   field choice: a smaller field buys fewer bytes and less prover commitment work at the cost of more
   atoms absorbed per merge.</p>
-  <p><!--claim:rank12_rows:5b42c1-->Rank 12 has no Pedersen-IPA rows, since a 1,024-gate circuit
-  holds no binder challenge, and no Akita rows under BLAKE3.<!--/claim--> Rank 17 helps Akita under
+  <p><!--claim:rank12_rows:5b42c1-->Step rank 12 has no Pedersen-IPA rows, since a 1,024-gate circuit
+  holds no binder challenge, and no Akita rows under BLAKE3.<!--/claim--> Step rank 17 helps Akita under
   BLAKE3, where fewer circuits absorb fewer
   claims: <!--fig:akita17_blake3_cut_pct_min-->10<!--/fig-->
   to <!--fig:akita17_blake3_cut_pct_max-->28<!--/fig--> percent off the merge prover,
   and <!--fig:akita17_blake3_less_kb_small-->0.5 kbytes<!--/fig--> off the proof at the small
   fields, <!--fig:akita17_blake3_less_kb_pasta-->3 kbytes<!--/fig--> for the Pasta variants.</p>
-  <p>The WHIR-type rows depend on the rank only through their circuit count, so they are shown at
-  ranks 13 to 16.</p>
-  <p>BitZ, whose steps commit $2^{\mathrm{rank}}$ bits, goes on to
-  rank <!--fig:bitz_max_rank-->24<!--/fig-->, where one step holds the recovery circuit. Its merge
-  is nearly a fixed cost, so the transaction measure falls with the rank until then, while the proof
+  <p>The WHIR-type rows depend on the step rank only through their circuit count, so they are shown at
+  step ranks 13 to 16.</p>
+  <p>BitZ, whose steps commit $2^{\text{step rank}}$ bits, goes on to
+  step rank <!--fig:bitz_max_rank-->24<!--/fig-->, where one step holds the recovery circuit. Its merge
+  is nearly a fixed cost, so the transaction measure falls with the step rank until then, while the proof
   and the merge prover barely move.</p>
-  <p>Kishu's rows are not indexed by a rank, and the rank filter does not apply to them. A Kishu
+  <p>Kishu's rows are not indexed by a step rank, and the step-rank filter does not apply to them. A Kishu
   step is one committed witness of a chosen length in digits, with one evaluation claim, since its
   constraints are a sum-check over the whole table. The rows are at lengths
   from <!--fig:bits_q64_min_step-->$1.5 \times 2^{20}$<!--/fig--> to <!--fig:kishu_max_step-->$1.875 \times 2^{25}$<!--/fig--> digits, eight to each doubling, where the
   application's room is at least a sixteenth of the step. The step's merge is nearly a fixed cost,
-  and the rest of the step is the application's. <!--claim:bitz_rank12_slightly_smaller:09dcf4-->Rank 12 gives BitZ a slightly smaller proof
+  and the rest of the step is the application's. <!--claim:bitz_rank12_slightly_smaller:09dcf4-->Step rank 12 gives BitZ a slightly smaller proof
   and merge prover.<!--/claim--></p>
   <h3 id="arc-against-recursion">ARC against each scheme's own recursion</h3>
   <p>Every hash-based scheme appears twice, with ARC accumulation and, in a lighter shade of the
@@ -454,7 +454,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the field are the same. The proofs differ, since the recursive decider verifies one stand-alone
   proof while the ARC decider's first round opens three oracles. So the recursive rows' proofs are a
   little over half the ARC rows' (<!--fig:whir_rec13_kb-->212 kbytes<!--/fig-->
-  against <!--fig:whir13_kb-->376 kbytes<!--/fig--> for WHIR at rate 1/8 and rank
+  against <!--fig:whir13_kb-->376 kbytes<!--/fig--> for WHIR at rate 1/8 and step rank
   13).<!--/claim--></p>
   <p><!--claim:whir_rec_wash_rate8:2eb93b-->For WHIR the recursion is about a wash on the prover at
   rate 1/8: the verifier's hashes per input match ARC's openings through the tree's levels (2,600
@@ -502,7 +502,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <h3 id="proof-bytes">Proof bytes</h3>
   <p>The compressed PCD proof. For Pedersen-IPA it is counted from Ragu's structs: the instance's
   commitments and scalars, two revdot reductions, two batches, and two IPAs with one round per bit
-  of the rank; the checked-in configuration
+  of the step rank; the checked-in configuration
   gives <!--fig:pedersen_checked_in_bytes-->7,908<!--/fig--> bytes, which Ragu's wire format
   confirms (<!--fig:pedersen_checked_in_wire_bytes-->7,936<!--/fig--> with its 28‑byte envelope).
   The two online polynomial commitments and six openings that every Ragu proof now carries are 448
@@ -526,7 +526,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about five multiplications in the claim field per digit a pass (Pasta's field for the Pasta-claims
   variant, the 64‑bit field for Kishu). The accumulator is the batch group and the five stage
   groups. For the Akita variants the batch is every step circuit's witness in one committed vector
-  of circuits × $2^{\mathrm{rank}}$ coefficients, since the merge absorbs one image for it and the
+  of circuits × $2^{\text{step rank}}$ coefficients, since the merge absorbs one image for it and the
   decider opens it at that length. For Kishu it is the step's one witness. A stage polynomial holds its
   values at the wires of its reserved gates and is zero elsewhere. Those zeros are structural and
   public, so what is committed and folded is the stage's
@@ -555,7 +555,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   That is the fixed base case that Ragu's circuits recognise by its dummy suffix, as in a chain or
   in Tachyon's action steps.</p>
   <p>For the lattice rows it is the folded digit vector, the accumulator's coefficients in digits
-  (the batch group's circuits × $2^{\mathrm{rank}}$ and the stage groups' values,
+  (the batch group's circuits × $2^{\text{step rank}}$ and the stage groups' values,
   as <a href="#accumulation-prover">the accumulation prover</a> counts them), each digit stored at
   the width of its accumulator's norm bound. The certified $\ell_2$ bound at the handoff is about
   $2^{19}$ (the <span class="noteref" data-section="5.3">ledger</span> of the zero-knowledge note,
@@ -564,16 +564,16 @@ code { font-family: var(--mono); font-size: 0.92em; }
   needs five bits fewer. The measure is of the top level. The sum-checks expand a digit to an
   element of the commitment field on the fly, 8 bytes at 64 bits, 16 at 128, 32 at Pasta's modulus,
   which is computation, not storage.</p>
-  <p>Pedersen-IPA's is the uncompressed proof, every committed polynomial's $2^{\mathrm{rank}}$
-  Pasta coefficients, 26.5 Mbytes measured at rank 13
+  <p>Pedersen-IPA's is the uncompressed proof, every committed polynomial's $2^{\text{step rank}}$
+  Pasta coefficients, 26.5 Mbytes measured at step rank 13
   against <!--fig:memory_pedersen_rank13_3-->24.9 Mbytes<!--/fig--> counted.</p>
   <p>The hash-based rows under ARC hold the accumulator's codeword, the witness over the rate in the
   field's elements, and its Merkle tree; under their own recursion only the previous proof. BitZ and
   the $\mathbb{F}_2$ family hold the packed codeword with a tree of 256‑byte leaves, and the
   binary-groups row the packed bits.</p>
-  <p>At rank 17 Akita with Pasta claims holds
-  about <!--fig:memory_q64_rank17-->29.4 Mbytes<!--/fig-->, Kishu at rank 21
-  about <!--fig:memory_kishu_rank21-->5.6 Mbytes<!--/fig-->, and Pedersen-IPA at rank
+  <p>At step rank 17 Akita with Pasta claims holds
+  about <!--fig:memory_q64_rank17-->29.4 Mbytes<!--/fig-->, Kishu at step rank 21
+  about <!--fig:memory_kishu_rank21-->5.6 Mbytes<!--/fig-->, and Pedersen-IPA at step rank
   13 <!--fig:memory_pedersen_rank13-->25 Mbytes<!--/fig-->.</p>
   <h3 id="peak-fuse-memory">Peak fuse memory</h3>
   <p>What a fuse holds at its peak, in bytes. For the lattice rows it is three things. First, the
@@ -587,9 +587,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the lattice rows, a masked coordinate stored compactly, with the response written over it. The new
   step's witness and the commitment's working set are small beside these. The other rows hold two
   accumulators, the output over one of them.</p>
-  <p>Kishu at rank 21 peaks at <!--fig:peak_kishu_rank21_zk-->35 Mbytes<!--/fig--> with zero
+  <p>Kishu at step rank 21 peaks at <!--fig:peak_kishu_rank21_zk-->35 Mbytes<!--/fig--> with zero
   knowledge and <!--fig:peak_kishu_rank21-->28 Mbytes<!--/fig--> without; Akita with Pasta claims at
-  rank 17 at <!--fig:peak_q64_rank17-->238 Mbytes<!--/fig-->; and Pedersen-IPA at rank 13
+  step rank 17 at <!--fig:peak_q64_rank17-->238 Mbytes<!--/fig-->; and Pedersen-IPA at step rank 13
   at <!--fig:peak_pedersen_rank13-->50 Mbytes<!--/fig-->, two uncompressed proofs.</p>
   <h3 id="prover-work">Prover commitment work</h3>
   <p>Native 64‑bit word multiplications for one step's commitments, with every committed polynomial
@@ -598,18 +598,18 @@ code { font-family: var(--mono); font-size: 0.92em; }
   measured fuse at the checked-in configuration: 1.46 s on one core of an Apple M4 Max for the
   step's circuit and its 91 recursion circuits with their stage polynomials, 96 commitments of
   $2^{13}$ coefficients. That is about <!--fig:pedersen_per_coeff_13-->5,600<!--/fig--> word
-  multiplications per coefficient at rank 13 and <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> at
-  rank 14, over all of the step's polynomials. The earlier estimate, 11 field multiplications of 32
+  multiplications per coefficient at step rank 13 and <!--fig:pedersen_per_coeff_14-->5,200<!--/fig--> at
+  step rank 14, over all of the step's polynomials. The earlier estimate, 11 field multiplications of 32
   word multiplications per addition, was 24 percent higher; udon's AArch64 assembly, which Ragu does
   not enable, takes 13 percent off the measured time.</p>
   <p>Ajtai by NTT, with the accumulation matrix shaped as Akita's catalog shapes its own, a module
   of a few rows over a ring of degree 512 or 1,024: per digit the module rank in pointwise ring
   products plus $\log_2(d)/2$ for its share of the transform, at the modulus width, which is 32 word
-  multiplications at 255 bits, 8 at 128, 2 at 64. The rank and degree are the cheapest that Akita's
+  multiplications at 255 bits, 8 at 128, 2 at 64. The module rank and degree are the cheapest that Akita's
   ℓ∞ estimator certifies at the floor for the row's bound and its accumulator's width
   (the <a href="#security-floor">security floor</a>
   section). <!--claim:accumulation_unmasked_rank1:606ec8-->Without the mask every lattice row is at
-  rank 1: <!--fig:ajtai_plain_mults-->5.5<!--/fig--> multiplications a digit at degree 512,
+  module rank 1: <!--fig:ajtai_plain_mults-->5.5<!--/fig--> multiplications a digit at degree 512,
   or <!--fig:ajtai_plain_mults_1024-->6.0<!--/fig--> at 1,024, which the widest accumulators at the
   64‑bit modulus need.<!--/claim--> With <!--fig:digits_q64-->85<!--/fig--> digits per Pasta
   coefficient, at a vector of $2^{22}$ digits, that is
@@ -663,9 +663,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <h3 id="decider-work">Decider work</h3>
   <p>The decider's verification, in the same word-multiplication equivalents as the prover, at 3e9
   per second of one core, which is also what the millisecond option assumes. Pedersen-IPA is
-  modelled: the two IPAs each need a multi-scalar multiplication of $2^{\mathrm{rank}}$ points, plus
+  modelled: the two IPAs each need a multi-scalar multiplication of $2^{\text{step rank}}$ points, plus
   a scalar multiplication per folded commitment to combine the instance,
-  about <!--fig:pedersen13_decider_ms-->41.9<!--/fig--> ms at rank 13.</p>
+  about <!--fig:pedersen13_decider_ms-->41.9<!--/fig--> ms at step rank 13.</p>
   <p>Akita is measured: the paper's single-thread verifier takes 4.2 ms at the 128‑bit field and 3.9 ms on Goldilocks at $2^{27}$ committed bits, growing by about 0.4 ms per doubling,
   so <!--fig:akita_decider_ms_min-->2.59<!--/fig-->
   to <!--fig:akita_decider_ms_max-->3.08<!--/fig--> ms at this witness size. The Pasta variants are
@@ -677,7 +677,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The hash-based deciders are the WHIR verifier's hashes at the witness size, measured, at the
   variant's native permutation cost, plus about a million for the arithmetic, and in the ARC rows
   the decider's two extra first-round trees. <!--claim:blake3_whir_deciders_ms:bb95ff-->At rate 1/8
-  and rank 13 that is <!--fig:whir_gold13_poseidon_decider_ms-->13.7<!--/fig--> ms on Goldilocks
+  and step rank 13 that is <!--fig:whir_gold13_poseidon_decider_ms-->13.7<!--/fig--> ms on Goldilocks
   and <!--fig:whir13_poseidon_decider_ms-->65.6<!--/fig--> ms with Poseidon over Pasta under ARC,
   and <!--fig:whir_gold_rec13_poseidon_decider_ms-->7.68<!--/fig-->
   and <!--fig:whir_rec13_poseidon_decider_ms-->34.5<!--/fig--> ms under recursion, and about a
@@ -693,11 +693,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
   paper's slope, <!--fig:bits_akita_decider_ms-->5.40<!--/fig--> ms at the merge's bits.</p>
   <h2 id="pedersen-ipa">Pedersen-IPA</h2>
   <h3 id="circuit-budget">Circuit budget</h3>
-  <p>A step circuit at rank $r$ holds $2^{r-2}$ gates and four times as many
+  <p>A step circuit at step rank $r$ holds $2^{r-2}$ gates and four times as many
   constraints, <!--fig:budget_gates_13-->2,048<!--/fig-->
-  and <!--fig:budget_constraints_13-->8,192<!--/fig--> at rank 13, and the gate limit binds first.
+  and <!--fig:budget_constraints_13-->8,192<!--/fig--> at step rank 13, and the gate limit binds first.
   The Pedersen-IPA figures are the internal circuits' synthesis counts pinned in Ragu's tests at
-  rank 13 (tachyon-zcash/ragu 8109a41c). An endoscaling step of four points
+  step rank 13 (tachyon-zcash/ragu 8109a41c). An endoscaling step of four points
   costs <!--fig:endoscaling_step_gates-->1,995<!--/fig--> gates, taken
   as <!--fig:step_gates_per_point-->451<!--/fig--> per point
   plus <!--fig:step_gates_overhead-->191<!--/fig-->, since only the four-point step is pinned. A
@@ -715,10 +715,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   (<!--fig:fixed_nested_collapse-->1,598<!--/fig-->, with the export merged in), compute_v
   (<!--fig:fixed_nested_compute_v-->1,504<!--/fig-->) and loading
   (<!--fig:fixed_nested_loading-->566<!--/fig-->) on the nested side. Packing them into a larger
-  rank's budget is first-fit decreasing on these counts, and merging circuits is a design change
+  step rank's budget is first-fit decreasing on these counts, and merging circuits is a design change
   rather than a parameter.</p>
   <div class="tablewrap narrow"><table><thead><tr>
-    <th>Rank</th><th class="num">Gates per circuit</th><th class="num">Endoscalings per step</th><th class="num">Binders</th><th class="num">Fixed circuits packed (native, nested)</th>
+    <th>Step rank</th><th class="num">Gates per circuit</th><th class="num">Endoscalings per step</th><th class="num">Binders</th><th class="num">Fixed circuits packed (native, nested)</th>
   </tr></thead><tbody><!--fig:budget_rows-->
     <tr><td>12</td><td class="num">1,024</td><td class="num">1</td><td class="num">none fits</td><td class="num">as today</td></tr>
     <tr><td>13</td><td class="num">2,048</td><td class="num">4</td><td class="num">4</td><td class="num">as today</td></tr>
@@ -736,14 +736,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
   four elements per 288-gate permutation, 72 gates per accumulation atom. Folding each child's
   128-byte commitment image needs a modular reduction, taken as one gate per bit. The sum-check
   verifier's arithmetic is about 400 gates.</p>
-  <p>The step circuits are that total divided by the rank's budget, rounded up; each circuit's own
+  <p>The step circuits are that total divided by the step rank's budget, rounded up; each circuit's own
   evaluation claim is absorbed by the next merge, so the count is a fixed
   point. <!--claim:blake3_akita_first_ranks:b1e362-->Under BLAKE3 a 16-byte claim costs
   about <!--fig:claim_gates_blake3_16-->3,700<!--/fig--> gates to absorb and a 32-byte
-  one <!--fig:claim_gates_blake3_32-->7,500<!--/fig-->, more than a rank-13 circuit holds, and the
-  32-byte one more than a rank-14 circuit. So rank 13 has no Akita rows under the default, nor rank
+  one <!--fig:claim_gates_blake3_32-->7,500<!--/fig-->, more than a circuit of step rank 13 holds, and the
+  32-byte one more than a circuit of step rank 14. So step rank 13 has no Akita rows under the default, nor step rank
   14 for the Pasta variants.<!--/claim--> Splitting a compression across circuits is taken as free,
-  although a rank below 16 cannot hold one in a single circuit. Merge gates, in the hover text
+  although a step rank below 16 cannot hold one in a single circuit. Merge gates, in the hover text
   and <a href="#frontier-table">the table</a>, is the total over every circuit of one merge.</p>
   <h3 id="kishu">Kishu: BitZ over Akita (draft)</h3>
   <p>Kishu is the study's name for an arithmetization in <a href="#bitz">BitZ</a>'s style over
@@ -769,13 +769,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p><!--claim:kishu_poseidon_merge_prover_smaller,kishu_blake3_dominates_q64,kishu_poseidon_proof_smaller:a16af8-->Against
   the 64‑bit Akita variant, which commits every wire of a hash gate as a 255‑bit value, the merge
   prover is <!--fig:kishu_vs_q64_blake3_prover-->190<!--/fig--> times smaller under BLAKE3
-  (<!--fig:q64_17_blake3_prover-->5.9e9<!--/fig--> at rank 17)
+  (<!--fig:q64_17_blake3_prover-->5.9e9<!--/fig--> at step rank 17)
   and <!--fig:kishu_vs_q64_poseidon_prover-->6.8<!--/fig--> times under Poseidon. Under BLAKE3 the
   proof is smaller too (<!--fig:kishu21_blake3_kb-->74 kbytes<!--/fig-->
   against <!--fig:q64_17_blake3_kb-->95 kbytes<!--/fig-->). So under conventional hashes Kishu
   dominates that variant on every measure but the merge's count, whose units differ; under Poseidon
   Kishu's proof is <!--fig:kishu_vs_q64_poseidon_kb-->10 kbytes<!--/fig--> smaller.<!--/claim-->
-  Against BitZ at rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig--> times smaller
+  Against BitZ at step rank 17 the proof is <!--fig:kishu_vs_bitz_bytes-->7.3<!--/fig--> times smaller
   and the merge prover does <!--fig:kishu_vs_bitz_prover_min-->38<!--/fig-->
   to <!--fig:kishu_vs_bitz_prover_max-->64<!--/fig--> times less work.</p>
   <p>Quang Dao thinks the prover here is likely overestimated: the commitment is priced at rows
@@ -783,7 +783,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the family's prover should be read as an upper bound. The plot's measures are the recursion's: the
   step's commitments, the accumulator's opening and the merge circuit, which every design pays and
   which can be estimated. Which application circuit to benchmark is hard to agree on, since it
-  depends on the application; so the application enters the plot through the rank, and the
+  depends on the application; so the application enters the plot through the step rank, and the
   transaction measure through its cost in digits.</p>
   <h4 id="kishu-status">Zero knowledge and status</h4>
   <p><!--claim:kishu_projection_no_zk:4979e1-->The projection form of the Booleanity check reveals
@@ -850,7 +850,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   is <!--fig:bits_akita_prover-->4.9e7<!--/fig--> for the merge's commitments,
   against <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> for the $\mathbb{F}_2$ family's ARC step at rate
   1/8, and against <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig--> for Akita over Goldilocks
-  at rank 16 under BLAKE3. There the transcript's hashing in a Pasta circuit is what
+  at step rank 16 under BLAKE3. There the transcript's hashing in a Pasta circuit is what
   makes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits. So with conventional hashes a
   Boolean merge circuit over the lattice commitment is the cheapest merge prover on the page, since
   its hashing is native and its bits are cheap to commit. The row is on the post‑quantum frontier
@@ -894,13 +894,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The proof is the decider's. At the root nobody has yet combined the two child accumulators with
   the root's own witness, so the decider's proof opens those three oracles in its first round, each
   under its own Merkle root (Ulrich Haböck's point). A stand-alone WHIR proof of the same witness
-  is <!--fig:whir13_standalone_kb-->177 kbytes<!--/fig--> at rate 1/8 and rank 13. The two extra
+  is <!--fig:whir13_standalone_kb-->177 kbytes<!--/fig--> at rate 1/8 and step rank 13. The two extra
   first rounds bring it to <!--fig:whir13_kb-->376 kbytes<!--/fig-->, with their paths pruned as a
   multiproof, as the reference implementation already prunes its own.</p>
   <p><!--claim:whir_rate32_third_off:97124f-->The lower rates and the grinding, added after Ulrich
   Haböck's questions, take a third off its proof at rate 1/32 against rate 1/8
   (<!--fig:whir13_1_32_kb-->261 kbytes<!--/fig--> against <!--fig:whir13_kb-->376 kbytes<!--/fig-->
-  at rank 13) and a third off its merge, at <!--fig:whir32_over_8_prover-->2.5<!--/fig--> times the
+  at step rank 13) and a third off its merge, at <!--fig:whir32_over_8_prover-->2.5<!--/fig--> times the
   encoding and hashing.<!--/claim--> The sizes are extrapolated from measurements at $2^{17}$,
   $2^{18}$ and $2^{20}$. The growth per doubling is not uniform, since a folding round is added
   every two doublings. The three-doubling slope used here is about nine kbytes against five over the
@@ -963,7 +963,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   extension's, so the merge and its prover are the same, and what shrinks is every element after the
   first round: the proof by <!--fig:whir_beep_less_pct_min-->7.6<!--/fig-->
   to <!--fig:whir_beep_less_pct_max-->11<!--/fig--> percent, <!--fig:whir_beep_1_8_kb-->294 kbytes<!--/fig-->
-  against <!--fig:whir_cubic_low_1_8_kb-->321 kbytes<!--/fig--> at rank 13 and rate 1/8, and the
+  against <!--fig:whir_cubic_low_1_8_kb-->321 kbytes<!--/fig--> at step rank 13 and rate 1/8, and the
   accumulator by <!--fig:whir_beep_memory_less_pct-->29<!--/fig--> percent.<!--/claim--> As for
   BitZ, no implementation of BEEP exists, so the rows are at the 128‑bit floor alone and are ranked
   with the strongest assumption. Over Pasta's 255‑bit field the bound was never the constraint, and
@@ -973,7 +973,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Flock <a href="#ref-brw26">[BRW26]</a> and Binius64 on the FRI-Binius and Ligerito commitments,
   and Blaze on repeat-accumulate-accumulate codes, are the efficient end of the hash-based line.
   They are Boolean arithmetizations over $\mathbb{F}_2$ with claims in $\mathbb{F}_{2^{128}}$, so
-  they have no $2^{\mathrm{rank}}$ Pasta circuits and the rank filter does not apply to them; the
+  they have no $2^{\text{step rank}}$ Pasta circuits and the step-rank filter does not apply to them; the
   Flock/Binius-style family is priced in its own terms. Its merge is ARC's openings as for the other
   hash-based variants, each Merkle node a BLAKE3 compression in a block
   of <!--fig:flock_block_log-->$2^{14}$<!--/fig--> committed bits, Flock's layout for a batch: a
@@ -1119,7 +1119,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   quotient, <!--fig:bitz_gate_bits-->510<!--/fig--> committed bits. Bit logic is counted as a
   Boolean circuit's AND gates, one committed bit each, since XOR is linear over the binary field and
   costs nothing. So the recovery circuit is about <!--fig:app_recovery_bitz-->8.2 million<!--/fig--> bits, as the <a href="#transaction-prover">Transaction prover section</a>
-  counts. <!--claim:bitz_merge_mostly_hashing:66a186-->A step of rank $r$ commits $2^r$ bits of
+  counts. <!--claim:bitz_merge_mostly_hashing:66a186-->A step of step rank $r$ commits $2^r$ bits of
   application witness, beside the Merkle hashing of the merge, which is most of its
   witness.<!--/claim--> The merge is a hybrid circuit: the Merkle hashing over $\mathbb{F}_2$ as for
   the $\mathbb{F}_2$ family, and the GKR and PIOP verifiers native over the binary extension and the
@@ -1192,7 +1192,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   against <!--fig:bitz_udr128_min_kb-->464 kbytes<!--/fig--> under unique decoding,
   at <!--fig:bitz_beep128_min_prover_over_udr-->1.8<!--/fig--> times the merge prover, since the
   commitment costs more at the lower rate.<!--/claim--></p>
-  <p>At rank 13 and rate 1/8 with ARC, under unique decoding at the default floor, it comes
+  <p>At step rank 13 and rate 1/8 with ARC, under unique decoding at the default floor, it comes
   to <!--fig:bitz13_kb-->538 kbytes<!--/fig--> with the decider's three first-round
   trees, <!--fig:bitz13_prover-->1.1e9<!--/fig--> word multiplications,
   a <!--fig:bitz13_merge_bits-->67 million<!--/fig--> bit merge, and
@@ -1216,19 +1216,19 @@ code { font-family: var(--mono); font-size: 0.92em; }
   proof for the left and right child's copies. The rows are priced without a header, and so are the
   figures in the text unless they say otherwise.</p>
   <ul>
-    <li><strong>Pedersen-IPA:</strong> rank 13 to 16; endoscalings per step on both curves, 4 as
-    checked in, up to what the rank's circuit holds; challenge binders, 4 as checked in, down to the
-    fewest that bind the eight challenges at the rank; and the fixed circuits as today or packed
-    into the rank's budget.</li>
-    <li><strong>Akita:</strong> rank, and the field and modulus variant. The committed groups are
+    <li><strong>Pedersen-IPA:</strong> step rank 13 to 16; endoscalings per step on both curves, 4 as
+    checked in, up to what the step rank's circuit holds; challenge binders, 4 as checked in, down to the
+    fewest that bind the eight challenges at the step rank; and the fixed circuits as today or packed
+    into the step rank's budget.</li>
+    <li><strong>Akita:</strong> step rank, and the field and modulus variant. The committed groups are
     five stages plus one batch of every step circuit's witness, and the number of step circuits
     follows from the merge circuit's gate estimate. Each step circuit's polynomial carries its own
     evaluation claim: one claim-field element in the proof, one atom per merge, and a few gates,
-    which is why fewer, larger circuits help a little. The rank itself is set by the largest
+    which is why fewer, larger circuits help a little. The step rank itself is set by the largest
     application step, not by the merge, which is spread over as many step circuits of that size as
     it needs. The opening sizes come from the planner's runs with groups of $2^{14}$ coefficients,
     which overstates the cost of the small stage groups.</li>
-    <li><strong>WHIR with ARC:</strong> rank; the code rate, from 1/2 to 1/64, which trades the
+    <li><strong>WHIR with ARC:</strong> step rank; the code rate, from 1/2 to 1/64, which trades the
     prover's encoding and hashing against the number of openings and the proof size; the grinding,
     from the control above, one setting for every hash-based family or the best per row; and the
     field. Pasta is FFT friendly, so the witness, the trees and the merge circuit can all stay over
@@ -1242,8 +1242,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
     FFT friendly, and over Reed–Solomon codes it is subsumed by WHIR.</li>
     <li><strong>The $\mathbb{F}_2$ family:</strong> the rate, the field design (256‑bit; 64‑bit
     packing with 192‑bit challenges; or 191‑bit, packed directly), the grinding, and under zero
-    knowledge the variant; it has no rank, since its merge is a Boolean witness.</li>
-    <li><strong>BitZ:</strong> rank 12 to 24, the grinding, and rate 1/2 or 1/8, the two its
+    knowledge the variant; it has no step rank, since its merge is a Boolean witness.</li>
+    <li><strong>BitZ:</strong> step rank 12 to 24, the grinding, and rate 1/2 or 1/8, the two its
     implementation measures.</li>
     <li><strong>Akita's binary groups:</strong> none. The row is the one measured configuration, the
     P128 root at the 128‑bit floor; the <a href="#binary-groups">binary-groups section</a> above
@@ -1262,7 +1262,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     each changes.</li>
   </ul>
   <p>The marker shape says what a configuration needs beyond its family. A circle needs parameter
-  changes only. For Pedersen-IPA, rank, endoscalings per step and header size are constants in the
+  changes only. For Pedersen-IPA, step rank, endoscalings per step and header size are constants in the
   code; for Akita, the 128‑bit field and Goldilocks are the paper's published parameter sets. A
   square needs more. For Pedersen-IPA that is a code change within the protocol: a binder that binds
   more than two challenges, or the fixed circuits merged. For Akita it is a design change: the Pasta
@@ -1286,11 +1286,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
   response's width, $14\sigma$, with σ at each row's own
   accumulator: <!--fig:mask_extra_bits_min-->18<!--/fig-->
   to <!--fig:mask_extra_bits_max-->24<!--/fig--> bits above the unmasked bound, a fold's
-  output. <!--claim:mask_cost_factor:ecf114-->The table answers with one more rank, or the larger
+  output. <!--claim:mask_cost_factor:ecf114-->The table answers with one more module rank, or the larger
   degree, or both: a factor of <!--fig:mask_cost_factor_min-->1.0<!--/fig-->
   to <!--fig:mask_cost_factor_max-->1.33<!--/fig--> on the commitment
-  rate, <!--fig:kishu_mask_cost_factor-->1.27<!--/fig--> for Kishu's rows, whose rank 1 at degree
-  512 becomes rank 2 at 1,024.<!--/claim--> The zk note's
+  rate, <!--fig:kishu_mask_cost_factor-->1.27<!--/fig--> for Kishu's rows, whose module rank 1 at degree
+  512 becomes module rank 2 at 1,024.<!--/claim--> The zk note's
   own <span class="noteref" data-section="5.5">Euclidean route</span>, where the rows grow as the
   square of the bound's log, puts the factor at <!--fig:mask_rank-->2.4<!--/fig--> at its example;
   the ℓ∞ bound carries no $\sqrt{N}$, and a box in place of a ball, which is the difference
@@ -1298,7 +1298,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The length stays at the zero-knowledge layer. The aggregator's first fold on a masked
   accumulator range-checks its nine digit slices and folds them back to the ordinary length with its
   other inputs, as every lattice fold decomposes and folds. So the merges above that layer and the
-  decider's opening see witnesses of the usual size. The extra rank or degree stays with the
+  decider's opening see witnesses of the usual size. The extra module rank or degree stays with the
   accumulation matrix. Akita's internal levels and its terminal commit the final accumulator's
   ordinary witness under their own matrices and keep their bounds. The accumulation matrix's larger
   images enter the opening only as the first level's auxiliary digits, which are lower order.</p>
@@ -1316,7 +1316,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   against <!--fig:accumulator_mb-->1.6 Mbytes<!--/fig--> for the ordinary accumulator's digits
   packed the same way. The first level's extra auxiliary digits are not modelled either. Three
   refinements would move these figures. A design that checks the masked fold under a matrix of its
-  own would confine the extra rank or degree to that layer, worth at most the factor above, and
+  own would confine the extra module rank or degree to that layer, worth at most the factor above, and
   proving the change of matrix is the obstacle (the zk
   note's <span class="noteref" data-section="5.9">§5.9</span>). The slices come from base-8 digits,
   a Gaussian width of <!--fig:mask_alpha-->48<!--/fig--> times the norm of the challenge times the
@@ -1337,7 +1337,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   device.</p>
   <h4 id="zk-pedersen">Pedersen-IPA</h4>
   <p>Ragu's zero knowledge is in every fuse: each draws two fold randomizers and a batch mask a
-  side, uniformly random polynomials of $2^{\mathrm{rank}}$ coefficients, folds the randomizers as
+  side, uniformly random polynomials of $2^{\text{step rank}}$ coefficients, folds the randomizers as
   claims of their own and batches the mask, and a rerandomization is two such fuses with the public
   bootstrap proof as the right child (tachyon-zcash/ragu at
   ef7668fb6bbf5df0b77e92760fdb52af726ebaf1; its book says the hiding argument is not yet
@@ -1362,7 +1362,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   combination with everyone else's, until the decider opens the final accumulator, so the masks must
   still be there then. Akita's accumulation has the same shape, and more: the masked bound sizes the
   accumulation matrix that every step shares, which is why every Akita step pays the masked matrix's
-  rate. Confining that rank to the zero-knowledge layer, with a second matrix and proven switches at
+  rate. Confining that module rank to the zero-knowledge layer, with a second matrix and proven switches at
   the handoff, is worked through in the zk
   note's <span class="noteref" data-section="5.9">§5.9</span>, where the switch's verifier cost is
   the obstacle. The mask symbols would be larger over Pasta's field, which is not applied, and
@@ -1429,7 +1429,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   steps and their merges: <!--fig:tx_recovery_kishu_zk_steps-->1<!--/fig-->
   at <!--fig:tx_recovery_kishu_zk_step_ms-->69.0<!--/fig--> ms, <!--fig:tx_recovery_kishu_zk_steps_s-->0.0690<!--/fig--> s
   against <!--fig:tx_recovery_kishu_steps_s-->0.109<!--/fig--> s without zero knowledge. What zero
-  knowledge adds to them is the masked matrix, rank 2 at degree 1,024 in place of rank 1 at 512,
+  knowledge adds to them is the masked matrix, module rank 2 at degree 1,024 in place of module rank 1 at 512,
   which raises the commitment rate of every step and merge
   from <!--fig:kishu_digit_mults-->11.0<!--/fig-->
   to <!--fig:kishu_digit_mults_masked-->14.0<!--/fig--> word multiplications a digit, and the
@@ -1470,8 +1470,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The Gaussian width $\alpha$ is the second. A wider mask needs fewer attempts,
   $\exp(12/\alpha + 1/(2\alpha^2))$ of them. But $\sigma = \alpha \|cs\|$ puts one more bit on the
   masked bound per doubling, and one more slice on the coordinates per three. On the ℓ∞ route the
-  shared matrix answers the bound in steps rather than by a smooth rank: for Kishu's accumulator the
-  table holds rank 2 at degree 1,024 from a width of 4 to 1,024, so the commitment rate
+  shared matrix answers the bound in steps rather than by a smooth module rank: for Kishu's accumulator the
+  table holds module rank 2 at degree 1,024 from a width of 4 to 1,024, so the commitment rate
   stays <!--fig:kishu_digit_mults_masked-->14.0<!--/fig--> word multiplications a digit across the
   sweep, where the zk note's Euclidean route would charge about four percent per doubling
   (its <span class="noteref" data-section="5.6">§5.6</span>). For the recovery circuit at the page's
@@ -1549,11 +1549,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
   a fold's output, the two children at the challenge's weight and the step's own digits, and with
   the mask the response's width $14\sigma$ at the row's own accumulator, times the extraction's
   slack. <a href="#zk-akita-mask">The zero-knowledge section</a> says what the mask adds; without it
-  every row is at rank 1, as the catalog's own accumulation matrix is.</p>
+  every row is at module rank 1, as the catalog's own accumulation matrix is.</p>
   <p>The 147‑bit floor, the page's default, re-plans Akita's catalog at that floor with Akita's own
   planner, so its openings are planned rather than scaled. It is 147 rather than 150 because Akita's
   rank-one compression maps certify at 147.3 bits at the catalog's geometry;
-  the <a href="#a-margin">margin section</a> below explains. The rank growth at that floor is
+  the <a href="#a-margin">margin section</a> below explains. The module-rank growth at that floor is
   applied to the inner images' share of the verification; the accumulation matrix that every step
   commits under is looked up in the floor's own table, as the <a href="#a-margin">margin section</a>
   says. That share is the terminal's clear inner images at the shipped geometry, 1,344 coordinates
@@ -1584,7 +1584,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about <!--fig:level3_block-->623<!--/fig-->. That block size should in theory reach 165 quantum
   core-SVP bits, or <!--fig:level3_classical_bits-->182<!--/fig--> classical core-SVP bits.</p>
   <p>⚠️ This level makes significant design changes to its schemes relative to Akita, including a
-  three-stage map construction using larger ranks that has not been fully reviewed or analyzed.
+  three-stage map construction using larger module ranks that has not been fully reviewed or analyzed.
   Therefore, it is ranked with the strongest <a href="#requirements">assumption</a>.</p>
   <p>A scheme at the level differs from its 147‑bit form in four ways:</p>
   <ul>
@@ -1599,7 +1599,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     of <!--fig:compression_level3_four_map_bytes-->120<!--/fig--> bytes which provides no
     significant additional benefit.<!--/claim--> <!--claim:level3_compression_cells_certified:f97956-->The intermediate outputs
     are not one power-of-two ring element, so the first two maps have
-    rank <!--fig:compression_level3_rank-->9<!--/fig--> over smaller power-of-two rings, of
+    module rank <!--fig:compression_level3_rank-->9<!--/fig--> over smaller power-of-two rings, of
     dimension 2 and 1 for the 128‑bit modulus. The estimator's tables at the level certify each
     map with <!--fig:compression_level3_spare_min_pct-->15<!--/fig-->%
     to <!--fig:compression_level3_spare_max_pct-->27<!--/fig-->% of input width to
@@ -1681,7 +1681,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   output is 384 bits; BLAKE3's longer outputs have 256‑bit bottlenecks
   inside. <!--claim:level3_hash_based_impractical:c70142-->A tree node under SHA3-384 is a Keccak
   permutation, <!--fig:keccak_over_blake3_gates-->6.2<!--/fig--> times BLAKE3's gates in a prime
-  field, and the openings grow with the level. So WHIR over Pasta at rate 1/8 and rank 16 would
+  field, and the openings grow with the level. So WHIR over Pasta at rate 1/8 and step rank 16 would
   need <!--fig:level3_whir_16_circuits-->38,525<!--/fig--> circuits
   against <!--fig:whir_16_blake3_circuits-->5,011<!--/fig--> with BLAKE3 at 147 bits, <!--fig:level3_whir_circuits_x-->7.7<!--/fig--> times as many. The $\mathbb{F}_2$ family's
   merge, with Flock's block of $2^{16}$ bits for a Keccak permutation, would
@@ -1719,7 +1719,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about one opening in a hundred, so about a percent of the circuits and of the prover, while the
   grinding's cost doubles. The prover is least where the two cross: at 17 to 19 bits for families
   with Poseidon trees ($2^{17}$ permutations are about <!--fig:grind_17_pct-->0.5<!--/fig--> percent
-  of a merge's prover at rate 1/8 and rank 13, $2^{20}$ about <!--fig:grind_20_pct-->4<!--/fig--> percent), and 12 to 18 bits for the $\mathbb{F}_2$ family and BitZ. The minimum is shallow, within
+  of a merge's prover at rate 1/8 and step rank 13, $2^{20}$ about <!--fig:grind_20_pct-->4<!--/fig--> percent), and 12 to 18 bits for the $\mathbb{F}_2$ family and BitZ. The minimum is shallow, within
   a percent from 16 to 20 bits.</p>
   <p><!--claim:blake3_whir_grind_24:efb5ee-->With BLAKE3 trees, the default, the WHIR-type rows take
   24 bits, the most measured, since $2^{24}$ compressions are a small part of a merge spread over
@@ -1757,15 +1757,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
   chunk, <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more. So the merge grows from
   about <!--fig:fp128_16_poseidon_gates-->25 thousand<!--/fig--> gates
   to <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> at the 128‑bit field and on Goldilocks
-  and <!--fig:q64_16_blake3_gates-->2.0 million<!--/fig--> for the Pasta variants, at rank
+  and <!--fig:q64_16_blake3_gates-->2.0 million<!--/fig--> for the Pasta variants, at step rank
   16. <!--claim:blake3_akita_first_ranks,blake3_first_rank_circuits_shared:618470-->Each step
-  circuit's evaluation claim then costs more to absorb than a rank-13 circuit holds, and a 32-byte
-  claim more than a rank-14 circuit. So rank 13 has no Akita rows and rank 14 none for the Pasta
-  variants, and the first ranks that hold them
+  circuit's evaluation claim then costs more to absorb than a circuit of step rank 13 holds, and a 32-byte
+  claim more than a circuit of step rank 14. So step rank 13 has no Akita rows and step rank 14 none for the Pasta
+  variants, and the first step ranks that hold them
   take <!--fig:akita14_blake3_circuits-->1,740<!--/fig-->
   and <!--fig:pasta15_blake3_circuits-->1,472<!--/fig--> circuits.<!--/claim--></p>
   <p><!--claim:blake3_rank16_small_fields_same,blake3_rank16_pasta_same,poseidon_rank16_two_circuits,blake3_prover_ratios:abd9af-->At
-  rank 16 the merge takes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits at the 128‑bit
+  step rank 16 the merge takes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits at the 128‑bit
   field and on Goldilocks and <!--fig:q64_16_blake3_circuits-->122<!--/fig--> for the Pasta
   variants, against <!--fig:fp128_16_poseidon_circuits-->2<!--/fig--> with Poseidon. So the merge
   prover is <!--fig:fp128_16_prover_ratio-->26<!--/fig--> times the Poseidon one at the 128‑bit
@@ -1788,7 +1788,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>For the WHIR-type rows every Merkle node becomes a BLAKE3 compression, so the merge
   grows <!--fig:whir13_blake3_gates_ratio_min-->35<!--/fig-->
   to <!--fig:whir13_blake3_gates_ratio_max-->61<!--/fig--> times
-  (<!--fig:whir13_poseidon_gates-->1.3<!--/fig--> to <!--fig:whir13_blake3_gates-->76<!--/fig--> million gates for WHIR over Pasta at rate 1/8 and rank
+  (<!--fig:whir13_poseidon_gates-->1.3<!--/fig--> to <!--fig:whir13_blake3_gates-->76<!--/fig--> million gates for WHIR over Pasta at rate 1/8 and step rank
   13, <!--fig:whir13_poseidon_circuits-->614<!--/fig-->
   to <!--fig:whir13_blake3_circuits-->37,225<!--/fig--> circuits). The prover
   grows <!--fig:whir13_blake3_prover_ratio_min-->1.3<!--/fig-->
@@ -1805,7 +1805,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   change, so under the default their comparison with Akita is like for like. At rate 1/8 the
   $\mathbb{F}_2$ family's ARC row proves a merge in <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> word
   multiplications for a proof of <!--fig:f2_1_8_kb-->240 kbytes<!--/fig-->, against Akita over
-  Goldilocks at rank 16 with <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig-->
+  Goldilocks at step rank 16 with <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig-->
   and <!--fig:goldilocks_16_blake3_kb-->77 kbytes<!--/fig-->. Its merge
   is <!--fig:f2_gates_min-->37<!--/fig--> to <!--fig:f2_gates_max-->188<!--/fig--> million AND gates
   against Akita's <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> Pasta gates, which are not
@@ -1821,9 +1821,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   have <a href="#tachyon-transactions">the next section</a>.</p>
   <p>The application is costed component by component in each family's own arithmetization, under
   the selected hash policy. The family's steps are then as many as hold it, rounded up, since a
-  transaction smaller than a step pays a whole step. A step circuit of rank $r$ commits $2^r$
+  transaction smaller than a step pays a whole step. A step circuit of step rank $r$ commits $2^r$
   coefficients, which is $2^{r-2}$ gates of four wires for the field arithmetizations, $2^r$ bits or
-  digits for BitZ and Kishu, and $2^{22}$ AND gates for the Boolean families, which have no rank.
+  digits for BitZ and Kishu, and $2^{22}$ AND gates for the Boolean families, which have no step rank.
   Each step is committed at the family's per-step cost, which is the row's prover divided by its
   circuits, and there are as many merges at the row's accumulation prover, the merge's commitments
   and the fold's sum-checks. Kishu's step is a slot of whole circuits that the merge and the
@@ -1920,7 +1920,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value:
   each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
   commitments that its children's headers carry, which a small transaction's headers
-  hold. <!--claim:zoodles_sighash_small:f55ec6-->At the rank the signature transaction favours that
+  hold. <!--claim:zoodles_sighash_small:f55ec6-->At the step rank the signature transaction favours that
   hashing is under a tenth of one step; the signature verification is the expensive
   part.<!--/claim--> The fee step fixes the fee last and hashes the change note, the maximum-fee
   note's value less the fee, as Tachyon's does. Every hash is BLAKE3. The
@@ -1973,7 +1973,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   of its online polynomial slot), and folded as a set polynomial that the step opens at the
   nullifier. Over Pedersen a commitment folds in one scalar multiplication. Over digits the bucket's
   tachygrams would enter the wallet's accumulator element by
-  element, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> bits or digits, and set its rank.
+  element, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> bits or digits, and set its step rank.
   Set polynomials are the right tool over Pedersen and a dear one over digits, so Zoodles uses a
   sorted Merkle tree instead. The builder sorts the epoch's tachygrams once for everyone and hashes
   consecutive pairs into the leaves, so an exclusion proof is one leaf, the nullifier's two
@@ -2004,7 +2004,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   plus the handoff's merge. That merge is the small one that the zk
   note's <span class="noteref" data-section="5.8">§5.8</span> deferral leaves the user. It derives
   the challenge from the mask's commitments and its evaluations at the claims' points, checks the
-  commitment identity on those images, and folds the claims, in whole step circuits of the rank. The
+  commitment identity on those images, and folds the claims, in whole step circuits of the step rank. The
   decomposition of the response and the range and norm proofs are the aggregator's first fold's,
   which the zero-knowledge-layer merge that the accumulation prover prices already carries. Each
   attempt is a commitment of a mask the size of the accumulator under the masked accumulation
@@ -2013,9 +2013,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   rounding</a>, <!--fig:mask_sample_word_mults-->21<!--/fig--> word multiplications at the page's
   rate. The sampling does not depend on the modulus. The fold is paid once per transaction whatever
   it proves. The mask covers the user chain's last accumulator, the merge's circuits ×
-  $2^{\mathrm{rank}}$ digits and the stages'. The device's statement is the exception: the wallet
+  $2^{\text{step rank}}$ digits and the stages'. The device's statement is the exception: the wallet
   hands over a bare leaf without a fuse of its own, so its mask covers the leaf's
-  $2^{\mathrm{rank}}$ digits alone, and the merge that folds the leaf is the host's. The hash-based
+  $2^{\text{step rank}}$ digits alone, and the merge that folds the leaf is the host's. The hash-based
   zero-knowledge rows likewise put their masked prover's extra work in the fold, once per
   transaction; under recursion that is their only zero-knowledge cost, since the public merges and
   the decider's proof are of public data. Pedersen-IPA's blinding is free. This is total work, not
@@ -2029,24 +2029,24 @@ code { font-family: var(--mono); font-size: 0.92em; }
   in <!--fig:tx_recovery_kishu_steps-->1<!--/fig--> merges by
   the <!--fig:tx_recovery_kishu_route-->fingerprint<!--/fig--> route, and BitZ with
   ARC <!--fig:tx_recovery_bitz_s-->0.504<!--/fig--> s at
-  rank <!--fig:tx_recovery_bitz_rank-->23<!--/fig-->, where one step holds the circuit; Akita with
+  step rank <!--fig:tx_recovery_bitz_rank-->23<!--/fig-->, where one step holds the circuit; Akita with
   Pasta claims over 64‑bit commitments takes about <!--fig:tx_recovery_q64_s-->25.1<!--/fig--> s at
-  rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
+  step rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
   sum-checks over the accumulator's <!--fig:digits_q64-->85<!--/fig--> digits per coefficient in
   Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,960<!--/fig--> s at
-  rank <!--fig:tx_recovery_q64_blake3_rank-->17<!--/fig--> under the default BLAKE3 trees; Akita
+  step rank <!--fig:tx_recovery_q64_blake3_rank-->17<!--/fig--> under the default BLAKE3 trees; Akita
   over Goldilocks <!--fig:tx_recovery_goldilocks_s-->16.1<!--/fig--> s with Poseidon; and
   Pedersen-IPA, at its 128‑bit floor and the checked-in configuration,
   about <!--fig:tx_recovery_pedersen_minutes-->6.76<!--/fig--> minutes,
-  in <!--fig:tx_recovery_pedersen_steps-->278<!--/fig--> steps of rank 13,
+  in <!--fig:tx_recovery_pedersen_steps-->278<!--/fig--> steps of step rank 13,
   or <!--fig:tx_recovery_pedersen_best_minutes-->1.90<!--/fig--> minutes at
-  rank <!--fig:tx_recovery_pedersen_best_rank-->17<!--/fig-->
+  step rank <!--fig:tx_recovery_pedersen_best_rank-->17<!--/fig-->
   with <!--fig:tx_recovery_pedersen_best_E-->72<!--/fig--> endoscalings per step.<!--/claim--></p>
   <p><!--claim:bitz_recovery_zk_unchanged:84fbf1-->With zero knowledge Kishu's best
   is <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits by
   the <!--fig:tx_recovery_kishu_zk_route-->fingerprint<!--/fig--> route, and Akita with Pasta claims
   about <!--fig:tx_recovery_q64_zk_s-->25.7<!--/fig--> s at
-  rank <!--fig:tx_recovery_q64_zk_rank-->17<!--/fig-->. BitZ stays
+  step rank <!--fig:tx_recovery_q64_zk_rank-->17<!--/fig-->. BitZ stays
   at <!--fig:tx_recovery_bitz_zk_s-->0.505<!--/fig--> s, having no rejection-sampling fold,
   with <!--fig:tx_recovery_bitz_zk_more_kb-->21 kbytes<!--/fig--> more proof.<!--/claim--></p>
   <h3 id="tachyon-transactions">Tachyon transactions</h3>
@@ -2056,13 +2056,13 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Ragu's rerandomization: 3s + 3o + 2 nodes for s spends and o outputs. The rerandomization is two
   fuses in Ragu as it is, each with the public bootstrap proof as the right child; Tachyon's pinned
   Ragu did it in one.</p>
-  <p>The page re-packs that tree for each rank's step size: a node larger than a step takes whole
+  <p>The page re-packs that tree for each step rank's step size: a node larger than a step takes whole
   steps and its remainder joins the rest, which fill steps first-fit decreasing, and each
   rerandomization fuse is its own
-  step. <!--claim:tachyon2_rank13_packing,tachyon2_rank15_one_step:ae8090-->So at rank 13 over Pasta
+  step. <!--claim:tachyon2_rank13_packing,tachyon2_rank15_one_step:ae8090-->So at step rank 13 over Pasta
   no two action circuits share a step and the merge rides with the fee
   step, <!--fig:tachyon2_pedersen13_steps-->7<!--/fig--> steps for two tachyactions against
-  Tachyon's <!--fig:tachyon2_nodes-->8<!--/fig-->. At rank 15 every circuit of two tachyactions fits
+  Tachyon's <!--fig:tachyon2_nodes-->8<!--/fig-->. At step rank 15 every circuit of two tachyactions fits
   one step beside the two rerandomization fuses.<!--/claim--></p>
   <p><!--claim:tachyon_nodes_fit_rank13:650120-->The nodes' circuits were measured through Ragu's
   synthesis analysis on Tachyon's steps at its header size of
@@ -2072,7 +2072,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   and <!--fig:tachyon_OutputAction_gates-->1,351<!--/fig--> for an
   output's, <!--fig:tachyon_ActionMerge_gates-->17<!--/fig--> for an action merge
   and <!--fig:tachyon_FeeFuse_gates-->1,934<!--/fig--> for the fee step, in Pasta gates with
-  Poseidon, all within rank 13's <!--fig:tachyon_rank13_gates-->2,048<!--/fig-->.<!--/claim--> In
+  Poseidon, all within step rank 13's <!--fig:tachyon_rank13_gates-->2,048<!--/fig-->.<!--/claim--> In
   the other arithmetizations the transaction is Tachyon's circuits as they are, a pre-quantum
   protocol proven in a post-quantum proof system: the Poseidon
   permutations, <!--fig:poseidon_ragu_gates-->192<!--/fig--> gates each in Ragu's gate model, are
@@ -2082,7 +2082,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   comparisons and the step's glue, priced as bit operations, one gate or committed bit each, which
   understates any among them that multiply field elements. So a node that is one step over Pasta
   is <!--fig:tachyon_node_gold17_min-->6<!--/fig-->
-  to <!--fig:tachyon_node_gold17_max-->8<!--/fig--> steps of rank 17 over Goldilocks with Poseidon
+  to <!--fig:tachyon_node_gold17_max-->8<!--/fig--> steps of step rank 17 over Goldilocks with Poseidon
   and <!--fig:tachyon_node_bool_min-->5<!--/fig--> to <!--fig:tachyon_node_bool_max-->7<!--/fig-->
   Boolean steps, which is where the range of step counts comes
   from. <!--claim:tachyon_bits_as_mults_more_steps:66a865-->Pricing the remaining gates as
@@ -2096,14 +2096,14 @@ code { font-family: var(--mono); font-size: 0.92em; }
   with Pedersen-IPA at the checked-in configuration <!--fig:tachyon2_pedersen13_steps-->7<!--/fig-->
   fuses, <!--fig:tx_tachyon2_pedersen_s-->10.2<!--/fig--> s, where Tachyon's own tree
   of <!--fig:tachyon2_nodes-->8<!--/fig--> fuses
-  is <!--fig:tx_tachyon2_tachyon_tree_s-->11.7<!--/fig--> s, and at rank 15
+  is <!--fig:tx_tachyon2_tachyon_tree_s-->11.7<!--/fig--> s, and at step rank 15
   with <!--fig:tx_tachyon2_pedersen15_E-->16<!--/fig--> endoscalings per
   step <!--fig:tx_tachyon2_pedersen15_steps-->3<!--/fig-->
   fuses, <!--fig:tx_tachyon2_pedersen15_s-->6.33<!--/fig--> s; Akita with Pasta claims over 64‑bit
   commitments <!--fig:tx_tachyon2_q64_s-->3.08<!--/fig--> s at
-  rank <!--fig:tx_tachyon2_q64_rank-->15<!--/fig--> with Poseidon;
+  step rank <!--fig:tx_tachyon2_q64_rank-->15<!--/fig--> with Poseidon;
   BitZ <!--fig:tx_tachyon2_bitz_s-->1.18<!--/fig--> s at
-  rank <!--fig:tx_tachyon2_bitz_rank-->20<!--/fig-->;
+  step rank <!--fig:tx_tachyon2_bitz_rank-->20<!--/fig-->;
   Kishu <!--fig:tx_tachyon2_kishu_s-->0.0578<!--/fig--> s in a step of <!--fig:tx_tachyon2_kishu_rank-->$1.5 \times 2^{20}$<!--/fig--> digits
   with <!--fig:tx_tachyon2_kishu_hash-->Poseidon<!--/fig--> by
   the <!--fig:tx_tachyon2_kishu_route-->limbs<!--/fig--> route; Akita over
@@ -2114,9 +2114,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   zero knowledge Akita with Pasta claims takes <!--fig:tx_tachyon2_q64_zk_s-->4.33<!--/fig--> s and
   Kishu <!--fig:tx_tachyon2_kishu_zk_s-->0.0811<!--/fig--> s, and BitZ is unchanged.<!--/claim--></p>
   <p>Sixteen tachyactions take: Pedersen-IPA <!--fig:tx_tachyon16_pedersen_s-->51.1<!--/fig--> s
-  in <!--fig:tx_tachyon16_pedersen_steps-->35<!--/fig--> steps at rank 13,
+  in <!--fig:tx_tachyon16_pedersen_steps-->35<!--/fig--> steps at step rank 13,
   or <!--fig:tx_tachyon16_pedersen15_s-->19.0<!--/fig--> s
-  in <!--fig:tx_tachyon16_pedersen15_steps-->9<!--/fig--> steps at rank 15; Akita with Pasta
+  in <!--fig:tx_tachyon16_pedersen15_steps-->9<!--/fig--> steps at step rank 15; Akita with Pasta
   claims <!--fig:tx_tachyon16_q64_s-->5.58<!--/fig--> s;
   BitZ <!--fig:tx_tachyon16_bitz_s-->1.32<!--/fig--> s;
   Kishu <!--fig:tx_tachyon16_kishu_s-->0.111<!--/fig--> s;
@@ -2164,7 +2164,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <ul>
     <li><em>Proof-level slack, not the assumption.</em> Lattice schemes have slipped before by
     sizing for honest norms rather than the extractor's. Akita sizes for the extractor's collision
-    bound, which is why the masked variant needs rank 340 against 143. But the knowledge-soundness
+    bound, which is why the masked variant needs a rank of 340 field elements against 143. But the knowledge-soundness
     proof in the quantum random-oracle model is still in progress. And the decoupled commitment
     modulus has no soundness argument yet beyond the LaBinius analogue. A gap of that kind moves
     parameters by a lot, not by twenty bits.</li>
@@ -2221,10 +2221,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   the model takes the weakest Module-SIS instance of each of
   the <!--fig:rank_instances-->115<!--/fig--> schedules in the shipped catalog's security report
   and, for each, the smallest module rank that covers the instance's width at both floors. With the
-  catalog's own mix of moduli the ranks sum to <!--fig:rank_sum_own_128-->121<!--/fig--> at 128 bits
+  catalog's own mix of moduli the module ranks sum to <!--fig:rank_sum_own_128-->121<!--/fig--> at 128 bits
   and to <!--fig:rank_sum_own_147-->150<!--/fig--> at 147 bits, a factor
   of <!--fig:rank_scale_own-->1.24<!--/fig-->, with <!--fig:rank_moves_own-->29<!--/fig--> instances
-  moving up a rank. Over a 64‑bit modulus, where the ranks are higher to begin with, the sums
+  moving up a module rank. Over a 64‑bit modulus, where the module ranks are higher to begin with, the sums
   are <!--fig:rank_sum_q64_128-->185<!--/fig--> and <!--fig:rank_sum_q64_147-->211<!--/fig-->, a
   factor of <!--fig:rank_scale_q64-->1.14<!--/fig-->, with <!--fig:rank_moves_q64-->26<!--/fig-->
   moving. Over Pallas the instances sit at the width cap at both floors but one: the sums
