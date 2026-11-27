@@ -5238,3 +5238,24 @@ takes the fewest circuits that hold its merge, and what is left is the applicati
 merge that tips into one more circuit leaves far more room and fewer steps: the leanSPHINCS
 transaction at the level was 0.499 s with a 256-byte image and 0.584 s with a 144-byte one. A
 prover could take the extra circuit by choice; the model does not consider it.
+
+Later on 2026-11-27, on the transaction measure. The user, of "a step takes the fewest circuits
+that hold its merge": clearly not optimal. Tried: Kishu rows with one to three spare circuits a
+step, each a whole circuit of room for the application, the transaction measure taking the least
+over them as it does over the ranks. The recovery transaction with zero knowledge went from 0.221
+s to 0.188 s at rank 19 for 21, and about a hundred figures moved. Not committed: the change is
+kept as a patch outside the tree. Two things stand in its way.
+
+- One guarded statement fails with it: that the mask width's least is at the top of its grid for
+  every application at every sampler rate. With a free sampler two applications' least is at a
+  width of about 609 (the leanSPHINCS verifier with Keccak, and 64 paths).
+- The user's larger point: the measure's rule, the least work over a family's rows for each
+  application separately, may overstate what a deployment gets. A proof-carrying-data scheme is
+  instantiated at one rank and one step shape, chosen for a guessed mix of transactions, and the
+  mix will change (recovery transactions a higher share at first). Changing the parameters in a
+  network upgrade is possible, and may well happen, but is awkward. Spare circuits add one more
+  quantity that the rule would tune per application.
+
+TO DECIDE with the user: a measure at one fixed configuration for a mix of transactions, beside
+or in place of the per-application least; whether a step's shape could be chosen from a small
+menu; and then whether spare circuits come in as a parameter of that fixed configuration.
