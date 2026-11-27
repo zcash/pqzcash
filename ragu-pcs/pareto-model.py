@@ -1506,7 +1506,9 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # duality is LWE of dimension bits − rows with rows samples and binary secret and error at the
 # 64-bit modulus. HIDING_PADDING_ATTACK_BITS is the pinned lattice estimator's cheapest attack
 # on that instance at 5,000 bits under the ADPS16 quantum model, by rows, and
-# HIDING_PADDING_SWEEP the same at the device's 1,024 rows by the padding's bits
+# HIDING_PADDING_SWEEPS the same by the padding's bits, at each of the device's row counts:
+# 1,024 rows at the 128- and 147-bit floors, and 2,048 at the 165-bit level, where no digit
+# width of the mask elements keeps the matrix at 1,024 (HIDING_PADDING_SWEEP_ROWS)
 # (scripts/knapsack-lwe-check.py, REGENERATING.md): the dual hybrid attack on the binary
 # secret, about a hundred bits below the primal attacks, so a primal estimate alone overstates
 # the margin. The padding is sized per floor, the least on the sweep's grid, 50 bits where the
@@ -1519,9 +1521,10 @@ HASH_PIOPS = {"blake3": BLAKE3_PIOP, "blake2s": BLAKE2S_PIOP, "keccak": KECCAK_P
 # Nano S+ hashes BLAKE2s about 500 times below a laptop core and a Trezor Safe 3 about 200
 # times, and 64-bit modular multiplication fares worse on a 32-bit core. The link rates are
 # that benchmark's measured USB rate on the Nano S+ and its estimate for a pipelined transport.
-HIDING_PADDING_SWEEP_ROWS = 1024  # the matrix rows the padding sweep below was run at
+# The device's matrix rows at each floor, which the padding's sweep for the floor is run at.
+HIDING_PADDING_SWEEP_ROWS = {128: 1024, 147: 1024, LEVEL3_FLOOR: 2048}
 HIDING_PADDING_ATTACK_BITS = {1024: 159.3, 1385: 140.5, 2048: 107.1}
-HIDING_PADDING_SWEEP = {
+HIDING_PADDING_SWEEP = {  # at 1,024 rows
     3500: 83.8,
     3750: 95.7,
     4000: 108.1,
@@ -1546,11 +1549,43 @@ HIDING_PADDING_SWEEP = {
     5750: 199.6,
     6000: 213.4,
 }
-HIDING_PADDING_BITS = {
-    floor: min(bits for bits, attack in HIDING_PADDING_SWEEP.items() if attack >= floor)
-    for floor in (128, 147, LEVEL3_FLOOR)
+# At 2,048 rows: by 250 bits, by 50 where the level is crossed, and by 8 around the crossing,
+# since a padding is a whole number of bytes.
+HIDING_PADDING_SWEEP_2048 = {
+    5500: 132.1,
+    5750: 145.0,
+    6000: 158.0,
+    6050: 160.9,
+    6100: 163.3,
+    6120: 164.6,
+    6128: 164.8,
+    6136: 165.4,
+    6144: 165.9,
+    6150: 166.2,
+    6200: 168.8,
+    6250: 171.4,
+    6500: 184.7,
+    6750: 198.3,
+    7000: 212.0,
+    7250: 225.8,
+    7500: 239.8,
+    7750: 253.7,
+    8000: 268.0,
 }
-assert HIDING_PADDING_BITS == {128: 4400, 147: 4800, LEVEL3_FLOOR: 5250}
+HIDING_PADDING_SWEEPS = {1024: HIDING_PADDING_SWEEP, 2048: HIDING_PADDING_SWEEP_2048}
+# A floor's padding is a whole number of bytes whose cheapest attack reaches the floor: the
+# least on its sweep, except at the 165-bit level, where 767 bytes is the least and the padding
+# is taken as 768 (the user, 2026-11-27).
+HIDING_PADDING_LEAST_BITS = {
+    floor: min(
+        bits
+        for bits, attack in HIDING_PADDING_SWEEPS[rows].items()
+        if attack >= floor and bits % 8 == 0
+    )
+    for floor, rows in HIDING_PADDING_SWEEP_ROWS.items()
+}
+assert HIDING_PADDING_LEAST_BITS == {128: 4400, 147: 4800, LEVEL3_FLOOR: 8 * 767}
+HIDING_PADDING_BITS = {**HIDING_PADDING_LEAST_BITS, LEVEL3_FLOOR: 8 * 768}
 SUMCHECK_MASK_DEGREE = 3
 DEVICE_WORD_MULTS_PER_S = {"mcu": 1e7, "secure_element": 3e6}
 DEVICE_LINK_BYTES_PER_S = {"measured": 21_000, "pipelined": 58_000}
@@ -5679,7 +5714,7 @@ def define_figures():
             cost, rank_, degree_, _ = accumulation_matrix(
                 "pasta_q64", floor, masked_log_beta_inf_l2(log_l2), math.log2(digits)
             )
-            if rank_ * degree_ == HIDING_PADDING_SWEEP_ROWS:
+            if rank_ * degree_ == HIDING_PADDING_SWEEP_ROWS[floor]:
                 return digits, log_l2, element_digits, digit_bits, cost, rank_ * degree_
         raise ValueError(
             f"no mask-element width keeps the device's matrix at the sweep's rows at {floor}"
@@ -5688,7 +5723,7 @@ def define_figures():
     device_digits, device_log_l2, element_digits, element_bits, matrix_cost, _ = device_vector(
         DEFAULT_FLOOR
     )
-    device_rows = {floor: device_vector(floor)[5] for floor in FLOORS}
+    device_rows = {floor: device_vector(floor)[5] for floor in HIDING_PADDING_SWEEP_ROWS}
     element_bits_by_floor = {floor: device_vector(floor)[3] for floor in FLOORS}
     # The leaf is committed under the masked matrix for the device's own vector.
     masked_digit = matrix_cost * WORD_MULTS["pasta_q64"]
@@ -5720,15 +5755,30 @@ def define_figures():
     fig("hiding_padding_attack_bits", round(HIDING_PADDING_SWEEP[padding]))
     fig("hiding_padding_attack_bits_128", round(HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[128]]))
     fig("hiding_padding_attack_bits_1385", round(HIDING_PADDING_ATTACK_BITS[1385]))
+    level_padding = HIDING_PADDING_BITS[LEVEL3_FLOOR]
+    fig("hiding_padding_bits_level3", fmt(level_padding))
+    fig("hiding_padding_bytes_level3", level_padding // 8)
+    fig("hiding_padding_rows_level3", fmt(HIDING_PADDING_SWEEP_ROWS[LEVEL3_FLOOR]))
+    fig("hiding_padding_attack_bits_level3", sig(HIDING_PADDING_SWEEP_2048[level_padding], 4))
+    fig("hiding_padding_attack_bits_2048", round(HIDING_PADDING_ATTACK_BITS[2048]))
+    fig("hiding_padding_least_bytes_level3", HIDING_PADDING_LEAST_BITS[LEVEL3_FLOOR] // 8)
     claim(
         "hiding_padding_secure",
-        "the device's matrix has the sweep's 1,024 rows at both floors, where each floor's padding is the least on the grid whose cheapest attack reaches the floor, the grid's previous point falling short; at the note's 1,385 rows 5,000 bits reach the 128-bit floor alone, and at 2,048 rows not even that",
-        all(rows == HIDING_PADDING_SWEEP_ROWS for rows in device_rows.values())
+        "the device's matrix has its floor's sweep's rows, 1,024 at the two floors and 2,048 at the 165-bit level; each floor's padding is a whole number of bytes whose cheapest attack reaches the floor, the least such on the grid at the two floors, the grid's previous point falling short, and one byte above the least at the level; at the note's 1,385 rows 5,000 bits reach the 128-bit floor alone, and at 2,048 rows not even that",
+        all(rows == HIDING_PADDING_SWEEP_ROWS[f] for f, rows in device_rows.items())
         and all(
-            HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f]] >= f
-            and HIDING_PADDING_SWEEP[HIDING_PADDING_BITS[f] - 50] < f
-            for f in FLOORS
+            HIDING_PADDING_BITS[f] % 8 == 0
+            and HIDING_PADDING_SWEEPS[rows][HIDING_PADDING_BITS[f]] >= f
+            and max(
+                a
+                for b, a in HIDING_PADDING_SWEEPS[rows].items()
+                if b < HIDING_PADDING_LEAST_BITS[f]
+            )
+            < f
+            for f, rows in HIDING_PADDING_SWEEP_ROWS.items()
         )
+        and all(HIDING_PADDING_BITS[f] == HIDING_PADDING_LEAST_BITS[f] for f in FLOORS)
+        and HIDING_PADDING_BITS[LEVEL3_FLOOR] == HIDING_PADDING_LEAST_BITS[LEVEL3_FLOOR] + 8
         and 128 <= HIDING_PADDING_ATTACK_BITS[1385] < max(FLOORS)
         and HIDING_PADDING_ATTACK_BITS[2048] < 128,
     )

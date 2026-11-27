@@ -92,7 +92,7 @@ default, or <!--fig:hiding_padding_bits_128-->4,400<!--/fig--> at 128, is pseudo
 knapsack-LWE is hard at the commitment's rows. By the Micciancio–Mol duality that is LWE of the
 padding's bits less the rows, with the rows as samples and binary secret and error at the 64-bit
 modulus (the zk note's [§5.10](zk-fiat-shamir-with-aborts.md#510-a-computational-hiding-padding)
-gives the argument). <!--claim:hiding_padding_secure:190fcf-->The lattice estimator puts the
+gives the argument). <!--claim:hiding_padding_secure:9dc0b4-->The lattice estimator puts the
 cheapest attack on the padding at the matrix's <!--fig:qk_device_matrix_rows-->1,024<!--/fig--> rows
 at <!--fig:hiding_padding_attack_bits-->149<!--/fig-->
 and <!--fig:hiding_padding_attack_bits_128-->128<!--/fig--> quantum bits at the two floors'
@@ -101,7 +101,14 @@ are a hundred bits dearer, so a primal estimate alone would overstate the margin
 least on the sweep's grid, 50 bits where the floors are crossed, that reaches the floor, so the
 hedge of the 147-bit floor applies to it too. At the zk note's 1,385 rows 5,000 bits
 give <!--fig:hiding_padding_attack_bits_1385-->140<!--/fig--> bits, and at 2,048 rows they would
-fall short of the 128-bit floor.<!--/claim--> The statistical padding would
+fall short of the 128-bit floor. The frontier page's [165-bit level](pareto-template.html#level-3)
+is in that case: the wallet's matrix there has <!--fig:hiding_padding_rows_level3-->2,048<!--/fig-->
+rows at every digit width, so its padding comes from a sweep at those rows. It
+is <!--fig:hiding_padding_bytes_level3-->768<!--/fig--> bytes, <!--fig:hiding_padding_bits_level3-->6,144<!--/fig--> bits,
+where the cheapest attack is at <!--fig:hiding_padding_attack_bits_level3-->165.9<!--/fig--> quantum
+bits. The least whole number of bytes that reaches the level
+is <!--fig:hiding_padding_least_bytes_level3-->767<!--/fig-->, and 768 is taken as the rounder
+figure.<!--/claim--> The statistical padding would
 be <!--fig:hiding_padding_statistical_kbits-->66<!--/fig--> thousand
 bits, <!--fig:hiding_padding_statistical_over_statement-->5.8<!--/fig--> times the statement.
 

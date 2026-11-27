@@ -205,7 +205,10 @@ long-running jobs to run under `caffeinate -i` to stop the machine from sleeping
   wallet's padding at 5,000 bits and 1,024, 1,385, and 2,048 rows, then sweeps the padding from
   3,500 to 6,000 bits at the device's 1,024 rows, by 250 and by 50 where the floors are crossed,
   under the ADPS16 quantum model: `sage scripts/knapsack-lwe-check.py` from `ragu-pcs`, about an
-  hour.
+  hour. With arguments it runs one sweep at other rows, as for the 165-bit level, whose wallet
+  matrix has 2,048 rows: `sage scripts/knapsack-lwe-check.py 2048 5500 8000 250`, then
+  `2048 6050 6200 50` and `2048 6120 6144 8` around the crossing, a few minutes in all
+  (`HIDING_PADDING_SWEEP_2048`).
 
 - **Typed from the paper and the notes**: the verifier times (`AKITA_VERIFY_MS`, Table 16), the
   terminal's inner-image coordinates (`IMAGE_COORDS`, pasta-proof-size.md §6.1), and the mask's

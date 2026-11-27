@@ -772,7 +772,7 @@ the right one.
 
 The pinned lattice estimator costs every attack on that instance under the ADPS16 quantum model that
 the page's Module-SIS instances use
-([`scripts/knapsack-lwe-check.py`](scripts/knapsack-lwe-check.py)). <!--claim:hiding_padding_secure:190fcf-->The
+([`scripts/knapsack-lwe-check.py`](scripts/knapsack-lwe-check.py)). <!--claim:hiding_padding_secure:9dc0b4-->The
 cheapest is the dual hybrid attack, which exploits the binary secret; the primal attacks are about a
 hundred bits dearer, so a primal estimate alone overstates the margin. At [the frontier
 page's](pareto-template.html#transaction-prover) matrix for the wallet's
