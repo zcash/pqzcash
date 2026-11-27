@@ -5259,3 +5259,155 @@ kept as a patch outside the tree. Two things stand in its way.
 TO DECIDE with the user: a measure at one fixed configuration for a mix of transactions, beside
 or in place of the per-application least; whether a step's shape could be chosen from a small
 menu; and then whether spare circuits come in as a parameter of that fixed configuration.
+
+## 2026-11-27, later: Kishu's step as one witness of a chosen length (work in progress)
+
+With the user, who had always been a little confused by Kishu's "circuits": it was path dependence
+from Ragu. A Kishu step's constraints are a sum-check over the whole table, which ends in one
+evaluation claim, so the step need not be slices of 2^rank digits with a claim each. Aim, in the
+user's words: radical simplification, adding complexity back only where it is really needed, and
+no regression in efficiency. Staging stays, as the route to permutation and lookup arguments.
+
+Committed first, on its own: a step's own transcript and the fingerprint route's column sums were
+sized for one circuit of 2^rank digits and are sized for the whole step (an undercount, 0.1% to 3%
+of Kishu's transaction figures).
+
+The work-in-progress commit after it changes the model and part of the frontier page:
+
+- **A Kishu row is a step length**, (1 + k/8) × 2^r digits, where the application's room is at
+  least a sixteenth of the step. It has one claim. In the shared functions that is one circuit of
+  2^(log2 length) digits, so a row's `rank` is the logarithm of its length, not a whole number;
+  `rank_text` writes it as "1.5 × 2^21". The rank filter is to ignore Kishu's rows. No upper limit
+  on the application's share: one at 15/16 had excluded the best rows for large transactions.
+- **A bare leaf has its own length** (`KISHU_LEAF_DIGITS`, 2^15). That was the one place the
+  slicing helped: the hardware wallet's mask covered one small circuit, not the step.
+- **A transaction's first step holds no merge** (the user: the leaf optimization), so a
+  transaction that fits one step has no merge at all, and a longer one has one fewer than its
+  steps. `pack_nodes` gives the leaf the merge's digits as extra room.
+- **A merge's sum-checks run over the digits in use** (the user: the prover can skip its zeros).
+  The mask still covers the whole step, since it has to hide which application was used; the
+  user's point. Its sampling and commitments are offline, 15 ns a digit, the same for every
+  application at a length; its online part, the handoff's merge, is 2 ms at any length.
+- The page's script mirrors the measure (`packNodes`, `txPacking`, `txWork`).
+
+Effect on Kishu's least transaction time against the corrected baseline, seconds on one core with
+zero knowledge: recovery 0.222 to 0.116; four recoveries 0.514 to 0.409; Zoodles by preimage 0.051
+to 0.021; by leanSPHINCS 0.300 to 0.206; the migration of one Tachyon input 0.115 to 0.049.
+Without zero knowledge Zoodles by preimage is 0.027 to 0.002.
+
+What the user's questions showed on the way. Each application's best step length differs, from
+about 2^20 digits for an ordinary transaction to 2^22 to 2^23 for recoveries, and a deployment
+fixes one. At a fixed length, with the mask in the cost and sum-checks over the whole step, no
+length is within 50% for every application. With the mask's offline part separated and zeros
+skipped, the online cost is nearly flat to the right of an application's least, so a long fixed
+step (2^23 or 2^24) costs offline mask work, 0.13 to 0.25 s a transaction, and little online; a
+short one costs many merges. The lineage step can be parameterized separately, and the hardware
+wallet's statement is already a leaf (the user).
+
+NOT DONE, in order:
+
+1. The model does not pass its own check. `kishu_zk_optimum` asserts on the first application;
+   after it come the figures and claims that quote a Kishu rank, circuit count, or step count.
+2. The prose: the frontier page from its zero-knowledge section on (the claims on the recovery
+   transaction's steps and ranks, the mask-width sweep, the level's Kishu paragraph, the
+   transaction sections), and the notes: Kishu's arithmetization (its "A step is one or more
+   circuits" and its table), Zoodles (actions a step, steps and ranks), the leanSPHINCS, SLH-DSA,
+   hardware-wallets, and recovery pages, and the Pasta proof-size note's Kishu figures.
+3. Then: a measure at one fixed step length for a mix of transactions, with the online and
+   offline parts separate; and the same simplification for Akita's rows, where the user thinks it
+   may apply too (their step circuits are Ragu's gate polynomials, so check what the gate
+   identity needs first).
+
+Unchecked assumptions in this: that nothing in Akita's fold or the zero-knowledge layer needs a
+claim per slice; that a prover skipping its own zeros leaves the sum-check sound and reveals
+nothing; that a leaf with no merge is a complete first step. The masked response's computation
+over the padded length, online, is not modelled.
+
+## 2026-11-27, later still: getting the step-length model past its own check
+
+PR #9 holds everything up to the undercount fix (its head f3526a9; the description covers the
+compression chain, the SLH-DSA page, and the undercount). The step-length work is local, in
+work-in-progress commits that a later entry records as squashed into one.
+
+Done since the WIP commit:
+
+- The mask-width sweep leaves out a row whose mask, at the widest widths on the longest steps,
+  would outgrow the fixed zk-layer merge (`kishu_zk_costs` returns None there).
+- Every quoted Kishu rank in the prose reads "a step of N digits" ("in a step of" where it had
+  "at rank"), by one pattern over the frontier page and five notes. Rewritten by hand: the
+  frontier page's rank, accumulation-prover, Kishu-costs, zero-knowledge (Kishu), and level
+  paragraphs; Kishu's arithmetization (the definition of a step, its table); Zoodles (actions a
+  step, at 2^21, 2^22, 2^23 digits); the Pasta proof-size note's example, now a step of 2^21.
+- `python pareto-model.py --fill` has been run: all figures are defined and filled.
+
+SIX CLAIMS STILL FAIL. Each needs its true statement found and its sentence rewritten:
+
+1. `zoodles_lineage_rank_is_spends`: the spend at the lineage step's best length is no longer
+   within a tenth of its own least. The lineage step's best is now a long step (1.625 × 2^22
+   without zero knowledge) and the spend's a short one (2^20). The user: the lineage step can be
+   parameterized separately, so the sentence should probably say that and drop the comparison.
+2. `alpha_optimum_at_grid_top` and 3. `alpha_page_excess`: the mask width's least is not at the
+   grid's top for every application now, and the page's width is within 19% of the least, not 10%.
+4. `kishu_matrix_same_at_150` and 5. `matrix_moves_150_q64_plain`: with longer accumulators more
+   accumulation matrices move between floors (154 rows from 128 to 147 bits, 144 of them Kishu's,
+   where it was 18 and 8; 26 at 150, where it was 2).
+6. `kishu_migration_zk_overhead`: zero knowledge now adds more than the whole of a migration's
+   prover without it, since without it a transaction that fits one step has no merge.
+
+A debug run that prints the values behind these six was started in the background when the
+context ran low; its output is the first thing to read. It edits `pareto-model.py` temporarily
+and restores it when it ends, so check `git diff --stat` shows no stray `DBG` prints before
+editing or committing that file.
+
+Then, still to do, in order: the six claims; sentences that the pattern left reading oddly (look
+at each "a step of … digits" in context, and the mask-width table's column, which is still headed
+as a rank); the hand-check of the page in a browser, since the script's measure changed; the
+online and offline measures separated, at one fixed step length for a transaction mix; the same
+simplification for Akita's rows; the level's re-plan with Akita's planner, which is no longer
+blocked on the compression chain's shape (three maps, sizes known), only on implementing it.
+
+The debug run's values, for the six claims:
+
+- Lineage: the lineage step's best length is 1.625 × 2^22 digits and the spend's 2^20; the spend
+  at the lineage's length costs 5.1 times its own least. So the two should not share a length.
+- Mask width, where the least is below the grid's top of 1,024: at the page's sampler, the three
+  applications that verify leanSPHINCS with Keccak (widths 609 to 861); with a free sampler also
+  four recoveries, the four-input Ironwood migration, and 64 paths (304 to 861). The page's width
+  is within 19% of the least at the page's sampler (27% and 26% at the two measured samplers, 14%
+  with a free one).
+- Matrices at 150 bits: beside the two Pasta-claims rows with 64-bit commitments (ranks 16 and
+  17, unmasked), Kishu's unmasked rows from a step of about 2^23.5 digits move from degree 512 to
+  1,024 at rank 1; their masked matrices stay at rank 2, degree 1,024.
+- Migrations: zero knowledge adds 126% to 214% of the prover without it.
+
+## 2026-11-27, 04:10 UTC: the step-length model passes its check
+
+The six failing claims, and a seventh that showed once they passed, are replaced by the statements
+that hold. The model's check, the book build, and the link check pass.
+
+- **The lineage step's length is set apart from the spend's** (`zoodles_lineage_own_length`, in
+  place of `zoodles_lineage_rank_is_spends`). The page gives the spend's own best step, 2^20
+  digits, and what the lineage's length would cost it, 5.1 times its least. Not modelled: what a
+  spend's merge pays to take in an accumulator of another length.
+- **The mask width** (`alpha_optimum_above_page`, in place of `alpha_optimum_at_grid_top`): the
+  least is at a width of 300 or more for every application at every sampler rate, and at the
+  grid's top for the recovery circuit. `alpha_page_excess` says within a quarter; the figure in
+  the sentence is 19 percent. Why some optima sit below the top is NOT understood: at the top
+  width the best row is a shorter step than at the optimum, though the longer step has a row
+  there. The differences are small (0.2% and 2.5% for the two applications probed). Worth a look
+  before the mask-width paragraph is next edited.
+- **Matrices at 150 bits** (`kishu_masked_matrix_same_at_150`, `matrix_moves_150_unmasked`): the
+  26 that move are unmasked, from degree 512 to 1,024; 24 are Kishu's rows without zero knowledge
+  from a step of 1.375 × 2^23 digits. Kishu's masked matrices do not move.
+- **Migrations** (`kishu_migration_zk_overhead`): zero knowledge adds more than the whole prover
+  without it, and the smallest migration without it is one step with no merge.
+- **The device's share** (`qk_device_share_small`): the wallet's online work is 10 percent of the
+  handoff fold, a figure now, with the claim at under a fifth. It had been under a tenth; the fold
+  shrank when the bare leaf got its own length.
+
+The mask-width table's last column is headed "Step, digits".
+
+The step-length work is one commit past PR #9's head, squashed from its work-in-progress commits
+at the user's word, with these notes in a commit after it; neither is pushed. Still to do: the
+sentences that the "a step of N digits" pattern left reading oddly, and the user's look at the
+page in a browser.
