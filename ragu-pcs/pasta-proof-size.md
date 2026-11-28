@@ -660,11 +660,11 @@ commitments, two full-width Pallas scalar multiplications, a Merkle path, and a 
 in the quantum-key signature. In Kishu a Boolean hash costs one bit per wire, and the integer
 arithmetic simulates $\mathbb{F}_p$ without a bit decomposition per operation, with range checks
 free. Costed component by component in this arithmetization, the recovery circuit
-is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
-or <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route, since a
+is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig--> digits by the limb route
+or <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> by the fingerprint route, since a
 Pasta multiplication cannot be checked modulo one fixed field alone, so either its limbs' carries
 are committed or BitZ's random-prime fingerprint runs in three instances whose column sums are
-committed per step, against <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> Pasta gates,
+committed per step, against <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> Pasta gates,
 which the page's transaction measure uses.
 
 **What is not modeled.** Verifier and prover time, which the byte formula does not touch. The

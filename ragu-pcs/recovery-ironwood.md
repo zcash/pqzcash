@@ -26,8 +26,8 @@ $\mathsf{SoK^{qsk}}$ as a signature scheme with key $\mathsf{qk}$, 1-of-$n$, whi
 adversary corrupting up to $t - 1$ wallets is bounded by re-randomized FROST; [Hardware
 wallets](hardware-wallets.md) sets out that model. The frontier page prices the recovery circuit as
 an application: in Kishu with zero knowledge it
-takes <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s on one core in a step
-of <!--fig:tx_recovery_kishu_zk_rank-->$2^{22}$<!--/fig--> digits.
+takes <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s on one core in a step
+of <!--fig:tx_recovery_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits.
 
 ## The signature method as an arm of the Recovery Statement
 
@@ -64,18 +64,21 @@ least <!--fig:recovery_cap_limb_margin-->59<!--/fig--> and below $q$. A limb fal
 range with negligible probability. If one does, the tree, which ZIP 2005 has rehashed in any case,
 is rehashed under another BLAKE3 personalization.
 
-By the model, <!--claim:recovery_cap_saves:5fab12-->the best cap
-is <!--fig:recovery_cap_levels-->14<!--/fig--> levels
-deep<!--/claim-->: <!--fig:recovery_cap_entries-->16,384<!--/fig--> nodes,
+The frozen tree is rehashed, so it need be no deeper than its commitments fill. The rehash keys each
+node's hash by the node's position in the tree, which costs nothing with BLAKE3 and leaves an
+attacker no choice among many targets; the tree's hash still has to be collision-resistant. It is
+taken to have <!--fig:recovery_tree_height-->27<!--/fig--> levels at the freeze. Each
+arithmetization's rows on the frontier page take the cap at the depth that costs them least. For
+Kishu <!--claim:recovery_cap_saves:1dc118-->that is <!--fig:recovery_cap_levels-->14<!--/fig-->
+levels<!--/claim-->: <!--fig:recovery_cap_entries-->16,384<!--/fig--> nodes,
 or <!--fig:recovery_cap_kb-->524 kbytes<!--/fig-->, for each node and wallet to hold, and a
-selection of <!--fig:recovery_cap_terms-->64,516<!--/fig--> terms. With zero knowledge it
-saves <!--fig:recovery_cap_path_pct-->36<!--/fig-->% of the path's prover work. That
-is <!--fig:recovery_cap_tx_pct-->1.4<!--/fig-->% of the recovery transaction's, since the path
-is <!--fig:recovery_path_tx_pct-->4.0<!--/fig-->% of it. A cap one level shallower saves
-within <!--fig:recovery_cap_shallower_pct-->0.06<!--/fig-->% of that at half the size. If the frozen
-tree is not full, the levels above its occupied part hash against constant empty roots, and a cap
-rooted at the occupied part removes those levels as well, at no cost. The other arithmetizations are
-not costed with a cap.
+selection of <!--fig:recovery_cap_terms-->64,516<!--/fig--> terms. The path is then the leaf's hash
+and the levels below the cap, <!--fig:recovery_cap_path_hashes-->14<!--/fig--> compressions. With
+zero knowledge the cap saves <!--fig:recovery_cap_path_pct-->43<!--/fig-->% of what a path hashed
+all the way would cost, which is <!--fig:recovery_cap_tx_pct-->1.5<!--/fig-->% of the recovery
+transaction. Over Pasta, where a selection is the subset products of the index bits, the best cap
+is <!--fig:recovery_cap_levels_pasta_poseidon-->9<!--/fig--> levels under a Poseidon path
+and <!--fig:recovery_cap_levels_pasta_blake3-->14<!--/fig--> under a BLAKE3 one.
 
 ## References
 

@@ -56,7 +56,7 @@ one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.146<!--/fig--> s in a step
 of <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->$1.25 \times 2^{22}$<!--/fig--> digits, and the
 Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.801<!--/fig--> s in a step
 of <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->$1.125 \times 2^{23}$<!--/fig--> digits,
-beside <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s for the recovery circuit itself.
+beside <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s for the recovery circuit itself.
 Ethereum's draft fixes Keccak-256 as the scheme's only primitive, and the circuit and the device
 both argue against it. If Ethereum keeps Keccak, there is no compatibility to gain from BLAKE2s
 either, and the choice is between Keccak and BLAKE3, Zoodles' own hash and the cheapest of the three

@@ -1390,6 +1390,15 @@ RECOVERY_MULT = {
     "bitz": BITZ_GATE_BITS,
     **{a: MULT_ROUTES[kishu_route(a)][0] for a in KISHU_ARITHS},
 }
+# The recovery circuit's Merkle path is in the pool's frozen tree, which is rehashed and need
+# be no deeper than its commitments fill. The tree is assumed to have 27 levels at the freeze
+# (the user, 2026-11-28; a node at height 3,619,230 has about 1.4 million Ironwood
+# commitments, 50.5 million Orchard ones, and 74.0 million Sapling ones, so 2^20.4, 2^25.6,
+# and 2^26.1). The path costs below are for 32 levels and the leaf, PATH_HASHES hashes, and
+# the recovery circuit's is that scaled to its own levels and the leaf.
+PATH_HASHES = 33
+RECOVERY_TREE_HEIGHT = 27
+RECOVERY_PATH_HASHES = RECOVERY_TREE_HEIGHT + 1
 RECOVERY_PATH_POSEIDON = {"pasta": 9_500, "goldilocks": 15_600, "fp128": 15_600}
 RECOVERY_PATH_BLAKE3 = {
     "pasta": 33 * BLAKE3_GATES,
@@ -1400,6 +1409,77 @@ RECOVERY_PATH_BLAKE3 = {
 }
 BOOL_REDUCTION = 1.5  # the Montgomery reduction, as a multiple of the product
 BOOL_STEP_BITS = 2**22
+
+
+# A static cap for the recovery circuit's Merkle path (the user and Jack Grigg, Zcon3). The
+# tree is frozen before the Recovery Statement is switched on. So the nodes at some depth are
+# a fixed public table, the cap. The path's levels above the cap become one selection from it
+# by the position's top bits, as a Sinsemilla chunk selects a generator.
+#   - In a gate or Boolean arithmetization the selection is the subset products of the index
+#     bits, 2^k - k - 1 of them for k levels, of which the node is free linear forms.
+#   - In Kishu the index bits are split into two halves. The subset products within a half
+#     are committed, at one term and three small nonzeros each, as in a chunk. Each product
+#     across the halves is a term with a field constant. There is one such constraint for
+#     each 64-bit limb of the node. A limb is compared in F_q, which is sound when every cap
+#     limb is at least 2^64 - q and below q; the tree is rehashed under another
+#     personalization otherwise.
+# Each arithmetization takes the depth that costs it least. Kishu's is chosen at the masked
+# rate of a step of 2^22 digits, with a digit's range check at one product; the choice moves
+# little with the step.
+CAP_LIMBS = 4
+
+
+def kishu_cap_selection(levels):
+    """(committed products, terms across the halves) of Kishu's selection from a cap of
+    2^levels nodes."""
+    high, low = (levels + 1) // 2, levels // 2
+    return (2**high - 1 - high) + (2**low - 1 - low), CAP_LIMBS * (2**high - 1) * (2**low - 1)
+
+
+def kishu_cap_piop(levels):
+    committed, terms = kishu_cap_selection(levels)
+    return (committed + terms, 3 * committed, terms)
+
+
+def kishu_cap_work(levels, digit):
+    """Prover work of Kishu's selection at `digit` word multiplications a committed digit."""
+    return kishu_cap_selection(levels)[0] * digit + piop_word_mults(kishu_cap_piop(levels))
+
+
+def gate_cap_selection(levels):
+    return 2**levels - levels - 1
+
+
+KISHU_CAP_DIGIT_WORD_MULTS = (
+    ajtai_per_coefficient("pasta_q64", True, DEFAULT_FLOOR, log_n=22, digit_max=DIGIT_MAX["kishu"])
+    / DIGITS["pasta_q64"]
+    + CONSTRAINT_TERM_WORD_MULTS
+)
+KISHU_COMPRESSION_WORD_MULTS = BLAKE3_BITS * KISHU_CAP_DIGIT_WORD_MULTS + piop_word_mults(
+    BLAKE3_PIOP
+)
+RECOVERY_CAP_LEVELS_KISHU = max(
+    range(RECOVERY_TREE_HEIGHT + 1),
+    key=lambda k: k * KISHU_COMPRESSION_WORD_MULTS - kishu_cap_work(k, KISHU_CAP_DIGIT_WORD_MULTS),
+)
+
+
+def recovery_cap_levels(field, hp):
+    """The cap's depth for `field` under policy `hp`: the one that leaves the path cheapest."""
+    if field.startswith("bits_pasta"):
+        return RECOVERY_CAP_LEVELS_KISHU
+    per_hash = path_cost(field, hp) / PATH_HASHES
+    return max(range(RECOVERY_TREE_HEIGHT + 1), key=lambda k: k * per_hash - gate_cap_selection(k))
+
+
+def recovery_path(field, hp):
+    """The recovery circuit's Merkle path in the unit of `field`'s arithmetization: the leaf
+    and the levels below the cap, hashed, and the selection from the cap."""
+    levels = recovery_cap_levels(field, hp)
+    hashed = (RECOVERY_PATH_HASHES - levels) * path_cost(field, hp) / PATH_HASHES
+    if field.startswith("bits_pasta"):
+        return hashed + kishu_cap_selection(levels)[0]
+    return hashed + gate_cap_selection(levels)
 
 
 def recovery_cost(field, hp):
@@ -1413,13 +1493,8 @@ def recovery_cost(field, hp):
         mult = (1 + BOOL_REDUCTION) * mult_ands(255)
     else:
         mult = RECOVERY_MULT[field]
-    path = (
-        RECOVERY_PATH_POSEIDON[field]
-        if hp == "poseidon" and field in RECOVERY_PATH_POSEIDON
-        else RECOVERY_PATH_BLAKE3[unit]
-    )
     bits = RECOVERY_BITS["bits_kishu" if field.startswith("bits_pasta") else unit]
-    return bits + RECOVERY_MULTS * mult + path
+    return bits + RECOVERY_MULTS * mult + recovery_path(field, hp)
 
 
 def path_cost(field, hp):
@@ -1886,7 +1961,8 @@ def recovery_piop(route):
     """The recovery circuit's constraint counts in Kishu's PIOP, by multiplication route."""
     return piop_sum(
         (7, BLAKE2B_PIOP),
-        (1 + 33, BLAKE3_PIOP),
+        (1 + RECOVERY_PATH_HASHES - RECOVERY_CAP_LEVELS_KISHU, BLAKE3_PIOP),
+        (1, kishu_cap_piop(RECOVERY_CAP_LEVELS_KISHU)),
         (160, SINSEMILLA_CHUNK_PIOP),
         (1, REDUCTIONS_PIOP),
         (RECOVERY_MULTS, MULT_ROUTES[route][1]),
@@ -6319,18 +6395,8 @@ def define_figures():
             3,
         ),
     )
-    # A static cap for the recovery circuit's Merkle path (the user and Jack Grigg, Zcon3). The
-    # Ironwood tree is frozen before the Recovery Statement is switched on. So the nodes at some
-    # depth are a fixed public table, the cap. The path's levels above the cap become one
-    # selection from it by the position's top bits, as a Sinsemilla chunk selects a generator.
-    # The index bits are split into two halves. The subset products within a half are
-    # committed, at one term and three small nonzeros each, as in a chunk. Each product across
-    # the halves is a term with a field constant. There is one such constraint for each 64-bit
-    # limb of the node. A limb is compared in F_q, which is sound when every cap limb is at
-    # least 2^64 - q and below q; the tree is rehashed under another personalization otherwise.
-    # Each level replaced saves one BLAKE3 compression: its digits, committed under the mask
-    # and range-checked at one product each, and its constraints.
-    cap_limbs = 4
+    # The static cap of the recovery circuit's Merkle path, as Kishu's rows take it: what it
+    # saves at the recovery transaction's own masked rate, against a path hashed all the way.
     masked_digit = (
         ajtai_per_coefficient(
             "pasta_q64", True, DEFAULT_FLOOR, log_n=recovery_log_n, digit_max=kishu_bits
@@ -6339,37 +6405,31 @@ def define_figures():
     )
     cap_digit = masked_digit + CONSTRAINT_TERM_WORD_MULTS
     cap_compression = BLAKE3_BITS * cap_digit + piop_word_mults(BLAKE3_PIOP)
-
-    def cap_selection(levels):
-        """The cap selection's terms across the halves and its prover work."""
-        high, low = (levels + 1) // 2, levels // 2
-        committed = (2**high - 1 - high) + (2**low - 1 - low)
-        terms = cap_limbs * (2**high - 1) * (2**low - 1)
-        work = committed * cap_digit + piop_word_mults((committed + terms, 3 * committed, terms))
-        return terms, work
-
-    cap_net = {k: k * cap_compression - cap_selection(k)[1] for k in range(1, 25)}
-    cap_levels = max(cap_net, key=cap_net.get)
+    cap_net = {
+        k: k * cap_compression - kishu_cap_work(k, cap_digit)
+        for k in range(RECOVERY_TREE_HEIGHT + 1)
+    }
+    cap_levels = RECOVERY_CAP_LEVELS_KISHU
     _, recovery_zk_work = kishu_best("recovery", zk=True)
-    cap_path = RECOVERY_PATH_BLAKE3["bits"] // BLAKE3_BITS * cap_compression
+    cap_path = RECOVERY_PATH_HASHES * cap_compression
+    uncapped_work = recovery_zk_work + cap_net[cap_levels]
+    fig("recovery_tree_height", RECOVERY_TREE_HEIGHT)
     fig("recovery_cap_levels", cap_levels)
     fig("recovery_cap_entries", fmt(2**cap_levels))
-    fig("recovery_cap_terms", fmt(cap_selection(cap_levels)[0]))
-    fig("recovery_cap_limbs", cap_limbs)
+    fig("recovery_cap_terms", fmt(kishu_cap_selection(cap_levels)[1]))
+    fig("recovery_cap_limbs", CAP_LIMBS)
     fig("recovery_cap_kb", kb(32 * 2**cap_levels))
+    fig("recovery_cap_path_hashes", RECOVERY_PATH_HASHES - cap_levels)
     fig("recovery_cap_path_pct", sig(100 * cap_net[cap_levels] / cap_path))
-    fig("recovery_cap_tx_pct", sig(100 * cap_net[cap_levels] / recovery_zk_work))
-    fig("recovery_path_tx_pct", sig(100 * cap_path / recovery_zk_work))
-    fig(
-        "recovery_cap_shallower_pct",
-        sig(100 * (1 - cap_net[cap_levels - 1] / cap_net[cap_levels]), 1),
-    )
+    fig("recovery_cap_tx_pct", sig(100 * cap_net[cap_levels] / uncapped_work))
+    fig("recovery_cap_levels_pasta_poseidon", recovery_cap_levels("pasta", "poseidon"))
+    fig("recovery_cap_levels_pasta_blake3", recovery_cap_levels("pasta", "blake3"))
     fig("recovery_cap_limb_margin", 59)  # 2^64 - q for q = 2^64 - 59
     claim(
         "recovery_cap_saves",
-        "a cap of the best depth saves more of the recovery circuit's Merkle path than a cap one level shallower or deeper, and the selection costs less than the compressions it replaces",
-        cap_net[cap_levels] > max(cap_net[cap_levels - 1], cap_net[cap_levels + 1])
-        and cap_selection(cap_levels)[1] < cap_levels * cap_compression,
+        "the cap depth that Kishu's rows take saves within 1% of the most that any depth saves at the recovery transaction's own rates, and its selection costs less than the compressions it replaces",
+        cap_net[cap_levels] >= 0.99 * max(cap_net.values())
+        and kishu_cap_work(cap_levels, cap_digit) < cap_levels * cap_compression,
     )
     claim(
         "kishu_zk_steps_over_fold",

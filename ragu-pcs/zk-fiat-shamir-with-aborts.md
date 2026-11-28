@@ -413,11 +413,11 @@ attempts per fold.
   fold is a migration, which [the frontier page](pareto-template.html#transaction-prover) prices
   with Kishu, whose commitments are at a 64-bit modulus. Recovering one or four Tachyon or Ironwood
   notes into a Zoodles note takes <!--fig:zk_note_migration_min_s-->0.0164<!--/fig-->
-  to <!--fig:zk_note_migration_max_s-->0.188<!--/fig--> s of prover there without zero knowledge,
+  to <!--fig:zk_note_migration_max_s-->0.180<!--/fig--> s of prover there without zero knowledge,
   and <!--fig:zk_note_migration_zk_min_s-->0.0599<!--/fig-->
-  to <!--fig:zk_note_migration_zk_max_s-->0.464<!--/fig--> s with
+  to <!--fig:zk_note_migration_zk_max_s-->0.430<!--/fig--> s with
   it. <!--claim:kishu_migration_zk_overhead:ba9fd7-->So zero knowledge
-  adds <!--fig:zk_note_zk_over_plain_pct_min-->150<!--/fig-->
+  adds <!--fig:zk_note_zk_over_plain_pct_min-->140<!--/fig-->
   to <!--fig:zk_note_zk_over_plain_pct_max-->270<!--/fig--> percent to such a transaction, more than
   the whole prover without it: unmasked, a migration that fits one step has no merge at
   all.<!--/claim--> [§5.8](#58-the-users-online-cost) moves the attempts and the obligations off the

@@ -341,10 +341,10 @@ word
 of <!--fig:column_sum_bits-->61<!--/fig--> bits, <!--fig:column_sum_digits-->21<!--/fig--> digits.
 That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at step rank 21, with
 three more transcripts for the merge above. So the recovery circuit
-is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
-and <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route. Its
-constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0135<!--/fig-->
-and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00556<!--/fig--> s on one core. The range checks
+is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig--> digits by the limb route
+and <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> by the fingerprint route. Its
+constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0126<!--/fig-->
+and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00469<!--/fig--> s on one core. The range checks
 of its tribits take <!--fig:range_recovery_kishu_limbs_s-->0.0509<!--/fig-->
 and <!--fig:range_recovery_kishu_fingerprint_s-->0.0244<!--/fig--> s more, beyond the one product a
 digit that every digit pays.
@@ -449,9 +449,9 @@ two coordinate constraints. So a chunk is <!--fig:sinsemilla_chunk_digits-->222<
 with its coordinates. Costed component by component in this arithmetization, with a committed bit at
 one digit and a multiplication at <!--fig:mult_limbs_digits-->374<!--/fig--> digits by the limb
 route or <!--fig:mult_fingerprint_digits-->170<!--/fig--> by the fingerprint route, the recovery
-circuit is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig-->
-or <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> digits. In Pasta arithmetic it
-is <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> gates. The frontier page's transaction
+circuit is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig-->
+or <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> digits. In Pasta arithmetic it
+is <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> gates. The frontier page's transaction
 measure uses those counts together with the constraint PIOP's work.
 
 ## A rough cost model
@@ -511,8 +511,8 @@ Tachyon's circuits fits. Kishu differs in these ways:
   multiplication <!--fig:mult_fingerprint_digits-->170<!--/fig-->
   or <!--fig:mult_limbs_digits-->374<!--/fig--> digits by relation, since the field is not Pasta's.
   That is why the recovery circuit
-  is <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> digits
-  against <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> Pasta gates, and why Zoodles,
+  is <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> digits
+  against <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> Pasta gates, and why Zoodles,
   with no Pasta arithmetic, suits it. Kishu is not specialized to Pasta at all. Given that, it does
   well on Pasta in prover time, as the frontier page's transaction measure shows, and it would do as
   well on any large-field arithmetic.

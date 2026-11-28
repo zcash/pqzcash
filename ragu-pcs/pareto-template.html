@@ -861,10 +861,10 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>The decider is the measured verifier at the paper's
   slope, <!--fig:bits_akita_decider_ms-->5.40<!--/fig--> ms, where the $\mathbb{F}_2$ family's
   is <!--fig:f2_decider_ms_min-->0.404<!--/fig--> ms. In the transaction measure a Pasta gate of the
-  recovery circuit is about <!--fig:ands_per_pasta_gate-->1,650<!--/fig--> AND gates here, since a
+  recovery circuit is about <!--fig:ands_per_pasta_gate-->2,210<!--/fig--> AND gates here, since a
   Pallas multiplication in a Boolean circuit is about <!--fig:bool_mult_ands-->120,000<!--/fig--> of
   them. So the recovery circuit costs
-  about <!--fig:bits_akita_mults_per_pasta_gate-->18,000<!--/fig--> word multiplications per Pasta
+  about <!--fig:bits_akita_mults_per_pasta_gate-->24,000<!--/fig--> word multiplications per Pasta
   gate in this family, against <!--fig:q64_mults_per_pasta_gate-->3,700<!--/fig--> for Akita with
   Pasta claims over 64‑bit commitments. The family would suit an application that is a Boolean
   circuit in its own right, such as the batches of hashes that Flock targets; the recovery circuit,
@@ -1107,7 +1107,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   small field, pays the embedding and simulation overhead that the small-field
   survey <a href="#ref-ska26">[Ska26, §5]</a> quantifies, and the Ironwood recovery circuit is Pasta
   arithmetic. The transaction measure prices that at
-  about <!--fig:ands_per_pasta_gate-->1,650<!--/fig--> AND gates per Pasta gate.</p>
+  about <!--fig:ands_per_pasta_gate-->2,210<!--/fig--> AND gates per Pasta gate.</p>
   <h3 id="bitz">BitZ</h3>
   <p>BitZ <a href="#ref-bgk26">[BGK+26]</a> removes that price. It is a hash-based commitment for
   multilinears over any finitely generated ring. The witness is bit-decomposed and committed packed
@@ -1121,7 +1121,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   relation, <!--fig:bitz_gate_value_bits-->255<!--/fig--> bits of value and as many of
   quotient, <!--fig:bitz_gate_bits-->510<!--/fig--> committed bits. Bit logic is counted as a
   Boolean circuit's AND gates, one committed bit each, since XOR is linear over the binary field and
-  costs nothing. So the recovery circuit is about <!--fig:app_recovery_bitz-->8.2 million<!--/fig--> bits, as the <a href="#transaction-prover">Transaction prover section</a>
+  costs nothing. So the recovery circuit is about <!--fig:app_recovery_bitz-->8.0 million<!--/fig--> bits, as the <a href="#transaction-prover">Transaction prover section</a>
   counts. <!--claim:bitz_merge_mostly_hashing:66a186-->A step of step rank $r$ commits $2^r$ bits of
   application witness, beside the Merkle hashing of the merge, which is most of its
   witness.<!--/claim--> The merge is a hybrid circuit: the Merkle hashing over $\mathbb{F}_2$ as for
@@ -1419,28 +1419,28 @@ code { font-family: var(--mono); font-size: 0.92em; }
   since the mask has to hide which application the step holds, and the
   stages' <!--fig:kishu_stage_digits-->26,000<!--/fig-->. For the recovery circuit Kishu's
   zero-knowledge optimum is
-  a step of <!--fig:tx_recovery_kishu_zk_rank-->$2^{22}$<!--/fig--> digits, <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s per note against <!--fig:tx_recovery_kishu_s-->0.0484<!--/fig--> s
-  without, <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0379<!--/fig--> s of it the sampling
+  a step of <!--fig:tx_recovery_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits, <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s per note against <!--fig:tx_recovery_kishu_s-->0.0465<!--/fig--> s
+  without, <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0356<!--/fig--> s of it the sampling
   at <!--fig:mask_sample_ns-->7.1<!--/fig--> ns a
   sample. <!--claim:kishu_projection_no_zk,drop_out_at_147:1455d5-->Its projection rows reveal
   coordinates and drop out, as the binary-groups family does, and as Pedersen-IPA drops out at 147 bits.<!--/claim--></p>
-  <p>Where that cost goes. Of the <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s, the fold
-  is <!--fig:tx_recovery_kishu_zk_fold_s-->0.0653<!--/fig--> s: the
-  sampling <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0379<!--/fig--> s, the masks' commitments
-  under the masked matrix <!--fig:tx_recovery_kishu_zk_masks_s-->0.0253<!--/fig--> s and the
+  <p>Where that cost goes. Of the <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s, the fold
+  is <!--fig:tx_recovery_kishu_zk_fold_s-->0.0613<!--/fig--> s: the
+  sampling <!--fig:tx_recovery_kishu_zk_sampling_s-->0.0356<!--/fig--> s, the masks' commitments
+  under the masked matrix <!--fig:tx_recovery_kishu_zk_masks_s-->0.0237<!--/fig--> s and the
   handoff's merge <!--fig:tx_recovery_kishu_zk_fold_merge_s-->0.00204<!--/fig--> s. <!--claim:kishu_zk_steps_over_fold,kishu_zk_rank_below_plain:eac3fb-->The larger part is the
   steps and their merges: <!--fig:tx_recovery_kishu_zk_steps-->1<!--/fig-->
-  at <!--fig:tx_recovery_kishu_zk_step_ms-->77.3<!--/fig--> ms, <!--fig:tx_recovery_kishu_zk_steps_s-->0.0773<!--/fig--> s
+  at <!--fig:tx_recovery_kishu_zk_step_ms-->73.2<!--/fig--> ms, <!--fig:tx_recovery_kishu_zk_steps_s-->0.0732<!--/fig--> s
   against <!--fig:tx_recovery_kishu_steps_s-->0.108<!--/fig--> s without zero knowledge. What zero
   knowledge adds to them is the masked matrix, module rank 2 at degree 1,024 in place of module rank 1 at 512,
   which raises the commitment rate of every step and merge
   from <!--fig:kishu_digit_mults-->11.0<!--/fig-->
   to <!--fig:kishu_digit_mults_masked-->14.0<!--/fig--> word multiplications a digit, and the
   zk-layer merge's atoms. The fold, the merge's worth of digits and the stages', and the masked rate
-  together move the optimum down: with zero knowledge the best row is in a step of <!--fig:tx_recovery_kishu_zk_rank-->$2^{22}$<!--/fig--> digits and
+  together move the optimum down: with zero knowledge the best row is in a step of <!--fig:tx_recovery_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits and
   takes <!--fig:tx_recovery_kishu_zk_steps-->1<!--/fig--> steps, where without it the best is
   a step of <!--fig:tx_recovery_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits in a single step.<!--/claim--> The constraint
-  PIOP is <!--fig:tx_recovery_kishu_zk_piop_ms-->29.9<!--/fig--> ms.</p>
+  PIOP is <!--fig:tx_recovery_kishu_zk_piop_ms-->29.1<!--/fig--> ms.</p>
   <p>Three things set it.</p>
   <h5 id="zk-sampler">The sampler</h5>
   <p>The sampler is the one term that is pure implementation. The
@@ -1467,8 +1467,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about <!--fig:mask_karney_sample_ns-->300<!--/fig--> ns a coordinate, measured
   at <!--fig:karney_ns_min-->290<!--/fig--> to <!--fig:karney_ns_max-->470<!--/fig--> ns by Du, Fan
   and Wei <a href="#ref-dfw20">[DFW20]</a>. With it the recovery would
-  take <!--fig:tx_recovery_kishu_zk_karney_s-->1.19<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_karney_rank-->$1.125 \times 2^{21}$<!--/fig--> digits, and
-  at <!--fig:mask_fast_sample_ns-->100<!--/fig--> ns <!--fig:tx_recovery_kishu_zk_fast_s-->0.533<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_fast_rank-->$1.5 \times 2^{21}$<!--/fig--> digits.</p>
+  take <!--fig:tx_recovery_kishu_zk_karney_s-->1.18<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_karney_rank-->$1.25 \times 2^{21}$<!--/fig--> digits, and
+  at <!--fig:mask_fast_sample_ns-->100<!--/fig--> ns <!--fig:tx_recovery_kishu_zk_fast_s-->0.496<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_fast_rank-->$1.25 \times 2^{21}$<!--/fig--> digits.</p>
   <h5 id="zk-width">The width of the mask</h5>
   <p>The Gaussian width $\alpha$ is the second. A wider mask needs fewer attempts,
   $\exp(12/\alpha + 1/(2\alpha^2))$ of them. But $\sigma = \alpha \|cs\|$ puts one more bit on the
@@ -1482,11 +1482,11 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <div class="tablewrap narrow"><table><thead><tr>
     <th class="num">Width $\alpha$</th><th class="num">Attempts</th><th class="num">$\log_2 \beta_\infty$</th><th class="num">Matrix</th><th class="num">Word mults a digit</th><th class="num">Bits a coordinate</th><th class="num">Slices</th><th class="num">Recovery with zk</th><th class="num">Step, digits</th>
   </tr></thead><tbody>
-    <tr><td class="num">6</td><td class="num"><!--fig:mask_attempts_alpha6-->7.5<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha6-->30.8<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha6-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha6-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha6-->24<!--/fig--></td><td class="num"><!--fig:mask_length_alpha6-->8<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_s-->0.384<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_rank-->$1.5 \times 2^{21}$<!--/fig--></td></tr>
-    <tr><td class="num">12</td><td class="num"><!--fig:mask_attempts_alpha12-->2.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha12-->32.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha12-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha12-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha12-->25<!--/fig--></td><td class="num"><!--fig:mask_length_alpha12-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_s-->0.197<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_rank-->$2^{22}$<!--/fig--></td></tr>
-    <tr><td class="num">24</td><td class="num"><!--fig:mask_attempts_alpha24-->1.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha24-->33.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha24-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha24-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha24-->26<!--/fig--></td><td class="num"><!--fig:mask_length_alpha24-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_s-->0.144<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_rank-->$2^{22}$<!--/fig--></td></tr>
-    <tr><td class="num">48</td><td class="num"><!--fig:mask_attempts_alpha48-->1.3<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha48-->34.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha48-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha48-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha48-->27<!--/fig--></td><td class="num"><!--fig:mask_length_alpha48-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_s-->0.126<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_rank-->$2^{22}$<!--/fig--></td></tr>
-    <tr><td class="num">96</td><td class="num"><!--fig:mask_attempts_alpha96-->1.1<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha96-->35.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha96-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha96-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha96-->28<!--/fig--></td><td class="num"><!--fig:mask_length_alpha96-->10<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_s-->0.118<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_rank-->$2^{22}$<!--/fig--></td></tr>
+    <tr><td class="num">6</td><td class="num"><!--fig:mask_attempts_alpha6-->7.5<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha6-->30.7<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha6-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha6-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha6-->24<!--/fig--></td><td class="num"><!--fig:mask_length_alpha6-->8<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_s-->0.372<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha6_rank-->$1.25 \times 2^{21}$<!--/fig--></td></tr>
+    <tr><td class="num">12</td><td class="num"><!--fig:mask_attempts_alpha12-->2.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha12-->32.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha12-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha12-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha12-->25<!--/fig--></td><td class="num"><!--fig:mask_length_alpha12-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_s-->0.186<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha12_rank-->$1.875 \times 2^{21}$<!--/fig--></td></tr>
+    <tr><td class="num">24</td><td class="num"><!--fig:mask_attempts_alpha24-->1.7<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha24-->33.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha24-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha24-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha24-->26<!--/fig--></td><td class="num"><!--fig:mask_length_alpha24-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_s-->0.136<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha24_rank-->$1.875 \times 2^{21}$<!--/fig--></td></tr>
+    <tr><td class="num">48</td><td class="num"><!--fig:mask_attempts_alpha48-->1.3<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha48-->34.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha48-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha48-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha48-->27<!--/fig--></td><td class="num"><!--fig:mask_length_alpha48-->9<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_s-->0.119<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha48_rank-->$1.875 \times 2^{21}$<!--/fig--></td></tr>
+    <tr><td class="num">96</td><td class="num"><!--fig:mask_attempts_alpha96-->1.1<!--/fig--></td><td class="num"><!--fig:mask_log_beta_alpha96-->35.0<!--/fig--></td><td class="num"><!--fig:mask_matrix_alpha96-->2 × 1,024<!--/fig--></td><td class="num"><!--fig:kishu_digit_mults_alpha96-->14.0<!--/fig--></td><td class="num"><!--fig:mask_bits_alpha96-->28<!--/fig--></td><td class="num"><!--fig:mask_length_alpha96-->10<!--/fig--></td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_s-->0.112<!--/fig--> s</td><td class="num"><!--fig:tx_recovery_kishu_zk_alpha96_rank-->$1.875 \times 2^{21}$<!--/fig--></td></tr>
   </tbody></table></div>
   <p><!--claim:kishu_zk_falls_with_alpha:4646d0-->The time falls at each doubling across the table,
   by <!--fig:kishu_zk_alpha_48_to_96_pct-->5.9<!--/fig--> percent from 48 to 96, since the matrix
@@ -1518,7 +1518,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   open.</p>
   <h5 id="zk-shape">The transaction's shape</h5>
   <p>The fold is paid once per transaction, so a transaction with four recovery inputs
-  takes <!--fig:tx_recovery4_kishu_zk_note_s-->0.107<!--/fig--> s per note in a step of <!--fig:tx_recovery4_kishu_zk_rank-->$1.875 \times 2^{22}$<!--/fig--> digits. What does not help: the two-matrix design
+  takes <!--fig:tx_recovery4_kishu_zk_note_s-->0.104<!--/fig--> s per note in a step of <!--fig:tx_recovery4_kishu_zk_rank-->$1.875 \times 2^{22}$<!--/fig--> digits. What does not help: the two-matrix design
   of the zk note's <span class="noteref" data-section="5.9">§5.9</span>, whose switch costs an
   in-circuit opening; the bimodal variant, which needs a structure that hides a sign (the zk
   note's <span class="noteref" data-section="7">open point 9</span>); and masking in blocks
@@ -1880,15 +1880,15 @@ code { font-family: var(--mono); font-size: 0.92em; }
   additions, 160 Sinsemilla chunk additions and the nullifier's Poseidon. Its seven BLAKE2b
   compressions, the chunks' generator selections and its Merkle path are bit operations and cost
   about the same gates in any prime field. Over Pasta the circuit
-  is <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> gates with a Poseidon path
-  and <!--fig:app_recovery_pasta_blake3-->1.05 million<!--/fig--> with a BLAKE3 one. Over a 64‑bit field
+  is <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> gates with a Poseidon path
+  and <!--fig:app_recovery_pasta_blake3-->0.783 million<!--/fig--> with a BLAKE3 one. Over a 64‑bit field
   a multiplication is about <!--fig:recovery_mult_goldilocks-->1,100<!--/fig--> gates, with nine
   29‑bit limbs and no lookups, so the circuit
   is <!--fig:app_recovery_goldilocks_poseidon-->16.5<!--/fig-->
-  and <!--fig:app_recovery_goldilocks_blake3-->17.0<!--/fig--> million gates; at a 128‑bit field,
+  and <!--fig:app_recovery_goldilocks_blake3-->16.7<!--/fig--> million gates; at a 128‑bit field,
   with 61‑bit limbs, about <!--fig:recovery_mult_fp128-->700<!--/fig--> gates
   give <!--fig:app_recovery_fp128_poseidon-->10.7<!--/fig-->
-  and <!--fig:app_recovery_fp128_blake3-->11.2<!--/fig--> million.</p>
+  and <!--fig:app_recovery_fp128_blake3-->10.9<!--/fig--> million.</p>
   <p>In a Boolean circuit a multiplication is about <!--fig:bool_mult_ands-->120,000<!--/fig--> AND
   gates, the 255‑bit product by Karatsuba and Toom–Cook and a Montgomery reduction by a prime of no
   special form. A 64‑bit addition is 64 ANDs and an XOR is free, so the hashes cost half their Pasta
@@ -1897,12 +1897,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   <p>In BitZ's integer arithmetization a multiplication is <!--fig:bitz_gate_bits-->510<!--/fig-->
   committed bits, the value and the quotient, checked as one integer relation, while a hash gate is
   one bit and a 64‑bit addition 65, so the circuit
-  is <!--fig:app_recovery_bitz-->8.2 million<!--/fig--> bits. In Kishu over Akita the claims are in
+  is <!--fig:app_recovery_bitz-->8.0 million<!--/fig--> bits. In Kishu over Akita the claims are in
   one fixed field, so a multiplication is either <!--fig:mult_limbs_digits-->374<!--/fig--> digits
   by the limb route or <!--fig:mult_fingerprint_digits-->170<!--/fig--> by the fingerprint route,
   which pays per step instead. The circuit
-  is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig-->
-  or <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> digits, plus its constraint
+  is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig-->
+  or <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> digits, plus its constraint
   PIOP, which the <a href="#kishu">Kishu section</a> prices. The bit arithmetizations hash the path
   with BLAKE3 under either policy, since Poseidon over Pallas's field would cost them 240
   multiplications a node.</p>
@@ -2064,7 +2064,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   recovery circuit's mix, with one path check and no BLAKE2b.</p>
   <h4 id="tx-results">Results</h4>
   <p><!--claim:bitz_recovery_one_step,q64_recovery_sumchecks:20f117-->For the recovery circuit, per
-  note on one core, Kishu takes <!--fig:tx_recovery_kishu_s-->0.0484<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits,
+  note on one core, Kishu takes <!--fig:tx_recovery_kishu_s-->0.0465<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits,
   in <!--fig:tx_recovery_kishu_steps-->1<!--/fig--> merges by
   the <!--fig:tx_recovery_kishu_route-->fingerprint<!--/fig--> route, and BitZ with
   ARC <!--fig:tx_recovery_bitz_s-->0.504<!--/fig--> s at
@@ -2072,17 +2072,17 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Pasta claims over 64‑bit commitments takes about <!--fig:tx_recovery_q64_s-->25.1<!--/fig--> s at
   step rank <!--fig:tx_recovery_q64_rank-->17<!--/fig--> with Poseidon, nearly all of it the fold's
   sum-checks over the accumulator's <!--fig:digits_q64-->85<!--/fig--> digits per coefficient in
-  Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,960<!--/fig--> s at
+  Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,430<!--/fig--> s at
   step rank <!--fig:tx_recovery_q64_blake3_rank-->17<!--/fig--> under the default BLAKE3 trees; Akita
   over its 64‑bit field <!--fig:tx_recovery_goldilocks_s-->16.1<!--/fig--> s with Poseidon; and
   Pedersen-IPA, at its 128‑bit floor and the checked-in configuration,
-  about <!--fig:tx_recovery_pedersen_minutes-->6.76<!--/fig--> minutes,
-  in <!--fig:tx_recovery_pedersen_steps-->278<!--/fig--> steps of step rank 13,
+  about <!--fig:tx_recovery_pedersen_minutes-->6.72<!--/fig--> minutes,
+  in <!--fig:tx_recovery_pedersen_steps-->276<!--/fig--> steps of step rank 13,
   or <!--fig:tx_recovery_pedersen_best_minutes-->1.90<!--/fig--> minutes at
   step rank <!--fig:tx_recovery_pedersen_best_rank-->17<!--/fig-->
   with <!--fig:tx_recovery_pedersen_best_E-->72<!--/fig--> endoscalings per step.<!--/claim--></p>
   <p><!--claim:bitz_recovery_zk_unchanged:84fbf1-->With zero knowledge Kishu's best
-  is <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_rank-->$2^{22}$<!--/fig--> digits by
+  is <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s in a step of <!--fig:tx_recovery_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits by
   the <!--fig:tx_recovery_kishu_zk_route-->fingerprint<!--/fig--> route, and Akita with Pasta claims
   about <!--fig:tx_recovery_q64_zk_s-->25.7<!--/fig--> s at
   step rank <!--fig:tx_recovery_q64_zk_rank-->17<!--/fig-->. BitZ stays
