@@ -825,6 +825,13 @@ def claim_bytes(variant, hp):
     )
 
 
+def claim_field_label(variant, hp):
+    """The part of a lattice row's label that names its claim field."""
+    if CLAIM_BYTES[variant] == 32:
+        return ", claims in Pasta's field"
+    return f", claims in a {8 * claim_bytes(variant, hp)}‑bit field"
+
+
 def image_bytes(hp):
     """A compressed commitment image's bytes under policy `hp`: the same at every level, the
     165-bit one reaching it by a third map (LEVEL3_COMPRESSION_CHAIN)."""
@@ -930,8 +937,8 @@ LABEL = {
     "flock_rec": "Flock/Binius-style over 𝔽₂, recursive",
     "bitz": "BitZ with ARC, Pasta claims over committed bits",
     "bitz_rec": "BitZ, recursive, Pasta claims over committed bits",
-    "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims, BLAKE3 (draft)",
-    "bits_q64_poseidon": "Kishu: BitZ over Akita, 64‑bit commitments, Pasta claims, Poseidon (draft)",
+    "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, BLAKE3 (draft)",
+    "bits_q64_poseidon": "Kishu: BitZ over Akita, 64‑bit commitments, Poseidon (draft)",
     "bits_akita": "Flock/Binius-style over Akita's binary groups (experimental)",
 }
 
@@ -2966,6 +2973,7 @@ for variant, hp in itertools.product(
                         ),
                         folded=K,
                         label=f"step rank {step_rank}, {circuits} circuit{'s' if circuits != 1 else ''}, {K} groups"
+                        + claim_field_label(variant, hp)
                         + HASH_LABEL[hp]
                         + (", ZK" if zk else "")
                         + floor_label(floor),
@@ -4716,6 +4724,7 @@ for (check, (_, bool_bytes, bool_verify_ms, bool_mults, bool_bits)), hp in itert
                             + round(bool_verify_ms * WORD_MULTS_PER_MS),
                             folded=K,
                             label=f"step of {step_label(length)} digits, {fields['gates'] / 1e6:.1f}M of them the merge, {K} groups, Booleanity by {check}, multiplication by {route}"
+                            + claim_field_label("kishu", hp)
                             + HASH_LABEL[hp]
                             + (", ZK" if zk else "")
                             + floor_label(floor),
