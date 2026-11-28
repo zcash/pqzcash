@@ -2462,9 +2462,10 @@ const txSides = () => SIDES.filter(side => measureOf(side) === 'transaction');
 // With neither measure the transaction prover, the second's list stands for both: the third
 // follows it, so that choosing the measure on either side afterwards starts from that choice.
 txSelect('second').addEventListener('change', () => { if (txSides().length === 0) txSelect('third').value = txSelect('second').value; });
-// The selected option's text, shortened for an axis title.
+// The selected option's text in full, and shortened for an axis title.
+const txName = side => txSelect(side).selectedOptions[0].textContent.trim();
 function txShort(side) {
-  const text = txSelect(side).selectedOptions[0].textContent.replace(/\s*\(.*$/, '').replace(/:.*$/, '');
+  const text = txName(side).replace(/\s*\(.*$/, '');
   return text.length > 44 ? text.slice(0, 42).trimEnd() + '…' : text;
 }
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
@@ -2693,8 +2694,10 @@ function wrapLabel(label, width = 60) {
   if (line) lines.push(line);
   return lines.join('<br>');
 }
+// The steps a row takes for a side's selected transaction, as text after its prover time.
+const stepsText = (p, side) => { const n = p[`steps_${side}`]; return n == null ? '' : `${n} step${n === 1 ? '' : 's'}`; };
 function hover(p) {
-  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure: ${fmtWork(val(p, `transaction_${side}`))} ${unitName()}`).join('')}<br>${CHANGE[p.change]}`;
+  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure (${txName(side)}): ${fmtWork(val(p, `transaction_${side}`))} ${unitName()} in ${stepsText(p, side)}`).join('')}<br>${CHANGE[p.change]}`;
 }
 function render() {
   // The transcript's hash is a choice at the 165-bit level alone.
@@ -2749,7 +2752,10 @@ function render() {
   }
   for (const side of SIDES) {
     const [txKind, txCount] = txSelect(side).value.split(':');
-    for (const p of DATA.points) p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
+    for (const p of DATA.points) {
+      p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
+      p[`steps_${side}`] = p.step_prover === null ? null : txStepsFor(p, txKind, txCount ? +txCount : 1, txPolicy);
+    }
   }
   const all = selected().filter(p => sides.length === 0 || (p.step_prover !== null && sides.every(side => p[`transaction_${side}`] !== null)));
   // With the per-family box ticked, each family's frontier is taken on its own,
@@ -2902,7 +2908,7 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => p[`transaction_${side}`] === null ? '' : `${fmtWork(val(p, `transaction_${side}`))} ${uname}`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => p[`transaction_${side}`] === null ? '' : `${fmtWork(val(p, `transaction_${side}`))} ${uname}<br>(${stepsText(p, side)})`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="16">No family selected.</td></tr>';
