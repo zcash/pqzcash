@@ -605,7 +605,7 @@ decider. <!--claim:bitz_gkr_four_fifths:84887d-->Its prover is mostly the grand-
 GKR, <!--fig:bitz_gkr_25_ms-->97<!--/fig--> of <!--fig:bitz_prover_25_ms-->122<!--/fig--> ms at
 $2^{25}$ bits and rate 1/2 on one thread; as Quang Dao puts it, the prover with grand-product GKR is
 just really
-expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:8c7f84-->It is
+expensive.<!--/claim--> <!--claim:bitz_unbeaten_among_hash_pasta,kishu_beats_bitz13:93ce34-->It is
 on the frontier, because its Pasta arithmetic is one relation per multiplication and no other
 hash-based family's row with native or relation Pasta arithmetic has both a smaller proof and a
 cheaper prover; Kishu, described below, beats it on both.<!--/claim--> Akita's Pasta variants beat

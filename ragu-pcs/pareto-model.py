@@ -935,8 +935,8 @@ LABEL = {
     "whir_hybrid_rec": "WHIR, recursive, Pasta claims, 64‑bit limbs",
     "plonky3_rec": "Plonky3-style FRI, recursive, Goldilocks",
     "flock_rec": "Flock/Binius-style over 𝔽₂, recursive",
-    "bitz": "BitZ with ARC, Pasta claims over committed bits",
-    "bitz_rec": "BitZ, recursive, Pasta claims over committed bits",
+    "bitz": "BitZ with ARC, committed bits",
+    "bitz_rec": "BitZ, recursive, committed bits",
     "bits_q64": "Kishu: BitZ over Akita, 64‑bit commitments, BLAKE3 (draft)",
     "bits_q64_poseidon": "Kishu: BitZ over Akita, 64‑bit commitments, Poseidon (draft)",
     "bits_akita": "Flock/Binius-style over Akita's binary groups (experimental)",
@@ -7729,7 +7729,7 @@ def define_figures():
     )
     claim(
         "bitz_unbeaten_among_hash_pasta",
-        "no other hash-based family's row with Pasta claims has both a smaller proof and a cheaper prover than BitZ at step rank 13, rate 1/8",
+        "no other hash-based family's row that serves a Pasta application has both a smaller proof and a cheaper prover than BitZ at step rank 13, rate 1/8",
         not any(
             q["pasta"] and q["bytes"] <= b13["bytes"] and q["prover"] <= b13["prover"]
             for f in HASH_FAMILIES
