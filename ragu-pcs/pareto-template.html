@@ -336,7 +336,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   configuration needs, which <a href="#changes">a later section</a> takes
   up. <a href="#frontier-table">The table's Pasta arithmetic column</a> says how each scheme
   realises the first:</p>
-  <!--claim:pasta_native_list:c0267b--><ul>
+  <!--claim:pasta_native_list:a6bccd--><ul>
     <li><b>native</b>: a gate over Pasta's field (<a href="#pedersen-ipa">Pedersen-IPA</a>, the
     Pasta variants of <a href="#akita">Akita</a>, <a href="#whir">WHIR over Pasta</a>
     and <a href="#limb-hybrid">the limb hybrid</a>, whose witness and merge circuit are over
@@ -349,7 +349,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
     primes, as BitZ does it, without the limbs and carries (<a href="#bitz">BitZ</a>,
     and <span class="noteref" data-note="kishu-arithmetization" data-section="#pasta-multiplication-by-two-routes">Kishu's fingerprint route</span>);</li>
     <li><b>limbs</b>: <a href="#application-costs">limb products as committed wires in another
-    field</a> (the 128‑bit and Goldilocks rows and Plonky3); or</li>
+    field</a> (Akita's 128‑bit and 64‑bit rows, WHIR over Goldilocks, and Plonky3); or</li>
     <li><b>bits</b>: a Boolean circuit (the <a href="#binary-field-systems">$\mathbb{F}_2$
     family</a> and <a href="#binary-groups">the binary groups</a>).</li>
   </ul>
@@ -581,7 +581,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   computed. Second, the fold's second-round sum-check table. The first round can stream over the
   packed digits, expanding each to a claim-field element as it goes, so the first table stored is
   the second round's: half the accumulator's digits at the claim field's width, 16 bytes for Kishu's
-  extension, the 128‑bit field, and Goldilocks's extension, 32 at Pasta's modulus. Third, under zero
+  extension, the 128‑bit field, and the 64‑bit field's extension, 32 at Pasta's modulus. Third, under zero
   knowledge, the mask: the accumulator's digits at the row's own coordinate
   width, <!--fig:mask_bits_min-->26<!--/fig--> to <!--fig:mask_bits_max-->32<!--/fig--> bits across
   the lattice rows, a masked coordinate stored compactly, with the response written over it. The new
@@ -616,7 +616,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   about <!--fig:ajtai_per_coeff_pasta-->15,000<!--/fig--> per coefficient when the commitment
   modulus is Pasta, <!--fig:ajtai_per_coeff_pasta_q64-->940<!--/fig--> when it is
   64‑bit, <!--fig:ajtai_per_coeff_fp128-->1,900<!--/fig--> at a 128‑bit field,
-  and <!--fig:ajtai_per_coeff_goldilocks-->180<!--/fig--> on Goldilocks, over every step circuit's
+  and <!--fig:ajtai_per_coeff_goldilocks-->180<!--/fig--> at its 64‑bit field, over every step circuit's
   witness. The cycle's endoscaling and binder polynomials do not exist in the lattice design.
   Folding and sum-check work is not included.</p>
   <p><!--claim:whir_blake3_prover_per_coeff:e75c3c-->For WHIR with ARC it is the Reed–Solomon
@@ -641,7 +641,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   of both instances. For Akita it is the sum-check messages of the range and norm checks, about 120
   elements for two sum-checks of about 20 rounds with three elements each, counted as one atom each.
   Then each compressed commitment image: 128 bytes at the variant's atom width, which is 8 atoms at
-  a 128‑bit field, 16 on Goldilocks, 4 on Pasta, and 6 for Pasta claims with 64‑bit commitment
+  a 128‑bit field, 16 at the 64‑bit field, 4 on Pasta, and 6 for Pasta claims with 64‑bit commitment
   coordinates, three coordinates to an atom. Then one atom per step circuit's claim, and 18 more
   with zero knowledge. The folding arithmetic is not included, and for Pedersen-IPA neither is the
   endoscaling arithmetic, which is what a higher endoscaling count costs in gates.</p>
@@ -666,7 +666,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   modelled: the two IPAs each need a multi-scalar multiplication of $2^{\text{step rank}}$ points, plus
   a scalar multiplication per folded commitment to combine the instance,
   about <!--fig:pedersen13_decider_ms-->41.9<!--/fig--> ms at step rank 13.</p>
-  <p>Akita is measured: the paper's single-thread verifier takes 4.2 ms at the 128‑bit field and 3.9 ms on Goldilocks at $2^{27}$ committed bits, growing by about 0.4 ms per doubling,
+  <p>Akita is measured: the paper's single-thread verifier takes 4.2 ms at the 128‑bit field and 3.9 ms at its 64‑bit field, $2^{64} - 59$, at $2^{27}$ committed bits, growing by about 0.4 ms per doubling,
   so <!--fig:akita_decider_ms_min-->2.59<!--/fig-->
   to <!--fig:akita_decider_ms_max-->3.08<!--/fig--> ms at this witness size. The Pasta variants are
   taken at four times the 128‑bit figure, the ratio of word multiplications per field
@@ -849,7 +849,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   prover does not count for the lattice rows either. That
   is <!--fig:bits_akita_prover-->4.9e7<!--/fig--> for the merge's commitments,
   against <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> for the $\mathbb{F}_2$ family's ARC step at rate
-  1/8, and against <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig--> for Akita over Goldilocks
+  1/8, and against <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig--> for Akita over its 64‑bit field
   at step rank 16 under BLAKE3. There the transcript's hashing in a Pasta circuit is what
   makes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits. So with conventional hashes a
   Boolean merge circuit over the lattice commitment is the cheapest merge prover on the page, since
@@ -1084,7 +1084,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   batched mask and a Zook-style one, which the <a href="#zero-knowledge">zero-knowledge section</a>
   below describes. It does not support the Pasta base field, so under the dominance rule it can be
   dominated by anything.</p>
-  <p><!--claim:f2_prover_least_rate_4,f2_prover_more_than_gold_blake3,gold_poseidon_dominates_f2_rate8:437d0f-->Its
+  <p><!--claim:f2_prover_least_rate_4,f2_prover_more_than_gold_blake3,gold_poseidon_dominates_f2_rate8:ea362e-->Its
   proofs under ARC are <!--fig:f2_192_kb_min-->148 kbytes<!--/fig-->
   to <!--fig:f2_192_kb_max-->620 kbytes<!--/fig--> from
   rate <!--fig:f2_rate_lowest-->1/64<!--/fig--> to <!--fig:f2_rate_highest-->1/2<!--/fig--> in the
@@ -1093,7 +1093,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   to <!--fig:f2_rec_192_kb_max-->234 kbytes<!--/fig-->. The prover is least at rate 1/4, with rate
   1/8 about <!--fig:f2_1_8_over_least_pct-->12<!--/fig-->%
   higher: <!--fig:f2_192_prover_least-->924<!--/fig--> million word
-  multiplications, <!--fig:f2_over_gold_poseidon-->40<!--/fig--> times Akita over Goldilocks's with
+  multiplications, <!--fig:f2_over_gold_poseidon-->40<!--/fig--> times Akita over its 64‑bit field's with
   Poseidon and <!--fig:f2_over_gold_blake3-->1.4<!--/fig--> times it with BLAKE3, whose proof
   is <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
   to <!--fig:goldilocks_16_blake3_kb-->77 kbytes<!--/fig-->. The merge
@@ -1263,7 +1263,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   </ul>
   <p>The marker shape says what a configuration needs beyond its family. A circle needs parameter
   changes only. For Pedersen-IPA, step rank, endoscalings per step and header size are constants in the
-  code; for Akita, the 128‑bit field and Goldilocks are the paper's published parameter sets. A
+  code; for Akita, the 128‑bit and 64‑bit fields are the paper's published parameter sets. A
   square needs more. For Pedersen-IPA that is a code change within the protocol: a binder that binds
   more than two challenges, or the fixed circuits merged. For Akita it is a design change: the Pasta
   variants need a modulus profile that Akita does not have, and the 64‑bit commitment variant a
@@ -1571,8 +1571,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   says. That share is the terminal's clear inner images at the shipped geometry, 1,344 coordinates
   whose bytes Module-SIS sets independently of the modulus. They
   are <!--fig:image_share_pct_fp128-->33<!--/fig--> percent of the opening at the 128-bit
-  field, <!--fig:image_share_pct_goldilocks-->35<!--/fig--> on
-  Goldilocks, <!--fig:image_share_pct_pasta_q64-->30<!--/fig--> with 64-bit
+  field, <!--fig:image_share_pct_goldilocks-->35<!--/fig--> at the
+  64‑bit field, <!--fig:image_share_pct_pasta_q64-->30<!--/fig--> with 64-bit
   commitments, <!--fig:image_share_pct_pasta_sis-->26<!--/fig--> with Pasta images at SIS size,
   and <!--fig:image_share_pct_pasta-->42<!--/fig--> with Pasta for everything, where they are
   32-byte field elements. The verifier's work is taken to divide as the message does.</p>
@@ -1657,7 +1657,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   follows, in three kinds: planned or certified by Akita's own tools at the level, derived from
   the 147‑bit rows, and not re-examined.<!--/claim--></p>
   <ul>
-    <li><!--claim:level3_plan_below_line:620853-->The opening's bytes and their growth with the
+    <li><!--claim:level3_plan_below_line:d6707d-->The opening's bytes and their growth with the
     witness are planned: Akita's planner was run at a 165‑bit floor with the three-map chain. The
     plan is below the line through the 128‑ and 147‑bit plans. Summed over the group counts, the
     128‑bit field's opening is <!--fig:level3_plan_fp128_pct-->1.2<!--/fig-->% larger than at 147 bits where the line gives <!--fig:level3_line_fp128_pct-->11<!--/fig-->%, and Goldilocks's
@@ -1674,8 +1674,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
     of <!--fig:level3_rank_scale_own-->1.31<!--/fig--> over the 128‑bit floor. For the 64‑bit
     modulus and for Pallas it is on the line through its 128‑ and 147‑bit values, factors
     of <!--fig:level3_rank_scale_q64-->1.27<!--/fig-->
-    and <!--fig:level3_rank_scale_pallas-->1.02<!--/fig-->. Kishu's rows and Akita's over
-    Goldilocks read the 64‑bit modulus's.</li>
+    and <!--fig:level3_rank_scale_pallas-->1.02<!--/fig-->. Kishu's rows and Akita's over its
+    64‑bit field read the 64‑bit modulus's.</li>
     <li>Kishu's Booleanity check by projection has no row at the level. Its certificate's error
     is <!--fig:projection_error-->$2^{-136}$<!--/fig-->, short of the level, so the level's rows
     use the sum-check form alone. At the 128‑ and 147‑bit floors the rows without zero knowledge keep the check. Akita's
@@ -1693,8 +1693,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
     <li>Not re-examined for the level: the errors of Akita's own sum-checks; and a Keccak
     permutation's count of prime-field gates, which is taken as Kishu's count of digits.</li>
   </ul>
-  <p><!--claim:level3_lattice_rows_dearer:f9c020-->With a BLAKE3 transcript and zero knowledge,
-  Akita over Goldilocks in circuits of $2^{16}$ gates takes a step
+  <p><!--claim:level3_lattice_rows_dearer:e141ed-->With a BLAKE3 transcript and zero knowledge,
+  Akita over its 64‑bit field in circuits of $2^{16}$ gates takes a step
   of <!--fig:level3_goldilocks_16_step-->$1.41 \times 2^{22}$<!--/fig--> gates
   against <!--fig:goldilocks_16_zk_step-->$1.78 \times 2^{21}$<!--/fig--> at 147 bits, <!--fig:level3_goldilocks_16_accumulation_x-->2.6<!--/fig--> times the accumulation prover,
   and <!--fig:level3_goldilocks_16_bytes_pct-->20<!--/fig-->% more bytes. Kishu's merge with zero
@@ -1768,7 +1768,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   bound since does not reach it (see <a href="#whir">WHIR and FRI</a>).</p>
   <h3 id="hashes-in-circuits">Hashes in circuits</h3>
   <p>Every hash that a merge circuit computes is one of two. The default is a conventional hash,
-  BLAKE3, at 14,900 gates per 64-byte compression in a lookup-free R1CS over Pasta or Goldilocks and
+  BLAKE3, at 14,900 gates per 64-byte compression in a lookup-free R1CS over Pasta or a 64‑bit field and
   about 200 word multiplications natively. The option allows an arithmetic hash, Poseidon 1.1 over
   the circuit's own field: 288 gates per Pasta permutation absorbing four elements, about 480 for
   the width-12 Goldilocks one, and 35,000 or 7,200 word multiplications natively.</p>
@@ -1795,22 +1795,22 @@ code { font-family: var(--mono); font-size: 0.92em; }
   each <!--fig:blake3_chunk_bytes-->1,024<!--/fig-->-byte
   chunk, <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more. So the merge grows from
   about <!--fig:fp128_16_poseidon_gates-->25 thousand<!--/fig--> gates
-  to <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> at the 128‑bit field and on Goldilocks
+  to <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> at the 128‑bit and 64‑bit fields
   and <!--fig:q64_16_blake3_gates-->2.0 million<!--/fig--> for the Pasta variants, at step rank
-  16. <!--claim:blake3_akita_first_ranks,blake3_first_rank_circuits_shared:618470-->Each step
+  16. <!--claim:blake3_akita_first_ranks,blake3_first_rank_circuits_shared:7f0eaf-->Each step
   circuit's evaluation claim then costs more to absorb than a circuit of step rank 13 holds, and a 32-byte
   claim more than a circuit of step rank 14. So step rank 13 has no Akita rows and step rank 14 none for the Pasta
   variants, and the first step ranks that hold them
   take <!--fig:akita14_blake3_circuits-->1,740<!--/fig-->
   and <!--fig:pasta15_blake3_circuits-->1,472<!--/fig--> circuits.<!--/claim--></p>
-  <p><!--claim:blake3_rank16_small_fields_same,blake3_rank16_pasta_same,poseidon_rank16_two_circuits,blake3_prover_ratios:abd9af-->At
+  <p><!--claim:blake3_rank16_small_fields_same,blake3_rank16_pasta_same,poseidon_rank16_two_circuits,blake3_prover_ratios:b91205-->At
   step rank 16 the merge takes <!--fig:fp128_16_blake3_circuits-->51<!--/fig--> circuits at the 128‑bit
-  field and on Goldilocks and <!--fig:q64_16_blake3_circuits-->122<!--/fig--> for the Pasta
+  and 64‑bit fields and <!--fig:q64_16_blake3_circuits-->122<!--/fig--> for the Pasta
   variants, against <!--fig:fp128_16_poseidon_circuits-->2<!--/fig--> with Poseidon. So the merge
   prover is <!--fig:fp128_16_prover_ratio-->26<!--/fig--> times the Poseidon one at the 128‑bit
   field (<!--fig:fp128_16_blake3_prover-->6.3e9<!--/fig-->
   against <!--fig:fp128_16_poseidon_prover-->2.5e8<!--/fig-->)
-  and <!--fig:goldilocks_16_prover_ratio-->28<!--/fig--> times on Goldilocks
+  and <!--fig:goldilocks_16_prover_ratio-->28<!--/fig--> times at the 64‑bit field
   (<!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig-->
   against <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->), whose wider BLAKE3 accumulator
   at the 64‑bit modulus takes the matrix to degree 1,024 at this
@@ -1839,12 +1839,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   verification falls <!--fig:whir13_blake3_verify_cut_min-->17<!--/fig-->
   to <!--fig:whir13_blake3_verify_cut_max-->83<!--/fig--> times, to a few milliseconds; the proofs
   grow by a sixth with the larger batched witness, and the best grinding moves to 24 bits.<!--/claim--></p>
-  <p><!--claim:blake3_native_rows_unchanged,f2_prover_more_than_gold_blake3:d39be3-->The
+  <p><!--claim:blake3_native_rows_unchanged,f2_prover_more_than_gold_blake3:06d5a6-->The
   $\mathbb{F}_2$ family, BitZ and the binary-groups family hash with BLAKE3 already and do not
   change, so under the default their comparison with Akita is like for like. At rate 1/8 the
   $\mathbb{F}_2$ family's ARC row proves a merge in <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> word
-  multiplications for a proof of <!--fig:f2_1_8_kb-->240 kbytes<!--/fig-->, against Akita over
-  Goldilocks at step rank 16 with <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig-->
+  multiplications for a proof of <!--fig:f2_1_8_kb-->240 kbytes<!--/fig-->, against Akita over its
+  64‑bit field at step rank 16 with <!--fig:goldilocks_16_blake3_prover-->6.6e8<!--/fig-->
   and <!--fig:goldilocks_16_blake3_kb-->77 kbytes<!--/fig-->. Its merge
   is <!--fig:f2_gates_min-->37<!--/fig--> to <!--fig:f2_gates_max-->188<!--/fig--> million AND gates
   against Akita's <!--fig:fp128_16_blake3_gates-->0.83 million<!--/fig--> Pasta gates, which are not
@@ -1878,7 +1878,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   compressions, the chunks' generator selections and its Merkle path are bit operations and cost
   about the same gates in any prime field. Over Pasta the circuit
   is <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> gates with a Poseidon path
-  and <!--fig:app_recovery_pasta_blake3-->1.05 million<!--/fig--> with a BLAKE3 one. Over Goldilocks
+  and <!--fig:app_recovery_pasta_blake3-->1.05 million<!--/fig--> with a BLAKE3 one. Over a 64‑bit field
   a multiplication is about <!--fig:recovery_mult_goldilocks-->1,100<!--/fig--> gates, with nine
   29‑bit limbs and no lookups, so the circuit
   is <!--fig:app_recovery_goldilocks_poseidon-->16.5<!--/fig-->
@@ -1903,9 +1903,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   PIOP, which the <a href="#kishu">Kishu section</a> prices. The bit arithmetizations hash the path
   with BLAKE3 under either policy, since Poseidon over Pallas's field would cost them 240
   multiplications a node.</p>
-  <p><!--claim:path_blake3_any_field,path_bitz_boolean_equal,path_gold_fp128_equal:d18a80-->A Merkle
+  <p><!--claim:path_blake3_any_field,path_bitz_boolean_equal,path_gold_fp128_equal:63fcbb-->A Merkle
   path check is 33 nodes: <!--fig:app_path_pasta_poseidon-->9,500<!--/fig--> Pasta gates,
-  or <!--fig:app_path_goldilocks_poseidon-->15,600<!--/fig--> Goldilocks or 128‑bit-field gates,
+  or <!--fig:app_path_goldilocks_poseidon-->15,600<!--/fig--> 64‑bit-field or 128‑bit-field gates,
   with Poseidon in the field; <!--fig:app_path_pasta_blake3-->492,000<!--/fig--> gates in any prime
   field with BLAKE3; <!--fig:app_path_boolean-->340,000<!--/fig--> AND gates, which are also BitZ's
   committed bits; or <!--fig:app_path_kishu-->374,000<!--/fig--> Kishu digits.<!--/claim--> So the
@@ -1979,7 +1979,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   Akita <!--fig:tx_zoodles_preimage_bits_akita_s-->0.0794<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_bits_akita_s-->0.0794<!--/fig--> s at its 128‑bit floor;
   Flock <!--fig:tx_zoodles_preimage_flock_s-->0.322<!--/fig-->
-  and <!--fig:tx_zoodles_leansphincs_blake3_flock_s-->0.322<!--/fig--> s; and Akita over Goldilocks
+  and <!--fig:tx_zoodles_leansphincs_blake3_flock_s-->0.322<!--/fig--> s; and Akita over its 64‑bit field
   with a Poseidon tree <!--fig:tx_zoodles_preimage_goldilocks_s-->0.287<!--/fig-->
   and <!--fig:tx_zoodles_leansphincs_blake3_goldilocks_s-->4.68<!--/fig--> s. <!--claim:zoodles_preimage_beats_tachyon:db8cb2-->Tachyon's own four tachyactions, with their
   curve arithmetic, take <!--fig:tx_tachyon4_kishu_zk_s-->0.0966<!--/fig--> s in Kishu with zero
@@ -2024,8 +2024,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   hash to the step, and a shorter epoch adds steps a day. Kishu
   takes <!--fig:tx_zoodles_epoch_kishu_s-->0.00248<!--/fig--> s a note an epoch on one core in a step of <!--fig:tx_zoodles_epoch_kishu_rank-->$1.625 \times 2^{22}$<!--/fig--> digits, without zero knowledge, since the
   lineage never leaves the wallet. BitZ takes <!--fig:tx_zoodles_epoch_bitz_s-->0.385<!--/fig--> s,
-  Flock <!--fig:tx_zoodles_epoch_flock_s-->0.322<!--/fig--> s, Akita over
-  Goldilocks <!--fig:tx_zoodles_epoch_goldilocks_s-->0.0319<!--/fig--> s, and
+  Flock <!--fig:tx_zoodles_epoch_flock_s-->0.322<!--/fig--> s, Akita over its
+  64‑bit field <!--fig:tx_zoodles_epoch_goldilocks_s-->0.0319<!--/fig--> s, and
   Pedersen-IPA <!--fig:tx_zoodles_epoch_pedersen_s-->6.33<!--/fig--> s at its 128‑bit
   floor. <!--claim:zoodles_lineage_own_length:bfe19f-->The lineage step's length is set
   apart from the spend's, since the two would not choose the same one. The spend's own best step
@@ -2071,7 +2071,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   sum-checks over the accumulator's <!--fig:digits_q64-->85<!--/fig--> digits per coefficient in
   Pasta's field, and <!--fig:tx_recovery_q64_blake3_s-->1,960<!--/fig--> s at
   step rank <!--fig:tx_recovery_q64_blake3_rank-->17<!--/fig--> under the default BLAKE3 trees; Akita
-  over Goldilocks <!--fig:tx_recovery_goldilocks_s-->16.1<!--/fig--> s with Poseidon; and
+  over its 64‑bit field <!--fig:tx_recovery_goldilocks_s-->16.1<!--/fig--> s with Poseidon; and
   Pedersen-IPA, at its 128‑bit floor and the checked-in configuration,
   about <!--fig:tx_recovery_pedersen_minutes-->6.76<!--/fig--> minutes,
   in <!--fig:tx_recovery_pedersen_steps-->278<!--/fig--> steps of step rank 13,
@@ -2118,12 +2118,12 @@ code { font-family: var(--mono); font-size: 0.92em; }
   comparisons and the step's glue, priced as bit operations, one gate or committed bit each, which
   understates any among them that multiply field elements. So a node that is one step over Pasta
   is <!--fig:tachyon_node_gold17_min-->6<!--/fig-->
-  to <!--fig:tachyon_node_gold17_max-->8<!--/fig--> steps of step rank 17 over Goldilocks with Poseidon
+  to <!--fig:tachyon_node_gold17_max-->8<!--/fig--> steps of step rank 17 over Akita's 64‑bit field with Poseidon
   and <!--fig:tachyon_node_bool_min-->5<!--/fig--> to <!--fig:tachyon_node_bool_max-->7<!--/fig-->
   Boolean steps, which is where the range of step counts comes
-  from. <!--claim:tachyon_bits_as_mults_more_steps:66a865-->Pricing the remaining gates as
+  from. <!--claim:tachyon_bits_as_mults_more_steps:acd090-->Pricing the remaining gates as
   multiplications too would give <!--fig:tachyon_node_gold17_upper_min-->27<!--/fig-->
-  to <!--fig:tachyon_node_gold17_upper_max-->39<!--/fig--> Goldilocks steps.<!--/claim--></p>
+  to <!--fig:tachyon_node_gold17_upper_max-->39<!--/fig--> such steps.<!--/claim--></p>
   <p>Per-note steps that run in the background are not counted; a Zoodles note's lineage step, their
   counterpart, is an application of its own. A Tachyon transaction also needs Tachyon's header of
   nine elements, so while one is selected every row is shown at that header. The recovery circuit's
@@ -2142,8 +2142,8 @@ code { font-family: var(--mono); font-size: 0.92em; }
   step rank <!--fig:tx_tachyon2_bitz_rank-->20<!--/fig-->;
   Kishu <!--fig:tx_tachyon2_kishu_s-->0.0578<!--/fig--> s in a step of <!--fig:tx_tachyon2_kishu_rank-->$1.5 \times 2^{20}$<!--/fig--> digits
   with <!--fig:tx_tachyon2_kishu_hash-->Poseidon<!--/fig--> by
-  the <!--fig:tx_tachyon2_kishu_route-->limbs<!--/fig--> route; Akita over
-  Goldilocks <!--fig:tx_tachyon2_goldilocks_s-->1.15<!--/fig--> s
+  the <!--fig:tx_tachyon2_kishu_route-->limbs<!--/fig--> route; Akita over its
+  64‑bit field <!--fig:tx_tachyon2_goldilocks_s-->1.15<!--/fig--> s
   in <!--fig:tx_tachyon2_goldilocks_steps-->36<!--/fig--> steps with Poseidon; and the
   $\mathbb{F}_2$ family <!--fig:tx_tachyon2_f2_s-->9.97<!--/fig--> s
   in <!--fig:tx_tachyon2_f2_steps-->31<!--/fig-->. <!--claim:bitz_tachyon2_zk_unchanged:9728d1-->With
@@ -2156,7 +2156,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   claims <!--fig:tx_tachyon16_q64_s-->5.58<!--/fig--> s;
   BitZ <!--fig:tx_tachyon16_bitz_s-->1.32<!--/fig--> s;
   Kishu <!--fig:tx_tachyon16_kishu_s-->0.111<!--/fig--> s;
-  Goldilocks <!--fig:tx_tachyon16_goldilocks_s-->7.17<!--/fig--> s.</p>
+  Akita over its 64‑bit field <!--fig:tx_tachyon16_goldilocks_s-->7.17<!--/fig--> s.</p>
   <p>For scale, Orchard's Halo 2 prover, measured on the same machine with assembly,
   takes <!--fig:halo2_2_s-->1.88<!--/fig--> s for two actions and
   about <!--fig:halo2_16_s-->14<!--/fig--> s for sixteen on one thread. So Tachyon on Pedersen-IPA

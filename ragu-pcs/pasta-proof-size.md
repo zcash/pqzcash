@@ -141,6 +141,12 @@ partials at a 64-bit base field and nothing else. From the 128-bit field, the pa
 coefficients, is therefore around 105 to 115 kbytes on this accounting, before the two
 native-planning effects of [§2](#2-what-re-pricing-means).
 
+Akita cannot in fact take Goldilocks as its commitment modulus. Its fold needs the difference of two
+short challenges to be invertible, which holds in a ring that barely splits, for a modulus with
+$q \equiv 5 \pmod 8$ such as Akita's own $2^{64} - 59$. Modulo Goldilocks the ring splits
+completely. So the Goldilocks tables here are outputs of the estimator only, and the frontier page's
+64‑bit Akita rows are at Akita's own modulus.
+
 Goldilocks does not need any new work for proof sizes. Re-pricing the fp64 rows at Goldilocks widths
 reproduces the fp64 figures to the byte, because the widths and the extension degree are the same.
 The SIS estimator gives the same ranks as the 64-bit representative at every bound tried,
@@ -368,7 +374,7 @@ produces for a third party. At $2^{14}$ to $2^{16}$ coefficients:
 
 | commitment modulus | opening proof |
 |---|---|
-| 128-bit field, or Goldilocks for both field and commitments | 65 to 67 kbytes |
+| 128-bit field, or the 64‑bit field for both field and commitments | 65 to 67 kbytes |
 | Pasta claims, 64-bit commitments ([§6.3](#63-decoupling-the-commitment-modulus-from-the-claim-field)) | 71 to 74 kbytes |
 | Pasta for everything ([§6.2](#62-inner-images-are-sis-sized-not-field-sized)) | 83 to 87 kbytes |
 
@@ -465,7 +471,7 @@ multiplications per coefficient, dense polynomials assumed:
 | Ajtai, Pasta modulus | <!--fig:ajtai_per_coeff_pasta-->15,000<!--/fig--> | 85 digits, rows/64 + 3 multiplications per digit by NTT, 32 word multiplications each |
 | Ajtai, 128-bit field | <!--fig:ajtai_per_coeff_fp128-->1,900<!--/fig--> | 43 digits, 8 word multiplications each |
 | Ajtai, Pasta claims with 64-bit commitments | <!--fig:ajtai_per_coeff_pasta_q64-->940<!--/fig--> | 85 digits, 2 word multiplications each |
-| Ajtai, Goldilocks | <!--fig:ajtai_per_coeff_goldilocks-->180<!--/fig--> | 22 digits, 1.5 word multiplications each |
+| Ajtai, 64‑bit field | <!--fig:ajtai_per_coeff_goldilocks-->180<!--/fig--> | 22 digits, 1.5 word multiplications each |
 
 So at a 255-bit commitment modulus the Ajtai prover does more wide multiplications per coefficient
 than Pedersen, because the digit count outweighs the per-point cost. The decoupled modulus is what
@@ -559,8 +565,8 @@ binary-field route in its own terms, with FRI-Binius's measured commitment proof
 witness size and Flock's measured throughput as prover time. At rate 1/8 it comes
 to <!--fig:f2_1_8_kb-->240 kbytes<!--/fig--> and the time
 of <!--fig:f2_1_8_prover-->1.0e9<!--/fig--> word multiplications per
-merge. <!--claim:gold_poseidon_dominates_f2_rate8:1c108b-->Akita over Goldilocks with Poseidon still
-dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
+merge. <!--claim:gold_poseidon_dominates_f2_rate8:90a77a-->Akita over its 64‑bit field with Poseidon
+still dominates it on both, at <!--fig:goldilocks_16_poseidon_kb-->73 kbytes<!--/fig-->
 and <!--fig:goldilocks_16_poseidon_prover-->2.4e7<!--/fig-->.<!--/claim--> The merge's Boolean size,
 about <!--fig:f2_1_8_gates-->67<!--/fig--> million AND gates, is not comparable with Pasta gates.
 LaBinius (ePrint 2026/2103) is a lattice scheme over a binary claim field. It reaches proofs under

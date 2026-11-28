@@ -732,8 +732,8 @@ absorb: some $2 \cdot 10^7$ gates with a conventional hash at 14,900 gates per
 $2 \cdot 10^5$ with Poseidon at 72 gates per atom, before the sum-check arithmetic. What it would
 save is the masked matrix's rate on the transaction's steps and merges. On this section's Euclidean
 route that is a factor of 1.7 to 1.9 on their commitments, about a quarter of a second for a
-$2^{17}$-gate transaction over Goldilocks at step rank 13 on the page, against a masking fold of
-under half a second. On the page's $\ell_\infty$ route
+$2^{17}$-gate transaction over Akita's 64‑bit field at step rank 13 on the page, against a masking
+fold of under half a second. On the page's $\ell_\infty$ route
 ([§5.5](#55-checking-the-ranks-with-akitas-estimator)) it is a factor of 1.0 to 1.33, 14/11 for
 Kishu, so far less. So with a conventional hash the opening costs several times what it saves per
 transaction, and with Poseidon the two are close on the Euclidean route and not on the other.

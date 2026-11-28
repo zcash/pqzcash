@@ -921,7 +921,7 @@ def akita_circuits(variant, K, step_rank, zk, hp):
 LABEL = {
     "pedersen": "Pedersen-IPA",
     "fp128": "Akita, 128‑bit field",
-    "goldilocks": "Akita, Goldilocks",
+    "goldilocks": "Akita, 64‑bit field",
     "pasta_q64": "Akita, Pasta claims, 64‑bit commitments",
     "pasta_sis": "Akita, Pasta, inner images at SIS size",
     "pasta": "Akita, Pasta for everything",
@@ -970,8 +970,9 @@ def akita_bytes(variant, K, log_len, floor=DEFAULT_FLOOR):
 # prover, at 3e9 per second of one core. Pedersen-IPA: the two IPAs each need a multi-scalar
 # multiplication of 2^(step rank) points, plus a scalar multiplication per folded commitment to
 # combine the instance (about 255 doublings and additions of 11 field multiplications).
-# Akita: the paper's single-thread measurements (Table 16, one thread, 2^27 bits): 4.2 ms at
-# the 128-bit field and 3.9 ms on Goldilocks, growing 0.45 and 0.35 ms per doubling of the
+# Akita: the paper's single-thread measurements (Table 16, its rows for p128 and for
+# p64 = 2^64 - 59, one thread, 2^27 bits): 4.2 ms at the 128-bit field and 3.9 ms at the
+# 64-bit field, growing 0.45 and 0.35 ms per doubling of the
 # witness (2^27 to 2^29 bits); the Pasta variants are taken at four times the 128-bit figure,
 # the ratio of word multiplications per field multiplication, since the verifier's work is
 # sum-check arithmetic in the claim field; the masked witness adds three rounds to each
@@ -5694,7 +5695,7 @@ def define_figures():
     fig("app_path_kishu", sig(APP["path"][KISHU_ARITHS[0]]["blake3"], 3))
     claim(
         "path_gold_fp128_equal",
-        "the recovery circuit's Goldilocks and 128-bit Poseidon paths cost the same gates",
+        "the recovery circuit's 64-bit-field and 128-bit Poseidon paths cost the same gates",
         APP["path"]["goldilocks"]["poseidon"] == APP["path"]["fp128"]["poseidon"],
     )
     fig(
@@ -6544,7 +6545,7 @@ def define_figures():
     fig("tachyon_node_bool_max", max(bool_steps))
     claim(
         "tachyon_bits_as_mults_more_steps",
-        "pricing a Tachyon node's remaining gates as multiplications gives more Goldilocks steps than pricing them as bits, for every action node",
+        "pricing a Tachyon node's remaining gates as multiplications gives more steps over Akita's 64-bit field than pricing them as bits, for every action node",
         all(u > s for u, s in zip(gold_upper, gold_steps)),
     )
     fig("tachyon2_nodes", len(tachyon_nodes(*TACHYON_TRANSACTIONS[2])))
@@ -6882,7 +6883,7 @@ def define_figures():
     fig("q64_16_blake3_gates", millions(a16[("pasta_q64", "blake3")]["gates"]))
     claim(
         "blake3_rank16_small_fields_same",
-        "Goldilocks and the 128-bit field have the same merge gates and circuits under BLAKE3 at step rank 16",
+        "Akita's 64-bit field and the 128-bit field have the same merge gates and circuits under BLAKE3 at step rank 16",
         a16[("goldilocks", "blake3")]["gates"] == a16[("fp128", "blake3")]["gates"]
         and a16[("goldilocks", "blake3")]["circuits"] == a16[("fp128", "blake3")]["circuits"],
     )
@@ -6909,7 +6910,7 @@ def define_figures():
         fig(f"{v}_16_prover_ratio", sig(ratio[v]))
     claim(
         "blake3_prover_ratios",
-        "the two Pasta-modulus variants have the same BLAKE3-to-Poseidon merge prover ratio; Goldilocks's is above the 128-bit field's and the 64-bit-commitment variant's above the Pasta-modulus ones', since at the 64-bit modulus the wider BLAKE3 accumulator takes the matrix to degree 1,024",
+        "the two Pasta-modulus variants have the same BLAKE3-to-Poseidon merge prover ratio; the 64-bit field's is above the 128-bit field's and the 64-bit-commitment variant's above the Pasta-modulus ones', since at the 64-bit modulus the wider BLAKE3 accumulator takes the matrix to degree 1,024",
         ratio["goldilocks"] > 1.05 * ratio["fp128"]
         and sig(ratio["pasta_sis"]) == sig(ratio["pasta"])
         and ratio["pasta_q64"] > 1.05 * ratio["pasta"],
@@ -7054,7 +7055,7 @@ def define_figures():
         fig(f"level3_line_{v}_pct", sig(over_147(AKITA_165_EXTRAPOLATED, v)))
     claim(
         "level3_plan_below_line",
-        "the level's planned opening is below the line through the 128- and 147-bit plans for every variant but Goldilocks, where the two are within a point",
+        "the level's planned opening is below the line through the 128- and 147-bit plans for every variant but the 64-bit field, where the two are within a point",
         all(
             over_147(AKITA_165_PLANNED, v) < over_147(AKITA_165_EXTRAPOLATED, v)
             for v in AKITA_147
@@ -7204,7 +7205,7 @@ def define_figures():
     )
     claim(
         "level3_lattice_rows_dearer",
-        "at the 165-bit level Akita over Goldilocks takes a longer step, more accumulation prover, and more bytes than at 147 bits, and Kishu's merge is more digits, with more commitment work and more bytes",
+        "at the 165-bit level Akita over its 64-bit field takes a longer step, more accumulation prover, and more bytes than at 147 bits, and Kishu's merge is more digits, with more commitment work and more bytes",
         all(g165[k] > g147[k] for k in ("circuits", "accumulation_prover", "bytes"))
         and all(k165[k] > k147[k] for k in ("gates", "prover", "bytes")),
     )
@@ -7662,7 +7663,7 @@ def define_figures():
     )
     claim(
         "f2_prover_more_than_gold_blake3",
-        "the 𝔽₂ family's least prover is more than Akita over Goldilocks's with BLAKE3, and less than twice it",
+        "the 𝔽₂ family's least prover is more than Akita over its 64-bit field's with BLAKE3, and less than twice it",
         1 < f_least["prover"] / a16[("goldilocks", "blake3")]["prover"] < 2,
     )
     fig("f2_1_8_prover", sci(f8["prover"]))
@@ -7672,7 +7673,7 @@ def define_figures():
     fig("goldilocks_16_poseidon_kb", kb(a16[("goldilocks", "poseidon")]["bytes"]))
     claim(
         "gold_poseidon_dominates_f2_rate8",
-        "Akita over Goldilocks with Poseidon dominates the 𝔽₂ family's rate-1/8 row on bytes and prover",
+        "Akita over its 64-bit field with Poseidon dominates the 𝔽₂ family's rate-1/8 row on bytes and prover",
         a16[("goldilocks", "poseidon")]["bytes"] < f8["bytes"]
         and a16[("goldilocks", "poseidon")]["prover"] < f8["prover"],
     )
@@ -7998,7 +7999,7 @@ def define_figures():
     )
     claim(
         "blake3_first_rank_circuits_shared",
-        "Goldilocks has the 128-bit field's circuit count at step rank 14 under BLAKE3, and the three Pasta variants share theirs at step rank 15",
+        "Akita's 64-bit field has the 128-bit field's circuit count at step rank 14 under BLAKE3, and the three Pasta variants share theirs at step rank 15",
         pick("goldilocks", step_rank=14, hashes="blake3")["circuits"]
         == pick("fp128", step_rank=14, hashes="blake3")["circuits"]
         and len({pick(v, step_rank=15, hashes="blake3")["circuits"] for v in PASTA_VARIANTS}) == 1,
@@ -8051,7 +8052,7 @@ def define_figures():
     )
     claim(
         "pasta_native_list",
-        "the 𝔽₂ family and the binary-groups row realise Pasta arithmetic in bits, the 128-bit, Goldilocks and Plonky3 rows in limbs, BitZ and Kishu as relations, and the dominance rule counts native and relation",
+        "the 𝔽₂ family and the binary-groups row realise Pasta arithmetic in bits, Akita's 128-bit and 64-bit rows, WHIR over Goldilocks, and Plonky3 in limbs, BitZ and Kishu as relations, and the dominance rule counts native and relation",
         all(PASTA_ARITH[f] == "bits" for f in ("flock", "flock_rec", "bits_akita"))
         and all(
             PASTA_ARITH[f] == "limbs"

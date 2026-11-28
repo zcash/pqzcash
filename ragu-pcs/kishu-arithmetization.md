@@ -318,8 +318,8 @@ transcript is absorbed and its verifier run in the merge above.
 Its claims live in the 64-bit field itself, Akita's commitment modulus, and the verifier recomposes
 each Pasta value from 32-bit limbs proved as linear claims in the same sum-check. So Kishu does not
 use the decoupled commitment, and its soundness rests on Akita's own at the 64-bit profile and on
-the draft's Booleanity certificate. Its opening proof and decider are priced on the Goldilocks
-variant's plan and measurement, the same profile, at Kishu's digit count.
+the draft's Booleanity certificate. Its opening proof and decider are priced on the plan and
+measurement of Akita's 64‑bit variant, the same profile, at Kishu's digit count.
 
 ## Pasta multiplication by two routes
 
