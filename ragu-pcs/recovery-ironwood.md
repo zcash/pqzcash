@@ -44,6 +44,39 @@ consequence is that a key derived before the signature route exists is a preimag
 wallet that wants the signature route later needs a new key, which means new addresses and moved
 funds.
 
+## A static cap for the Merkle path
+
+The Ironwood note commitment tree is frozen once the pool's pre-quantum protocol is turned off. A
+deployment can leave time between that and turning the Recovery Statement on, for nodes and wallets
+to compute the static tree. The nodes at a chosen depth are then a fixed public table, the cap, and
+the circuit need not hash the levels above it. It selects the cap's entry by the top bits of the
+note's position, as a [Sinsemilla chunk](kishu-arithmetization.md#the-recovery-circuit) selects a
+generator, and compares it with the node that the lower levels hash to. The position's bits stay
+private. The circuit is written generically: the cap enters only as the coefficients of the
+selection's constraints, filled in when the tree is frozen. The idea came from a discussion between
+Daira-Emma Hopwood and Jack Grigg at Zcon3, where it was suggested for Sprout.
+
+In Kishu the index bits are split into two halves. The subset products within a half are committed,
+and each product across the halves is a term of a constraint. A node is compared
+as <!--fig:recovery_cap_limbs-->4<!--/fig--> limbs of 64 bits, a constraint each. The comparison is
+in $\mathbb{F}_q$, so it is sound when every limb of the cap is at
+least <!--fig:recovery_cap_limb_margin-->59<!--/fig--> and below $q$. A limb falls outside that
+range with negligible probability. If one does, the tree, which ZIP 2005 has rehashed in any case,
+is rehashed under another BLAKE3 personalization.
+
+By the model, <!--claim:recovery_cap_saves:5fab12-->the best cap
+is <!--fig:recovery_cap_levels-->14<!--/fig--> levels
+deep<!--/claim-->: <!--fig:recovery_cap_entries-->16,384<!--/fig--> nodes,
+or <!--fig:recovery_cap_kb-->524 kbytes<!--/fig-->, for each node and wallet to hold, and a
+selection of <!--fig:recovery_cap_terms-->64,516<!--/fig--> terms. With zero knowledge it
+saves <!--fig:recovery_cap_path_pct-->36<!--/fig-->% of the path's prover work. That
+is <!--fig:recovery_cap_tx_pct-->1.6<!--/fig-->% of the recovery transaction's, since the path
+is <!--fig:recovery_path_tx_pct-->4.3<!--/fig-->% of it. A cap one level shallower saves
+within <!--fig:recovery_cap_shallower_pct-->0.06<!--/fig-->% of that at half the size. If the frozen
+tree is not full, the levels above its occupied part hash against constant empty roots, and a cap
+rooted at the occupied part removes those levels as well, at no cost. The other arithmetizations are
+not costed with a cap.
+
 ## References
 
 - <a id="ref-zip2005"></a>[ZIP-2005] Daira-Emma Hopwood, Jack Grigg. ZIP 2005: Ironwood Quantum
