@@ -98,29 +98,29 @@ So $R_2(T) = T$, $R_4(T) = T(T-2)$, and $R_8(T) = T(T-2)(T-6)(T-12)$. The balanc
 nested, which is why the range image is the same formula at every position. Only the polynomial
 applied to it depends on the position's width.
 
-**The layout.** A circuit orders its positions by width: tribits at $[0, t_1)$, dibits at
-$[t_1, t_2)$, and bits at $[t_2, N)$. The order costs nothing, since a position is only a column
-index of the coefficient matrices. The thresholds $t_1$ and $t_2$ are part of the circuit's
-description.
+**The layout.** A circuit orders its positions by width: tribits at $[0, \theta_1)$, dibits at
+$[\theta_1, \theta_2)$, and bits at $[\theta_2, N)$. The order costs nothing, since a position is
+only a column index of the coefficient matrices. The thresholds $\theta_1$ and $\theta_2$ are part
+of the circuit's description.
 
 **The check.** There are two claims. Write $[P]$ for 1 if $P$ holds and 0 otherwise.
 
 1. For the dibits and tribits, Akita's range sum-check. The verifier draws a point $\tau$, and the
    prover shows
-   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau, x)\; S(x)\,\bigl(S(x) - 2\bigr)\,\Bigl([t_1 \le x < t_2] + [x < t_1]\,\bigl(S(x) - 6\bigr)\bigl(S(x) - 12\bigr)\Bigr),$$
-   where $j$ is least with $2^j \ge t_2$. The table $S$ is virtual: it is not committed. The
+   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau, x)\; S(x)\,\bigl(S(x) - 2\bigr)\,\Bigl([\theta_1 \le x < \theta_2] + [x < \theta_1]\,\bigl(S(x) - 6\bigr)\bigl(S(x) - 12\bigr)\Bigr),$$
+   where $j$ is least with $2^j \ge \theta_2$. The table $S$ is virtual: it is not committed. The
    sum-check ends at a point $r$, with a value $s$ that the prover sends for $\widetilde S(r)$.
 2. One term more in the constraint sum-check, for a fresh point $\tau'$ and a batching scalar
    $\alpha$:
-   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[x \ge t_2] + \operatorname{eq}(r, x)\,[x < t_2]\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s.$$
+   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[x \ge \theta_2] + \operatorname{eq}(r, x)\,[x < \theta_2]\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s.$$
    Its first part says that every bit has range image zero, which is the Booleanity check. Its
    second part ties $s$ to the committed witness.
 
 **Who checks it.** A step's proofs are verified by the merge of the next step. That merge takes
-$t_1$ and $t_2$ as private inputs, bound to the circuit's description as the coefficient matrices
-are. It evaluates each indicator's multilinear extension at the sum-check's final point, which
-takes a number of multiplications linear in the number of variables. Nothing that depends on the
-thresholds is folded.
+$\theta_1$ and $\theta_2$ as private inputs, bound to the circuit's description as the coefficient
+matrices are. It evaluates each indicator's multilinear extension at the sum-check's final point,
+which takes a number of multiplications linear in the number of variables. Nothing that depends on
+the thresholds is folded.
 
 **Its cost.** Every digit pays one product, in the second claim. A dibit pays one more and a tribit
 three more, in the first.
