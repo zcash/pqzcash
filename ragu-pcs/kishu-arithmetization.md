@@ -98,36 +98,61 @@ So $R_2(T) = T$, $R_4(T) = T(T-2)$, and $R_8(T) = T(T-2)(T-6)(T-12)$. The balanc
 nested, which is why the range image is the same formula at every position. Only the polynomial
 applied to it depends on the position's width.
 
-**The layout.** A circuit orders its positions by width: tribits at $[0, \theta_1)$, dibits at
-$[\theta_1, \theta_2)$, and bits at $[\theta_2, N)$. The order costs nothing, since a position is
-only a column index of the coefficient matrices. The thresholds $\theta_1$ and $\theta_2$ are part
-of the circuit's description.
+**The layout.** A circuit orders its $N = 2^n$ positions by width: tribits at $[0, \theta_1)$, bits
+at $[\theta_1, \theta_2)$, and dibits at $[\theta_2, N)$. The order costs nothing, since a position
+is only a column index of the coefficient matrices. The thresholds $\theta_1$ and $\theta_2$ are
+part of the circuit's description.
 
-**The check.** There are two claims. Write $[P]$ for 1 if $P$ holds and 0 otherwise.
+Two blocks of positions follow from the thresholds. The tribit block is the first $2^j$ positions,
+with $j$ least such that $2^j \ge \theta_1$: the positions whose top $n - j$ index bits are 0. The
+dibit block is the last $2^k$ positions, with $k$ least such that $N - 2^k \le \theta_2$: the
+positions whose top $n - k$ index bits are 1. A block may hold bits besides its own digits.
 
-1. For the dibits and tribits, Akita's range sum-check. The verifier draws a point $\tau$, and the
-   prover shows
-   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau, x)\; S(x)\,\bigl(S(x) - 2\bigr)\,\Bigl([\theta_1 \le x < \theta_2] + [x < \theta_1]\,\bigl(S(x) - 6\bigr)\bigl(S(x) - 12\bigr)\Bigr),$$
-   where $j$ is least with $2^j \ge \theta_2$. The table $S$ is virtual: it is not committed. The
-   sum-check ends at a point $r$, with a value $s$ that the prover sends for $\widetilde S(r)$.
-2. One term more in the constraint sum-check, for a fresh point $\tau'$ and a batching scalar
-   $\alpha$:
-   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[x \ge \theta_2] + \operatorname{eq}(r, x)\,[x < \theta_2]\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s.$$
-   Its first part says that every bit has range image zero, which is the Booleanity check. Its
-   second part ties $s$ to the committed witness.
+The two blocks differ in their top index bit, and so are disjoint, unless $j = n$ or $k = n$. Where
+they overlap, a position in both is checked as a dibit, so it has to hold a dibit or a bit. So the
+tribits have to lie outside the dibit block: $\theta_1 \le N - 2^k$. That always holds when $j < n$
+and $k < n$. With $j = n$ it asks that the dibit block fit after the tribits, and with $k = n$ that
+there be no tribits. A circuit for which it fails takes a longer witness.
+
+**The check.** Because the alphabets are nested, a narrower digit passes a wider digit's check: a
+bit or a dibit has range image 0 or 2, and those are roots of $R_8$. So each of Akita's range
+sum-checks runs over a whole block, unchanged, with no selector for the positions that hold
+narrower digits. There are three claims. Write $[P]$ for 1 if $P$ holds and 0 otherwise.
+
+1. For the tribit block, Akita's range sum-check at basis 8. The verifier draws a point $\tau_8$,
+   and the prover shows
+   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau_8, x)\; R_8\bigl(S(x)\bigr).$$
+   The table $S$ is virtual: it is not committed. The sum-check ends at a point $r_8$, with a value
+   $s_8$ that the prover sends for $\widetilde S$ there.
+2. For the dibit block, the same at basis 4, with a point $\tau_4$:
+   $$0 = \sum_{x \ge N - 2^k} \operatorname{eq}(\tau_4, x)\; R_4\bigl(S(x)\bigr),$$
+   ending at a point $r_4$ with a value $s_4$. A circuit with no dibits has no such claim.
+3. One term more in the constraint sum-check, for a fresh point $\tau'$ and batching scalars
+   $\alpha$ and $\alpha_4$:
+   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[\theta_1 \le x < \theta_2] + \operatorname{eq}(\bar r_8, x) + \alpha_4 \operatorname{eq}(\bar r_4, x)\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s_8 + \alpha_4\, s_4.$$
+   Here $\bar r_8$ is $r_8$ with its remaining high coordinates set to 0, and $\bar r_4$ is $r_4$
+   with them set to 1, so that each equality weight is the block's own and zero outside the block.
+   The first part of the sum says that every bit has range image zero, which is the Booleanity
+   check. The other two parts tie $s_8$ and $s_4$ to the committed witness.
+
+The bits that share a block cost its sum-check nothing. Their range image is zero, so to the
+block's check they are a run of zeros beside its own digits, which the prover skips.
 
 **Who checks it.** A step's proofs are verified by the merge of the next step. That merge takes
 $\theta_1$ and $\theta_2$ as private inputs, bound to the circuit's description as the coefficient
-matrices are. It evaluates each indicator's multilinear extension at the sum-check's final point,
-which takes a number of multiplications linear in the number of variables. Nothing that depends on
-the thresholds is folded.
+matrices are. Only the Booleanity weight reads them. Its multilinear extension at the constraint
+sum-check's final point $\rho$ is
+$\sum_{\theta_1 \le x < \theta_2} \operatorname{eq}(\tau', x) \operatorname{eq}(\rho, x)$, which
+takes a number of multiplications linear in $n$, since an interval is a union of at most $2n$
+blocks on each of which the sum is a product. Nothing that depends on the thresholds is folded.
 
-**Its cost.** Every digit pays one product, in the second claim. A dibit pays one more and a tribit
-three more, in the first.
+**Its cost.** Every digit pays one product, in the third claim. A dibit pays one more, in the
+second, and a tribit three more, in the first.
 
 **Its soundness.** In $\mathbb{F}_q$, $w'(w'+1) = k(k+1)$ forces $w' = k$ or $w' = -1-k$, so no
-lift to the integers is needed. The first claim's error is at most $7j/\lvert E \rvert$: $j$ for
-the random point, and six for each variable of the sum-check. [Kishu's Soundness
+lift to the integers is needed. The first two claims are Akita's, with its error: at most
+$6j/\lvert E \rvert$ for the tribit block, $j$ for the random point and five for each variable of
+the sum-check, and $4k/\lvert E \rvert$ for the dibit block. [Kishu's Soundness
 Obligations](kishu-soundness.md) states the bits' part as its Theorem B. The statement for dibits
 and tribits in a mixed witness is not yet written there.
 
@@ -302,12 +327,14 @@ below price the arithmetization's units, the merge, and the application circuits
 
 ## Digits and constraints
 
-Kishu commits its digits over Akita's 64-bit modulus, plus the range check. For a bit that is the
-Booleanity check at <!--fig:bool_projection_per_bit-->2.5<!--/fig-->
-or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications. A dibit or a tribit costs
-one or three products more at the same rate, charged with the application's constraints. A step
-commits $2^{\text{step rank}}$ digits. Its constraints are charged as well as its digits: the
-constraint PIOP, a sum-check over the committed table, costs
+Kishu commits its digits over Akita's 64-bit modulus, plus [the range check](#the-range-check).
+Every digit pays one product of it, in the constraint sum-check. For a bit that product is the
+Booleanity check, at <!--fig:bool_projection_per_bit-->2.5<!--/fig-->
+or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications by the projection or the
+sum-check form. A dibit or a tribit pays one or three products more, in Akita's range sum-check over
+its block. The model charges those at the rate of a constraint's product term, with the
+application's constraints. A step commits its length in digits. Its constraints are charged as well
+as its digits: the constraint PIOP, a sum-check over the committed table, costs
 about <!--fig:constraint_term_mults-->9.8<!--/fig--> word multiplications per product term of a
 constraint, the measured rate of the Booleanity sum-check. A nonzero coefficient of a linear
 combination costs <!--fig:nonzero_small_mults-->2<!--/fig--> for a small constant
