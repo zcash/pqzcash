@@ -36,10 +36,10 @@
             const path_to_root = "../../";
             const default_light_theme = "rust";
             const default_dark_theme = "rust";
-            window.path_to_searchindex_js = "../../searchindex-5cce34e9.js";
+            window.path_to_searchindex_js = "../../searchindex-ecced156.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../../toc-4ff39b87.js"></script>
+        <script src="../../toc-dee5673f.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -182,7 +182,7 @@ made outside the proof and verified inside the host’s transaction. The signatu
 are witnesses, which the zero-knowledge fold hides, so spends stay unlinkable and no re-randomized
 signature is needed. The scheme is leanSPHINCS, the signature of post-quantum Ethereum
 <a href="#ref-eip8288">[EIP-8288]</a> <a href="#ref-lit26">[Lit26]</a>. A signature
-is <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes with <a href="#ref-wam26">[Wam26]</a>’s pruned key
+is <!--fig:leansphincs_sig_bytes-->4,276<!--/fig--> bytes with <a href="#ref-wam26">[Wam26]</a>’s pruned key
 of lifetime <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">30</span></span></span></span></span></span></span></span></span></span></span></span>, the configuration priced
 here, <!--fig:leansphincs_layered_sig_bytes-->6,332<!--/fig--> with its layered forest key,
 and <!--fig:leansphincs_ethereum_bytes-->7,740<!--/fig--> with Ethereum’s provisional set. Signing
@@ -195,12 +195,13 @@ storing it has no grind, which <a href="hardware-wallets.html">Hardware wallets<
 <p>Since the signature is made outside the proof, its message has to bind the transaction’s effecting
 data. In Zoodles it is a BLAKE3 digest of them: each spend’s two nullifiers, each output’s
 commitment, the change commitment, the fee, and the
-epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
-or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value:
-each spend verifies its signature over it, and the fee step recomputes it from the nullifiers and
-commitments that its children’s headers carry. The verification, not the digest, is the expensive
-part of the method. In ZIP 2005’s Recovery Statement <a href="#ref-zip2005">[ZIP-2005]</a> the message is the
-SigHash.</p>
+epoch, <!--fig:zoodles_sighash_bytes-->235<!--/fig--> bytes
+or <!--fig:zoodles_sighash_blake3-->4<!--/fig--> compressions. The digest is a PCD header value: an
+authorization node verifies the signature over it, once for each spending key and not once a spend
+(<a href="../spend-authorization.html">Spend authorization</a>), and the fee step recomputes it from the nullifiers
+and commitments that its children’s headers carry. The verification, not the digest, is the
+expensive part of the method. In ZIP 2005’s Recovery Statement <a href="#ref-zip2005">[ZIP-2005]</a> the
+message is the SigHash.</p>
 <h2 id="the-verifier-in-the-circuit"><a class="header" href="#the-verifier-in-the-circuit">The verifier in the circuit</a></h2>
 <p>The host proves the verifier inside its
 transaction: <!--fig:leansphincs_blake3_calls-->298<!--/fig--> BLAKE3 or BLAKE2s compressions,
@@ -212,22 +213,23 @@ in a digit arithmetization, so in Kishu a BLAKE3 compression
 is <!--fig:blake3_bits-->11,344<!--/fig--> committed bits, a BLAKE2s
 compression <!--fig:blake2s_bits-->16,096<!--/fig-->, and a Keccak-f
 permutation <!--fig:keccak_bits-->92,160<!--/fig-->. <!--claim:leansphincs_blake3_cheaper:1c1db2-->The
-verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
-BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3’s
-is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s’s, since its
+verifier is therefore <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> digits with
+BLAKE3 and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s, so BLAKE3’s
+is <!--fig:leansphincs_blake3_of_blake2s_pct-->71<!--/fig--> percent of BLAKE2s’s, since its
 compression has seven rounds to BLAKE2s’s
 ten.<!--/claim--> <!--claim:leansphincs_keccak_dearer:8d35d3-->With Keccak it
-is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->
+is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:leansphincs_keccak_over_blake2s-->5.0<!--/fig-->
 times BLAKE2s’s, which is Ethereum’s open hash question seen from the circuit.<!--/claim--> In a
 Boolean circuit with XOR free the Keccak-to-BLAKE2s ratio
 is <!--fig:leansphincs_keccak_over_blake2s_boolean-->2.3<!--/fig-->. With zero knowledge Kishu
-proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.173<!--/fig--> s on one
-M4 core at rank <!--fig:tx_leansphincs_blake3_kishu_zk_rank-->20<!--/fig-->, the BLAKE2s one
-in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.224<!--/fig--> s at
-rank <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->21<!--/fig-->, and the Keccak one
-in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.918<!--/fig--> s at
-rank <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->22<!--/fig-->,
-beside <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig--> s for the recovery circuit itself.
+proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.103<!--/fig--> s on one
+M4 core in a step
+of <!--fig:tx_leansphincs_blake3_kishu_zk_rank--><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.75</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">21</span></span></span></span></span></span></span></span></span></span></span></span><!--/fig--> digits, the BLAKE2s
+one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.146<!--/fig--> s in a step
+of <!--fig:tx_leansphincs_blake2s_kishu_zk_rank--><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.25</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">22</span></span></span></span></span></span></span></span></span></span></span></span><!--/fig--> digits, and the
+Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.801<!--/fig--> s in a step
+of <!--fig:tx_leansphincs_keccak_kishu_zk_rank--><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1.125</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">×</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8141em;"></span><span class="mord"><span class="mord">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">23</span></span></span></span></span></span></span></span></span></span></span></span><!--/fig--> digits,
+beside <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s for the recovery circuit itself.
 Ethereum’s draft fixes Keccak-256 as the scheme’s only primitive, and the circuit and the device
 both argue against it. If Ethereum keeps Keccak, there is no compatibility to gain from BLAKE2s
 either, and the choice is between Keccak and BLAKE3, Zoodles’ own hash and the cheapest of the three

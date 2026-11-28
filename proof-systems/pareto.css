@@ -19,6 +19,10 @@
 #pareto .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-content: start; padding: 14px 16px; border: 1px solid var(--rule); background: var(--surface); margin: 0; max-height: 720px; overflow-y: auto; box-sizing: border-box; }
 #pareto .group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 #pareto .group.wide { grid-column: 1 / -1; }
+#pareto .group .row { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+/* options laid out left to right */
+#pareto .group.off { opacity: 0.45; }
+/* a control that does not apply to the current selection */
 /* Two cells side by side, whatever precedes them: the two measures; a group beside a stack of short groups. */
 #pareto .group.measures, #pareto .group.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
 /* The two measure groups with the swap button between them. */
@@ -33,7 +37,9 @@
 #pareto .measures .group .eyebrow { min-height: 2.8em; }
 #pareto .measures .swap button { padding: 2px 7px; font-size: 16px; line-height: 1; }
 #pareto .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-/* The rank boxes in a regular grid across the panel's width. */
+#pareto .stack.spread { justify-content: space-between; }
+/* fill the neighbouring column's height, the groups evenly spaced */
+/* The step-rank boxes in a regular grid across the panel's width. */
 #pareto .group.grid { display: grid; grid-template-columns: repeat(7, auto); gap: 4px 8px; justify-content: start; }
 #pareto .group.grid .eyebrow { grid-column: 1 / -1; }
 #pareto .group .eyebrow { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }

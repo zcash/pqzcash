@@ -50,9 +50,10 @@ const txSides = () => SIDES.filter(side => measureOf(side) === 'transaction');
 // With neither measure the transaction prover, the second's list stands for both: the third
 // follows it, so that choosing the measure on either side afterwards starts from that choice.
 txSelect('second').addEventListener('change', () => { if (txSides().length === 0) txSelect('third').value = txSelect('second').value; });
-// The selected option's text, shortened for an axis title.
+// The selected option's text in full, and shortened for an axis title.
+const txName = side => txSelect(side).selectedOptions[0].textContent.trim();
 function txShort(side) {
-  const text = txSelect(side).selectedOptions[0].textContent.replace(/\s*\(.*$/, '').replace(/:.*$/, '');
+  const text = txName(side).replace(/\s*\(.*$/, '');
   return text.length > 44 ? text.slice(0, 42).trimEnd() + '…' : text;
 }
 // A Tachyon transaction as the application needs Tachyon's header of nine elements, and so
@@ -62,18 +63,21 @@ let userHeader = 2, lastForced = false;  // the header chosen on the control, ke
 function forcedHeader() {
   return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery') || app.startsWith('ironwood'); });
 }
+// A step-rank box covers the step lengths from 2^rank up to, but not including, 2^(rank + 1):
+// Kishu's rows are at eight lengths to a doubling, so their step ranks are not whole.
 function selected() {
   const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
-  const ranks = [...document.querySelectorAll('.rank:checked')].map(e => +e.value);
+  const stepRanks = [...document.querySelectorAll('.step-rank:checked')].map(e => +e.value);
   const packings = [...document.querySelectorAll('.packing:checked')].map(e => e.value);
   const paramsOnly = document.getElementById('paramsonly').checked;
   const zk = document.getElementById('zk').checked;
   const floor = +document.querySelector('input[name=floor]:checked').value;
   const grind = document.getElementById('grind').value;
   const hashes = document.querySelector('input[name=hashes]:checked').value;
-  return DATA.points.filter(p => fams.includes(p.family) && (p.rank === null || ranks.includes(p.rank))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
+  const transcript = document.querySelector('input[name=transcript]:checked').value;
+  return DATA.points.filter(p => fams.includes(p.family) && (p.step_rank === null || stepRanks.includes(Math.floor(p.step_rank)))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
     && (p.zk === null || p.zk === zk) && (p.floor === null || p.floor === floor)
-    && (p.hashes === 'any' || p.hashes === 'blake3' || hashes === 'poseidon')  // the option adds the Poseidon-priced rows to the BLAKE3 ones
+    && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === transcript || (hashes === 'poseidon' && p.hashes === 'poseidon'))  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the 165-bit level's rows are under its transcript hash alone
     && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
 }
 const ASSUMPTION = { pedersen: 'discrete log on Pasta', fp128: 'Module-SIS, random oracle', goldilocks: 'Module-SIS, random oracle', pasta_q64: 'Module-SIS, random oracle', pasta_sis: 'Module-SIS, random oracle', pasta: 'Module-SIS, random oracle', bits_q64: 'Module-SIS, random oracle', bits_q64_poseidon: 'Module-SIS, random oracle', bits_akita: 'Module-SIS, random oracle; security ledger open',
@@ -158,19 +162,23 @@ function fmt(n) { return n.toLocaleString('en-GB'); }
 // The transaction measure's steps: the application's units in the row's arithmetization,
 // hashed under the row's own policy, or under the selected one for a row priced under either,
 // in as many steps as the row's step holds, rounded up. A Tachyon transaction is a list of
-// proof-tree nodes, re-packed for the step size at each rank: a node larger than a step takes
+// proof-tree nodes, re-packed for the step size at each step rank: a node larger than a step takes
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; a
 // Tachyon tree's last nodes, Ragu's two rerandomization fuses, are steps of their own. The
 // model's tx_steps is the same function.
-const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes];
+// An application's own hashing is counted under the page's policy for a row with no hashing of its own, and at BLAKE3's count for the 165-bit level's rows, whose statement is unchanged.
+const appUnits = (p, kind, policy) => DATA.applications[kind][p.arith][p.hashes === 'any' ? policy : p.hashes.startsWith('level3_') ? 'blake3' : p.hashes];
 // A proof tree's nodes packed into steps of capacity cap: a node larger than a step takes
 // whole steps and its remainder joins the rest, which fill steps first-fit decreasing; the
 // tree's last `own` nodes, a Tachyon tree's rerandomization fuses, are steps of their own.
-function packNodes(nodes, cap, own) {
-  let steps = own;
+// One of the packed steps is the tree's first, a leaf, which holds no merge and so has
+// leafExtra more room: where that takes the emptiest step's content as well, there is a step
+// fewer. Returns [steps, packed steps].
+function packNodes(nodes, cap, own, leafExtra) {
+  let whole = 0;
   const items = [];
   for (const node of own ? nodes.slice(0, -own) : nodes) {
-    steps += Math.floor(node / cap);
+    whole += Math.floor(node / cap);
     if (node % cap) items.push(node % cap);
   }
   items.sort((a, b) => b - a);
@@ -179,18 +187,32 @@ function packNodes(nodes, cap, own) {
     const bin = bins.findIndex(b => b + item <= cap);
     if (bin < 0) bins.push(item); else bins[bin] += item;
   }
-  return steps + bins.length;
+  let packed = whole + bins.length;
+  if (packed >= 2 && bins.length && Math.min(...bins) <= leafExtra) packed -= 1;
+  return [own + packed, packed];
 }
 // A step's capacity for the application: a Kishu row's is what its merge leaves of the slot,
 // less the fingerprint route's digits on an application with multiplications (null where
-// those leave no room, so the row cannot run that application at its rank).
+// those leave no room, so the row cannot run that application at its step rank).
 const stepCapacity = (p, kind) => (DATA.has_mults[kind] && 'step_units_mults' in p) ? p.step_units_mults : p.step_units;
-function txStepsFor(p, kind, count, policy) {
+// The room a step with no merge has beyond a step with one: the merge's digits for a Kishu
+// row, and none otherwise or for an application whose leaf is made elsewhere.
+const leafExtra = (p, kind) => (p.leaf_units == null || DATA.leaf_handoff.includes(kind)) ? 0 : p.leaf_units - p.step_units;
+// [steps, packed steps]: the steps in all, and those of them that hold the application's units.
+function txPacking(p, kind, count, policy) {
   const units = appUnits(p, kind, policy);
   const cap = stepCapacity(p, kind);
   if (cap == null) return null;
-  if (!Array.isArray(units)) return Math.ceil(units * count / cap);
-  return packNodes(units, cap, DATA.own_last_steps[kind] || 0);
+  const extra = leafExtra(p, kind);
+  if (!Array.isArray(units)) {
+    const packed = Math.max(1, Math.ceil((units * count - extra) / cap));
+    return [packed, packed];
+  }
+  return packNodes(units, cap, DATA.own_last_steps[kind] || 0, extra);
+}
+function txStepsFor(p, kind, count, policy) {
+  const packing = txPacking(p, kind, count, policy);
+  return packing == null ? null : packing[0];
 }
 // A row with a cost per unit (Kishu, whose steps the merge and the application share) pays
 // the application's units at that cost and its steps' merges at the accumulation prover; the
@@ -198,12 +220,19 @@ function txStepsFor(p, kind, count, policy) {
 // work on an application with multiplications, the masking fold (the user chain's
 // accumulator, or the leaf alone for an application whose user hands over a bare leaf without
 // a fuse, DATA.leaf_handoff), and Kishu's application PIOP.
+// A Kishu transaction's first step has no children and holds no merge, unless its leaf is made
+// elsewhere. A merge's sum-checks run over the accumulator's digits in use: the merge's own,
+// and the application's, all of the transaction's where one step holds it and a full step's
+// room otherwise.
 const txWork = (p, kind, count, policy) => {
-  const steps = txStepsFor(p, kind, count, policy);
-  if (steps == null) return null;
+  const packing = txPacking(p, kind, count, policy);
+  if (packing == null) return null;
+  const [steps, packed] = packing;
   const units = appUnits(p, kind, policy);
   const total = Array.isArray(units) ? units.reduce((a, b) => a + b, 0) : units * count;
-  const base = p.unit_cost != null ? total * p.unit_cost + steps * p.accumulation_prover : steps * (p.step_prover + p.accumulation_prover);
+  const merges = DATA.leaf_handoff.includes(kind) ? steps : steps - 1;
+  const inUse = packed === 1 ? total : stepCapacity(p, kind);
+  const base = p.unit_cost != null ? total * p.unit_cost + merges * (p.accumulation_own + p.sumcheck_rate * inUse) : steps * (p.step_prover + p.accumulation_prover);
   return base + (DATA.has_mults[kind] ? steps * (p.route_step || 0) : 0) + (DATA.leaf_handoff.includes(kind) ? p.fold_leaf : p.fold) + ((DATA.piop[kind] || {})[p.arith] || 0) * count;
 };
 // The text quotes transaction figures that the model computes with its own copy of this
@@ -253,13 +282,19 @@ function wrapLabel(label, width = 60) {
   if (line) lines.push(line);
   return lines.join('<br>');
 }
+// The steps a row takes for a side's selected transaction, as text after its prover time.
+const stepsText = (p, side) => { const n = p[`steps_${side}`]; return n == null ? '' : `${n} step${n === 1 ? '' : 's'}`; };
 function hover(p) {
-  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure: ${fmtWork(val(p, `transaction_${side}`))} ${unitName()}`).join('')}<br>${CHANGE[p.change]}`;
+  return `${DATA.labels[p.family]}<br>${wrapLabel(p.label)}<br>bytes ${fmt(p.bytes)}<br>prover commitments ${fmtWork(val(p, 'prover'))} ${unitName()}<br>accumulation prover ${fmtWork(val(p, 'accumulation_prover'))} ${unitName()}<br>decider ${fmtWork(val(p, 'verify'))} ${unitName()}<br>accumulation atoms ${p.accumulation}<br>merge gates ${fmt(p.gates)}<br>accumulator bytes ${fmt(p.memory)}<br>peak fuse bytes ${fmt(p.peak_memory)}${txSides().map(side => p[`transaction_${side}`] === null ? '' : `<br>transaction prover, ${side} measure (${txName(side)}): ${fmtWork(val(p, `transaction_${side}`))} ${unitName()} in ${stepsText(p, side)}`).join('')}<br>${CHANGE[p.change]}`;
 }
 function render() {
+  // The transcript's hash is a choice at the 165-bit level alone.
+  const atLevel3 = document.querySelector('input[name=floor]:checked').value === '165';
+  for (const r of document.querySelectorAll('input[name=transcript]')) r.disabled = !atLevel3;
+  document.getElementById('transcriptgroup').classList.toggle('off', !atLevel3);
   // Each class, pre-quantum (Pedersen-IPA) and post‑quantum (Akita), has its
   // own frontier, taken among the selected configurations of that class, so
-  // that fixing a rank or a header size gives the frontier at that circuit
+  // that fixing a step rank or a header size gives the frontier at that circuit
   // shape. A collapse box keeps only that class's frontier in the plot; the
   // table always lists both frontiers. The changes a configuration needs are
   // an axis of the dominance test, so the best parameter-only configurations
@@ -305,7 +340,10 @@ function render() {
   }
   for (const side of SIDES) {
     const [txKind, txCount] = txSelect(side).value.split(':');
-    for (const p of DATA.points) p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
+    for (const p of DATA.points) {
+      p[`transaction_${side}`] = p.step_prover === null ? null : txWork(p, txKind, txCount ? +txCount : 1, txPolicy);
+      p[`steps_${side}`] = p.step_prover === null ? null : txStepsFor(p, txKind, txCount ? +txCount : 1, txPolicy);
+    }
   }
   const all = selected().filter(p => sides.length === 0 || (p.step_prover !== null && sides.every(side => p[`transaction_${side}`] !== null)));
   // With the per-family box ticked, each family's frontier is taken on its own,
@@ -458,7 +496,7 @@ function render() {
   const rows = [...front, ...familyOnly].sort((a, b) => a.bytes - b.bytes);
   for (const p of rows) {
     const tr = document.createElement('tr'); tr.className = 'frontier';
-    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => p[`transaction_${side}`] === null ? '' : `${fmtWork(val(p, `transaction_${side}`))} ${uname}`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
+    tr.innerHTML = `<td><span class="swatch ${SYMBOL[p.change]}" style="background:${COLORS[p.family]}"></span> ${DATA.labels[p.family]}</td><td>${p.label}</td><td class="num">${fmt(p.bytes)} bytes</td><td class="num">${fmtWork(val(p, 'prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'accumulation_prover'))} ${uname}</td><td class="num">${fmtWork(val(p, 'verify'))} ${uname}</td><td class="num">${p.step_prover === null ? '' : sides.map(side => p[`transaction_${side}`] === null ? '' : `${fmtWork(val(p, `transaction_${side}`))} ${uname}<br>(${stepsText(p, side)})`).join(' / ')}</td><td class="num">${fmt(p.memory)} bytes</td><td class="num">${fmt(p.peak_memory)} bytes</td><td class="num">${p.accumulation} atoms</td><td class="num">${fmt(p.gates)} gates</td><td class="num">${p.folded}</td><td>${p.pasta_arith}</td><td>${ASSUMPTION[p.family]}</td><td>${CHANGE[p.change]}</td><td>${front.has(p) ? 'overall' : 'family'}</td>`;
     tbody.appendChild(tr);
   }
   if (!rows.length) tbody.innerHTML = '<tr><td colspan="16">No family selected.</td></tr>';
@@ -492,7 +530,7 @@ document.querySelectorAll('table').forEach(table => {
     sortTable(table, i, dir);
   }));
 });
-document.querySelectorAll('.fam, .rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
+document.querySelectorAll('.fam, .step-rank, .header, .packing, #paramsonly, #zk, #ortho, input[name=hashes], input[name=transcript], input[name=second], input[name=third], input[name=view], input[name=scale], input[name=floor], input[name=tolerance], #grind, #txapp2, #txapp3, input[name=unit], #collapse-pre, #collapse-post, #perfamily').forEach(e => e.addEventListener('change', render));
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
 // The book switches themes by changing the root element's class.
 new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
