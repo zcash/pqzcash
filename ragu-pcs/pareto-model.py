@@ -8316,6 +8316,19 @@ def define_figures():
     fig("pedersen_checked_in_h2_wire_bytes", fmt(ch["bytes"] + 2 * HEADER_ELEMENT_BYTES + 28))
 
 
+# The page's step-rank control has a box for each whole step rank and shows a row when the
+# box of its step rank, rounded down, is ticked. Every row needs such a box.
+STEP_RANK_BOXES = {
+    int(v)
+    for v in re.findall(
+        r'class="step-rank" value="(\d+)"',
+        (pathlib.Path(__file__).parent / "pareto-template.html").read_text(),
+    )
+}
+assert {
+    math.floor(p["step_rank"]) for p in points if p["step_rank"] is not None
+} <= STEP_RANK_BOXES, "a row's step rank has no box in the page's step-rank control"
+
 define_figures()
 
 # ---- Filling the markers --------------------------------------------------------------

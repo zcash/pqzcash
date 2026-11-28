@@ -270,6 +270,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
       <label><input type="checkbox" class="step-rank" value="22" checked id="step-rank22"> <span>22</span></label>
       <label><input type="checkbox" class="step-rank" value="23" checked id="step-rank23"> <span>23</span></label>
       <label><input type="checkbox" class="step-rank" value="24" checked id="step-rank24"> <span>24</span></label>
+      <label><input type="checkbox" class="step-rank" value="25" checked id="step-rank25"> <span>25</span></label>
     </div>
     <div class="group wide two">
     <div class="group"><a href="#knobs" class="eyebrow">PCD header</a>
@@ -413,7 +414,9 @@ code { font-family: var(--mono); font-size: 0.92em; }
   frontier instead, so that a dominated family still shows its best configurations.</p>
   <h3 id="step-rank">Step rank</h3>
   <p>A step at step rank $r$ commits $2^r$ coefficients: $2^{r-2}$ gates of four wires for the field
-  arithmetizations, and $2^r$ bits or digits for BitZ and Kishu, which alone go past step rank 17.</p>
+  arithmetizations, and $2^r$ bits or digits for BitZ and Kishu, which alone go past step rank 17. Kishu's steps are at eight lengths to
+  each doubling, so a box in the step-rank control covers the lengths from $2^r$ up to, but not
+  including, $2^{r+1}$.</p>
   <p>For Pedersen-IPA, the circuit budget below limits the endoscalings per step and the binders at
   each step rank, which makes step rank a real trade-off. A larger circuit holds more endoscalings and fewer
   binders, which removes committed components and with them bytes and atoms, while the IPA grows by
@@ -2471,6 +2474,8 @@ let userHeader = 2, lastForced = false;  // the header chosen on the control, ke
 function forcedHeader() {
   return txSides().some(side => { const app = txSelect(side).value; return app.startsWith('tachyon') || app.startsWith('recovery') || app.startsWith('ironwood'); });
 }
+// A step-rank box covers the step lengths from 2^rank up to, but not including, 2^(rank + 1):
+// Kishu's rows are at eight lengths to a doubling, so their step ranks are not whole.
 function selected() {
   const fams = [...document.querySelectorAll('.fam:checked')].map(e => e.value);
   const stepRanks = [...document.querySelectorAll('.step-rank:checked')].map(e => +e.value);
@@ -2481,7 +2486,7 @@ function selected() {
   const grind = document.getElementById('grind').value;
   const hashes = document.querySelector('input[name=hashes]:checked').value;
   const transcript = document.querySelector('input[name=transcript]:checked').value;
-  return DATA.points.filter(p => fams.includes(p.family) && (p.step_rank === null || stepRanks.includes(p.step_rank))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
+  return DATA.points.filter(p => fams.includes(p.family) && (p.step_rank === null || stepRanks.includes(Math.floor(p.step_rank)))    && (p.packing === null || packings.includes(p.packing ? 'packed' : 'today')) && (!paramsOnly || p.change === 'none')
     && (p.zk === null || p.zk === zk) && (p.floor === null || p.floor === floor)
     && (p.hashes === 'any' || p.hashes === 'blake3' || p.hashes === transcript || (hashes === 'poseidon' && p.hashes === 'poseidon'))  // the option adds the Poseidon-priced rows to the BLAKE3 ones; the 165-bit level's rows are under its transcript hash alone
     && (p.grind === undefined || p.grind === null || String(p.grind) === grind));
