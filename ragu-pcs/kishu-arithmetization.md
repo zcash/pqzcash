@@ -112,7 +112,9 @@ The two blocks differ in their top index bit, and so are disjoint, unless $j = n
 they overlap, a position in both is checked as a dibit, so it has to hold a dibit or a bit. So the
 tribits have to lie outside the dibit block: $\theta_1 \le N - 2^k$. That always holds when $j < n$
 and $k < n$. With $j = n$ it asks that the dibit block fit after the tribits, and with $k = n$ that
-there be no tribits. A circuit for which it fails takes a longer witness.
+there be no tribits. A circuit for which it fails has to forgo the optimization for some of its
+digits, which can always be done by splitting some of the longer digits into shorter ones. (This is
+always more efficient than increasing $n$.)
 
 **The check.** Because the alphabets are nested, a narrower digit passes a wider digit's check: a
 bit or a dibit has range image 0 or 2, and those are roots of $R_8$. So each of Akita's range
