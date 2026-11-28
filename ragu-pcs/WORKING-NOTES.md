@@ -5087,3 +5087,676 @@ about four carry bits a node.
 
 STATE: branch accumulation-paragraph, five commits past the pushed e9b19c5 with this entry's, all
 local. PR #8's description does not mention them.
+
+## 2026-11-26 18:16 UTC: a 192-bit option, started (branch security-192)
+
+PR #8 merged (main 772d9cf). The user wants a 192-bit security option on the frontier page, to
+show that raising security to 192 bits is not cheap for post-quantum proof systems (a public post
+had called raising security by 64 bits "relatively cheap"). Most hash-based schemes are expected
+to drop out or become impractical, and showing that is the purpose. Where a scheme comes out
+"totally impractical", do not model it in detail: say why.
+
+The user's rulings (2026-11-26):
+
+- **The level is NIST Level 3, with all its flaws, to be as generous to the argument as
+  possible.** For the lattice rows that is the core-SVP level of the Level 3 lattice standards
+  (ML-KEM-768 and ML-DSA-65: block size about 624, 182 classical and 165 quantum core-SVP bits),
+  not 192 bits in the page's quantum unit.
+- **192-bit security is not 2^-192 soundness.** Match the curve of success probability against
+  cost of brute force on AES-192: work T succeeds with probability T/2^192. For a Fiat–Shamir
+  proof that is a query-phase error of 2^-(192 - g) with g bits of grinding. For a Merkle tree's
+  binding it is a 384-bit digest, since a collision search of work T succeeds with T^2/2^n.
+- **The hash at this level is SHA3-384.** BLAKE3 cannot give 192 bits: a 384-bit output from its
+  XOF still has 256-bit bottlenecks inside.
+- **The lattice rows are derived first**, scaled from the 147-bit plan and labelled as derived; a
+  re-plan with Akita's planner may replace them later. Akita's rank-one compression maps certify
+  at 147.3 bits, so this level needs two maps or rank-two maps.
+- **A Zoodles transaction authorized by SLH-DSA at the 192-bit level**, as a transaction type,
+  marked as for illustration only: the signature's cost compounds with the proof system's.
+
+First observations, before any modelling: a Merkle node under SHA3-384 is one Keccak
+permutation, 38,400 AND gates against BLAKE3's 10,416, and 92,160 of Kishu's digits against
+11,344; Flock's Keccak block is 2^16 bits against 2^14; openings grow by 192/128; digests are 48
+bytes. BitZ's proof of concept is fixed to a 128-bit field and cannot reach the level.
+Pedersen-IPA over Pasta has about 126 bits. Kishu's sum-checks run in a 128-bit extension, which
+is short of the level too.
+
+Further rulings on the level, the same day:
+
+- **Its label** on the page: "165 quantum bits (ADPS16 core-SVP) / 192 classical bits,
+  illustrative". The level's key in the model is 165.
+- **The hash-based rows take 165 bits as their soundness level**, as they take 147 at that
+  floor, so that they compare with the lattice rows. Their Merkle trees hash with SHA3-384.
+- **The transcript's hash at the level is a choice on the page, BLAKE3 or SHA3-384** (the user,
+  after first ruling for BLAKE3 alone and reversing it once). No attack on a 256-bit transcript
+  hash is known at the level: trying many first messages against one challenge costs as much
+  work as trying many challenges. But the security proofs for Fiat–Shamir over a chained or
+  sponge hash lose a term of about T^2/2^c for work T and a state of c bits, which at 256 bits
+  exceeds the level's T/2^192 beyond 2^64 work. So the level is provable with SHA3-384 and not
+  with BLAKE3. The user: whether quantum attacks on hashes bear on it is a controversy not to be
+  resolved here. The options are named by their hashes, in the model and on the page.
+- **An extrapolation first, then a re-plan overnight** with Akita's planner; the re-plan is not
+  urgent.
+
+Done so far on branch security-192: the level's constants; Akita's five variants' rows derived
+(the accumulation-width table by `scripts/derive-linf-widths.py`, whose rule predicts the
+estimator's 147- and 150-bit widths from lower floors to a median error under 0.1 in log2 of the
+width; the opening's bytes, slope, and rank growth on the line through 128 and 147; images at
+twice the bytes for two compression maps; claims in a challenge field of 192 bits or more); the
+option in the page's floor control. At rank 16 with zero knowledge, Akita over Goldilocks takes
+108 circuits against 57 at 147 bits and 2.0 times the accumulation prover. With SHA3-384
+transcripts its merge converges only at rank 17, in 344 to 1,208 circuits.
+
+TO DO for the level: Kishu's rows (its claims in a cubic extension, its mask and padding at the
+level); the binary-field family with SHA3-384 trees (Flock's Keccak block is 2^16 bits) in its
+256-bit design; WHIR over Pasta with SHA3-384 trees, and why the Goldilocks variants and BitZ drop
+out; the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
+page's section on the level, with its gaps; the re-plan's pipeline at the level's block size.
+
+Progress on the level, later the same day. The transcript's hash became a choice on the page,
+"Transcript hash at floor 165", BLAKE3 or SHA3-384, as two hash policies (`level3_blake3`,
+`level3_sha3`) looked up by name in `TRANSCRIPT_HASH`; the option groups were rearranged into two
+stacked columns. Kishu's rows are in, its claims in the cubic extension. The user was pleasantly
+surprised that Kishu stays feasible and asked whether a mistake hid a cost; the three shortcuts
+found were then modelled:
+
+- **Sum-checks at the level's claim field**: scaled by the field products of a multiplication
+  (three for one where the 128-bit field's claims move to its quadratic extension, six for three
+  for the 64-bit profiles'). This is the large one.
+- **The opening's challenge-field elements** at the level's width: 687 of them in the
+  non-terminal levels, solved from the planner's three re-pricings of the shipped schedule.
+- **The fold challenge's weight**: 25 for 2^165 challenges in degree 512, where the catalog's 20
+  gives 2^138; 0.64 bits on the certified bound, so little changes.
+
+Where Kishu stands at rank 17 with zero knowledge, against its 147-bit row (1.3 million digits in
+13 circuits): with BLAKE3 transcripts 1.9 million digits in 18 circuits, the accumulation prover
++156% and the proof +16%; with SHA3-384 transcripts 10 million digits in 92 circuits and 17 times
+the accumulation prover. Akita over Goldilocks at rank 16: 108 circuits against 57, 3.2 times the
+accumulation prover, +18% bytes; with SHA3-384 transcripts its merge converges at rank 17 alone.
+The hash-based families have no row: WHIR over Pasta would need 38,525 circuits at rank 16 against
+5,011, and the binary-field family's merge would be 323 million bits against 68 million.
+
+What the level's rows still leave out, each of which would make them dearer: the opening's own
+compressed images at twice their bytes (not separable in the re-pricing); the decider's work at
+the larger claim field; and the application's own constraint PIOP at the cubic extension's rate.
+Two further points make the level cheaper than a strict 192 bits: it is 165 bits in the page's
+unit; and a Keccak permutation's prime-field gate count is not derived, but taken as Kishu's
+92,160 digits.
+
+TO DO: the Zoodles transaction authorized by SLH-DSA at the 192-bit level, for illustration; the
+re-plan's pipeline at block size 623 (overnight, not urgent); a look at the page in a browser at
+the level, which only the user has done so far, for the controls.
+
+Later still, 2026-11-26. The Zoodles transaction authorized by SLH-DSA-SHAKE-192s is in, for
+illustration only, with a page under Spend Authorization, "SLH-DSA at NIST Level 3": 3,070
+expected Keccak permutations and a signature of 16,224 bytes, against 9,006 and 35,664 for 192f,
+whose 22 hypertree layers each cost the verifier a WOTS+ public key (the user asked for that
+comparison as the reason for 192s). The transaction is 566 million of Kishu's digits, 16.5 s on
+one core at the default floor with zero knowledge. It is excepted by name from the two statements
+about every transaction-sized application.
+
+QUEUED by the user, for later: **the Kishu page overstates the projection Booleanity check.** The
+variants with zero knowledge do not use it, so it is not the main thing that makes Kishu
+efficient; Kishu with zero knowledge still beats everything else handily. The user's impression is
+that the key thing is using Akita's F_q for the constraints. The page should say so.
+
+TO DO on this branch: the re-plan's pipeline at block size 623, for overnight.
+
+## 2026-11-27: the level's compression chain, with the user
+
+Worked through interactively. Akita's compression is a fixed chain of two rank-one maps: for the
+128-bit modulus, 8 KiB to 2,048 bits at ring dimension 16, then to 1,024 bits at dimension 8. The
+paper's Appendix G gives them 147.34 and 153.17 quantum bits, so both fall short of 165, not the
+first alone (the user's point). "Rank" is the module rank, the output's ring elements. A map's
+security depends on its output's bits (rank times ring dimension times modulus bits) and its
+input's width, whatever the modulus: the estimator's 147-bit table has identical widths for equal
+output bits, and its single-instance example (`sis_estimator_once`, which reproduces both of the
+paper's figures) gives 171.72 bits for a 2,304-bit output at any of the three moduli.
+
+What the level needs: a first output of 2,304 bits for the 65,536-bit input, and a last output
+whose input is narrow enough. Splitting a map into two half-width rank-one maps does not help,
+since each half keeps its output size. A power-of-two rank-one ladder cannot do it either, at any
+number of stages: some intermediate output must be between sizes, so some map has rank above one
+over a smaller ring (or a ring of another shape, or another modulus). The user's conclusions: the
+finer-output cost is paid by every option; chains whose outputs are whole coefficients only
+(128-bit, or 64-bit for the 64-bit profile); and the nested chain
+
+    65,536 -> 2,304 -> 1,152 -> 1,024 -> 960 bits   (171.72, 170.66, 173.58, 165.36 bits)
+
+whose first two maps give 144 bytes, first three the shipped 128 bytes, and all four 120 bytes
+(whole coefficients at 64 bits only). One map alone would leave 288 bytes, which costs at every
+merge, where the image is hashed and folded; a further map costs once, in the opening. Per merge
+at the level, from the model's functions with the image's size overridden: two maps against three
+is +0.7% of Kishu's accumulation prover at rank 17 (+1.0% with SHA3-384 transcripts) and +2.2% of
+Akita over Goldilocks's at rank 16; three against four is 0.02% for Kishu and 1.1% for Goldilocks,
+and the fourth map only just reaches the level. The model takes three maps, so the level's image
+is 128 bytes as at the other floors, where it had been taken at twice that. The third map's
+witness in the opening is not counted. `scripts/compression-chain.sh` prints the figures.
+
+Found on the way, NOT FIXED: the transaction measure is not monotone in the merge's size. A step
+takes the fewest circuits that hold its merge, and what is left is the application's room, so a
+merge that tips into one more circuit leaves far more room and fewer steps: the leanSPHINCS
+transaction at the level was 0.499 s with a 256-byte image and 0.584 s with a 144-byte one. A
+prover could take the extra circuit by choice; the model does not consider it.
+
+Later on 2026-11-27, on the transaction measure. The user, of "a step takes the fewest circuits
+that hold its merge": clearly not optimal. Tried: Kishu rows with one to three spare circuits a
+step, each a whole circuit of room for the application, the transaction measure taking the least
+over them as it does over the ranks. The recovery transaction with zero knowledge went from 0.221
+s to 0.188 s at rank 19 for 21, and about a hundred figures moved. Not committed: the change is
+kept as a patch outside the tree. Two things stand in its way.
+
+- One guarded statement fails with it: that the mask width's least is at the top of its grid for
+  every application at every sampler rate. With a free sampler two applications' least is at a
+  width of about 609 (the leanSPHINCS verifier with Keccak, and 64 paths).
+- The user's larger point: the measure's rule, the least work over a family's rows for each
+  application separately, may overstate what a deployment gets. A proof-carrying-data scheme is
+  instantiated at one rank and one step shape, chosen for a guessed mix of transactions, and the
+  mix will change (recovery transactions a higher share at first). Changing the parameters in a
+  network upgrade is possible, and may well happen, but is awkward. Spare circuits add one more
+  quantity that the rule would tune per application.
+
+TO DECIDE with the user: a measure at one fixed configuration for a mix of transactions, beside
+or in place of the per-application least; whether a step's shape could be chosen from a small
+menu; and then whether spare circuits come in as a parameter of that fixed configuration.
+
+## 2026-11-27, later: Kishu's step as one witness of a chosen length (work in progress)
+
+With the user, who had always been a little confused by Kishu's "circuits": it was path dependence
+from Ragu. A Kishu step's constraints are a sum-check over the whole table, which ends in one
+evaluation claim, so the step need not be slices of 2^rank digits with a claim each. Aim, in the
+user's words: radical simplification, adding complexity back only where it is really needed, and
+no regression in efficiency. Staging stays, as the route to permutation and lookup arguments.
+
+Committed first, on its own: a step's own transcript and the fingerprint route's column sums were
+sized for one circuit of 2^rank digits and are sized for the whole step (an undercount, 0.1% to 3%
+of Kishu's transaction figures).
+
+The work-in-progress commit after it changes the model and part of the frontier page:
+
+- **A Kishu row is a step length**, (1 + k/8) × 2^r digits, where the application's room is at
+  least a sixteenth of the step. It has one claim. In the shared functions that is one circuit of
+  2^(log2 length) digits, so a row's `rank` is the logarithm of its length, not a whole number;
+  `rank_text` writes it as "1.5 × 2^21". The rank filter is to ignore Kishu's rows. No upper limit
+  on the application's share: one at 15/16 had excluded the best rows for large transactions.
+- **A bare leaf has its own length** (`KISHU_LEAF_DIGITS`, 2^15). That was the one place the
+  slicing helped: the hardware wallet's mask covered one small circuit, not the step.
+- **A transaction's first step holds no merge** (the user: the leaf optimization), so a
+  transaction that fits one step has no merge at all, and a longer one has one fewer than its
+  steps. `pack_nodes` gives the leaf the merge's digits as extra room.
+- **A merge's sum-checks run over the digits in use** (the user: the prover can skip its zeros).
+  The mask still covers the whole step, since it has to hide which application was used; the
+  user's point. Its sampling and commitments are offline, 15 ns a digit, the same for every
+  application at a length; its online part, the handoff's merge, is 2 ms at any length.
+- The page's script mirrors the measure (`packNodes`, `txPacking`, `txWork`).
+
+Effect on Kishu's least transaction time against the corrected baseline, seconds on one core with
+zero knowledge: recovery 0.222 to 0.116; four recoveries 0.514 to 0.409; Zoodles by preimage 0.051
+to 0.021; by leanSPHINCS 0.300 to 0.206; the migration of one Tachyon input 0.115 to 0.049.
+Without zero knowledge Zoodles by preimage is 0.027 to 0.002.
+
+What the user's questions showed on the way. Each application's best step length differs, from
+about 2^20 digits for an ordinary transaction to 2^22 to 2^23 for recoveries, and a deployment
+fixes one. At a fixed length, with the mask in the cost and sum-checks over the whole step, no
+length is within 50% for every application. With the mask's offline part separated and zeros
+skipped, the online cost is nearly flat to the right of an application's least, so a long fixed
+step (2^23 or 2^24) costs offline mask work, 0.13 to 0.25 s a transaction, and little online; a
+short one costs many merges. The lineage step can be parameterized separately, and the hardware
+wallet's statement is already a leaf (the user).
+
+NOT DONE, in order:
+
+1. The model does not pass its own check. `kishu_zk_optimum` asserts on the first application;
+   after it come the figures and claims that quote a Kishu rank, circuit count, or step count.
+2. The prose: the frontier page from its zero-knowledge section on (the claims on the recovery
+   transaction's steps and ranks, the mask-width sweep, the level's Kishu paragraph, the
+   transaction sections), and the notes: Kishu's arithmetization (its "A step is one or more
+   circuits" and its table), Zoodles (actions a step, steps and ranks), the leanSPHINCS, SLH-DSA,
+   hardware-wallets, and recovery pages, and the Pasta proof-size note's Kishu figures.
+3. Then: a measure at one fixed step length for a mix of transactions, with the online and
+   offline parts separate; and the same simplification for Akita's rows, where the user thinks it
+   may apply too (their step circuits are Ragu's gate polynomials, so check what the gate
+   identity needs first).
+
+Unchecked assumptions in this: that nothing in Akita's fold or the zero-knowledge layer needs a
+claim per slice; that a prover skipping its own zeros leaves the sum-check sound and reveals
+nothing; that a leaf with no merge is a complete first step. The masked response's computation
+over the padded length, online, is not modelled.
+
+## 2026-11-27, later still: getting the step-length model past its own check
+
+PR #9 holds everything up to the undercount fix (its head f3526a9; the description covers the
+compression chain, the SLH-DSA page, and the undercount). The step-length work is local, in
+work-in-progress commits that a later entry records as squashed into one.
+
+Done since the WIP commit:
+
+- The mask-width sweep leaves out a row whose mask, at the widest widths on the longest steps,
+  would outgrow the fixed zk-layer merge (`kishu_zk_costs` returns None there).
+- Every quoted Kishu rank in the prose reads "a step of N digits" ("in a step of" where it had
+  "at rank"), by one pattern over the frontier page and five notes. Rewritten by hand: the
+  frontier page's rank, accumulation-prover, Kishu-costs, zero-knowledge (Kishu), and level
+  paragraphs; Kishu's arithmetization (the definition of a step, its table); Zoodles (actions a
+  step, at 2^21, 2^22, 2^23 digits); the Pasta proof-size note's example, now a step of 2^21.
+- `python pareto-model.py --fill` has been run: all figures are defined and filled.
+
+SIX CLAIMS STILL FAIL. Each needs its true statement found and its sentence rewritten:
+
+1. `zoodles_lineage_rank_is_spends`: the spend at the lineage step's best length is no longer
+   within a tenth of its own least. The lineage step's best is now a long step (1.625 × 2^22
+   without zero knowledge) and the spend's a short one (2^20). The user: the lineage step can be
+   parameterized separately, so the sentence should probably say that and drop the comparison.
+2. `alpha_optimum_at_grid_top` and 3. `alpha_page_excess`: the mask width's least is not at the
+   grid's top for every application now, and the page's width is within 19% of the least, not 10%.
+4. `kishu_matrix_same_at_150` and 5. `matrix_moves_150_q64_plain`: with longer accumulators more
+   accumulation matrices move between floors (154 rows from 128 to 147 bits, 144 of them Kishu's,
+   where it was 18 and 8; 26 at 150, where it was 2).
+6. `kishu_migration_zk_overhead`: zero knowledge now adds more than the whole of a migration's
+   prover without it, since without it a transaction that fits one step has no merge.
+
+A debug run that prints the values behind these six was started in the background when the
+context ran low; its output is the first thing to read. It edits `pareto-model.py` temporarily
+and restores it when it ends, so check `git diff --stat` shows no stray `DBG` prints before
+editing or committing that file.
+
+Then, still to do, in order: the six claims; sentences that the pattern left reading oddly (look
+at each "a step of … digits" in context, and the mask-width table's column, which is still headed
+as a rank); the hand-check of the page in a browser, since the script's measure changed; the
+online and offline measures separated, at one fixed step length for a transaction mix; the same
+simplification for Akita's rows; the level's re-plan with Akita's planner, which is no longer
+blocked on the compression chain's shape (three maps, sizes known), only on implementing it.
+
+The debug run's values, for the six claims:
+
+- Lineage: the lineage step's best length is 1.625 × 2^22 digits and the spend's 2^20; the spend
+  at the lineage's length costs 5.1 times its own least. So the two should not share a length.
+- Mask width, where the least is below the grid's top of 1,024: at the page's sampler, the three
+  applications that verify leanSPHINCS with Keccak (widths 609 to 861); with a free sampler also
+  four recoveries, the four-input Ironwood migration, and 64 paths (304 to 861). The page's width
+  is within 19% of the least at the page's sampler (27% and 26% at the two measured samplers, 14%
+  with a free one).
+- Matrices at 150 bits: beside the two Pasta-claims rows with 64-bit commitments (ranks 16 and
+  17, unmasked), Kishu's unmasked rows from a step of about 2^23.5 digits move from degree 512 to
+  1,024 at rank 1; their masked matrices stay at rank 2, degree 1,024.
+- Migrations: zero knowledge adds 126% to 214% of the prover without it.
+
+## 2026-11-27, 04:10 UTC: the step-length model passes its check
+
+The six failing claims, and a seventh that showed once they passed, are replaced by the statements
+that hold. The model's check, the book build, and the link check pass.
+
+- **The lineage step's length is set apart from the spend's** (`zoodles_lineage_own_length`, in
+  place of `zoodles_lineage_rank_is_spends`). The page gives the spend's own best step, 2^20
+  digits, and what the lineage's length would cost it, 5.1 times its least. Not modelled: what a
+  spend's merge pays to take in an accumulator of another length.
+- **The mask width** (`alpha_optimum_above_page`, in place of `alpha_optimum_at_grid_top`): the
+  least is at a width of 300 or more for every application at every sampler rate, and at the
+  grid's top for the recovery circuit. `alpha_page_excess` says within a quarter; the figure in
+  the sentence is 19 percent. Why some optima sit below the top is NOT understood: at the top
+  width the best row is a shorter step than at the optimum, though the longer step has a row
+  there. The differences are small (0.2% and 2.5% for the two applications probed). Worth a look
+  before the mask-width paragraph is next edited.
+- **Matrices at 150 bits** (`kishu_masked_matrix_same_at_150`, `matrix_moves_150_unmasked`): the
+  26 that move are unmasked, from degree 512 to 1,024; 24 are Kishu's rows without zero knowledge
+  from a step of 1.375 × 2^23 digits. Kishu's masked matrices do not move.
+- **Migrations** (`kishu_migration_zk_overhead`): zero knowledge adds more than the whole prover
+  without it, and the smallest migration without it is one step with no merge.
+- **The device's share** (`qk_device_share_small`): the wallet's online work is 10 percent of the
+  handoff fold, a figure now, with the claim at under a fifth. It had been under a tenth; the fold
+  shrank when the bare leaf got its own length.
+
+The mask-width table's last column is headed "Step, digits".
+
+The step-length work is one commit past PR #9's head, squashed from its work-in-progress commits
+at the user's word, with these notes in a commit after it; neither is pushed. Still to do: the
+sentences that the "a step of N digits" pattern left reading oddly, and the user's look at the
+page in a browser.
+
+## 2026-11-27, 04:40 UTC: the level's re-plan is ready to run
+
+The Akita patch for the three-map chain and the pipeline for the level are written:
+`scripts/patches/akita/0003-*` and `scripts/akita-165-pipeline.sh`, with the worktree
+`work/akita-src-165` (branch `level3-165`) added to `scripts/akita-checkout.sh`. The pipeline has
+NOT been run. It regenerates the width tables at 165 bits (the infinity table took about an hour
+at 147), re-sizes the nine compression cells and fails if one does not cover its map, rebuilds,
+commits in the worktree, and runs the re-plan.
+
+The chain in Akita's terms, by rank and ring dimension, since its rings are the power-of-two
+cyclotomics and the fold embeds every row through that tower:
+
+    modulus   map 1        map 2        map 3
+    128-bit   rank 9, d=2  rank 9, d=1  rank 1, d=8
+    64-bit    rank 9, d=4  rank 9, d=2  rank 1, d=16
+    32-bit    rank 9, d=8  rank 9, d=4  rank 1, d=32
+
+Considered and set aside, with the user: rank-one maps over a ring of dimension 18 (the 27th
+cyclotomic, X^18 + X^9 + 1). Its norm behaviour is tolerable (expansion factor 3 where X^n + 1
+has 2; a product of two elements bounded by 1 is bounded by 27 where dimension 18 would give 18),
+but it is not in the tower, and dimension 9 has no cyclotomic. The maps' digits are in {0, -1}
+(the image's coefficients in negated binary), certified at coefficient bound 1; the [-4, 3] set
+is the commitment witnesses'. Not traced: whether an extractor for the folded relation recovers
+the maps' digits at bound 1.
+
+The patch is for planning only. A map of rank r has r relation rows and r quotient rows, counted
+in the parameters and the planner; the rows of one map share a family identity; the dispatch
+table has no arm for dimensions 1, 2, and 4; the prover and the verifier are not adapted. A smoke
+run on the 147-bit tables, the chain alone changed, planned `fp128_dense` with proofs 0.0% to
+1.4% larger than the 147-bit plan's.
+
+TO FIX LATER in the patch (the user asked for the note): tests of `akita-params` that fail on the
+level's branch. The dispatch arms for the compression ladder (the test expects the table's arms
+to be the ladder's dimensions, and the small ones have no arm); the witness tail's pinned length
+(4,880, now 5,008); and three that pin table contents, two rank boundaries and the artifact
+digest, of which the two rank boundaries already failed on the 147-bit branch. Re-pin them after
+the tables are regenerated. The other crates' tests have not been run.
+
+After the run: `python scripts/akita-150-page-inputs.py work/akita-165-out/replan` should print
+the model's inputs, and the level's rows can then be planned and not derived; the width table
+that `scripts/derive-linf-widths.py` extrapolates can be checked against the estimator's own.
+
+## 2026-11-27, 11:10 UTC: the level's plan ran, and its openings are planned
+
+The pipeline ran overnight without a failed step: the infinity table took 3 h 42 min (about an
+hour at 147 bits), the nine compression cells all cover their maps (15% to 27% of input width to
+spare), and the planner found a schedule for every key it has at 147 bits. The worktree's state
+is committed there as 66eb9dd.
+
+What the run showed against the model's extrapolations:
+
+- **The opening's bytes.** Summed over the group counts, against the 147-bit plan: the 128-bit
+  field +1.2% planned where the line through 128 and 147 gave +10.5%; Pasta claims with 64-bit
+  commitments +2.0% against +7.5%; SIS at Pasta's modulus +2.2% against +9.1%; Pasta +1.4%
+  against +10.8%; Goldilocks +6.3% against +5.5%. Single cells scatter, since a plan is a
+  discrete choice. A guess at why the line was a poor predictor, NOT checked: the 147-bit plan
+  ran with its rank-one compression maps at their limit, and the three-map chain has slack.
+- **The accumulation widths.** The derivation's error against the estimator's own table at the
+  level: a median of +0.004 in log2 of the width for the 64-bit modulus and +0.014 for the
+  128-bit one, 5th to 95th percentiles about -0.12 to +0.48; it gave no width in 75 and 28 cells
+  where the estimator certifies a small one.
+- **The rank growth**, for the catalog's own moduli: 121 to 159, a factor of 1.31, where the line
+  gave 1.47.
+
+In the model now: `AKITA_165_PLANNED` and the level's slopes from the plan; the level's width
+table from the regenerated tables for the 64-bit and 128-bit moduli (a new file under
+`estimates/`), Pallas's still derived; the own-moduli rank sum computed. The page's level
+figures for Kishu and for Akita over Goldilocks did not move, since both read Goldilocks's
+opening, where plan and line agree. Still derived at the level: Pallas's widths; the 64-bit and
+Pallas mappings' rank growth (each needs the estimator's CSV table at 165 bits, hours of
+running); and everything the planner cannot see (the wider claim field, the widened
+challenge-field elements, the sum-check factor, the fold challenge's weight).
+
+The user, on reading the result: ze was wrong that the level is completely impractical for
+lattices; ze would still argue that 147 bits is sufficient, but it is a more complicated
+trade-off than ze had credited. New text calls it "the 165-bit level", not "illustrative". The
+SLH-DSA pages' "for illustration only" wording stays (the user). TO DECIDE with the user: the
+older wording on the frontier page, which still frames the level as an illustration that 192
+bits is not cheap (the section's heading and first paragraph, the floor control's label, two
+comments in the page's script).
+
+The model's comment on the security floor was rewritten in short sentences at the user's
+request; ze finds the file's header prose hard to follow in general, so the same treatment is
+owed to the other long comment blocks when they are next touched.
+
+## 2026-11-27, 12:20 UTC: the 165-bit level's section, and rank as a measure of length
+
+The level's section on the frontier page is rewritten after the user's new heading and opening
+("The 165-bit level", shown for the lattice-based schemes only, unreviewed, ranked with the
+strongest assumption; the floor control's label ends "182 classical bits, unreviewed ⚠️"). The
+SLH-DSA pages keep "for illustration only" (the user).
+
+Two requirements were wrong for a 165-bit level and are corrected, each with a claim:
+
+- **The claim field.** Not "192 bits or more", and not 165 either (the user's question): a
+  sum-check's error is a small multiple of its variables over the field's size. Kishu's claim
+  reduction is at most (4m+1)/|E| with m at most 31 (kishu-soundness.md, Theorem B), so about 172
+  bits are needed; the cubic extension gives about 2^-185. NOT DONE: the errors of Akita's own
+  fold sum-checks at the level, which the page says are taken to be of the same form. If one of
+  them batches very many claims by powers of a challenge, the cubic extension's margin, 20 bits,
+  could be used up.
+- **The transcript's hash.** A proof at the level needs a state of 330 bits; BLAKE3's 256 give a
+  proof up to 2^91 work (the model had 2^64, the figure for a 192-bit level).
+
+The user, on presentation: rank makes sense only as a logarithmic measure of step length, and
+that conclusion is general, not Kishu's alone. A step length is written in binary scientific
+notation, a mantissa in [1, 2) times a power of two (`step_text`; `step_label` for Kishu's
+rows). The level's section gives Akita's steps that way. STILL TO DO: Akita's rows in the model
+are still a rank and a circuit count, and the rest of the page's Akita prose still quotes ranks
+and circuits; this is the queued simplification of Akita's rows, and the user regards its
+conclusion as already settled. A fragile claim went with it: that Akita's merge with SHA3-384
+converges at no rank below the grid's highest.
+
+"Illustrative" remains in code comments (the model, the page's script, three scripts), unseen
+by readers.
+
+## 2026-11-27, 17:00 UTC: what a floor means, and the level's inputs checked
+
+A long review pass with the user, after the level's section was rewritten. All of it is committed
+on `security-192`, none of it pushed, and PR #9's description does not cover it.
+
+**Naming and presentation** (the user's rulings):
+
+- "Step rank" for the logarithm of a step's length, `step_rank` in code; "module rank" for a
+  matrix's or a map's, `MODULE_RANK_…` in code. A third sense stays "rank": the zk note's rank nd,
+  a count of field elements (its 143 and 340). `MASK_RANK` is a factor on that one.
+- A step length in the prose is math, a mantissa in [1, 2) times a power of two (`tex_step`).
+- A figure and its unit are joined by a no-break space, U+00A0, written as an escape in code.
+  `scripts/nbsp-units.py --write` puts them in, and the book build runs its `--check`.
+- A figure marker never sits inside a math span. The model now fails on one (`marker_in_math`);
+  three had slipped in and rendered literally.
+- Dibits stay (the user: cheap to implement; ze had only hoped for a conceptual simplification).
+  They are used for a word's remainder and for the wallet's mask elements at 147 bits.
+
+**What a floor covers.** A proof's soundness has two parts. The lattice assumption binds the
+commitment, and the floor sizes that. The chance that a challenge lets a false claim pass is a
+count over the challenge's field or set, multiplied by the attacker's hash queries; no lattice
+estimate enters it. Akita holds that second part to 128 bits by a proof of work before each
+challenge whose error would exceed 2^-128 (`TRANSCRIPT_SECURITY_BITS` in its akita-params), and
+the patches for 147 and 165 bits LEAVE THAT AT 128. The user's reading, which the page now
+states where the floor is defined: the 147-bit floor is 128 bits with the lattice part held to a
+more conservative cost model, not 147 bits throughout. Kishu's own claim reduction, at about
+2^-121 an attempt in its 128-bit field, needs no proof of work for 7 bits, since an attempt
+costs more than 2^7 operations (the user). Grover-type search is left out of this (the user:
+Grover is infeasible for this search space and number of targets).
+
+**What the Level 3 standards do for the same part** (read from the Kyber and Dilithium round-3
+specifications and FIPS 203 and 204): ML-KEM-768's bound has a term 4 q δ with decryption
+failure δ = 2^-164.8, so 162.8 bits, and its authors say that this term need not decrease with
+the security parameter, only stay under 2^-128 with margin. ML-DSA-65's challenge space has 225
+bits; its commitment hash is 384 bits for 192 bits of collision strength. So 162.8 bits is an
+upper bound on what the level's transcript needs to match ML-KEM-768, and hashes at the level
+are sized at twice the level, which is the page's case for SHA3-384.
+
+**The level's inputs, checked one by one.** Three had been read off another floor's data:
+
+- The claim field: not "192 bits or more", and not 165 either. The error is (4m+1)/|E| for
+  Kishu's claim reduction, so about 172 bits are needed for 165; the cubic extension gives 2^-185.
+- The transcript hash's bound was computed for a 192-bit level (2^64 work); at 165 bits a
+  256-bit state gives a proof up to 2^91 work.
+- The wallet's hiding padding at the level was sized from a sweep at 1,024 rows, but the
+  wallet's matrix there has 2,048 rows at every digit width. Swept at 2,048 rows it is 768
+  bytes (165.9 quantum bits; 767 bytes is the least; the user chose 768). No plotted row used it.
+- The opening's challenge-field elements were the 128-bit schedule's 687; the level's plan has
+  976. With them widened Kishu's proof is 18% larger than at 147 bits and Akita over
+  Goldilocks's 20%.
+- Kishu's Booleanity check by projection (error 2^-136) had rows at the level; removed there.
+
+A claim, `level3_sources`, now checks where each input comes from.
+
+**Costs, simulated in the model, not benchmarked** (probes under work/):
+
+- The lattice floor alone, 147 to 165 with the three-map chain and the 128-bit claim field
+  kept: no change to a Kishu prover with zero knowledge or to the mask's preparation, +4.8% a
+  digit without zero knowledge, +6% proof bytes, +4% verifier. The masked matrix is already
+  module rank 2 at degree 1,024 at 147 bits, which the 165-bit tables still certify.
+- The claim field alone, 128 to 192 bits at the 147-bit floor: recovery +9.8%, Zoodles by
+  leanSPHINCS +18%, Zoodles by preimage +38%. With the sum-checks at 1.5 times (base times
+  extension) in place of twice: +4.9%, +13%, +35%; with no sum-check penalty: 0, +7%, +32%.
+  What remains is the merge, a third larger in every case, since each transcript element is
+  three 64-bit values where it was two. Toom-3 in the circuit changes nothing visible.
+- Grinding as the other lever, measured with Akita's planner in the 147-bit worktree: raising
+  the transcript target from 128 to 140 bits costs at most 0.6 kbytes of nonces; 144 and 147
+  fail on Akita's cap of 25 bits a proof of work. So grinding reaches about 140 bits, and
+  anything above needs the larger field, which overshoots to about 185.
+- NOT costed at either floor: the opening's prover; computing the compression maps; applying
+  the fold challenge.
+
+So for Kishu the two levels differ mostly by the claim field, and the lattice floor is the
+cheap part. The chain allows a floor of 170 bits (its weakest map has 170.66), as the shipped
+chain allows 147; the page states the level as 165 and notes that it could be re-planned at 170.
+
+**TO DISCUSS with the user, not decided:** the page's controls. The lattice floor and the
+transcript level are separate choices with very different costs, and the level bundles them.
+The user wants to think about it: separate controls for the lattice-based and hash-based
+families' security were already intended, and the design has to fit with that.
+
+Also added: tables in the hardware-wallets note of the padding at each floor with the handoff
+it gives, and of the pruned leanSPHINCS key by kept-subtree height. Its lifetimes are the table
+of proved lifetimes in the local sphincs.art checkout (8157875); key generation is in BLAKE2s
+compressions from that checkout's cost script (`scripts/leansphincs-keygen.py`), 7% more than the
+226 * 2^b + 2 (h - b) hash calls, since a one-time leaf's hash is several compressions; and a
+grinding attempt is one compression with every hash, by the source (the user had suspected so).
+Upstream's main has since moved (its BLAKE2s verifier at height 26 is 299 compressions where the
+pinned checkout proves 298); the page's figures are the pinned checkout's.
+
+## 2026-11-27, 19:30 UTC: one authorization for each spending key
+
+The user: the signing cost is for each distinct spending key in a transaction, not for each
+input note, since zero-knowledge PCD lets one signature (or preimage check) authorize every
+input with that key without revealing that they share one. It applies to every two-input
+transaction. The design the user sketched, which the pages now describe: the authorization is a
+PCD node of its own, proving {(K, M, σ) : σ is a leanSPHINCS signature under K of the digest M}
+or {(qsk, qk) : qk = H^qk(qsk)}, and a higher layer lets steps reuse a child node, so the proof
+is a DAG ([CT10], Definition 3: a directed acyclic multi-graph; keep/CT10.pdf), not a tree.
+Tachyon (d1f5ffb) does not have it: one signature an action, outside the proof, under a
+randomized key.
+
+In the model: `ZOODLES_SIGNING_KEYS = 1` and a `SpendAuth` node. Kishu with zero knowledge:
+Zoodles by leanSPHINCS 0.206 s to 0.110 s, in one step where it took two; with Merkle paths
+0.227 s to 0.131 s; by SLH-DSA 16.1 s to 8.20 s; by preimage 0.0210 s to 0.0209 s.
+
+Two security points from the user, on the Spend Authorization page and NOT costed:
+
+- An intermediate accumulator carries the authorization, which is an optimization for some uses
+  of PCD and a hazard if it leaks. Zoodles ties the proof's transcript to the transaction's
+  digest, as already planned for the hardware wallet's leaf, so every authorization is a
+  signature of knowledge. Kishu has not the context to prevent it in general; it can only offer
+  the signature of knowledge as a facility.
+- With several signers, an authorization node's header says which inputs it signs for, and the
+  transaction's root node checks that every input is covered by some authorization node.
+
+The frontier page's sentence that the SLH-DSA transaction's two spends are "each authorized by"
+a signature became "authorized by one signature", since the fact changed.
+
+## 2026-11-27, 21:00 UTC: state at the end of the session
+
+Branch `security-192`, tree clean, thirty commits LOCAL past the pushed head (PR #9's
+head is 3a47d3f). PR #9's description covers none of them and still calls the level
+"illustrative"; rewrite it once the user pushes. The book builds and its links check at the tip,
+except that the last commit (a heading) was not built.
+
+Since the entry on one authorization for each spending key:
+
+- The Spend Authorization page has subsections "Choice of methods" and "Signing multiple inputs
+  at once", the second with the user's sentence that the coverage check and the reuse of a node
+  are not costed "because the cost is likely to be negligible".
+- Kishu's arithmetization has zero-based alphabets (the user: Akita's balanced alphabets were an
+  implementation detail leaking in). A subsection, "Committing the witness using Akita", shows
+  that the shift w = w' + o leaves a constraint of the same form, with c'_j = c_j + (A_j o)^T B_j
+  + (B_j o)^T A_j and a constant that is a multiple of the constant bit. Kishu's soundness note
+  still states Lemma B3 over the balanced digits; it could point to that subsection.
+- Spelling: "analyse" keeps its s in Oxford spelling; the -ize endings do not extend to it.
+
+OPEN, in the order they came up:
+
+1. **The page's controls** (to discuss with the user, who wants to think about it). The lattice
+   floor and the transcript level are separate choices: for Kishu the lattice floor from 147 to
+   165 bits costs 6% of proof and nothing in a zero-knowledge prover, and the claim field from
+   128 to 192 bits costs 5% to 38% of a transaction. The level bundles them. Separate controls
+   for lattice-based and hash-based security were already intended, and the design has to fit.
+2. **The level's transcript target**: 165 as the user ruled, or what ML-KEM-768's own
+   decryption-failure term supports, 162.8 bits, which its authors say need not follow the level.
+   Either needs the cubic claim field, which gives about 185.
+3. **A re-plan at 170 bits**, which the three-map chain allows; noted on the page, not done.
+4. **Akita's own sum-check errors at the level**, taken to be of the same form as Kishu's.
+5. **The preimage authorization as a signature of knowledge**: tying the transcript to the
+   transaction's digest is taken as free and is not in the model.
+6. **Akita's rows are still a rank and a circuit count**; only the level's section presents
+   their steps as lengths. The user regards the conclusion (step rank is only a logarithmic
+   measure of length) as settled for every family.
+7. From before: sentences that the "a step of N digits" pattern left odd; the user's look at
+   the page in a browser; a fixed-step-length measure with online and offline parts separate;
+   the Kishu page's overstatement of the projection Booleanity check; the commit-comparison view.
+
+Unpushed work in other checkouts: the Akita worktree `work/akita-src-165` (branch `level3-165`)
+holds the level's plan at 66eb9dd, and the branch `level3-165-first-draft` in that clone is a
+superseded draft for the user to delete. The Akita test fixes owed are in the entry of 04:40.
+Probes from today are under `work/` (`field-probe.py`, `field-variants-probe.py`,
+`lattice165-probe.py`, `transcript-target-sweep.sh`, `pad-probe.py`).
+
+## 2026-11-28, 01:00 UTC: mixed alphabets, packing, a static cap, and Sapling recovery
+
+Since the end-of-session entry, on `security-192` (local, unpushed): "the 165-bit level" in
+comments, claims, and scripts (7457867); the range check's cost by digit width explained on the
+arithmetization page (106e338); a static cap for the recovery circuit's Merkle path (699e406).
+The branch `sapling-recovery` is stacked on `security-192` for the Sapling work below, which the
+user wants as a separate PR.
+
+**The range check with mixed alphabets was never worked out.** Theorem B covers bits only. A
+draft, `work/mixed-alphabet-range-check.md` (untracked, rendered beside it), has the mechanism:
+
+- Commit every digit balanced about -1/2 (a bit in {-1, 0}), so that the range image
+  S = w(w+1) is one formula at every position and only the polynomial applied to it varies:
+  T for a bit, T(T-2) for a dibit, T(T-2)(T-6)(T-12) for a tribit.
+- Bits need no Stage 1: S = 0 is a quadratic claim, batched into the constraint sum-check with
+  the binding of Akita's virtual range image. The wide digits get Akita's Stage 1 with
+  selectors. Cost: one product a digit, plus one for a dibit and three for a tribit, as the
+  model counts.
+- Sort the witness by alphabet (free: positions are column indices). The selectors are then
+  interval indicators with arbitrary thresholds, whose multilinear extensions cost O(n).
+- The user: only the merge of the next step needs a step's thresholds, as private inputs bound
+  to the circuit's description like the matrices; nothing circuit-specific is folded. A step's
+  threshold is the sum of its parts' counts.
+- NOT YET on any page, and Theorem B is not restated. OWED: the arithmetization page says the
+  bit case is Akita's, which overstates (Akita's bases start at 4).
+
+**Two bits for one product.** A draft, `work/paired-booleanity.md`, in Dao and Thaler's notation
+with F for the base field and E for the extension (the user's preference). Packing the two
+halves of a subfield-valued table along a fixed basis is their "simple constraint packing"
+(ePrint 2024/1038, section 5; possibly folklore; keep/2024-1038.pdf). The part not found in
+2024/1038, 2024/1046, or 2026/762: with the same quadratic constraint on both halves, the
+packed form is a binary quadratic form and factors, (x - s y)(x + s y), for s^2 not in F. The
+user will ask Quang Dao and Justin Thaler whether it is known. Its section 6 is WRONG as it
+stands: it leaves out the multiplication by the eq weight. Counted with weights against
+Akita's kernel, the factoring saves a sixth of the later rounds' products at best.
+
+**Measured in Akita** (branch `packed-range-check` in the 147-bit worktree, commit 47f0bb5: a
+harness `benches/stage1_range.rs`; logs under work/). Stage 1 alone, one thread, the 64-bit
+preset: basis 4 takes 2.15 ns a digit at 2^24 (2.78 at 2^20); basis 8 takes 4.81 ns at 2^24,
+5.70 at 2^22, 9.08 at 2^20. Akita already runs four small-value rounds from class tables and
+materializes a sixteenth of the table, so packing and factoring could save perhaps 5% to 10%
+of Stage 1; not built. A FINDING FOR THE MODEL: it charges a tribit's Stage 1 at 9.8 ns (three
+products at the Booleanity rate), about twice Akita's rate on large tables, and has no
+threshold (Akita's class-table path needs 262,144 live tribits). Stage 1 is 21% of the
+recovery transaction by the model.
+
+**The static cap** (the user and Jack Grigg, Zcon3, first for Sprout): the frozen tree's nodes
+at some depth are a table selected by the position's top bits, compared as four 64-bit limbs;
+sound when every cap limb is in [59, q), else the tree is rehashed under another BLAKE3
+personalization (the user: no fallback). Best depth 14 for Kishu, 36% of the path, 1.6% of the
+transaction. OWED: the frontier's rows do not use the cap (the user asked why not; no good
+reason); the tree's depth should be what the frozen set needs, not 32, and that saving belongs
+to the rehash, not the cap.
+
+**Tree sizes**, from a zebrad at height 3,579,090 (not fully synced): Sapling 74.0 million
+commitments (2^26.1), Orchard 50.5 million (2^25.6).
+
+**Sapling recovery, to add as a transaction type like Ironwood's** (the user's statement): a
+reduced Sapling Spend statement; the tree rehashed, shallower, with a cap; no value commitment
+integrity; otherwise the same, with a public RedJubjub signature and a revealed nullifier for
+each spent note and the total spent value; leaf cm_u and positions unchanged. It is not
+quantum-recoverable; it is for use before Q-day. A page "Recovery from Sapling". My count for
+Kishu, which the user accepted: about 147 table selections with a Jubjub addition each (65 of
+9 bits for the Pedersen commitment's 582 bits; 26 each of 10 bits for rcm, nsk, and alpha; 4
+for the position), about 4,300 multiplications in Jubjub's base field (3,300 of them the
+variable-base [ivk] g_d), two BLAKE2s compressions, and the path. Every family emulates that
+field, Pasta included.

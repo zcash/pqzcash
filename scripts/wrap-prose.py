@@ -33,9 +33,9 @@ GLUE = "\u0001"  # stands for a space inside a span that must not be broken
 EXCLUDED = {ROOT / "book" / "src" / "SUMMARY.md"}
 
 ATOMIC = re.compile(
-    r"<!--fig:[^>]*-->.*?<!--/fig-->"  # a figure marker with its value
+    r"<!--fig:[^>]*--!?>.*?<!--/fig--!?>"  # a figure marker with its value
     r"|<span class=\"noteref\"[^>]*>.*?</span>"  # a note reference the model turns into a link
-    r"|<!--.*?-->"  # any other comment, such as a claim marker
+    r"|<!--.*?--!?>"  # any other comment, such as a claim marker
     r"|\$\$.*?\$\$"  # display math on one line
     r"|\$[^$]*?\$"  # inline math
     r"|`[^`]*`"  # inline code

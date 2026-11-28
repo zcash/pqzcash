@@ -12,7 +12,7 @@ Akita variant has a different obligation, which is not Kishu's; it is the subjec
 Kishu's claim field is $\mathbb{F}_q$ with $q = 2^{64}-59$, which is Akita's own 64-bit
 commitment modulus. There is no decoupling of the commitment modulus from the claim field: the
 digits are committed as any small digit vector is, bits where the circuit needs bits and
-Akita's own base-8 digits for integer words, and the evaluation claims are
+Akita's own base-8 digits for integer words, and the evaluation claims are
 Akita's ordinary claims at the 64-bit profile, over the quadratic extension
 $E = \mathbb{F}_q[u]/(u^2-2)$ that the draft's sum-check uses. The Pasta values never reach the
 commitment: a value's digits are read as eight 32-bit limbs
@@ -34,15 +34,15 @@ claims are $\mathbb{F}_p$ values over the 64-bit commitment. It was corrected on
 own page, is Kishu's fallback's, not Kishu's.
 
 Which Booleanity check (B2) is about. The frontier's Kishu rows use the conventional weighted
-sum-check, the draft's §3 baseline, not its projection. In recursion the projection's verifier
-is the merge circuit's work, a committed digit per sampled coefficient at the least. The
-projection is therefore ahead only from rank 23 at the draft's geometry. Separately, ranks of
-21 and up are too slow for a Zcash transaction, which puts the frontier's Kishu rows at 19
-and 20, where the sum-check form wins. (B2) is then the ordinary sum-check's soundness, with
-no integer lift. The draft's projection certificate, with its CertifiedJL estimates and its
-numerical check, is not on Kishu's path, so formally verifying the projection is not a
-blocker for Zcash's use of Kishu (the user's decision, 2026-11-17). The projection form's
-statement is kept as Theorem B′ below, for a verifier that runs natively.
+sum-check, the draft's §3 baseline, not its projection. In recursion the projection's verifier is
+the merge circuit's work, a committed digit per sampled coefficient at the least. The projection is
+therefore ahead only from step rank 23 at the draft's geometry. Separately, step ranks of 21 and up
+are too slow for a Zcash transaction, which puts the frontier's Kishu rows at 19 and 20, where the
+sum-check form wins. (B2) is then the ordinary sum-check's soundness, with no integer lift. The
+draft's projection certificate, with its CertifiedJL estimates and its numerical check, is not on
+Kishu's path, so formally verifying the projection is not a blocker for Zcash's use of Kishu (the
+user's decision, 2026-11-17). The projection form's statement is kept as Theorem B′ below, for a
+verifier that runs natively.
 
 ## 2. The no-wrap lemma
 

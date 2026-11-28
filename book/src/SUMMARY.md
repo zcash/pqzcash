@@ -18,6 +18,7 @@
     - [Hash Preimage](zoodles/spend-authorization/hash-preimage.md)
     - [leanSPHINCS](zoodles/spend-authorization/leansphincs.md)
     - [CAPSS](zoodles/spend-authorization/capss.md)
+    - [SLH-DSA at NIST Level 3](zoodles/spend-authorization/slh-dsa.md)
     - [Recovery from Ironwood](zoodles/spend-authorization/recovery-ironwood.md)
     - [Recovery from Tachyon](zoodles/spend-authorization/recovery-tachyon.md)
     - [Hardware Wallets](zoodles/spend-authorization/hardware-wallets.md)

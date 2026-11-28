@@ -26,8 +26,8 @@ $\mathsf{SoK^{qsk}}$ as a signature scheme with key $\mathsf{qk}$, 1-of-$n$, whi
 adversary corrupting up to $t - 1$ wallets is bounded by re-randomized FROST; [Hardware
 wallets](hardware-wallets.md) sets out that model. The frontier page prices the recovery circuit as
 an application: in Kishu with zero knowledge it
-takes <!--fig:tx_recovery_kishu_zk_s-->0.221<!--/fig--> s on one core at
-rank <!--fig:tx_recovery_kishu_zk_rank-->21<!--/fig-->.
+takes <!--fig:tx_recovery_kishu_zk_s-->0.119<!--/fig--> s on one core in a step
+of <!--fig:tx_recovery_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits.
 
 ## The signature method as an arm of the Recovery Statement
 
@@ -43,6 +43,42 @@ across two domain-separated hashes. So nothing has to be decided before the sche
 consequence is that a key derived before the signature route exists is a preimage-route key. A
 wallet that wants the signature route later needs a new key, which means new addresses and moved
 funds.
+
+## A static cap for the Merkle path
+
+The Ironwood note commitment tree is frozen once the pool's pre-quantum protocol is turned off. A
+deployment can leave time between that and turning the Recovery Statement on, for nodes and wallets
+to compute the static tree. The nodes at a chosen depth are then a fixed public table, the cap, and
+the circuit need not hash the levels above it. It selects the cap's entry by the top bits of the
+note's position, as a [Sinsemilla chunk](kishu-arithmetization.md#the-recovery-circuit) selects a
+generator, and compares it with the node that the lower levels hash to. The position's bits stay
+private. The circuit is written generically: the cap enters only as the coefficients of the
+selection's constraints, filled in when the tree is frozen. The idea came from a discussion between
+Daira-Emma Hopwood and Jack Grigg at Zcon3, where it was suggested for Sprout.
+
+In Kishu the index bits are split into two halves. The subset products within a half are committed,
+and each product across the halves is a term of a constraint. A node is compared
+as <!--fig:recovery_cap_limbs-->4<!--/fig--> limbs of 64 bits, a constraint each. The comparison is
+in $\mathbb{F}_q$, so it is sound when every limb of the cap is at
+least <!--fig:recovery_cap_limb_margin-->59<!--/fig--> and below $q$. A limb falls outside that
+range with negligible probability. If one does, the tree, which ZIP 2005 has rehashed in any case,
+is rehashed under another BLAKE3 personalization.
+
+The frozen tree is rehashed, so it need be no deeper than its commitments fill. The rehash keys each
+node's hash by the node's position in the tree, which costs nothing with BLAKE3 and leaves an
+attacker no choice among many targets; the tree's hash still has to be collision-resistant. It is
+taken to have <!--fig:recovery_tree_height-->27<!--/fig--> levels at the freeze. Each
+arithmetization's rows on the frontier page take the cap at the depth that costs them least. For
+Kishu <!--claim:recovery_cap_saves:1dc118-->that is <!--fig:recovery_cap_levels-->14<!--/fig-->
+levels<!--/claim-->: <!--fig:recovery_cap_entries-->16,384<!--/fig--> nodes,
+or <!--fig:recovery_cap_kb-->524 kbytes<!--/fig-->, for each node and wallet to hold, and a
+selection of <!--fig:recovery_cap_terms-->64,516<!--/fig--> terms. The path is then the leaf's hash
+and the levels below the cap, <!--fig:recovery_cap_path_hashes-->14<!--/fig--> compressions. With
+zero knowledge the cap saves <!--fig:recovery_cap_path_pct-->43<!--/fig-->% of what a path hashed
+all the way would cost, which is <!--fig:recovery_cap_tx_pct-->1.5<!--/fig-->% of the recovery
+transaction. Over Pasta, where a selection is the subset products of the index bits, the best cap
+is <!--fig:recovery_cap_levels_pasta_poseidon-->9<!--/fig--> levels under a Poseidon path
+and <!--fig:recovery_cap_levels_pasta_blake3-->14<!--/fig--> under a BLAKE3 one.
 
 ## References
 

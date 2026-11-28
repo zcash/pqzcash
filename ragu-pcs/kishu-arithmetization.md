@@ -35,8 +35,8 @@ in $\mathbb{F}_q^r$.
 Consider a Kishu circuit over $\mathbb{F}_q$ with $m$ constraints. The public inputs, padded to
 length $m$ with zeros, form the instance vector $\mathbf{v} \in \mathbb{F}_q^m$. A witness is a
 vector of $N$ small integers, $\mathbf{w} \in \mathbb{Z}^N$, read as elements of $\mathbb{F}_q$. The
-circuit fixes each position's alphabet: a bit, in $\{0, 1\}$; a dibit, in $\{-2, -1, 0, 1\}$; or a
-tribit, in $\{-4, \ldots, 3\}$, Akita's own balanced base-8 digit. The entries are called digits.
+circuit fixes each position's alphabet: a bit, in $\{0, 1\}$; a dibit, in $\{0, \ldots, 3\}$; or a
+tribit, in $\{0, \ldots, 7\}$. The entries are called digits.
 
 The circuit is defined by, for each constraint index $j$,
 
@@ -56,8 +56,107 @@ at most two in the digits, with no constant term, set equal to zero or to a publ
 out the constant term loses no generality: if one public input is the constant 1 and one witness bit
 is constrained to equal it, a constant term in any constraint is a multiple of that bit.
 
-That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by a
-range check, not by a constraint per digit. For the bit positions it is the Booleanity check.
+That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by
+[the range check](#the-range-check), not by a constraint per digit.
+
+### Committing the witness using Akita
+
+The alphabets start at zero in a circuit's description, whatever the commitment scheme does. A
+scheme may hold a digit in another alphabet of the same size: Akita holds a base-8 digit balanced,
+in $\{-4, \ldots, 3\}$. That is a fixed shift of each digit, $\mathbf{w} = \mathbf{w}' + \mathbf{o}$
+for a vector of offsets $\mathbf{o}$ that the alphabets determine. Substituting it leaves a
+constraint of the same form in the committed digits $\mathbf{w}'$, with the same $\mathbf{A}_j$ and
+$\mathbf{B}_j$:
+
+$$\innerprod{\mathbf{A}_j \mathbf{w}'}{\mathbf{B}_j \mathbf{w}'} + \mathbf{c}'_j \mathbf{w}' + k_j = \mathbf{v}_j,$$
+
+where
+$\mathbf{c}'_j = \mathbf{c}_j + (\mathbf{A}_j \mathbf{o})^{\mathsf{T}} \mathbf{B}_j + (\mathbf{B}_j \mathbf{o})^{\mathsf{T}} \mathbf{A}_j$
+and $k_j = \innerprod{\mathbf{A}_j \mathbf{o}}{\mathbf{B}_j \mathbf{o}} + \mathbf{c}_j \mathbf{o}$.
+The products' offset terms are linear in $\mathbf{w}'$, so they are absorbed into the coefficient
+row, and the constant $k_j$ is a multiple of the constant bit as before. So the offsets are a detail
+of the implementation, cancelled in the coefficients when the circuit is compiled, and the
+arithmetization does not depend on the commitment scheme's alphabets.
+
+### The range check
+
+The range check is Akita's, extended to digits of several widths in one witness. Akita checks one
+alphabet for a whole table, and its smallest alphabet has four values. Kishu's bits follow the same
+pattern at two values.
+
+**The committed digits.** Every digit is committed balanced. A digit with an alphabet of $b$ values
+is held as $w' \in \{-b/2, \ldots, b/2 - 1\}$, so its offset in $\mathbf{o}$ is $b/2$: 1 for a bit,
+2 for a dibit, and 4 for a tribit.
+
+**The range image.** The balanced values $k$ and $-1-k$ give the same product
+$w'(w'+1) = k(k+1)$. Define the range image of position $x$ as $S(x) = w'(x)\,(w'(x)+1)$. Then
+$w'(x)$ is in the alphabet of $b$ values exactly when $R_b(S(x)) = 0$, where
+
+$$R_b(T) = \prod_{k=0}^{b/2-1} \bigl(T - k(k+1)\bigr).$$
+
+So $R_2(T) = T$, $R_4(T) = T(T-2)$, and $R_8(T) = T(T-2)(T-6)(T-12)$. The balanced alphabets are
+nested, which is why the range image is the same formula at every position. Only the polynomial
+applied to it depends on the position's width.
+
+**The layout.** A circuit orders its $N = 2^n$ positions by width: tribits at $[0, \theta_1)$, bits
+at $[\theta_1, \theta_2)$, and dibits at $[\theta_2, N)$. The order costs nothing, since a position
+is only a column index of the coefficient matrices. The thresholds $\theta_1$ and $\theta_2$ are
+part of the circuit's description.
+
+Two blocks of positions follow from the thresholds. The tribit block is the first $2^j$ positions,
+with $j$ least such that $2^j \ge \theta_1$: the positions whose top $n - j$ index bits are 0. The
+dibit block is the last $2^k$ positions, with $k$ least such that $N - 2^k \le \theta_2$: the
+positions whose top $n - k$ index bits are 1. A block may hold bits besides its own digits.
+
+The two blocks differ in their top index bit, and so are disjoint, unless $j = n$ or $k = n$. Where
+they overlap, a position in both is checked as a dibit, so it has to hold a dibit or a bit. So the
+tribits have to lie outside the dibit block: $\theta_1 \le N - 2^k$. That always holds when $j < n$
+and $k < n$. With $j = n$ it asks that the dibit block fit after the tribits, and with $k = n$ that
+there be no tribits. A circuit for which it fails has to forgo the optimization for some of its
+digits, which can always be done by splitting some of the longer digits into shorter ones. (This is
+always more efficient than increasing $n$.)
+
+**The check.** Because the alphabets are nested, a narrower digit passes a wider digit's check: a
+bit or a dibit has range image 0 or 2, and those are roots of $R_8$. So each of Akita's range
+sum-checks runs over a whole block, unchanged, with no selector for the positions that hold
+narrower digits. There are three claims. Write $[P]$ for 1 if $P$ holds and 0 otherwise.
+
+1. For the tribit block, Akita's range sum-check at basis 8. The verifier draws a point $\tau_8$,
+   and the prover shows
+   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau_8, x)\; R_8\bigl(S(x)\bigr).$$
+   The table $S$ is virtual: it is not committed. The sum-check ends at a point $r_8$, with a value
+   $s_8$ that the prover sends for $\widetilde S$ there.
+2. For the dibit block, the same at basis 4, with a point $\tau_4$:
+   $$0 = \sum_{x \ge N - 2^k} \operatorname{eq}(\tau_4, x)\; R_4\bigl(S(x)\bigr),$$
+   ending at a point $r_4$ with a value $s_4$. A circuit with no dibits has no such claim.
+3. One term more in the constraint sum-check, for a fresh point $\tau'$ and batching scalars
+   $\alpha$ and $\alpha_4$:
+   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[\theta_1 \le x < \theta_2] + \operatorname{eq}(\bar r_8, x) + \alpha_4 \operatorname{eq}(\bar r_4, x)\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s_8 + \alpha_4\, s_4.$$
+   Here $\bar r_8$ is $r_8$ with its remaining high coordinates set to 0, and $\bar r_4$ is $r_4$
+   with them set to 1, so that each equality weight is the block's own and zero outside the block.
+   The first part of the sum says that every bit has range image zero, which is the Booleanity
+   check. The other two parts tie $s_8$ and $s_4$ to the committed witness.
+
+The bits that share a block cost its sum-check nothing. Their range image is zero, so to the
+block's check they are a run of zeros beside its own digits, which the prover skips.
+
+**Who checks it.** A step's proofs are verified by the merge of the next step. That merge takes
+$\theta_1$ and $\theta_2$ as private inputs, bound to the circuit's description as the coefficient
+matrices are. Only the Booleanity weight reads them. Its multilinear extension at the constraint
+sum-check's final point $\rho$ is
+$\sum_{\theta_1 \le x < \theta_2} \operatorname{eq}(\tau', x) \operatorname{eq}(\rho, x)$, which
+takes a number of multiplications linear in $n$, since an interval is a union of at most $2n$
+blocks on each of which the sum is a product. Nothing that depends on the thresholds is folded.
+
+**Its cost.** Every digit pays one product, in the third claim. A dibit pays one more, in the
+second, and a tribit three more, in the first.
+
+**Its soundness.** In $\mathbb{F}_q$, $w'(w'+1) = k(k+1)$ forces $w' = k$ or $w' = -1-k$, so no
+lift to the integers is needed. The first two claims are Akita's, with its error: at most
+$6j/\lvert E \rvert$ for the tribit block, $j$ for the random point and five for each variable of
+the sum-check, and $4k/\lvert E \rvert$ for the dibit block. [Kishu's Soundness
+Obligations](kishu-soundness.md) states the bits' part as its Theorem B. The statement for dibits
+and tribits in a mixed witness is not yet written there.
 
 ### Relation to R1CS
 
@@ -103,7 +202,7 @@ keeping the left-hand side of each constraint within a range no larger than $q$.
 ### Relation to Ragu
 
 Ragu's arithmetization is the constraint system of Bootle et al. [\[BCC+16\]](#ref-bcc16), over the
-Pallas base field and with a fourth wire added to each gate. A circuit of $n$ gates has four wires a
+Pallas base field and with a fourth wire added to each gate. A circuit of $n$ gates has four wires a
 gate, each gate enforcing $\mathbf{a}_i \mathbf{b}_i = \mathbf{c}_i$ and
 $\mathbf{c}_i \mathbf{d}_i = 0$, and $4n$ linear constraints, each a fixed linear combination of all
 the wires equal to an instance value ([Ragu's arithmetization
@@ -128,14 +227,17 @@ needs the width the product needs: a bit, in the hashes. A value that enters con
 through linear combinations is written in tribits. That is any integer word: a limb, a quotient, a
 carry, an amount, or an element of $\mathbb{F}_q$. A dibit or a bit takes the remainder if the width
 is not a multiple of three. The commitment, the fold, and the mask cost the same per digit at any of
-these widths. The range check costs one product a bit, two a dibit, and four a tribit, by Akita's
-paired predicate. So a tribit holds three bits for a little over a third of their cost.
+these widths.
 
-A word of $\ell < 64$ bits is a linear combination of its digits plus a constant, which costs
-nothing to form. The constant offsets the balanced digits. Bit vectors of any fixed length can be
-represented directly, as can elements of $\mathbb{F}_q$ (non-canonically,
-in <!--fig:q64_digits-->22<!--/fig--> digits). A range check is free: a value held in digits of
-$\ell$ bits in all is below $2^\ell$ by construction.
+[The range check](#the-range-check) does depend on the width: it costs $b/2$ products for a digit
+with an alphabet of $b$ values. That is one product a bit, two a dibit, and four a tribit. Three
+bits cost three digits' commitment and three products; a tribit costs one digit's commitment and
+four products. So a tribit holds three bits for a little over a third of their cost.
+
+A word of $\ell < 64$ bits is a linear combination of its digits, which costs nothing to form. Bit
+vectors of any fixed length can be represented directly, as can elements of $\mathbb{F}_q$
+(non-canonically, in <!--fig:q64_digits-->22<!--/fig--> digits). A range check is free: a value held
+in digits of $\ell$ bits in all is below $2^\ell$ by construction.
 
 Since a word is a linear combination in certified digits, a relation holds over the integers
 whenever it holds in $\mathbb{F}_q$, provided that its two sides, as integers, both lie in a range
@@ -158,17 +260,22 @@ constraint that uses it. In a chain of XORs every other word is committed, each 
 both XORs' inputs at once at two terms a bit. A third XOR in a chain would need degree three.
 Bitwise operations keep bits. A dibit XOR is degree two only with a committed quotient digit, which
 is pinned only by committing the reduced result. Tribits have no degree-two XOR at all. So a BLAKE3
-compression is <!--fig:blake3_bits-->11,344<!--/fig--> bits of witness
+compression is <!--fig:blake3_bits-->11,344<!--/fig--> bits of witness
 and <!--fig:blake3_piop_terms-->11,120<!--/fig--> terms, a multiplication in $\mathbb{F}_q$ is one
 term over 64-bit operands, and a Pasta multiplication
-is <!--fig:mult_fingerprint_digits-->170<!--/fig--> or <!--fig:mult_limbs_digits-->374<!--/fig-->
-digits by one of two routes. The circuits that suit Kishu are the hash-heavy ones.
+is <!--fig:mult_fingerprint_digits-->170<!--/fig-->
+or <!--fig:mult_limbs_digits-->374<!--/fig--> digits by one of two routes. The circuits that suit
+Kishu are the hash-heavy ones.
 
-A step is one or more circuits of $2^{\mathrm{rank}}$ digits, the rank chosen for the application
-between 13 and 24. The merge's digits take the first part of the step, and the application's nodes
-fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing shows. Zero knowledge
-asks nothing of the circuit's writer: the scheme hides the witness, and no randomizer or blinding
-wire is needed. Not available: lookup arguments, which the study does not model.
+A step is one committed witness of a chosen length in digits, with one evaluation claim, since the
+constraints are a sum-check over the whole table. The frontier page's rows are at lengths
+from <!--fig:bits_q64_min_step-->$1.5 \times 2^{20}$<!--/fig-->
+to <!--fig:kishu_max_step-->$1.875 \times 2^{25}$<!--/fig--> digits. A transaction's first step
+holds the application alone. In each later step the merge's digits take the first part, and the
+application's nodes fill the rest, as many as fit, as the [Zoodles](zoodles.md) page's packing
+shows. Zero knowledge asks nothing of the circuit's writer: the scheme hides the witness, and no
+randomizer or blinding wire is needed. Not available: lookup arguments, which the study does not
+model.
 
 ## What Kishu is made of
 
@@ -177,7 +284,7 @@ Kishu is an arithmetization in [BitZ](pareto-template.html#bitz)'s style over
 
 Akita is a lattice-based polynomial commitment scheme, secure under the Module-SIS assumption: it
 commits to a vector of small integers, its digits, by an Ajtai hash over a ring with a 64-bit
-modulus (its own digits are balanced base-8 digits, a few bits each), and it accumulates many such
+modulus (its own digits are balanced base-8 digits, a few bits each), and it accumulates many such
 commitments into one by folding, so that a proof-carrying-data scheme can defer the expensive
 opening to the end.
 
@@ -186,28 +293,30 @@ proves an evaluation claim over any ring by lifting it to the integers.
 
 Kishu takes BitZ's view of the witness as small integers and the constraint style of Zinc+'s
 universal constraint systems. It commits the witness with Akita: bits where the circuit needs bits
-as factors, and Akita's own base-8 digits for integer words. So the committed vector is the witness
-itself, the range check certifies it, and Akita's accumulation replaces BitZ's hashing-heavy proofs.
-A digit is therefore the unit in which this study counts a circuit's size. The two arithmetizations
-are not the same. BitZ states integer relations and proves them by projecting to random prime
-fields. Kishu evaluates its constraints in $\mathbb{F}_q$, Akita's commitment modulus. It reaches
-the integers either by keeping each constraint's sides within a range no larger than $q$, the limb
-route, or by random-prime instances as BitZ does, the fingerprint route.
+as factors, and Akita's own base-8 digits for integer words. So the committed vector is the witness
+itself, each digit shifted into Akita's alphabet by a fixed offset; the range check certifies it,
+and Akita's accumulation replaces BitZ's hashing-heavy proofs. A digit is therefore the unit in
+which this study counts a circuit's size. The two arithmetizations are not the same. BitZ states
+integer relations and proves them by projecting to random prime fields. Kishu evaluates its
+constraints in $\mathbb{F}_q$, Akita's commitment modulus. It reaches the integers either by keeping
+each constraint's sides within a range no larger than $q$, the limb route, or by random-prime
+instances as BitZ does, the fingerprint route.
 
 The piece that such a combination needs is a range check over the lattice's own prime field, to
-certify that every digit lies in its alphabet. For the wider digits that is Akita's own paired
-predicate, a sum-check of degree $b/2$ for an alphabet of $b$ values. For the bits it is a
-Booleanity check, and an internal research draft of September 2026, provisional and unreviewed,
-supplies one. The committed table's bits are certified by one unweighted quadratic identity plus an
-integer norm bound, which a structured random projection supplies by revealing 160 coordinates. So
-BitZ's exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of its prover, is not needed.
-The draft measures the reduction alone, single-threaded at $2^{27}$ bits over $2^{64} - 59$. The
-projection prover takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms
-against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
+certify that every digit lies in its alphabet. For the wider digits that is Akita's own range
+sum-check, and for the bits it is a Booleanity check, combined as [the range
+check](#the-range-check) above describes. For the Booleanity check, an internal research draft of
+September 2026, provisional and unreviewed, supplies one. The committed table's bits are certified
+by one unweighted quadratic identity plus an integer norm bound, which a structured random
+projection supplies by revealing 160 coordinates. So BitZ's exponent-lift
+GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of its prover, is not needed. The draft measures
+the reduction alone, single-threaded at $2^{27}$ bits over $2^{64} - 59$. The projection prover
+takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms
+against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
 Booleanity sum-check, with verifiers of <!--fig:bool_projection_verify_ms-->0.85<!--/fig-->
-and <!--fig:bool_sumcheck_verify_ms-->0.023<!--/fig--> ms and payloads
-of <!--fig:bool_projection_kb-->2.6 kbytes<!--/fig-->
-and <!--fig:bool_sumcheck_kb-->1.7 kbytes<!--/fig-->. Neither includes the commitment opening or
+and <!--fig:bool_sumcheck_verify_ms-->0.023<!--/fig--> ms and payloads
+of <!--fig:bool_projection_kb-->2.6 kbytes<!--/fig-->
+and <!--fig:bool_sumcheck_kb-->1.7 kbytes<!--/fig-->. Neither includes the commitment opening or
 hiding. The projection form reveals coordinates of the committed table, so the rows that use it have
 no zero knowledge; the zero-knowledge rows use the sum-check form. The draft's certificates are
 conditional and not yet formalized; [Kishu's Soundness Obligations](kishu-soundness.md) states what
@@ -220,12 +329,14 @@ below price the arithmetization's units, the merge, and the application circuits
 
 ## Digits and constraints
 
-Kishu commits its digits over Akita's 64-bit modulus, plus the range check. For a bit that is the
-Booleanity check at <!--fig:bool_projection_per_bit-->2.5<!--/fig-->
-or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications. A dibit or a tribit costs
-one or three products more at the same rate, charged with the application's constraints. A step
-commits $2^{\mathrm{rank}}$ digits. Its constraints are charged as well as its digits: the
-constraint PIOP, a sum-check over the committed table, costs
+Kishu commits its digits over Akita's 64-bit modulus, plus [the range check](#the-range-check).
+Every digit pays one product of it, in the constraint sum-check. For a bit that product is the
+Booleanity check, at <!--fig:bool_projection_per_bit-->2.5<!--/fig-->
+or <!--fig:bool_sumcheck_per_bit-->9.8<!--/fig--> word multiplications by the projection or the
+sum-check form. A dibit or a tribit pays one or three products more, in Akita's range sum-check over
+its block. The model charges those at the rate of a constraint's product term, with the
+application's constraints. A step commits its length in digits. Its constraints are charged as well
+as its digits: the constraint PIOP, a sum-check over the committed table, costs
 about <!--fig:constraint_term_mults-->9.8<!--/fig--> word multiplications per product term of a
 constraint, the measured rate of the Booleanity sum-check. A nonzero coefficient of a linear
 combination costs <!--fig:nonzero_small_mults-->2<!--/fig--> for a small constant
@@ -236,8 +347,8 @@ transcript is absorbed and its verifier run in the merge above.
 Its claims live in the 64-bit field itself, Akita's commitment modulus, and the verifier recomposes
 each Pasta value from 32-bit limbs proved as linear claims in the same sum-check. So Kishu does not
 use the decoupled commitment, and its soundness rests on Akita's own at the 64-bit profile and on
-the draft's Booleanity certificate. Its opening proof and decider are priced on the Goldilocks
-variant's plan and measurement, the same profile, at Kishu's digit count.
+the draft's Booleanity certificate. Its opening proof and decider are priced on the plan and
+measurement of Akita's 64‑bit variant, the same profile, at Kishu's digit count.
 
 ## Pasta multiplication by two routes
 
@@ -247,29 +358,30 @@ rows therefore come in two routes, each a row. By the limb route the relation is
 by coefficient over 29-bit limbs, which are linear in the digits and cost nothing to commit. That
 is <!--fig:mult_coefficients-->17<!--/fig--> constraints of up to nine product terms each, bounded
 below half the modulus so that they hold over the integers, with a committed carry
-of <!--fig:mult_carry_bits-->34<!--/fig--> bits each. A multiplication is
-then <!--fig:mult_limbs_digits-->374<!--/fig--> digits and <!--fig:mult_limbs_terms-->98<!--/fig-->
+of <!--fig:mult_carry_bits-->34<!--/fig--> bits each. A multiplication is
+then <!--fig:mult_limbs_digits-->374<!--/fig--> digits and <!--fig:mult_limbs_terms-->98<!--/fig-->
 product terms. By the fingerprint route the relation is one constraint in each
 of <!--fig:fingerprint_instances-->3<!--/fig--> PIOP instances over random 52-bit primes, as BitZ
-checks it, at <!--fig:mult_fingerprint_digits-->170<!--/fig--> digits. The price is per step that
+checks it, at <!--fig:mult_fingerprint_digits-->170<!--/fig--> digits. The price is per step that
 has multiplications, so a step of hashes alone pays nothing and the routes tie on the path
-applications. Each instance's evaluation claim becomes about $\sqrt{2^{\mathrm{rank}}}$ integer
+applications. Each instance's evaluation claim becomes about $\sqrt{2^{\text{step rank}}}$ integer
 column sums by BitZ's tensor split, each exact as one claim in the 64-bit field and committed as a
-word of <!--fig:column_sum_bits-->61<!--/fig--> bits, <!--fig:column_sum_digits-->21<!--/fig-->
-digits. That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at rank 21,
-with three more transcripts for the merge above. So the recovery circuit
-is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig--> digits by the limb route
-and <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> by the fingerprint route. Its
-constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0135<!--/fig-->
-and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00556<!--/fig--> s on one core. The range checks
+word
+of <!--fig:column_sum_bits-->61<!--/fig--> bits, <!--fig:column_sum_digits-->21<!--/fig--> digits.
+That is <!--fig:fingerprint_step_digits_21-->91,287<!--/fig--> digits a step at step rank 21, with
+three more transcripts for the merge above. So the recovery circuit
+is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig--> digits by the limb route
+and <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> by the fingerprint route. Its
+constraint PIOPs take <!--fig:piop_recovery_kishu_limbs_s-->0.0126<!--/fig-->
+and <!--fig:piop_recovery_kishu_fingerprint_s-->0.00469<!--/fig--> s on one core. The range checks
 of its tribits take <!--fig:range_recovery_kishu_limbs_s-->0.0509<!--/fig-->
-and <!--fig:range_recovery_kishu_fingerprint_s-->0.0244<!--/fig--> s more, beyond the one product a
+and <!--fig:range_recovery_kishu_fingerprint_s-->0.0244<!--/fig--> s more, beyond the one product a
 digit that every digit pays.
 
 ## The merge
 
 Kishu's merge is Akita's, costed in digits. A committed bit is one digit, so a BLAKE3 compression of
-the transcript is <!--fig:blake3_chained_bits-->11,216<!--/fig--> digits and the images' reductions
+the transcript is <!--fig:blake3_chained_bits-->11,216<!--/fig--> digits and the images' reductions
 one per bit. The BLAKE3 accounting is its seven rounds of eight G functions. Every word of a G
 function is used once as a factor, in an XOR, and once linearly, in an addition, and only a factor
 needs committing:
@@ -285,18 +397,18 @@ needs committing:
 
 Where the output is the next compression's chaining value, within one message, four of its words are
 that compression's factors in its first round and are committed at one term a bit. The other four
-enter its first additions as expressions. That is <!--fig:blake3_chained_bits-->11,216<!--/fig-->
-digits a compression.
+enter its first additions as expressions. That
+is <!--fig:blake3_chained_bits-->11,216<!--/fig--> digits a compression.
 
 Where the output is data, all eight words are committed at one term a bit. A Merkle node's output
 and a hash call's are message words of the next compression, addends in each of its seven rounds,
 and a transcript's last output is a challenge. That
-is <!--fig:blake3_data_more_digits-->128<!--/fig--> digits
+is <!--fig:blake3_data_more_digits-->128<!--/fig--> digits
 more, <!--fig:blake3_bits-->11,344<!--/fig-->. <!--claim:blake3_output_same_constraints:80a8b3-->Either
 way a compression is <!--fig:blake3_piop_terms-->11,120<!--/fig--> constraints,<!--/claim-->
 with <!--fig:blake3_piop_nonzeros-->37,760<!--/fig--> nonzeros where the output is data.
 
-BLAKE3 splits a message into chunks of <!--fig:blake3_chunk_bytes-->1,024<!--/fig--> bytes, each a
+BLAKE3 splits a message into chunks of <!--fig:blake3_chunk_bytes-->1,024<!--/fig--> bytes, each a
 chain of compressions over its 64-byte blocks, and joins the chunks' outputs by a binary tree of
 parent compressions, one fewer than the chunks. Over a whole transcript the parents would
 be <!--fig:blake3_parent_overhead_pct-->6.25<!--/fig-->% more compressions, and that would compound,
@@ -308,32 +420,32 @@ BLAKE3 as specified, in its keyed mode, on a single block, so it is one compress
 transcript takes exactly one compression a block. The key is the compression's chaining value, so
 each output but the last is consumed as one, and the last is data.
 
-BLAKE2b has the same G function at 64 bits, each addition in two halves since a 64-bit sum can wrap
+BLAKE2b has the same G function at 64 bits, each addition in two halves since a 64-bit sum can wrap
 modulo $q$. Its finalisation differs: it XORs the old chaining word in with the two state words, a
 chain of two XORs. So all eight output words are committed, each bit certified at two terms. That
-gives BLAKE2b <!--fig:blake2b_bits_kishu-->38,528<!--/fig--> digits
+gives BLAKE2b <!--fig:blake2b_bits_kishu-->38,528<!--/fig--> digits
 and <!--fig:blake2b_piop_terms-->38,272<!--/fig--> constraints.
 
 Under BLAKE3 every transcript
 element the prover supplies is first checked to be below the modulus, since a 64-bit decomposition
-is canonical only there, about <!--fig:range_check_digits-->22<!--/fig--> digits a word.
+is canonical only there, about <!--fig:range_check_digits-->22<!--/fig--> digits a word.
 
 The merge's arithmetic is over the 64-bit field and its quadratic extension, which is the PIOP's own
 field. As in BitZ, the constraint PIOP runs over the ring itself, and only the final linear claim is
 proved on the bits. So a multiplication there is one constraint, with no bit decomposition and no
-quotient. But every wire is committed as tribits: <!--fig:q64_digits-->22<!--/fig--> digits for a
+quotient. But every wire is committed as tribits: <!--fig:q64_digits-->22<!--/fig--> digits for a
 field element and <!--fig:e_mult_digits-->44<!--/fig--> for a product in the extension. So the
 sum-check's arithmetic is <!--fig:sumcheck_gates-->400<!--/fig--> such products, each circuit's
 claim <!--fig:claim_gates-->4<!--/fig--> and the Booleanity sum-check's verifier
 about <!--fig:bool_sumcheck_merge_mults-->3,000<!--/fig-->; the projection verifier
-scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> sampled coefficients, a digit each. The
+scans <!--fig:bool_projection_scan-->3.1 million<!--/fig--> sampled coefficients, a digit each. The
 transcript's elements and each circuit's claim are elements of the
-extension, <!--fig:kishu_claim_bytes-->16<!--/fig--> bytes, and the Booleanity sum-check's own
+extension, <!--fig:kishu_claim_bytes-->16<!--/fig--> bytes, and the Booleanity sum-check's own
 transcript is absorbed with them.
 
 Under the Poseidon option the transcript is hashed by Poseidon over the 64-bit field at width 12 and
 rate 8 with the $x^3$ S-box: <!--fig:q64_poseidon_mults-->276<!--/fig--> multiplications a
-permutation at <!--fig:q64_digits-->22<!--/fig--> digits
+permutation at <!--fig:q64_digits-->22<!--/fig--> digits
 each. <!--claim:poseidon_fewer_digits_than_blake3:82eb62-->That
 is <!--fig:poseidon_of_blake3_digits_pct-->54<!--/fig-->% of BLAKE3's committed digits per absorbed
 byte, fewer because Poseidon's wires are tribits where BLAKE3's are bits.<!--/claim--> A permutation
@@ -341,7 +453,7 @@ is <!--fig:q64_poseidon_mults-->276<!--/fig--> constraints
 with <!--fig:poseidon_q64_piop_nonzeros-->13,800<!--/fig--> nonzeros of field constants, where a
 BLAKE3 compression is <!--fig:blake3_piop_terms-->11,120<!--/fig-->
 with <!--fig:blake3_piop_nonzeros-->37,760<!--/fig--> of small ones, and these are charged at the
-rates above. <!--claim:hash_within_quarter:de8249-->Per 64 bytes absorbed, commitments and
+rates above. <!--claim:hash_within_quarter:de8249-->Per 64 bytes absorbed, commitments and
 constraints together, BLAKE3 costs <!--fig:blake3_64b_mults-->430,000<!--/fig--> word
 multiplications and Poseidon <!--fig:poseidon_64b_mults-->350,000<!--/fig-->,
 within <!--fig:hash_64b_within_pct-->21<!--/fig-->% of each other, which many modelling choices
@@ -362,13 +474,13 @@ generators by ten bits, each coordinate a fixed linear form in the subset produc
 a product that is a factor of another is committed:
 the <!--fig:sinsemilla_committed_products-->52<!--/fig--> subsets within each half of the bits.
 The <!--fig:sinsemilla_cross_products-->961<!--/fig--> subsets spanning both halves are terms of the
-two coordinate constraints. So a chunk is <!--fig:sinsemilla_chunk_digits-->222<!--/fig--> digits
+two coordinate constraints. So a chunk is <!--fig:sinsemilla_chunk_digits-->222<!--/fig--> digits
 with its coordinates. Costed component by component in this arithmetization, with a committed bit at
-one digit and a multiplication at <!--fig:mult_limbs_digits-->374<!--/fig--> digits by the limb
+one digit and a multiplication at <!--fig:mult_limbs_digits-->374<!--/fig--> digits by the limb
 route or <!--fig:mult_fingerprint_digits-->170<!--/fig--> by the fingerprint route, the recovery
-circuit is <!--fig:app_recovery_kishu_limbs-->6.1 million<!--/fig-->
-or <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> digits. In Pasta arithmetic it
-is <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> gates. The frontier page's transaction
+circuit is <!--fig:app_recovery_kishu_limbs-->5.9 million<!--/fig-->
+or <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> digits. In Pasta arithmetic it
+is <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> gates. The frontier page's transaction
 measure uses those counts together with the constraint PIOP's work.
 
 ## A rough cost model
@@ -389,16 +501,15 @@ multiplications are native 64-bit ones on the prover.
 | a BLAKE3 compression | <!--fig:blake3_bits-->11,344<!--/fig--> | <!--fig:blake3_piop_terms-->11,120<!--/fig--> | |
 | a Poseidon permutation over $\mathbb{F}_q$ | <!--fig:q64_poseidon_mults-->276<!--/fig--> × <!--fig:q64_digits-->22<!--/fig--> | <!--fig:q64_poseidon_mults-->276<!--/fig--> | |
 | a Pasta multiplication | <!--fig:mult_fingerprint_digits-->170<!--/fig--> by fingerprint, <!--fig:mult_limbs_digits-->374<!--/fig--> by limbs | 3 or <!--fig:mult_limbs_terms-->98<!--/fig--> | the fingerprint route's column sums per step besides |
-| a claim absorbed by the merge | <!--fig:kishu_claim_digits_blake3-->3,000<!--/fig--> under BLAKE3 | | |
-| a step | $2^{\mathrm{rank}}$ | | its digits' commitment and its constraints' PIOP |
-| the merge of one step | <!--fig:kishu17_blake3_digits-->1.2 million<!--/fig--> at rank 17, in a step of <!--fig:kishu17_blake3_circuits-->13<!--/fig--> circuits; the merge within one circuit, beside the application's, from rank <!--fig:kishu_one_circuit_rank-->21<!--/fig--> | | as a step's |
+| a step | its length, chosen | | its digits' commitment and its constraints' PIOP |
+| the merge of one step | <!--fig:kishu21_blake3_digits-->1.2 million<!--/fig--> in a step of $2^{21}$ digits | | as a step's |
 
 A transaction's prover work is then its steps' commitments and PIOPs, a merge for each step, the
 fold's sum-checks over the accumulator, and the final opening. The frontier page's axes
 [Accumulation prover](pareto-template.html#accumulation-prover), [Prover commitment
 work](pareto-template.html#prover-work), and [Transaction
-prover](pareto-template.html#transaction-prover) say how each is counted, and its
-[Rank](pareto-template.html#rank) section how the step size is chosen. Zero knowledge adds the
+prover](pareto-template.html#transaction-prover) say how each is counted, and its [Step
+rank](pareto-template.html#step-rank) section how the step size is chosen. Zero knowledge adds the
 masked accumulation matrix's rate to every digit and the masking fold once per transaction, as [Zero
 Knowledge for a Lattice Accumulation Step](zk-fiat-shamir-with-aborts.md) describes.
 
@@ -407,13 +518,13 @@ Knowledge for a Lattice Accumulation Step](zk-fiat-shamir-with-aborts.md) descri
 [Relation to Ragu](#relation-to-ragu) above gives the differences in the arithmetization itself.
 Beyond it, Ragu commits a step's trace as one structured polynomial of degree below $4n$, by
 Pedersen, and checks the gates and constraints together by one revdot identity at random points,
-sound by Schwartz–Zippel in the field. A step of rank $r$ commits $2^r$ coefficients, so $2^{r-2}$
-gates: at rank 13, Ragu's production rank, 2,048 gates, which every one of Tachyon's circuits fits.
-Kishu differs in these ways:
+sound by Schwartz–Zippel in the field. A step of step rank $r$ commits $2^r$ coefficients, so
+$2^{r-2}$ gates: at step rank 13, Ragu's production step rank, 2,048 gates, which every one of
+Tachyon's circuits fits. Kishu differs in these ways:
 
 - **A value's digits cost less than a coefficient.** Ragu's gate costs about one Pallas
   multiplication of Pedersen work per wire, about <!--fig:pedersen_per_coeff_13-->5,600<!--/fig-->
-  word multiplications a coefficient at rank 13. Kishu's digit
+  word multiplications a coefficient at step rank 13. Kishu's digit
   costs <!--fig:kishu_digit_mults-->11.0<!--/fig--> to commit, so a Pasta
   value's <!--fig:value_digits-->85<!--/fig--> tribits
   cost <!--fig:kishu_value_commit_mults-->935<!--/fig-->, well under one coefficient.
@@ -423,22 +534,23 @@ Kishu differs in these ways:
   integer relations projected to the 64-bit field or to random primes. A constraint is charged by
   its product terms and nonzeros rather than by gates.
 - **Hashes are cheap and Pasta arithmetic is dear.** In Ragu a Poseidon permutation over Pallas is
-  about 192 gates and a Pasta multiplication one gate, while a bit-oriented hash would cost a gate
-  per bit operation. In Kishu a BLAKE3 compression is <!--fig:blake3_bits-->11,344<!--/fig-->
-  digits, one per bit, and a Pasta multiplication <!--fig:mult_fingerprint_digits-->170<!--/fig-->
-  or <!--fig:mult_limbs_digits-->374<!--/fig--> digits by relation, since the field is not Pasta's.
+  about 192 gates and a Pasta multiplication one gate, while a bit-oriented hash would cost a gate
+  per bit operation. In Kishu a BLAKE3 compression
+  is <!--fig:blake3_bits-->11,344<!--/fig--> digits, one per bit, and a Pasta
+  multiplication <!--fig:mult_fingerprint_digits-->170<!--/fig-->
+  or <!--fig:mult_limbs_digits-->374<!--/fig--> digits by relation, since the field is not Pasta's.
   That is why the recovery circuit
-  is <!--fig:app_recovery_kishu_fingerprint-->3.2 million<!--/fig--> digits
-  against <!--fig:app_recovery_pasta_poseidon-->570,000<!--/fig--> Pasta gates, and why Zoodles,
+  is <!--fig:app_recovery_kishu_fingerprint-->2.9 million<!--/fig--> digits
+  against <!--fig:app_recovery_pasta_poseidon-->560,000<!--/fig--> Pasta gates, and why Zoodles,
   with no Pasta arithmetic, suits it. Kishu is not specialized to Pasta at all. Given that, it does
   well on Pasta in prover time, as the frontier page's transaction measure shows, and it would do as
   well on any large-field arithmetic.
 - **The claim field is small.** Ragu's claims are Pallas elements; Kishu's are elements of the
-  64-bit field's quadratic extension, <!--fig:kishu_claim_bytes-->16<!--/fig--> bytes, so a Pasta
+  64-bit field's quadratic extension, <!--fig:kishu_claim_bytes-->16<!--/fig--> bytes, so a Pasta
   value is proved through limbs or a fingerprint.
 - **The step is larger and its size is a knob.** Ragu's step is fixed at $2^{13}$ coefficients;
-  Kishu's is $2^{\mathrm{rank}}$ digits over a range of ranks, and one Kishu step holds several of
-  Tachyon's circuits, as the [Zoodles](zoodles.md) page's packing shows.
+  Kishu's is $2^{\text{step rank}}$ digits over a range of step ranks, and one Kishu step holds
+  several of Tachyon's circuits, as the [Zoodles](zoodles.md) page's packing shows.
 - **The merge verifies a lattice fold.** Ragu's merge circuits verify Pedersen-IPA accumulation with
   Poseidon transcripts over Pallas ([the frontier page's circuit
   budget](pareto-template.html#circuit-budget)); Kishu's verify Akita's fold, its sum-checks and

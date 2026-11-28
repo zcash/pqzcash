@@ -12,18 +12,22 @@ protocol has keys of its own; what they share is the derivation, so the same che
 - the recovery of a Tachyon note, [once its proof-authorizing key carries
   $\mathsf{qk}$](recovery-tachyon.md#what-the-key-structure-lacks).
 
-In Zoodles the spend step opens the payment key to $(\mathsf{nk}, \mathsf{qk})$ and derives
-$\mathsf{qk}$ from $\mathsf{qsk}$, two BLAKE3 compressions, the second being the check. On its own
-the statement is one BLAKE3 compression, <!--fig:app_qk_bits-->11,344<!--/fig--> committed digits in
-Kishu, which the frontier page prices as the device statement `qk`, with the linking commitment of
-ZIP 2005's hardware-wallet section left out for now. [Hardware wallets](hardware-wallets.md) gives
-what it costs a wallet to prove by itself.
+In Zoodles the spend step opens the payment key to $(\mathsf{nk}, \mathsf{qk})$, one BLAKE3
+compression. The check, that $\mathsf{qk}$ is derived from $\mathsf{qsk}$, is a second, in an
+authorization node that every spend from that key uses, so it is proved once for each spending key
+([Spend authorization](spend-authorization.md)). On its own the statement is one BLAKE3
+compression, <!--fig:app_qk_bits-->11,344<!--/fig--> committed digits in Kishu, which the frontier
+page prices as the device statement `qk`, with the linking commitment of ZIP 2005's hardware-wallet
+section left out for now. [Hardware wallets](hardware-wallets.md) gives what it costs a wallet to
+prove by itself.
 
-Inside a transaction's own proof the check needs nothing more: the spend step that proves it is
-bound to the rest of the transaction by the proof tree, directly and through the PCD headers, so no
-digest of the transaction is involved. Made outside that proof, as a wallet's leaf handed to the
-host or as ZIP 2005's $\mathsf{SoK^{qsk}}$ on the transaction's SigHash, the proof is a signature,
-and the rest of this page is about what that requires.
+Inside a transaction's own proof the node that proves the check is bound to the rest of the
+transaction by the proof's graph, directly and through the PCD headers. That binding holds only
+while the node's accumulator stays with the prover: one that leaked would authorize any transaction
+it were built into. So in Zoodles the check is a signature in every case, on the transaction's
+digest. It is one already where the proof is made outside the transaction's own, as a wallet's leaf
+handed to the host or as ZIP 2005's $\mathsf{SoK^{qsk}}$ on the transaction's SigHash. The rest of
+this page is about what a signature requires.
 
 ## The signature of knowledge
 
@@ -61,9 +65,9 @@ the signature-of-knowledge property would have to be a named hypothesis.
 ### A route that is available: the non-injectivity of the hash
 
 A classical argument avoids simulation extractability altogether, and it fits this statement
-unusually well. $\mathsf{H^{qk}}$ maps 256 bits to 256 bits, so a uniformly random $\mathsf{qsk}$
+unusually well. $\mathsf{H^{qk}}$ maps 256 bits to 256 bits, so a uniformly random $\mathsf{qsk}$
 has a second preimage with probability about
-$1 - 1/e$, <!--fig:sok_second_preimage_pct-->63<!--/fig--> percent. The reduction to the collision
+$1 - 1/e$, <!--fig:sok_second_preimage_pct-->63<!--/fig--> percent. The reduction to the collision
 resistance of $\mathsf{H^{qk}}$ picks $\mathsf{qsk}$ itself, answers every signing query with the
 real prover, and extracts a preimage from the forgery. A zero-knowledge proof is witness
 indistinguishable [\[FS90\]](#ref-fs90). So when a second preimage exists, the forger's view is the

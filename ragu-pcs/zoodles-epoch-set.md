@@ -26,16 +26,16 @@ quadratic-residue profile, each bucket a committed polynomial opened at the null
 field element, so the field must hold a 256-bit tachygram: Pallas itself in Tachyon, and over
 Kishu's 64-bit modulus a quartic extension, in which a root costs nine base multiplications. The
 wallet folds the bucket's contents every
-epoch, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits
+epoch, <!--fig:zoodles_bucket_digits-->2.10 million<!--/fig--> digits
 for <!--fig:zoodles_bucket_coeffs-->8,192<!--/fig--> tachygrams, against the
 tree's <!--fig:app_zoodles_epoch_kishu-->250,000<!--/fig-->.
 
-The extension could be avoided by shortening the tachygrams, to 128 bits say, so that the
+The extension could be avoided by shortening the tachygrams, to 128 bits say, so that the
 polynomials live in Kishu's claim field. Secrecy does not protect a compression: a tachygram is
 public in the mempool before it is final, and an attacker who sees it there can grind a colliding
 image into an output or a nullifier of their own and have it mined first, a roadblock. Against one
 target that costs $2^{128}$ classically and a Grover search of depth $2^{64}$, which the usual depth
-limits put out of reach, so a compression to 128 bits survives the roadblock on that reading. It
+limits put out of reach, so a compression to 128 bits survives the roadblock on that reading. It
 does not survive the multi-target version of the membership check: an attacker who wants a note
 whose compressed commitment lands on any of the $N$ commitments ever created, $2^{30}$ or more over
 the chain's life, pays $2^{128}/N$, below $2^{100}$, and the search needs no race. So a compressed
@@ -50,7 +50,7 @@ which is not Tachyon's technique either.
 
 The non-membership accumulator proposed for Zcash in 2019
 ([zcash/zcash#4062](https://github.com/zcash/zcash/issues/4062)) is a hash table: a tachygram goes
-to one of $2^B$ buckets by its $B$-bit prefix, a bucket holds up to $K$ suffixes of $N - B$ bits,
+to one of $2^B$ buckets by its $B$-bit prefix, a bucket holds up to $K$ suffixes of $N - B$ bits,
 and the buckets are the leaves of a tree of depth $B$. A note whose nullifier finds its bucket full
 is treated as spent, so the table is an approximate set: an exact collision or a full bucket is a
 false positive that destroys an honest note. The issue left the choice of $B$ and $K$ for later.
@@ -63,7 +63,7 @@ balls thrown into bins in its heavily loaded case, $m \gg 2^B$, where the typica
 $\mu + \sqrt{2\mu \ln 2^B}$ [[RS98](#ref-rs98), [\[BCSV06\]](#ref-bcsv06)]; a bound of $2^{-64}$ on
 losing any note sits far out in the tail, and that is what sets $K$. The least $K$ with the bound
 below $2^{-64}$ and $2^{-128}$, and the exclusion proof's hashes at the first, the $B$ path hashes
-plus the bucket's $K (N - B)$ bits at 512 a compression:
+plus the bucket's $K (N - B)$ bits at 512 a compression:
 
 | tachygrams | prefix bits $B$ | mean load $\mu$ | $K$ at $2^{-64}$ | $K$ at $2^{-128}$ | proof hashes, table | sorted tree |
 |---|---|---|---|---|---|---|
@@ -80,7 +80,7 @@ tree's.<!--/claim-->
 
 The issue's second idea is to make the bucket's contents approximate too. Storing a $T$-bit tag of
 each suffix adds a within-bucket collision term of about $m \mu / 2^{T+1}$, so
-$T \approx \log_2 m + \log_2 \mu + \lambda$: <!--fig:bucket_tag_bits_20_16-->87<!--/fig--> bits at
+$T \approx \log_2 m + \log_2 \mu + \lambda$: <!--fig:bucket_tag_bits_20_16-->87<!--/fig--> bits at
 $2^{20}$ tachygrams, $\mu = $ <!--fig:bucket_mu_20_16-->16<!--/fig--> and $2^{-64}$, which brings
 that row's proof to <!--fig:bucket_tag_hashes_20_16-->29<!--/fig--> hashes, still above the tree's.
 Placing each tachygram in the emptier of two buckets [\[ABKU99\]](#ref-abku99) brings the maximum

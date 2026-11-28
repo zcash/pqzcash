@@ -8,6 +8,10 @@
 # rows so that the page can take the least that reaches each floor. Run from ragu-pcs, with
 # the estimator in the Akita clone's third_party submodule (scripts/akita-checkout.sh), under
 # work/ or $RAGU_PCS_WORK: `sage scripts/knapsack-lwe-check.py`.
+#
+# With arguments it runs one sweep only, at other rows: `sage scripts/knapsack-lwe-check.py ROWS
+# START STOP STEP`, the padding from START to STOP bits inclusive. The 165-bit level's wallet
+# matrix has 2,048 rows, where the padding that reaches a floor is longer.
 import os
 import sys
 
@@ -42,6 +46,20 @@ def cost(attack, params):
     return float(log(c["rop"], 2)), c.get("beta"), c.get("d")
 
 
+def sweep(rows, grid):
+    print("sweep: rows,bits,primal_usvp,dual_hybrid", flush=True)
+    for bits in grid:
+        params = instance(rows, bits)
+        primal = cost(LWE.primal_usvp, params)[0]
+        dual = cost(LWE.dual_hybrid, params)[0]
+        print(f"sweep: {rows},{bits},{primal:.1f},{dual:.1f}", flush=True)
+
+
+if len(sys.argv) > 1:
+    rows, start, stop, step = (int(a) for a in sys.argv[1:5])
+    sweep(rows, range(start, stop + 1, step))
+    sys.exit(0)
+
 for rows in (1024, 1385, 2048):
     params = instance(rows, 5000)
     print(params, flush=True)
@@ -52,10 +70,4 @@ for rows in (1024, 1385, 2048):
 # The sweep at the device's rows, the two attacks that are ever the cheapest above: steps of
 # 250 bits, and of 50 where the two floors are crossed.
 grid = sorted({*range(3500, 6001, 250), *range(4250, 5001, 50)})
-print("sweep: rows,bits,primal_usvp,dual_hybrid", flush=True)
-for rows in (1024,):
-    for bits in grid:
-        params = instance(rows, bits)
-        primal = cost(LWE.primal_usvp, params)[0]
-        dual = cost(LWE.dual_hybrid, params)[0]
-        print(f"sweep: {rows},{bits},{primal:.1f},{dual:.1f}", flush=True)
+sweep(1024, grid)

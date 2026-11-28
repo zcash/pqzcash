@@ -14,20 +14,20 @@ system that verifies the signature.
 
 ## The paper's figures
 
-Over a 256-bit field at 128 bits, the paper's instances are
+Over a 256-bit field at 128 bits, the paper's instances are
 between <!--fig:capss_short_bytes_min-->9,504<!--/fig-->
-and <!--fig:capss_fast_bytes_max-->25,824<!--/fig--> bytes, with verification
+and <!--fig:capss_fast_bytes_max-->25,824<!--/fig--> bytes, with verification
 between <!--fig:capss_r1cs_min-->20,717<!--/fig--> and <!--fig:capss_r1cs_max-->71,145<!--/fig-->
 rank-1 constraints. Its headline instances are
-Anemoi's, <!--fig:capss_anemoi_default_bytes-->12,640<!--/fig--> bytes
+Anemoi's, <!--fig:capss_anemoi_default_bytes-->12,640<!--/fig--> bytes
 and <!--fig:capss_anemoi_default_r1cs-->23,484<!--/fig--> constraints at the default trade-off, with
 verification calling the permutation about <!--fig:capss_verify_calls-->173<!--/fig--> times and
 signing about <!--fig:capss_sign_calls-->13,900<!--/fig-->. Over the 64-bit Goldilocks field, which
 is Kishu's size, the implemented Anemoi instance signs
-in <!--fig:capss_goldilocks_sign_ms-->101<!--/fig--> ms and verifies
-in <!--fig:capss_goldilocks_verify_ms-->1.4<!--/fig--> ms on a desktop core
-at <!--fig:capss_goldilocks_bytes-->9,715<!--/fig--> bytes,
-against <!--fig:capss_bn254_sign_ms-->2,460<!--/fig--> ms of signing over a 254-bit field. The paper
+in <!--fig:capss_goldilocks_sign_ms-->101<!--/fig--> ms and verifies
+in <!--fig:capss_goldilocks_verify_ms-->1.4<!--/fig--> ms on a desktop core
+at <!--fig:capss_goldilocks_bytes-->9,715<!--/fig--> bytes,
+against <!--fig:capss_bn254_sign_ms-->2,460<!--/fig--> ms of signing over a 254-bit field. The paper
 estimates the 64-bit verifier at <!--fig:capss_goldilocks_r1cs_min-->80,000<!--/fig-->
 to <!--fig:capss_goldilocks_r1cs_max-->100,000<!--/fig--> constraints,
 about <!--fig:capss_field_factor-->4<!--/fig--> times the 256-bit field's, since the smaller field
@@ -35,9 +35,9 @@ needs more repetitions for the same soundness.
 
 Anemoi is not the permutation to use. The algebraic FreeLunch attacks [\[BBL+24\]](#ref-bbl24) and
 the Gröbner-basis cryptanalysis of Anemoi that followed [\[CR25\]](#ref-cr25) have cut its margin,
-and Griffin's and Rescue-Prime's with it, below the 128 bits the paper's parameters claim. The paper
+and Griffin's and Rescue-Prime's with it, below the 128 bits the paper's parameters claim. The paper
 says so and keeps its parameters for comparability. Its Poseidon instances, which the attacks do not
-reach, are the conservative ones: <!--fig:capss_poseidon_default_bytes-->19,616<!--/fig--> bytes
+reach, are the conservative ones: <!--fig:capss_poseidon_default_bytes-->19,616<!--/fig--> bytes
 and <!--fig:capss_poseidon_default_r1cs-->46,567<!--/fig--> constraints at the default trade-off,
 with verification calling the permutation about <!--fig:capss_poseidon_verify_calls-->143<!--/fig-->
 times at three widths and signing about <!--fig:capss_poseidon_sign_calls-->10,000<!--/fig-->.
@@ -48,27 +48,28 @@ A SNARK-friendly signature's advantage is in a prime-field arithmetization: ther
 is tens of thousands of multiplication gates, where a leanSPHINCS
 verifier's <!--fig:leansphincs_blake3_calls-->298<!--/fig--> BLAKE3 or BLAKE2s compressions are
 millions. Kishu commits bits, which is what suits BLAKE2s to it, and a field wire costs
-it <!--fig:q64_digits-->22<!--/fig--> digits, so the comparison has to be made in Kishu's own units.
+it <!--fig:q64_digits-->22<!--/fig--> digits, so the comparison has to be made in Kishu's own units.
 The permutation that is cheap in Kishu is Poseidon over its 64-bit field, which the model already
 prices at <!--fig:q64_poseidon_mults-->276<!--/fig--> multiplications a permutation, each a
 committed wire. Taking the paper's Poseidon call counts and its factor
 of <!--fig:capss_field_factor-->4<!--/fig--> for the 64-bit field, a verifier is
-about <!--fig:capss_kishu_poseidon_digits_est-->3.47 million<!--/fig--> digits,
-against <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> for leanSPHINCS with BLAKE3
-and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s. The paper's own
+about <!--fig:capss_kishu_poseidon_digits_est-->3.47 million<!--/fig--> digits,
+against <!--fig:app_leansphincs_blake3_kishu-->3.39 million<!--/fig--> for leanSPHINCS with BLAKE3
+and <!--fig:app_leansphincs_blake2s_kishu-->4.81 million<!--/fig--> with BLAKE2s. The paper's own
 constraint estimate for the 64-bit field, at one wire a constraint,
-gives <!--fig:capss_kishu_digits_est-->2.2 million<!--/fig-->. So in Kishu the two are within a
+gives <!--fig:capss_kishu_digits_est-->2.2 million<!--/fig-->. So in Kishu the two are within a
 factor of two or so of each other, and nothing like the order of magnitude a prime-field circuit
 sees. These are estimates from the paper's counts at the model's per-permutation cost, not a row of
 the frontier page. A row would count the verifier's calls at each width and add the field arithmetic
 of the PACS checks.
 
 Signing is a SmallWood proof, about <!--fig:capss_kishu_poseidon_sign_calls-->40,000<!--/fig-->
-permutations over the 64-bit field with Merkle trees of 2^10 to 2^14 leaves. At the page's assumed
-rate for an MCU-class device that is about <!--fig:capss_device_sign_s_est-->1.1<!--/fig--> s, and a
-few times that on a secure element. So a device can sign with it, where it could not make a Kishu
-leaf. The trees' memory, 2^12 leaves of 32 bytes, is a secure element's whole budget. The signature,
-about 20 kbytes, fits a QR channel at four or five times leanSPHINCS's scanning time.
+permutations over the 64-bit field with Merkle trees of $2^{10}$ to $2^{14}$ leaves. At the page's
+assumed rate for an MCU-class device that is
+about <!--fig:capss_device_sign_s_est-->1.1<!--/fig--> s, and a few times that on a secure element.
+So a device can sign with it, where it could not make a Kishu leaf. The trees' memory, $2^{12}$
+leaves of 32 bytes, is a secure element's whole budget. The signature, about 20 kbytes, fits a QR
+channel at four or five times leanSPHINCS's scanning time.
 
 ## Against the other two methods
 

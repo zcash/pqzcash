@@ -9,7 +9,7 @@ concrete, not to be fast or secure.
 
 ## What it does
 
-1. **Source.** n = 2^12 bits in F_q, q = 2^64 − 59; the first 255 are a Pasta field element's
+1. **Source.** n = 2^12 bits in F_q, q = 2^64 − 59; the first 255 are a Pasta field element's
    bits, the rest random. A mocked commitment (`Oracle`) answers one evaluation ŝ(ρ) over
    E = F_q[u]/(u² − 2), standing in for Akita's opening of a binary source.
 2. **Projection** (draft §5.1). g = 4 independent tensor chains of balanced-ternary cores
@@ -27,7 +27,7 @@ concrete, not to be fast or secure.
    v = ŝ(ρ) from the oracle. The verifier evaluates ŵ(ρ) by the backward contraction through
    the cores (draft §4.1): about 10,000 coefficient operations instead of n, and the spike
    asserts it equals the materialized table's evaluation.
-5. **Pasta claims** (§6.3). The 255 bits are read as eight 32-bit limbs ⟨c_j, s⟩; each is an
+5. **Pasta claims** (§6.3). The 255 bits are read as eight 32-bit limbs ⟨c_j, s⟩; each is an
    integer below 2^32 < q, so its F_q inner product is its integer inner product (no wrap, given
    Booleanity and n ≤ 2^31). The limb claims join the same sum-check through weights μ_j, and the
    verifier recomposes V = Σ 2^(32 j) v_j over the integers and reduces modulo p.
@@ -60,7 +60,7 @@ non-Boolean source, and the projection is what rejects it.
 - The certified parameters: the honest-rejection bound (draft equation 14, here Markov at p = 1
   giving C = 2^59.6), the comparison-law certificate at 2^-136, and the exact-arithmetic checks.
 - The prover's packed-bit first layer and implicit-bit startup (draft §4.2), which are what make
-  it 113 ms at 2^27 bits; the toy materializes everything.
+  it 113 ms at 2^27 bits; the toy materializes everything.
 - The merge circuit: `frontend_merge_digits` in `pareto-model.py` prices absorbing the
   sum-check transcript, the revealed coordinates and the claims, and the projection verifier's
   coefficient scan in the sum-check form.
