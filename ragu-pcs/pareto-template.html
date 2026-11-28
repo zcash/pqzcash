@@ -1548,7 +1548,7 @@ code { font-family: var(--mono); font-size: 0.92em; }
   before each challenge whose error would otherwise exceed that. So the 147‑bit floor is 128 bits
   with the lattice part held to a more conservative cost model, not 147 bits throughout.<!--/claim-->
   Kishu's own claim reduction, in its 128‑bit field, has an error of
-  about <!--fig:level3_claim_error_128-->$2^{-121}$<!--/fig--> an attempt, which
+  about <!--fig:kishu_claim_error_128-->$2^{-121}$<!--/fig--> an attempt, which
   is <!--fig:kishu_claim_grind_bits-->7<!--/fig--> bits short of that target counted in
   attempts. It needs no proof of work for so few: an attempt costs the adversary more than $2^7$
   operations, since it has to hash the challenge and check what it gives.</p>
@@ -1620,18 +1620,23 @@ code { font-family: var(--mono); font-size: 0.92em; }
     to <!--fig:compression_level3_spare_max_pct-->27<!--/fig-->% of input width to
     spare.<!--/claim--> The chain exists in the planner only: the prover and the verifier are not
     adapted to it.</li>
-    <li><!--claim:level3_claim_field_reaches_level:d8c1c0-->A claim is in a larger challenge field.
-    A sum-check's error is a small multiple of its number of variables over the field's size. For
-    Kishu's claim reduction over a field $E$ in $m$ variables it is at most $(4m+1)/|E|$, with
-    $m \le 31$, a numerator of at most <!--fig:level3_claim_numerator-->125<!--/fig-->
+    <li><!--claim:level3_claim_field_reaches_level:f1f4c1-->A claim is in a larger challenge field.
+    Each challenge has an error of its own, a loss factor over the field's size. The largest factor
+    in Akita's plan is the ring-switch challenge's, $2d - 1$ for an inner ring of dimension $d$.
+    At the level's largest dimension, <!--fig:level3_ring_dimension-->2,048<!--/fig--> for the
+    64‑bit modulus, that is <!--fig:level3_ring_switch_loss-->4,095<!--/fig-->. It exceeds the
+    numerator of Kishu's claim reduction, which is at most $(4m+1)/|E|$ over a field $E$ in
+    $m \le 31$ variables, so at most <!--fig:level3_claim_numerator-->125<!--/fig-->
     (<span class="noteref" data-note="kishu-soundness" data-section="3">Theorem B</span>). So the
-    level needs a field of at least <!--fig:level3_claim_bits_needed-->172<!--/fig--> bits, not 165.
-    The 128‑bit field and Goldilocks's quadratic extension, each of 128 bits, give an error of
-    about <!--fig:level3_claim_error_128-->$2^{-121}$<!--/fig-->. So the 128‑bit field's claims
+    level needs a field of at least <!--fig:level3_claim_bits_needed-->177<!--/fig--> bits, not 165.
+    A field of 128 bits gives the ring-switch challenge an error of
+    about <!--fig:level3_claim_error_128-->$2^{-116}$<!--/fig-->. So the 128‑bit field's claims
     move to its quadratic extension, of 256 bits, and the 64‑bit fields' to their cubic extension,
-    of 192 bits, where the error is about
-    <!--fig:level3_claim_error_cubic-->$2^{-185}$<!--/fig-->.<!--/claim--> The errors of Akita's own
-    sum-checks at the level have not been worked out here, and are taken to be of the same form.
+    of 192 bits, where that error is about
+    <!--fig:level3_claim_error_cubic-->$2^{-180}$<!--/fig-->.<!--/claim--> The other challenges'
+    factors are small: a sum-check round's degree, a point's number of coordinates, and a batch's
+    number of claims. These are the planner's formulas; the plan's own list of factors has not been
+    printed.
     The sum-checks' prover is scaled by the field products of a multiplication in the larger
     field.</li>
     <li><!--claim:level3_challenge_weight_small_effect:8e6492-->The fold's ternary challenge has

@@ -759,10 +759,10 @@ def akita_atoms(variant, K, circuits, zk):
 
 # What the 165-bit level changes in a lattice row's merge, beside its hash:
 #   - A claim is an element of a challenge field large enough for the sum-checks' error. A
-#     sum-check of m variables has an error of a small multiple of m over the field's size
-#     (LEVEL3_CLAIM_NUMERATOR, for Kishu's claim reduction), so the field needs some bits more
+#     challenge's error is a loss factor over the field's size, and the largest factor is the
+#     ring-switch challenge's (LEVEL3_RING_SWITCH_LOSS), so the field needs some bits more
 #     than the level's 165. The 128-bit field's and Goldilocks's quadratic extension's 128 bits
-#     give about 2^-121, far short of it, so the 128-bit profile's claims move to its
+#     are far short of it, so the 128-bit profile's claims move to its
 #     quadratic extension and the 64-bit profiles' to the cubic one. Pasta's field already
 #     serves.
 #   - A commitment's image is compressed by a chain of three maps where the 128- and 147-bit
@@ -793,6 +793,14 @@ LEVEL3_CLAIM_BYTES = {"fp128": 32, "goldilocks": 24, "kishu": 24}
 # The numerator of the error of Kishu's claim reduction over a field E: at most (4m + 1)/|E|
 # for m variables (kishu-soundness.md, Theorem B), with m at most 31 (its Lemma B3).
 LEVEL3_CLAIM_NUMERATOR = 4 * 31 + 1
+# Akita holds each Fiat-Shamir challenge to its own error, a loss factor over the field's size
+# (its akita-params crate, transcript_grinding/plan.rs). The largest factor is the ring-switch
+# challenge's: 2 d - 1 for an inner ring of dimension d, since a quotient-lift residual has
+# degree below 2 d. The others are small: a sum-check round's degree, a point's number of
+# coordinates, a batch's number of claims. The dimensions are the largest dA among the
+# policies of the level's planned catalog, for the 64-bit and the 128-bit modulus.
+LEVEL3_INNER_RING_DIMENSION = {"q64": 2048, "fp128": 1024}
+LEVEL3_RING_SWITCH_LOSS = {k: 2 * d - 1 for k, d in LEVEL3_INNER_RING_DIMENSION.items()}
 # A chained or sponge transcript hash with a state of c bits is provable for work T while the
 # proofs' lost term, about T^2/2^c, is within the level's T/2^165: up to 2^(c - 165) work, and
 # at every work up to the level's when c is twice the level. BLAKE3's chaining value is 256
@@ -7087,6 +7095,10 @@ def define_figures():
     # challenge and the check of its outcome, so no proof of work is charged (the user,
     # 2026-11-27).
     fig(
+        "kishu_claim_error_128",
+        tex_pow2(-math.floor(2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR))),
+    )
+    fig(
         "kishu_claim_grind_bits",
         math.ceil(TRANSCRIPT_SECURITY_BITS - (2 * Q64_BITS - math.log2(LEVEL3_CLAIM_NUMERATOR))),
     )
@@ -7117,13 +7129,21 @@ def define_figures():
     # The claim field and the transcript hash that the level needs.
     lost = math.log2(LEVEL3_CLAIM_NUMERATOR)
     fig("level3_claim_numerator", LEVEL3_CLAIM_NUMERATOR)
+    # The level's field is set by the largest loss factor of any one challenge, which is the
+    # ring-switch challenge's for the 64-bit modulus.
+    lost = math.log2(LEVEL3_RING_SWITCH_LOSS["q64"])
+    lost_fp128 = math.log2(LEVEL3_RING_SWITCH_LOSS["fp128"])
+    fig("level3_ring_dimension", fmt(LEVEL3_INNER_RING_DIMENSION["q64"]))
+    fig("level3_ring_switch_loss", fmt(LEVEL3_RING_SWITCH_LOSS["q64"]))
     fig("level3_claim_bits_needed", LEVEL3_FLOOR + math.ceil(lost))
     fig("level3_claim_error_128", tex_pow2(-math.floor(128 - lost)))
     fig("level3_claim_error_cubic", tex_pow2(-math.floor(3 * Q64_BITS - lost)))
     claim(
         "level3_claim_field_reaches_level",
-        "the error of Kishu's claim reduction is below 2^-165 in the cubic extension of the 64-bit field and above it in a 128-bit field, and the level's claims are in the cubic extension for the 64-bit profiles and in the 128-bit field's quadratic extension",
-        3 * Q64_BITS - lost >= LEVEL3_FLOOR > 128 - lost
+        "the largest loss factor of a challenge at the level is the ring-switch challenge's, above the numerator of Kishu's claim reduction; its error is below 2^-165 in the cubic extension of the 64-bit field and in the quadratic extension of the 128-bit field, and above 2^-165 in a 128-bit field; and the level's claims are in those extensions",
+        LEVEL3_RING_SWITCH_LOSS["q64"] > LEVEL3_CLAIM_NUMERATOR
+        and 3 * Q64_BITS - lost >= LEVEL3_FLOOR > 128 - lost
+        and 2 * 128 - lost_fp128 >= LEVEL3_FLOOR
         and LEVEL3_CLAIM_BYTES == {"fp128": 32, "goldilocks": 24, "kishu": 24},
     )
     fig("level3_state_bits_needed", 2 * LEVEL3_FLOOR)
