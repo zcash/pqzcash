@@ -56,8 +56,8 @@ at most two in the digits, with no constant term, set equal to zero or to a publ
 out the constant term loses no generality: if one public input is the constant 1 and one witness bit
 is constrained to equal it, a constant term in any constraint is a multiple of that bit.
 
-That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by a
-range check, not by a constraint per digit. For the bit positions it is the Booleanity check.
+That every entry of $\mathbf{w}$ lies in its alphabet is enforced for the whole witness at once by
+[the range check](#the-range-check), not by a constraint per digit.
 
 ### Committing the witness using Akita
 
@@ -77,6 +77,59 @@ The products' offset terms are linear in $\mathbf{w}'$, so they are absorbed int
 row, and the constant $k_j$ is a multiple of the constant bit as before. So the offsets are a detail
 of the implementation, cancelled in the coefficients when the circuit is compiled, and the
 arithmetization does not depend on the commitment scheme's alphabets.
+
+### The range check
+
+The range check is Akita's, extended to digits of several widths in one witness. Akita checks one
+alphabet for a whole table, and its smallest alphabet has four values. Kishu's bits follow the same
+pattern at two values.
+
+**The committed digits.** Every digit is committed balanced. A digit with an alphabet of $b$ values
+is held as $w' \in \{-b/2, \ldots, b/2 - 1\}$, so its offset in $\mathbf{o}$ is $b/2$: 1 for a bit,
+2 for a dibit, and 4 for a tribit.
+
+**The range image.** The balanced values $k$ and $-1-k$ give the same product
+$w'(w'+1) = k(k+1)$. Define the range image of position $x$ as $S(x) = w'(x)\,(w'(x)+1)$. Then
+$w'(x)$ is in the alphabet of $b$ values exactly when $R_b(S(x)) = 0$, where
+
+$$R_b(T) = \prod_{k=0}^{b/2-1} \bigl(T - k(k+1)\bigr).$$
+
+So $R_2(T) = T$, $R_4(T) = T(T-2)$, and $R_8(T) = T(T-2)(T-6)(T-12)$. The balanced alphabets are
+nested, which is why the range image is the same formula at every position. Only the polynomial
+applied to it depends on the position's width.
+
+**The layout.** A circuit orders its positions by width: tribits at $[0, t_1)$, dibits at
+$[t_1, t_2)$, and bits at $[t_2, N)$. The order costs nothing, since a position is only a column
+index of the coefficient matrices. The thresholds $t_1$ and $t_2$ are part of the circuit's
+description.
+
+**The check.** There are two claims. Write $[P]$ for 1 if $P$ holds and 0 otherwise.
+
+1. For the dibits and tribits, Akita's range sum-check. The verifier draws a point $\tau$, and the
+   prover shows
+   $$0 = \sum_{x < 2^j} \operatorname{eq}(\tau, x)\; S(x)\,\bigl(S(x) - 2\bigr)\,\Bigl([t_1 \le x < t_2] + [x < t_1]\,\bigl(S(x) - 6\bigr)\bigl(S(x) - 12\bigr)\Bigr),$$
+   where $j$ is least with $2^j \ge t_2$. The table $S$ is virtual: it is not committed. The
+   sum-check ends at a point $r$, with a value $s$ that the prover sends for $\widetilde S(r)$.
+2. One term more in the constraint sum-check, for a fresh point $\tau'$ and a batching scalar
+   $\alpha$:
+   $$\sum_{x < N} \Bigl(\alpha \operatorname{eq}(\tau', x)\,[x \ge t_2] + \operatorname{eq}(r, x)\,[x < t_2]\Bigr)\; w'(x)\,\bigl(w'(x) + 1\bigr) = s.$$
+   Its first part says that every bit has range image zero, which is the Booleanity check. Its
+   second part ties $s$ to the committed witness.
+
+**Who checks it.** A step's proofs are verified by the merge of the next step. That merge takes
+$t_1$ and $t_2$ as private inputs, bound to the circuit's description as the coefficient matrices
+are. It evaluates each indicator's multilinear extension at the sum-check's final point, which
+takes a number of multiplications linear in the number of variables. Nothing that depends on the
+thresholds is folded.
+
+**Its cost.** Every digit pays one product, in the second claim. A dibit pays one more and a tribit
+three more, in the first.
+
+**Its soundness.** In $\mathbb{F}_q$, $w'(w'+1) = k(k+1)$ forces $w' = k$ or $w' = -1-k$, so no
+lift to the integers is needed. The first claim's error is at most $7j/\lvert E \rvert$: $j$ for
+the random point, and six for each variable of the sum-check. [Kishu's Soundness
+Obligations](kishu-soundness.md) states the bits' part as its Theorem B. The statement for dibits
+and tribits in a mixed witness is not yet written there.
 
 ### Relation to R1CS
 
@@ -149,17 +202,10 @@ carry, an amount, or an element of $\mathbb{F}_q$. A dibit or a bit takes the re
 is not a multiple of three. The commitment, the fold, and the mask cost the same per digit at any of
 these widths.
 
-The range check does depend on the width. It is Akita's, which calls it the paired predicate. Akita
-holds a digit of $b$ values balanced, in $\{-b/2, \ldots, b/2 - 1\}$. Those values pair up: $k$ and
-$-1-k$ give the same product $w(w+1) = k(k+1)$. So over the alphabet $w(w+1)$ takes only $b/2$
-values, and $w$ is in the alphabet exactly when $w(w+1)$ is a root of a fixed polynomial $Q$ of
-degree $b/2$. For a tribit, $Q(r) = r(r-2)(r-6)(r-12)$. For a bit, $Q(r) = r$, and the check is
-the Booleanity check $w(w+1) = 0$ on the balanced bit.
-
-The check costs one product to form $w(w+1)$ and $b/2 - 1$ more to evaluate $Q$, so $b/2$ products
-a digit. That is one product a bit, two a dibit, and four a tribit. Three bits cost three digits'
-commitment and three products; a tribit costs one digit's commitment and four products. So a tribit
-holds three bits for a little over a third of their cost.
+[The range check](#the-range-check) does depend on the width: it costs $b/2$ products for a digit
+with an alphabet of $b$ values. That is one product a bit, two a dibit, and four a tribit. Three
+bits cost three digits' commitment and three products; a tribit costs one digit's commitment and
+four products. So a tribit holds three bits for a little over a third of their cost.
 
 A word of $\ell < 64$ bits is a linear combination of its digits, which costs nothing to form. Bit
 vectors of any fixed length can be represented directly, as can elements of $\mathbb{F}_q$
@@ -230,14 +276,15 @@ each constraint's sides within a range no larger than $q$, the limb route, or by
 instances as BitZ does, the fingerprint route.
 
 The piece that such a combination needs is a range check over the lattice's own prime field, to
-certify that every digit lies in its alphabet. For the wider digits that is Akita's own paired
-predicate, a sum-check of degree $b/2$ for an alphabet of $b$ values. For the bits it is a
-Booleanity check, and an internal research draft of September 2026, provisional and unreviewed,
-supplies one. The committed table's bits are certified by one unweighted quadratic identity plus an
-integer norm bound, which a structured random projection supplies by revealing 160 coordinates. So
-BitZ's exponent-lift GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of its prover, is not needed.
-The draft measures the reduction alone, single-threaded at $2^{27}$ bits over $2^{64} - 59$. The
-projection prover takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms
+certify that every digit lies in its alphabet. For the wider digits that is Akita's own range
+sum-check, and for the bits it is a Booleanity check, combined as [the range
+check](#the-range-check) above describes. For the Booleanity check, an internal research draft of
+September 2026, provisional and unreviewed, supplies one. The committed table's bits are certified
+by one unweighted quadratic identity plus an integer norm bound, which a structured random
+projection supplies by revealing 160 coordinates. So BitZ's exponent-lift
+GKR, <!--fig:bitz_gkr_share_pct-->80<!--/fig-->% of its prover, is not needed. The draft measures
+the reduction alone, single-threaded at $2^{27}$ bits over $2^{64} - 59$. The projection prover
+takes <!--fig:bool_projection_prover_ms-->113<!--/fig--> ms
 against <!--fig:bool_sumcheck_prover_ms-->438<!--/fig--> ms for the optimized conventional
 Booleanity sum-check, with verifiers of <!--fig:bool_projection_verify_ms-->0.85<!--/fig-->
 and <!--fig:bool_sumcheck_verify_ms-->0.023<!--/fig--> ms and payloads
