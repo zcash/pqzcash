@@ -5692,3 +5692,71 @@ holds the level's plan at 66eb9dd, and the branch `level3-165-first-draft` in th
 superseded draft for the user to delete. The Akita test fixes owed are in the entry of 04:40.
 Probes from today are under `work/` (`field-probe.py`, `field-variants-probe.py`,
 `lattice165-probe.py`, `transcript-target-sweep.sh`, `pad-probe.py`).
+
+## 2026-11-28, 01:00 UTC: mixed alphabets, packing, a static cap, and Sapling recovery
+
+Since the end-of-session entry, on `security-192` (local, unpushed): "the 165-bit level" in
+comments, claims, and scripts (7457867); the range check's cost by digit width explained on the
+arithmetization page (106e338); a static cap for the recovery circuit's Merkle path (699e406).
+The branch `sapling-recovery` is stacked on `security-192` for the Sapling work below, which the
+user wants as a separate PR.
+
+**The range check with mixed alphabets was never worked out.** Theorem B covers bits only. A
+draft, `work/mixed-alphabet-range-check.md` (untracked, rendered beside it), has the mechanism:
+
+- Commit every digit balanced about -1/2 (a bit in {-1, 0}), so that the range image
+  S = w(w+1) is one formula at every position and only the polynomial applied to it varies:
+  T for a bit, T(T-2) for a dibit, T(T-2)(T-6)(T-12) for a tribit.
+- Bits need no Stage 1: S = 0 is a quadratic claim, batched into the constraint sum-check with
+  the binding of Akita's virtual range image. The wide digits get Akita's Stage 1 with
+  selectors. Cost: one product a digit, plus one for a dibit and three for a tribit, as the
+  model counts.
+- Sort the witness by alphabet (free: positions are column indices). The selectors are then
+  interval indicators with arbitrary thresholds, whose multilinear extensions cost O(n).
+- The user: only the merge of the next step needs a step's thresholds, as private inputs bound
+  to the circuit's description like the matrices; nothing circuit-specific is folded. A step's
+  threshold is the sum of its parts' counts.
+- NOT YET on any page, and Theorem B is not restated. OWED: the arithmetization page says the
+  bit case is Akita's, which overstates (Akita's bases start at 4).
+
+**Two bits for one product.** A draft, `work/paired-booleanity.md`, in Dao and Thaler's notation
+with F for the base field and E for the extension (the user's preference). Packing the two
+halves of a subfield-valued table along a fixed basis is their "simple constraint packing"
+(ePrint 2024/1038, section 5; possibly folklore; keep/2024-1038.pdf). The part not found in
+2024/1038, 2024/1046, or 2026/762: with the same quadratic constraint on both halves, the
+packed form is a binary quadratic form and factors, (x - s y)(x + s y), for s^2 not in F. The
+user will ask Quang Dao and Justin Thaler whether it is known. Its section 6 is WRONG as it
+stands: it leaves out the multiplication by the eq weight. Counted with weights against
+Akita's kernel, the factoring saves a sixth of the later rounds' products at best.
+
+**Measured in Akita** (branch `packed-range-check` in the 147-bit worktree, commit 47f0bb5: a
+harness `benches/stage1_range.rs`; logs under work/). Stage 1 alone, one thread, the 64-bit
+preset: basis 4 takes 2.15 ns a digit at 2^24 (2.78 at 2^20); basis 8 takes 4.81 ns at 2^24,
+5.70 at 2^22, 9.08 at 2^20. Akita already runs four small-value rounds from class tables and
+materializes a sixteenth of the table, so packing and factoring could save perhaps 5% to 10%
+of Stage 1; not built. A FINDING FOR THE MODEL: it charges a tribit's Stage 1 at 9.8 ns (three
+products at the Booleanity rate), about twice Akita's rate on large tables, and has no
+threshold (Akita's class-table path needs 262,144 live tribits). Stage 1 is 21% of the
+recovery transaction by the model.
+
+**The static cap** (the user and Jack Grigg, Zcon3, first for Sprout): the frozen tree's nodes
+at some depth are a table selected by the position's top bits, compared as four 64-bit limbs;
+sound when every cap limb is in [59, q), else the tree is rehashed under another BLAKE3
+personalization (the user: no fallback). Best depth 14 for Kishu, 36% of the path, 1.6% of the
+transaction. OWED: the frontier's rows do not use the cap (the user asked why not; no good
+reason); the tree's depth should be what the frozen set needs, not 32, and that saving belongs
+to the rehash, not the cap.
+
+**Tree sizes**, from a zebrad at height 3,579,090 (not fully synced): Sapling 74.0 million
+commitments (2^26.1), Orchard 50.5 million (2^25.6).
+
+**Sapling recovery, to add as a transaction type like Ironwood's** (the user's statement): a
+reduced Sapling Spend statement; the tree rehashed, shallower, with a cap; no value commitment
+integrity; otherwise the same, with a public RedJubjub signature and a revealed nullifier for
+each spent note and the total spent value; leaf cm_u and positions unchanged. It is not
+quantum-recoverable; it is for use before Q-day. A page "Recovery from Sapling". My count for
+Kishu, which the user accepted: about 147 table selections with a Jubjub addition each (65 of
+9 bits for the Pedersen commitment's 582 bits; 26 each of 10 bits for rcm, nsk, and alpha; 4
+for the position), about 4,300 multiplications in Jubjub's base field (3,300 of them the
+variable-base [ivk] g_d), two BLAKE2s compressions, and the path. Every family emulates that
+field, Pasta included.
