@@ -40,8 +40,8 @@ UNIT_AHEAD = re.compile(rf"[ \t]*\n?[ \t]*(?=(?:{UNITS})(?![\w-]))")
 # A number in running text and the white space before its unit.
 IN_TEXT = re.compile(rf"(?<=\d)(?:[ \t]+|[ \t]*\n[ \t]*)(?=(?:{UNITS})(?![\w-]))")
 SPAN = re.compile(
-    r"(?P<figure><!--fig:[^>]*-->.*?<!--/fig-->)"  # a figure marker with its value
-    r"|(?P<comment><!--.*?-->)"  # any other comment, such as a claim marker
+    r"(?P<figure><!--fig:[^>]*--!?>.*?<!--/fig--!?>)"  # a figure marker with its value
+    r"|(?P<comment><!--.*?--!?>)"  # any other comment, such as a claim marker
     r"|(?P<display>\$\$.*?\$\$)"  # display math
     r"|(?P<math>\$[^$\n]*?\$)"  # inline math
     r"|(?P<code>`[^`\n]*`)"  # inline code
