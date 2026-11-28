@@ -44,8 +44,8 @@ in <!--fig:sigtx_slhdsa_147_s-->8.20<!--/fig--> s on one core,
 in <!--fig:sigtx_slhdsa_147_steps-->7<!--/fig--> steps of a step
 of <!--fig:sigtx_slhdsa_147_rank-->$1.25 \times 2^{25}$<!--/fig--> digits. The same transaction with
 leanSPHINCS over BLAKE3 takes <!--fig:sigtx_leansphincs_147_s-->0.110<!--/fig--> s. The frontier
-page's transaction list has the SLH-DSA transaction, marked as for illustration only, so that its
-cost can be seen under any family and floor.
+page's transaction list has the SLH-DSA transaction, so that its cost can be seen under any family
+and floor.
 
 ## With the proof system at NIST Level 3
 
