@@ -46,7 +46,7 @@ $2^{21}$ digits, <!--fig:zoodles_actions_per_step_22-->50<!--/fig--> in one of 
 and <!--fig:zoodles_actions_per_step_23-->130<!--/fig--> in one of $2^{23}$. A transaction's first
 step holds no merge, so it has that much more room. A transaction of two inputs and two outputs is
 four actions, and in a step
-of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits it fits
+of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$1.625 \times 2^{20}$<!--/fig--> digits it fits
 in <!--fig:tx_zoodles_preimage_kishu_zk_steps-->1<!--/fig--> step. Tachyon's tree proves the same
 transaction in <!--fig:tachyon_tree_nodes-->12<!--/fig--> steps, two for each spend or output, three
 merges, and the fee, and then rerandomizes. An authorization by leanSPHINCS with BLAKE3
@@ -147,17 +147,17 @@ beside it, and [The epoch's tachygram set](zoodles-epoch-set.md) compares the re
 
 On one core, in Kishu, for two inputs and two outputs: a transaction authorized by preimage
 is <!--fig:app_zoodles_preimage_kishu-->240,013<!--/fig--> committed digits and
-takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0209<!--/fig--> s with zero knowledge in a step
-of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$2^{20}$<!--/fig--> digits,
-or <!--fig:tx_zoodles_preimage_kishu_s-->0.00232<!--/fig--> s without. One authorized by leanSPHINCS
+takes <!--fig:tx_zoodles_preimage_kishu_zk_s-->0.0312<!--/fig--> s with zero knowledge in a step
+of <!--fig:tx_zoodles_preimage_kishu_zk_rank-->$1.625 \times 2^{20}$<!--/fig--> digits,
+or <!--fig:tx_zoodles_preimage_kishu_s-->0.00241<!--/fig--> s without. One authorized by leanSPHINCS
 with BLAKE3 is <!--fig:app_zoodles_leansphincs_blake3_kishu-->3.67 million<!--/fig--> digits
 and <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_s-->0.110<!--/fig--> s with zero knowledge in a
 step
 of <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_rank-->$1.875 \times 2^{21}$<!--/fig--> digits,
 in <!--fig:tx_zoodles_leansphincs_blake3_kishu_zk_steps-->1<!--/fig--> steps; the frontier page has
 the BLAKE2s and Keccak variants. Tachyon's own four tachyactions in Kishu with zero knowledge
-take <!--fig:tx_tachyon4_kishu_zk_s-->0.0966<!--/fig--> s, so Zoodles by preimage
-is <!--fig:zoodles_preimage_of_tachyon_pct-->22<!--/fig--> percent of them; on Pedersen-IPA they
+take <!--fig:tx_tachyon4_kishu_zk_s-->0.125<!--/fig--> s, so Zoodles by preimage
+is <!--fig:zoodles_preimage_of_tachyon_pct-->25<!--/fig--> percent of them; on Pedersen-IPA they
 take <!--fig:tx_tachyon4_pedersen_s-->8.44<!--/fig--> s. At these step ranks a step commits
 $2^{\text{step rank}}$ bits, between a quarter and the whole of Ragu's $2^{13}$ Pallas coefficients
 in bits, which is the fifth bullet above. The [frontier

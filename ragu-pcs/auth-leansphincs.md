@@ -49,14 +49,14 @@ is <!--fig:app_leansphincs_keccak_kishu-->24.2 million<!--/fig-->, <!--fig:lean
 times BLAKE2s's, which is Ethereum's open hash question seen from the circuit.<!--/claim--> In a
 Boolean circuit with XOR free the Keccak-to-BLAKE2s ratio
 is <!--fig:leansphincs_keccak_over_blake2s_boolean-->2.3<!--/fig-->. With zero knowledge Kishu
-proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.102<!--/fig--> s on one
+proves the BLAKE3 verifier in <!--fig:tx_leansphincs_blake3_kishu_zk_s-->0.103<!--/fig--> s on one
 M4 core in a step
 of <!--fig:tx_leansphincs_blake3_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits, the BLAKE2s
-one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.145<!--/fig--> s in a step
+one in <!--fig:tx_leansphincs_blake2s_kishu_zk_s-->0.146<!--/fig--> s in a step
 of <!--fig:tx_leansphincs_blake2s_kishu_zk_rank-->$1.25 \times 2^{22}$<!--/fig--> digits, and the
-Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.781<!--/fig--> s in a step
-of <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->$1.625 \times 2^{22}$<!--/fig--> digits,
-beside <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s for the recovery circuit itself.
+Keccak one in <!--fig:tx_leansphincs_keccak_kishu_zk_s-->0.801<!--/fig--> s in a step
+of <!--fig:tx_leansphincs_keccak_kishu_zk_rank-->$1.125 \times 2^{23}$<!--/fig--> digits,
+beside <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s for the recovery circuit itself.
 Ethereum's draft fixes Keccak-256 as the scheme's only primitive, and the circuit and the device
 both argue against it. If Ethereum keeps Keccak, there is no compatibility to gain from BLAKE2s
 either, and the choice is between Keccak and BLAKE3, Zoodles' own hash and the cheapest of the three

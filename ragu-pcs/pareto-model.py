@@ -5374,6 +5374,7 @@ def best_for(family, app, policy="blake3", count=1, **kw):
 
 
 KISHU = ("bits_q64", "bits_q64_poseidon")  # Kishu's two hash variants, a family each on the page
+KISHU_DEFAULT = ("bits_q64",)  # the variant shown with arithmetic hashes excluded, the default
 
 
 def step_rank_text(p):
@@ -5383,10 +5384,12 @@ def step_rank_text(p):
 
 
 def kishu_best(app, **kw):
-    """Kishu's least-transaction row over both variants under the arithmetic-hash option."""
+    """Kishu's least-transaction row under the page's default, which excludes arithmetic
+    hashes: the BLAKE3 variant's. The text quotes these, so that a reader with the page at its
+    defaults finds them."""
     rows = {k: v for k, v in kw.items() if k != "count"}
     return min(
-        (best_for(f, app, "poseidon", **kw) for f in KISHU if shown(f, "poseidon", **rows)),
+        (best_for(f, app, "blake3", **kw) for f in KISHU_DEFAULT if shown(f, "blake3", **rows)),
         key=lambda pw: pw[1],
     )
 
@@ -5416,17 +5419,17 @@ def kishu_zk_costs(p, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS):
 
 
 def kishu_zk_best(app, alpha=MASK_ALPHA, sample=MASK_SAMPLE_WORD_MULTS, count=1):
-    """Kishu's least zero-knowledge transaction over both variants and routes, the page's rows
-    with their mask-dependent costs recomputed at `alpha` and `sample`; at the page's values it
-    is kishu_best(app, zk=True, count=count) without the self-check's record."""
+    """Kishu's least zero-knowledge transaction over both routes of its BLAKE3 variant, the
+    page's rows with their mask-dependent costs recomputed at `alpha` and `sample`; at the
+    page's values it is kishu_best(app, zk=True, count=count) without the self-check's record."""
     best = None
-    for f in KISHU:
-        for p in shown(f, "poseidon", zk=True):
+    for f in KISHU_DEFAULT:
+        for p in shown(f, "blake3", zk=True):
             costs = kishu_zk_costs(p, alpha, sample)
             if costs is None:
                 continue
             q = dict(p, **costs[0])
-            w = tx_work(q, app, "poseidon", count)
+            w = tx_work(q, app, "blake3", count)
             if best is None or w < best[1]:
                 best = (q, w)
     return best
@@ -6064,8 +6067,8 @@ def define_figures():
         fig(f"tx_{app}_goldilocks_s", secs(w))
     claim(
         "zoodles_preimage_quarter",
-        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a quarter of the one by leanSPHINCS signature with BLAKE3",
-        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs_blake3"] / 4,
+        "in Kishu with zero knowledge the Zoodles transaction by preimage costs under a third of the one by leanSPHINCS signature with BLAKE3",
+        zoodles_zk["zoodles_preimage"] < zoodles_zk["zoodles_leansphincs_blake3"] / 3,
     )
     claim(
         "zoodles_merkle_paths_most",

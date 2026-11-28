@@ -26,8 +26,8 @@ $\mathsf{SoK^{qsk}}$ as a signature scheme with key $\mathsf{qk}$, 1-of-$n$, whi
 adversary corrupting up to $t - 1$ wallets is bounded by re-randomized FROST; [Hardware
 wallets](hardware-wallets.md) sets out that model. The frontier page prices the recovery circuit as
 an application: in Kishu with zero knowledge it
-takes <!--fig:tx_recovery_kishu_zk_s-->0.116<!--/fig--> s on one core in a step
-of <!--fig:tx_recovery_kishu_zk_rank-->$1.75 \times 2^{21}$<!--/fig--> digits.
+takes <!--fig:tx_recovery_kishu_zk_s-->0.126<!--/fig--> s on one core in a step
+of <!--fig:tx_recovery_kishu_zk_rank-->$2^{22}$<!--/fig--> digits.
 
 ## The signature method as an arm of the Recovery Statement
 
@@ -70,8 +70,8 @@ deep<!--/claim-->: <!--fig:recovery_cap_entries-->16,384<!--/fig--> nodes,
 or <!--fig:recovery_cap_kb-->524 kbytes<!--/fig-->, for each node and wallet to hold, and a
 selection of <!--fig:recovery_cap_terms-->64,516<!--/fig--> terms. With zero knowledge it
 saves <!--fig:recovery_cap_path_pct-->36<!--/fig-->% of the path's prover work. That
-is <!--fig:recovery_cap_tx_pct-->1.6<!--/fig-->% of the recovery transaction's, since the path
-is <!--fig:recovery_path_tx_pct-->4.3<!--/fig-->% of it. A cap one level shallower saves
+is <!--fig:recovery_cap_tx_pct-->1.4<!--/fig-->% of the recovery transaction's, since the path
+is <!--fig:recovery_path_tx_pct-->4.0<!--/fig-->% of it. A cap one level shallower saves
 within <!--fig:recovery_cap_shallower_pct-->0.06<!--/fig-->% of that at half the size. If the frozen
 tree is not full, the levels above its occupied part hash against constant empty roots, and a cap
 rooted at the occupied part removes those levels as well, at no cost. The other arithmetizations are

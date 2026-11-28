@@ -61,10 +61,10 @@ folds the leaf, and a small merge of the handoff's own: the challenge derivation
 identity, and the claim fold. The decomposition and the range and norm proofs are deferred to the
 host (the zk note's [§5.8](zk-fiat-shamir-with-aborts.md#58-the-users-online-cost)). For a
 one-compression leaf the host's merge is most of the cost. <!--claim:qk_merge_and_fold:44a4b2-->The
-measure's <!--fig:tx_qk_kishu_zk_s-->0.0247<!--/fig--> s in a step
-of <!--fig:tx_qk_kishu_zk_rank-->$1.875 \times 2^{19}$<!--/fig--> digits
-is <!--fig:tx_qk_kishu_zk_merges_pct-->93<!--/fig--> percent merge
-and <!--fig:tx_qk_kishu_zk_fold_pct-->9<!--/fig--> percent fold, and the circuit itself is a few
+measure's <!--fig:tx_qk_kishu_zk_s-->0.0336<!--/fig--> s in a step
+of <!--fig:tx_qk_kishu_zk_rank-->$1.75 \times 2^{20}$<!--/fig--> digits
+is <!--fig:tx_qk_kishu_zk_merges_pct-->99<!--/fig--> percent merge
+and <!--fig:tx_qk_kishu_zk_fold_pct-->8<!--/fig--> percent fold, and the circuit itself is a few
 percent.<!--/claim-->
 
 The wallet need not prove that fold. The zk note's
@@ -125,7 +125,7 @@ response:
 So the wallet
 commits <!--fig:qk_device_digits-->19,840<!--/fig--> digits. <!--claim:qk_device_share_small:35dfe3-->That
 is <!--fig:qk_device_online_ms-->0.224<!--/fig--> ms of online work on one M4
-core, <!--fig:qk_device_share_pct-->10<!--/fig--> percent of the handoff fold that the measure
+core, <!--fig:qk_device_share_pct-->9<!--/fig--> percent of the handoff fold that the measure
 charges the user,<!--/claim--> with <!--fig:qk_device_idle_ms-->0.280<!--/fig--> ms in idle time,
 and a response of <!--fig:qk_device_z_kbytes-->55 kbytes<!--/fig-->
 at <!--fig:qk_device_z_bits-->22<!--/fig--> bits a coordinate. The device rates are assumptions,
